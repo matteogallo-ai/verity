@@ -1,0 +1,32 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: verity
+      POSTGRES_PASSWORD: verity
+      POSTGRES_DB: verity
+    ports:
+      - "5432:5432"
+    volumes:
+      - verity-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U verity -d verity"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      VERITY_DATABASE_URL: postgresql://verity:verity@db:5432/verity
+      VERITY_ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      VERITY_OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    ports:
+      - "8000:8000"
+    command: ["verity", "serve", "--host", "0.0.0.0", "--port", "8000"]
+
+volumes:
+  verity-db:

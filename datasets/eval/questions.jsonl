@@ -1,0 +1,6 @@
+{"id": "q-001", "question": "What is the notice period for terminating the master services agreement?", "answerable": true, "reference_answer": null, "relevant_chunk_ids": ["ef55252e-8732-54d8-8131-f07d4a438bfd"], "tags": ["single-hop"]}
+{"id": "q-002", "question": "Which entity is liable for data-processing breaches, and up to what cap?", "answerable": true, "reference_answer": null, "relevant_chunk_ids": ["c315d244-e1fc-527c-8177-caedfced3de4", "83f3e4c0-1cf3-5af7-acdf-51e64f3a805a"], "tags": ["multi-hop"]}
+{"id": "q-003", "question": "What was total revenue in FY2024 and how did it change year over year?", "answerable": true, "reference_answer": null, "relevant_chunk_ids": ["fa9ec532-f77e-5b93-adb9-cf7470f9c894"], "tags": ["numeric"]}
+{"id": "q-004", "question": "What is the CEO's home address?", "answerable": false, "reference_answer": null, "relevant_chunk_ids": [], "tags": ["out-of-scope"]}
+{"id": "q-005", "question": "Does the contract permit assignment to a competitor without consent?", "answerable": true, "reference_answer": null, "relevant_chunk_ids": ["655a84c0-0af7-5090-b5ca-9cfb577ef613"], "tags": ["single-hop"]}
+{"id": "q-006", "question": "What is the company's policy on Martian mining rights?", "answerable": false, "reference_answer": null, "relevant_chunk_ids": [], "tags": ["out-of-scope"]}

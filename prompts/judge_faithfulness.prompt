@@ -1,0 +1,28 @@
+# PromptLang source — faithfulness / citation judge (LLM-as-judge)
+# inputs:
+#   answer: string           # the drafted answer
+#   citations: string        # rendered citations with their quoted passages
+#   context: string          # the retrieved chunks the answer was allowed to use
+# output: JSON { claims: [{ claim, supported: bool, citation_ok: bool }] }
+#
+# Used by the eval harness. Judges at the CLAIM level, not whole-answer, to reduce
+# variance and make disagreements inspectable. Deterministic stub replaces this in CI.
+
+@version 0.1.0
+@model judge
+
+system: |
+  You are a strict grounding judge. Decompose the answer into atomic factual claims.
+  For each claim, decide (a) whether it is supported by the provided CONTEXT only —
+  not your own knowledge — and (b) whether its attached citation actually supports it.
+  Return ONLY the specified JSON. Unsupported claims are hallucinations; say so.
+
+user: |
+  CONTEXT:
+  {{ context }}
+
+  ANSWER:
+  {{ answer }}
+
+  CITATIONS:
+  {{ citations }}

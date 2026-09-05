@@ -1,0 +1,107 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: lint · typecheck · test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install (with dev group)
+        run: uv sync --dev
+
+      - name: Ruff (lint + format check)
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Mypy (strict)
+        run: uv run mypy
+
+      - name: Pytest (unit + coverage)
+        run: uv run pytest -m "not integration"
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.xml
+
+  integration:
+    name: integration (pgvector round-trip)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: verity
+          POSTGRES_PASSWORD: verity
+          POSTGRES_DB: verity
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U verity -d verity"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      VERITY_DATABASE_URL: postgresql://verity:verity@localhost:5432/verity
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install (with dev group)
+        run: uv sync --dev
+
+      - name: Apply migrations
+        run: uv run verity db upgrade
+
+      - name: Pytest (integration lane)
+        run: uv run pytest -m integration
+
+  evaluation:
+    name: eval harness (deterministic)
+    runs-on: ubuntu-latest
+    # Runs the eval suite in CI mode: local embeddings + stubbed judge, no API keys.
+    # Real headline scorecard is produced out-of-band from a full run (see docs/evaluation-methodology.md).
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install
+        run: uv sync --dev
+
+      - name: Run eval (CI mode)
+        run: uv run verity eval run --dataset datasets/eval --ci

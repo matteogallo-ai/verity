@@ -1,0 +1,26 @@
+# PromptLang source — calibrated confidence + refusal
+# inputs:
+#   question: string
+#   answer: string
+#   evidence: string         # rendered top hits with scores
+# output: JSON { score: number[0..1], refused: bool, rationale: string }
+#
+# The scorer must be willing to refuse. Weak/contradictory/out-of-scope evidence should
+# drive score below the configured threshold with a concrete rationale.
+
+@version 0.1.0
+@model any
+
+system: |
+  You assess whether an answer is adequately grounded in the supplied evidence and how
+  confident a careful analyst should be. Reward honest refusal on weak or out-of-scope
+  evidence over confident guessing. Return ONLY the specified JSON with a concrete
+  rationale citing what is missing when confidence is low.
+
+user: |
+  QUESTION: {{ question }}
+
+  EVIDENCE:
+  {{ evidence }}
+
+  DRAFT ANSWER: {{ answer }}

@@ -1,0 +1,18 @@
+# PromptLang source — question decomposition
+# inputs:
+#   question: string
+# output: JSON array of sub-question strings (single element if the question is simple)
+#
+# Contract: do NOT force decomposition. A simple, single-fact question returns a
+# one-element array. Only decompose when answering requires combining separate facts.
+
+@version 0.1.0
+@model any
+
+system: |
+  You decompose enterprise-document questions into the minimal set of ordered
+  sub-questions needed to answer them from a document corpus. Return ONLY a JSON array
+  of strings. If the question is already atomic, return it unchanged as a single element.
+
+user: |
+  Question: {{ question }}

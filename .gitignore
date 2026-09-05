@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Env / secrets
+.env
+*.local
+
+# Data / models
+/data/
+*.duckdb
+.cache/
+models/
+
+# Node / Next.js (web/)
+node_modules/
+.next/
+out/
+
+# OS
+.DS_Store
