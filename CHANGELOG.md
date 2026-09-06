@@ -6,6 +6,47 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-09-06
+
+### Added
+- **S3 — agentic RAG with citations + calibrated refusal.**
+  - **LLM runtime** (`verity.llm`): `AnthropicClient`, `OpenAIClient` (vendor
+    errors translated to `AuthenticationError` / `ProviderUnavailableError`),
+    `StubLLMClient` (scripted, offline, deterministic). Thin `.prompt` adapter
+    (per ADR 0004) parses the shipped PromptLang sources and renders them into
+    `Message` lists with strict variable substitution.
+  - **`MultiProviderRoutingClient`**: honours `settings.provider_order`.
+    `ProviderUnavailableError` triggers ordered fallback; **`AuthenticationError`
+    short-circuits** (no silent fallback across a bad key — audit-trail intent,
+    covered by a dedicated test).
+  - **Agent stack** (`verity.agent`):
+    - `LLMQuestionDecomposer` — parses JSON list, degrades to `[question]` on
+      malformed output, cap at `settings.max_agent_steps`.
+    - `CitedSynthesizer` — draft answer + validated `Citation`s. Every citation's
+      `quote` is verified to be a verbatim substring of the referenced chunk and
+      the offsets are re-anchored to `document.text` (`chunk.char_start + pos`).
+      Hallucinated citations are dropped.
+    - `LLMConfidenceScorer` — calibrated confidence + refusal against
+      `settings.confidence_threshold`; malformed scorer output forces refusal
+      (fail-open on principle).
+    - `RagAgent` orchestrator: decompose → per-sub-q retrieve → aggregate hits →
+      synthesize → score → refuse-or-ship. Refusal is a first-class output
+      (empty citations, honest "I don't know" text, rationale, hits_used
+      preserved for traceability).
+  - **`prompts/synthesize.prompt`** — new PromptLang source for cited-answer
+    synthesis (JSON schema `{answer, citations:[{quote, chunk_index}]}`).
+  - **CLI `verity ask`** — question → cited answer + confidence + rationale +
+    usage table. `--stub` flag runs the scripted responder end-to-end without
+    keys (same script the integration test asserts against).
+- **README**: one line under "Measured results" pointing to
+  `datasets/eval/runs/` so reviewers can find the actual retrieval scorecards
+  without waiting for S4.
+
+### Notes
+- No faithfulness / refusal numbers are published in this release — that
+  scorecard is S4. The retrieval scorecard from 0.3.0 remains the only
+  measured chiffre in the repo.
+
 ## [0.3.0] — 2026-09-06
 
 ### Added

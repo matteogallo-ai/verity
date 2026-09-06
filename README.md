@@ -52,6 +52,10 @@ _Demo GIF — S7._
 | Latency p50 / p99 | _pending S4_ | end-to-end |
 | Cost / query | _pending S4_ | USD |
 
+Retrieval is already measured on the pgvector backend — see
+[`datasets/eval/runs/`](datasets/eval/runs/). The full headline scorecard
+(retrieval + faithfulness + refusal) lands at S4 on an expanded corpus.
+
 Methodology, including how refusal is scored and why the dataset contains unanswerable
 questions, is in [`docs/evaluation-methodology.md`](docs/evaluation-methodology.md).
 

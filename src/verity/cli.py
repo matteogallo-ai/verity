@@ -21,7 +21,7 @@ from verity.config import get_settings
 
 if TYPE_CHECKING:
     from verity.retrieval.base import Retriever
-    from verity.types import RetrievalHit
+    from verity.types import Answer, RetrievalHit
 
 app = typer.Typer(
     name="verity",
@@ -126,6 +126,58 @@ def db_upgrade() -> None:
     else:
         console.print("[green]Database is up to date.[/green]")
     console.print(f"[dim]schema_migrations rows: {len(total)}[/dim]")
+
+
+@app.command()
+def ask(
+    question: Annotated[str, typer.Argument(help="Question to ask the corpus.")],
+    corpus: Annotated[
+        Path, typer.Option(help="Corpus directory to ingest into an in-memory store.")
+    ] = Path("datasets/corpus"),
+    in_memory: Annotated[
+        bool, typer.Option(help="Use an in-memory store (no Postgres required). Default: True.")
+    ] = True,
+    stub: Annotated[
+        bool,
+        typer.Option(
+            help=(
+                "Use a scripted stub LLM (same one the tests use) — no keys, offline. "
+                "Only knows the four demo themes."
+            )
+        ),
+    ] = False,
+) -> None:
+    """Answer a question with citations. Refuses honestly when the evidence is weak."""
+    from verity.agent import create_default_agent
+    from verity.agent.scripted_stub import build_stub_router
+    from verity.llm import create_default_routing_client
+
+    if not stub:
+        _require_llm_api_key()
+
+    retriever, _ = asyncio.run(
+        _build_retriever(corpus=corpus, in_memory=in_memory, no_rerank=False)
+    )
+    client = build_stub_router() if stub else create_default_routing_client()
+    agent = create_default_agent(retriever=retriever, client=client)
+    answer = asyncio.run(agent.answer(question))
+    _print_answer(answer)
+
+
+def _require_llm_api_key() -> None:
+    """Fail fast with an actionable message when no provider key is configured.
+
+    Refusing to fall back to the stub silently is the honest behaviour: the caller
+    asked for a real answer, so we surface the misconfiguration instead of quietly
+    serving them a scripted response.
+    """
+    settings = get_settings()
+    if settings.anthropic_api_key or settings.openai_api_key:
+        return
+    raise typer.BadParameter(
+        "No LLM API key configured — set VERITY_ANTHROPIC_API_KEY "
+        "(or VERITY_OPENAI_API_KEY), or run with --stub."
+    )
 
 
 @app.command()
@@ -341,6 +393,46 @@ async def _run_retrieve(
 ) -> list[RetrievalHit]:
     retriever, _ = await _build_retriever(corpus=corpus, in_memory=in_memory, no_rerank=no_rerank)
     return await retriever.retrieve(query, k=k)
+
+
+def _print_answer(answer: Answer) -> None:
+    """Render an :class:`Answer` for the terminal — refuses visibly when refused."""
+    header = (
+        "[bold red]REFUSED[/bold red]"
+        if answer.confidence.refused
+        else "[bold green]ANSWER[/bold green]"
+    )
+    console.print(
+        f"{header} · confidence=[bold]{answer.confidence.score:.2f}[/bold] "
+        f"(threshold=[dim]{get_settings().confidence_threshold:.2f}[/dim]) · "
+        f"trace_id=[dim]{answer.trace_id}[/dim]"
+    )
+    console.print()
+    console.print(answer.text)
+    if answer.confidence.rationale:
+        console.print(f"\n[dim]rationale:[/dim] {answer.confidence.rationale}")
+
+    if answer.citations:
+        console.print()
+        cit = Table(title="Citations", show_header=True, header_style="bold cyan")
+        cit.add_column("#", justify="right")
+        cit.add_column("chunk_id", overflow="fold")
+        cit.add_column("char span")
+        cit.add_column("quote", overflow="fold")
+        for i, c in enumerate(answer.citations):
+            cit.add_row(str(i), str(c.chunk_id), f"{c.char_start}-{c.char_end}", c.quote)
+        console.print(cit)
+
+    console.print()
+    usage = Table(show_header=False, box=None)
+    usage.add_column(style="dim")
+    usage.add_column(justify="right")
+    usage.add_row("input tokens", str(answer.usage.input_tokens))
+    usage.add_row("output tokens", str(answer.usage.output_tokens))
+    usage.add_row("llm calls", str(answer.usage.llm_calls))
+    usage.add_row("cost usd", f"{answer.usage.cost_usd:.4f}")
+    usage.add_row("latency ms", f"{answer.usage.latency_ms:.1f}")
+    console.print(usage)
 
 
 @app.command()

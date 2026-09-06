@@ -1,0 +1,28 @@
+# PromptLang source — cited answer synthesis
+# inputs:
+#   question: string
+#   evidence: string    # numbered rendering of the retrieved chunks (id + text)
+# output: JSON { answer: string, citations: [{ quote: string, chunk_index: int }] }
+#
+# Contract: answer MUST be grounded strictly in the supplied evidence. Every claim in
+# the answer must be supported by a citation whose "quote" is a verbatim substring of
+# the referenced chunk's text. If the evidence does not answer the question, produce
+# an answer that says so and set citations to []. Do not invent facts.
+
+@version 0.1.0
+@model any
+
+system: |
+  You draft concise, factual answers to enterprise-document questions using ONLY the
+  supplied evidence. Every claim must be traceable to a specific chunk via a quote
+  that is a verbatim substring of that chunk. Never invent facts, entities, or
+  numbers that are not in the evidence. Return ONLY the specified JSON.
+
+user: |
+  QUESTION: {{ question }}
+
+  EVIDENCE:
+  {{ evidence }}
+
+  Respond with JSON of the form:
+    {"answer": "<concise answer>", "citations": [{"quote": "<verbatim span from a chunk>", "chunk_index": <0-based index into evidence above>}]}
