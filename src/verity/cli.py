@@ -164,20 +164,25 @@ def ask(
     _print_answer(answer)
 
 
+MISSING_KEY_MESSAGE = (
+    "No LLM API key configured — set VERITY_ANTHROPIC_API_KEY "
+    "(or VERITY_OPENAI_API_KEY), or run with --stub."
+)
+
+
 def _require_llm_api_key() -> None:
     """Fail fast with an actionable message when no provider key is configured.
 
     Refusing to fall back to the stub silently is the honest behaviour: the caller
     asked for a real answer, so we surface the misconfiguration instead of quietly
-    serving them a scripted response.
+    serving them a scripted response. The message text is exposed as
+    :data:`MISSING_KEY_MESSAGE` so tests can assert on it directly without depending
+    on Rich's terminal-width-driven panel wrapping.
     """
     settings = get_settings()
     if settings.anthropic_api_key or settings.openai_api_key:
         return
-    raise typer.BadParameter(
-        "No LLM API key configured — set VERITY_ANTHROPIC_API_KEY "
-        "(or VERITY_OPENAI_API_KEY), or run with --stub."
-    )
+    raise typer.BadParameter(MISSING_KEY_MESSAGE)
 
 
 @app.command()
