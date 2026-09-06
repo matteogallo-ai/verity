@@ -1,0 +1,52 @@
+{
+  "aggregate": {
+    "k": 8,
+    "ndcg_at_k": 0.8770362672273767,
+    "precision_at_k": 0.15625,
+    "recall_at_k": 1.0
+  },
+  "backend": "in-memory",
+  "created_at": "2026-09-06T12:59:11.092183+00:00",
+  "dataset": "questions",
+  "git_sha": "82ebaa5",
+  "k": 8,
+  "n_examples": 4,
+  "per_example": [
+    {
+      "example_id": "q-001",
+      "metrics": {
+        "k": 8,
+        "ndcg_at_k": 0.6309297535714575,
+        "precision_at_k": 0.125,
+        "recall_at_k": 1.0
+      }
+    },
+    {
+      "example_id": "q-002",
+      "metrics": {
+        "k": 8,
+        "ndcg_at_k": 0.8772153153380493,
+        "precision_at_k": 0.25,
+        "recall_at_k": 1.0
+      }
+    },
+    {
+      "example_id": "q-003",
+      "metrics": {
+        "k": 8,
+        "ndcg_at_k": 1.0,
+        "precision_at_k": 0.125,
+        "recall_at_k": 1.0
+      }
+    },
+    {
+      "example_id": "q-005",
+      "metrics": {
+        "k": 8,
+        "ndcg_at_k": 1.0,
+        "precision_at_k": 0.125,
+        "recall_at_k": 1.0
+      }
+    }
+  ]
+}

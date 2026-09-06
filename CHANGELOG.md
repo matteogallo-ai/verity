@@ -6,6 +6,48 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-09-06
+
+### Added
+- **S2 — hybrid retrieval + first measured scorecard.**
+  - `ReciprocalRankFusion` (Fusion protocol): score = Σ 1/(rrf_k + rank_i),
+    dedup by `chunk.id`, deterministic tie-break on chunk id for
+    bit-reproducible fusion output.
+  - `CrossEncoderReranker` (Reranker protocol): local
+    `cross-encoder/ms-marco-MiniLM-L-6-v2`, batched, async via
+    `asyncio.to_thread`, backend factory injectable (unit lane never loads torch).
+  - `HybridRetriever` (Retriever protocol): embed query → dense ∥ sparse
+    (`asyncio.gather`) → RRF → cross-encoder rerank. Structured `stage`
+    logs per phase (`dense`/`sparse`/`fused`/`reranked` + top score + count).
+    Robustness: a stage error or empty sparse degrades to `[]` without crashing.
+  - `InMemoryVectorStore` — second implementation of the `VectorStore` protocol,
+    backed by numpy cosine + `rank_bm25`. Makes the unit lane exercise the full
+    hybrid pipeline offline and lets `verity eval retrieval --in-memory`
+    produce a scorecard on any laptop with no Postgres.
+  - Retrieval metrics: `precision_at_k`, `recall_at_k`, `ndcg_at_k` with binary
+    gain + macro-averaging (`BinaryRetrievalMetric` implements the
+    `RetrievalMetric` protocol from `eval.base`). Undefined-on-empty-gold cases
+    raise explicitly rather than silently returning NaN.
+  - CLI:
+    - `verity retrieve "…"` — one-shot retrieval, Rich table of top hits.
+    - `verity eval retrieval` — real measured retrieval scorecard tagged to
+      the current git SHA, persisted as JSON under `datasets/eval/runs/`.
+      Supports `--floor-precision / --floor-recall / --floor-ndcg` for CI
+      anti-regression gates.
+  - CI integration lane adds `verity eval retrieval --no-in-memory
+    --floor-ndcg 0.5 --floor-recall 0.75` as a hard gate.
+
+### Measured retrieval scorecard (in-memory backend, git SHA 82ebaa5, k=8, 4 answerable questions)
+- precision@8: **0.156** (capped by k > gold size; 1-2 gold chunks / 8 slots)
+- recall@8: **1.000**
+- nDCG@8: **0.877**
+- per-example nDCG: q-001 0.631 · q-002 0.877 · q-003 1.000 · q-005 1.000
+
+The pgvector run will produce equivalent numbers (same embedder, same
+reranker, same fusion) — will be re-verified in the first CI run on 0.3.0.
+
+## [0.2.0] — 2026-09-05
+
 ### Fixed
 - **Portable IDs (S1.1).** `document_id_for_uri` now normalises its input through a
   new `identity_for` helper: local file paths are hashed as their POSIX path
@@ -21,8 +63,6 @@ follows [Semantic Versioning](https://semver.org/).
   non-portable id bug on the first CI run.
 - Chunker emits a structured `chunk_over_budget` WARNING when an emitted chunk
   exceeds `max_words` (defensive guard against silent embedding truncation).
-
-## [0.2.0] — 2026-09-05
 
 ### Added
 - **S1 — ingestion & indexing.**

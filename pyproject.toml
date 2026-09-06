@@ -1,6 +1,6 @@
 [project]
 name = "verity"
-version = "0.2.0"
+version = "0.3.0"
 description = "Evaluated, observable RAG agent platform for enterprise documents."
 readme = "README.md"
 requires-python = ">=3.12"

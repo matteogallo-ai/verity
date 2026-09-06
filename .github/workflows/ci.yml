@@ -84,6 +84,19 @@ jobs:
       - name: Pytest (integration lane)
         run: uv run pytest -m integration
 
+      - name: Retrieval scorecard (pgvector) — anti-regression gate
+        # We gate on nDCG@k rather than precision@k because the labeled gold set is
+        # small (1-2 relevant chunks per question) — a precision floor at k=8 caps at
+        # 0.25 by construction regardless of retrieval quality. nDCG at 0.5 catches a
+        # real regression (baseline on this corpus is ≈ 0.88). Recall floor at 0.75
+        # is the "did we lose the gold chunk entirely" gate. Raise these floors as
+        # the labeled corpus grows.
+        run: |
+          uv run verity eval retrieval \
+            --no-in-memory \
+            --floor-ndcg 0.5 \
+            --floor-recall 0.75
+
   evaluation:
     name: eval harness (deterministic)
     runs-on: ubuntu-latest
