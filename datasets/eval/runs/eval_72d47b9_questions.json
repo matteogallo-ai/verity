@@ -1,0 +1,31 @@
+{
+  "agent_model": "stub-agent",
+  "embedding_model": "BAAI/bge-small-en-v1.5",
+  "judge_model": "stub-judge-v1",
+  "notes": null,
+  "scorecard": {
+    "answer": {
+      "citation_accuracy": 1.0,
+      "faithfulness": 1.0,
+      "hallucination_rate": 0.0,
+      "refusal_precision": 1.0,
+      "refusal_recall": 1.0
+    },
+    "cost_per_query_usd": 0.0,
+    "created_at": "2026-09-06T15:56:42.204845+00:00",
+    "dataset": "questions",
+    "git_sha": "72d47b9",
+    "latency": {
+      "p50_ms": 89.42500000000001,
+      "p95_ms": 1534.71,
+      "p99_ms": 4992.605999999998
+    },
+    "n_examples": 16,
+    "retrieval": {
+      "k": 8,
+      "ndcg_at_k": 0.9498599403568547,
+      "precision_at_k": 0.14772727272727273,
+      "recall_at_k": 1.0
+    }
+  }
+}

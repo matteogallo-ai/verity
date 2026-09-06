@@ -31,18 +31,21 @@ def load_dataset(path: Path) -> list[EvalExample]:
     defined over. See ``docs/evaluation-methodology.md`` — refusal calibration is
     the eval track for the unanswerable half.
     """
+    return [ex for ex in load_full_dataset(path) if ex.answerable and ex.relevant_chunk_ids]
+
+
+def load_full_dataset(path: Path) -> list[EvalExample]:
+    """Read a JSONL dataset and return **every** example, answerable or not.
+
+    Used by the S4 harness (refusal calibration needs the out-of-scope half).
+    """
     examples: list[EvalExample] = []
     with path.open("r", encoding="utf-8") as fh:
         for raw in fh:
             raw = raw.strip()
             if not raw:
                 continue
-            record = json.loads(raw)
-            if not record.get("answerable"):
-                continue
-            if not record.get("relevant_chunk_ids"):
-                continue
-            examples.append(EvalExample.model_validate(record))
+            examples.append(EvalExample.model_validate(json.loads(raw)))
     return examples
 
 

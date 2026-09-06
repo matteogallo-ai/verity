@@ -43,12 +43,25 @@ class _NullEmbedder:
 
 
 # Anchor phrases per answerable question. A chunk is labeled relevant if it contains
-# ALL anchors in one of the alternative anchor sets (list of sets).
+# ALL anchors in one of the alternative anchor sets (list of sets). Multiple sets can
+# match multiple chunks — used for multi-hop questions whose answer spans two sections.
 _ANCHORS: dict[str, list[set[str]]] = {
+    # MSA
     "q-001": [{"terminate", "thirty (30) days"}],
     "q-002": [{"data-processing", "Acme Corporation"}, {"one million", "$1,000,000"}],
-    "q-003": [{"$482.0 million", "18.4%"}],
     "q-005": [{"assignment", "competitor"}, {"assign this Agreement", "consent"}],
+    # Financial summary
+    "q-003": [{"$482.0 million", "18.4%"}],
+    # SLA
+    "q-007": [{"99.9%"}, {"below 95.0%", "50%"}],
+    "q-010": [{"Priority 1", "one (1) hour"}],
+    "q-013": [{"scheduled maintenance", "forty-eight (48) hours"}],
+    # DPA
+    "q-008": [{"Frankfurt"}, {"Standard Contractual Clauses"}],
+    "q-009": [{"ninety (90) days"}],
+    # Employee handbook
+    "q-011": [{"twenty-five (25) days"}],
+    "q-012": [{"two (2) days per week"}],
 }
 
 

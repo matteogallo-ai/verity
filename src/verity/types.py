@@ -259,9 +259,25 @@ class Scorecard(BaseModel, frozen=True):
 
 class EvalRun(BaseModel, frozen=True):
     """A stored eval run: the scorecard plus the environment it was produced in.
-    ``compare`` reads a sequence of these to surface regressions."""
+    ``compare`` reads a sequence of these to surface regressions.
+
+    The three model-provenance fields form a complete triple:
+
+    - ``embedding_model`` — the vector encoder used for retrieval (real component
+      even in ``--judge stub`` mode).
+    - ``agent_model`` — the LLM the *agent* used to decompose, synthesize, and
+      self-score. When set to ``"stub-agent"`` the Scorecard's refusal chiffres
+      (though mechanically deterministic) reflect the *stub*'s calibration, not
+      the real agent's — the CLI and README carry this nuance explicitly.
+    - ``judge_model`` — the faithfulness/citation LLM judge. ``"stub-judge-v1"``
+      means the answer-quality numbers are mechanical, not LLM verdicts.
+
+    All three are persisted so a scorecard can never be interpreted without
+    knowing which model produced each track.
+    """
 
     scorecard: Scorecard
     embedding_model: str
     judge_model: str
+    agent_model: str = "unknown"
     notes: str | None = None

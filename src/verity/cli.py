@@ -440,6 +440,15 @@ def _print_answer(answer: Answer) -> None:
     console.print(usage)
 
 
+def _first_client_model(client: object) -> str | None:
+    """Return the first registered client's ``.model`` on a RoutingClient, or None."""
+    clients = getattr(client, "clients", None)
+    if not clients:
+        return None
+    model = getattr(clients[0], "model", None)
+    return model if isinstance(model, str) else None
+
+
 @app.command()
 def serve(
     host: Annotated[str, typer.Option(help="Bind host.")] = "0.0.0.0",
@@ -451,30 +460,317 @@ def serve(
 
 @eval_app.command("run")
 def eval_run(
-    dataset: Annotated[Path, typer.Option(help="Path to the labeled dataset.")] = Path(
-        "datasets/eval"
+    dataset: Annotated[Path, typer.Option(help="Path to the labeled JSONL dataset.")] = Path(
+        "datasets/eval/questions.jsonl"
+    ),
+    corpus: Annotated[Path, typer.Option(help="Corpus directory to ingest.")] = Path(
+        "datasets/corpus"
+    ),
+    judge: Annotated[
+        str, typer.Option(help="Faithfulness judge: 'stub' (offline, deterministic) or 'live'.")
+    ] = "stub",
+    in_memory: Annotated[
+        bool, typer.Option(help="Use in-memory store instead of pgvector. Default: True.")
+    ] = True,
+    agent_stub: Annotated[
+        bool,
+        typer.Option(
+            help=(
+                "Use the scripted stub for the AGENT's LLM (decompose/synthesize/score). "
+                "Default: True when --judge stub, required when running without keys."
+            )
+        ),
+    ] = True,
+    runs_dir: Annotated[Path, typer.Option(help="Where to persist the eval run JSON.")] = Path(
+        "datasets/eval/runs"
     ),
     ci: Annotated[
-        bool, typer.Option(help="Deterministic mode: local embeddings + stubbed judge.")
+        bool,
+        typer.Option(
+            help="Legacy alias for --judge stub — kept for backwards compat with S0 CI.",
+        ),
     ] = False,
+    floor_refusal_recall: Annotated[
+        float | None,
+        typer.Option(help="Fail if refusal_recall drops below this value."),
+    ] = None,
+    floor_ndcg: Annotated[
+        float | None,
+        typer.Option(help="Fail if retrieval nDCG@k drops below this value."),
+    ] = None,
+    floor_recall: Annotated[
+        float | None,
+        typer.Option(help="Fail if retrieval recall@k drops below this value."),
+    ] = None,
 ) -> None:
-    """Run the full eval harness and print a scorecard. [implemented in S4]"""
-    mode = "CI (deterministic)" if ci else "full (real judge)"
-    console.print(f"{_SCAFFOLD} eval run → dataset={dataset} mode={mode}")
-    console.print(
-        "The scorecard is produced by the harness in S4 — no numbers are fabricated here."
+    """Run the full eval harness on the labeled dataset and print a Scorecard.
+
+    ``--judge stub`` (the default) produces a DETERMINISTIC scorecard: retrieval,
+    refusal, latency, cost are REAL numbers ; faithfulness / citation_accuracy /
+    hallucination_rate come from a scripted mechanical judge and the persisted
+    ``judge_model`` field is set to ``stub-judge-v1`` so they are never mistaken
+    for a real LLM verdict. Switch to ``--judge live`` (with an API key configured)
+    to publish real answer-quality numbers.
+    """
+    from verity.agent.agent import create_default_agent
+    from verity.agent.scripted_stub import build_stub_router
+    from verity.eval import (
+        STUB_JUDGE_MODEL,
+        AgentEvaluator,
+        FileRunStore,
+        LLMFaithfulnessJudge,
+        StubFaithfulnessJudge,
+        current_git_sha,
+        load_full_dataset,
     )
+    from verity.llm import create_default_routing_client
+
+    judge_mode = "stub" if ci else judge.lower()
+    if judge_mode not in {"stub", "live"}:
+        raise typer.BadParameter("--judge must be 'stub' or 'live'")
+
+    if judge_mode == "live":
+        _require_llm_api_key()
+
+    examples = load_full_dataset(dataset)
+    if not examples:
+        console.print("[yellow]Empty dataset — nothing to score.[/yellow]")
+        raise typer.Exit(code=0)
+
+    retriever, backend_name = asyncio.run(
+        _build_retriever(corpus=corpus, in_memory=in_memory, no_rerank=False)
+    )
+
+    # Agent LLM: stub by default (offline), real client if the user turned it off.
+    agent_client = build_stub_router() if agent_stub else create_default_routing_client()
+    if not agent_stub:
+        _require_llm_api_key()
+    agent = create_default_agent(retriever=retriever, client=agent_client)
+    # Traceability: the refusal chiffres in the Scorecard are meaningless without
+    # knowing WHICH agent produced the answers they aggregate over. "stub-agent"
+    # is the sentinel picked up by the CLI and README as a prudence flag.
+    agent_model = "stub-agent" if agent_stub else _first_client_model(agent_client) or "llm-agent"
+
+    # Judge: mechanical stub by default; real LLM only in --judge live.
+    if judge_mode == "stub":
+        judge_impl: object = StubFaithfulnessJudge()
+        judge_model = STUB_JUDGE_MODEL
+    else:
+        judge_client = create_default_routing_client()
+        judge_impl = LLMFaithfulnessJudge(judge_client)
+        judge_model = getattr(judge_impl, "model", "llm-judge")
+
+    settings = get_settings()
+    evaluator = AgentEvaluator(
+        agent=agent,
+        judge=judge_impl,  # type: ignore[arg-type]
+        embedding_model=settings.embedding_model,
+        judge_model=judge_model,
+        agent_model=agent_model,
+        dataset_name=dataset.stem,
+    )
+    git_sha = current_git_sha()
+    console.print(
+        f"[cyan]Running harness[/cyan] · sha=[bold]{git_sha}[/bold] · "
+        f"agent=[bold]{agent_model}[/bold] · judge=[bold]{judge_model}[/bold] · "
+        f"backend={backend_name} · n={len(examples)}"
+    )
+    result = asyncio.run(evaluator.run(examples, git_sha=git_sha))
+
+    _print_scorecard(result)
+
+    store = FileRunStore(runs_dir)
+    run = result.as_eval_run()
+    store.save(run)
+    path = store._path_for(run.scorecard.git_sha, run.scorecard.dataset)
+    console.print(f"[green]Persisted[/green] {path}")
+
+    failed: list[str] = []
+    if (
+        floor_refusal_recall is not None
+        and result.scorecard.answer.refusal_recall < floor_refusal_recall
+    ):
+        failed.append(
+            f"refusal_recall {result.scorecard.answer.refusal_recall:.3f} "
+            f"< floor {floor_refusal_recall:.3f}"
+        )
+    if floor_ndcg is not None and result.scorecard.retrieval.ndcg_at_k < floor_ndcg:
+        failed.append(f"nDCG@k {result.scorecard.retrieval.ndcg_at_k:.3f} < floor {floor_ndcg:.3f}")
+    if floor_recall is not None and result.scorecard.retrieval.recall_at_k < floor_recall:
+        failed.append(
+            f"recall@k {result.scorecard.retrieval.recall_at_k:.3f} < floor {floor_recall:.3f}"
+        )
+    if failed:
+        for msg in failed:
+            console.print(f"[red]{msg}[/red]")
+        raise typer.Exit(code=2)
 
 
 @eval_app.command("compare")
 def eval_compare(
     dataset: Annotated[
         str, typer.Option(help="Dataset name whose run history to compare.")
-    ] = "default",
-    limit: Annotated[int, typer.Option(help="Number of recent runs to compare.")] = 10,
+    ] = "questions",
+    runs_dir: Annotated[Path, typer.Option(help="Where run JSONs live.")] = Path(
+        "datasets/eval/runs"
+    ),
+    limit: Annotated[int, typer.Option(help="Number of recent runs to display.")] = 5,
 ) -> None:
-    """Compare recent eval runs to surface regressions. [implemented in S4]"""
-    console.print(f"{_SCAFFOLD} eval compare → dataset={dataset} limit={limit}")
+    """Diff the two most recent eval runs and highlight regressions."""
+    from verity.eval import FileRunStore, diff_runs
+
+    store = FileRunStore(runs_dir)
+    history = store.history(dataset, limit=limit)
+    if len(history) < 2:
+        console.print(
+            f"[yellow]Not enough runs to compare ({len(history)} found); need ≥2.[/yellow]"
+        )
+        raise typer.Exit(code=0)
+
+    current, previous = history[0], history[1]
+    console.print(
+        f"[bold cyan]Compare[/bold cyan] {previous.scorecard.git_sha} → {current.scorecard.git_sha} "
+        f"(judge_model was {previous.judge_model!r} → now {current.judge_model!r})"
+    )
+
+    deltas = diff_runs(previous, current)
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("metric")
+    table.add_column("prev", justify="right")
+    table.add_column("curr", justify="right")
+    table.add_column("Δ", justify="right")
+    for d in deltas:
+        style = "red" if d.is_regression else "green" if abs(d.delta) > 1e-6 else "dim"
+        marker = "↓" if d.is_regression else ("↑" if abs(d.delta) > 1e-6 else "=")
+        table.add_row(
+            d.metric,
+            f"{d.previous:.4f}",
+            f"{d.current:.4f}",
+            f"[{style}]{marker} {d.delta:+.4f}[/{style}]",
+        )
+    console.print(table)
+
+    regressions = [d.metric for d in deltas if d.is_regression]
+    if regressions:
+        console.print(f"[red]Regressions on:[/red] {', '.join(regressions)}")
+        raise typer.Exit(code=3)
+
+
+def _print_scorecard(result) -> None:  # type: ignore[no-untyped-def]
+    """Render a full Scorecard with an explicit stub-vs-real annotation.
+
+    The refusal chiffres are *mechanically* deterministic (a confusion matrix
+    with zero LLM calls), but they measure the calibration of whichever agent
+    produced the Answers. When the agent is the scripted stub, the numbers
+    reflect the stub's calibration, not Verity's real behaviour in production.
+    The header + the refusal rows carry that agent-provenance so no reader can
+    lift a chiffre without seeing the caveat.
+    """
+    from verity.eval import STUB_JUDGE_MODEL
+
+    sc = result.scorecard
+    judge_is_stub = result.judge_model == STUB_JUDGE_MODEL
+    agent_is_stub = result.agent_model == "stub-agent"
+
+    header = Table(show_header=False, box=None)
+    header.add_column(style="dim")
+    header.add_column()
+    header.add_row("git_sha", sc.git_sha)
+    header.add_row("dataset", sc.dataset)
+    header.add_row("n_examples", str(sc.n_examples))
+    header.add_row("embedding_model", result.embedding_model)
+    header.add_row(
+        "agent_model",
+        f"{result.agent_model} [yellow](scripted stub — NOT a real LLM agent)[/yellow]"
+        if agent_is_stub
+        else result.agent_model,
+    )
+    header.add_row(
+        "judge_model",
+        f"{result.judge_model} [yellow](mechanical stub — NOT a real LLM judge)[/yellow]"
+        if judge_is_stub
+        else result.judge_model,
+    )
+    console.print(header)
+
+    retrieval = Table(
+        title="Retrieval [green](REAL — deterministic, no LLM)[/green]",
+        show_header=True,
+        header_style="bold cyan",
+    )
+    retrieval.add_column("metric")
+    retrieval.add_column("value", justify="right")
+    retrieval.add_row("precision@k", f"{sc.retrieval.precision_at_k:.3f}")
+    retrieval.add_row("recall@k", f"{sc.retrieval.recall_at_k:.3f}")
+    retrieval.add_row("nDCG@k", f"{sc.retrieval.ndcg_at_k:.3f}")
+    console.print(retrieval)
+
+    answer_title = (
+        "Answer quality [yellow](faithfulness/citation/hallucination = STUB — "
+        "not a real LLM judge)[/yellow]"
+        if judge_is_stub
+        else "Answer quality [green](REAL — LLM judge)[/green]"
+    )
+    answer = Table(title=answer_title, show_header=True, header_style="bold cyan")
+    answer.add_column("metric")
+    answer.add_column("value", justify="right")
+    answer.add_column("kind", justify="right")
+    stub_note = "STUB" if judge_is_stub else "REAL"
+    # Refusal maths is deterministic, but the *observed* refuses come from the agent
+    # → tag the agent explicitly on each refusal row so no reader can quote a
+    # refusal chiffre without knowing which agent produced it.
+    refusal_tag = (
+        "REAL calc / agent=stub-agent"
+        if agent_is_stub
+        else f"REAL calc / agent={result.agent_model}"
+    )
+    answer.add_row("faithfulness", f"{sc.answer.faithfulness:.3f}", stub_note)
+    answer.add_row("citation_accuracy", f"{sc.answer.citation_accuracy:.3f}", stub_note)
+    answer.add_row("hallucination_rate", f"{sc.answer.hallucination_rate:.3f}", stub_note)
+    answer.add_row("refusal_precision", f"{sc.answer.refusal_precision:.3f}", refusal_tag)
+    answer.add_row("refusal_recall", f"{sc.answer.refusal_recall:.3f}", refusal_tag)
+    console.print(answer)
+
+    ops = Table(
+        title="Operational [green](REAL — measured)[/green]",
+        show_header=True,
+        header_style="bold cyan",
+    )
+    ops.add_column("metric")
+    ops.add_column("value", justify="right")
+    ops.add_row("latency p50 ms", f"{sc.latency.p50_ms:.1f}")
+    ops.add_row("latency p95 ms", f"{sc.latency.p95_ms:.1f}")
+    ops.add_row("latency p99 ms", f"{sc.latency.p99_ms:.1f}")
+    ops.add_row("cost / query USD", f"{sc.cost_per_query_usd:.4f}")
+    console.print(ops)
+
+    # Refusal per-example (headline feature — always shown explicitly).
+    refusal_title_tag = (
+        "[yellow](stubbed agent — refusal calibration reflects the stub, not real Verity)[/yellow]"
+        if agent_is_stub
+        else "[green](real agent)[/green]"
+    )
+    refusal = Table(
+        title=f"Refusal outcomes · agent={result.agent_model} {refusal_title_tag}",
+        show_header=True,
+        header_style="bold cyan",
+    )
+    refusal.add_column("id")
+    refusal.add_column("expected")
+    refusal.add_column("observed refused")
+    refusal.add_column("verdict")
+    for p in result.per_refusal:
+        expected = "answerable" if p.expected_answerable else "out-of-scope"
+        if p.observed_refused and not p.expected_answerable:
+            verdict = "[green]TP (correct refusal)[/green]"
+        elif p.observed_refused and p.expected_answerable:
+            verdict = "[yellow]FP (uselessly timid)[/yellow]"
+        elif not p.observed_refused and not p.expected_answerable:
+            verdict = "[red]FN (hallucinated on out-of-scope)[/red]"
+        else:
+            verdict = "[green]TN (correctly answered)[/green]"
+        refusal.add_row(p.example_id, expected, str(p.observed_refused), verdict)
+    console.print(refusal)
 
 
 if __name__ == "__main__":

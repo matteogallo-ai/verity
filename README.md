@@ -12,12 +12,14 @@ when the evidence is weak* — instead of hallucinating. Every answer is measure
 
 </div>
 
-> **Status — S1 ingestion & indexing.** Parse (docling PDF/DOCX, native TXT/MD,
-> httpx+trafilatura Web) · structure-aware chunker with load-bearing offset invariant ·
-> deterministic ids · local embedder (sentence-transformers, offline) · pgvector store
-> (dense + FTS) · migrations + `verity ingest`. Hybrid retriever/RRF/rerank land at S2.
-> The scorecard below is still a **placeholder** — a real, git-SHA-tagged eval run
-> lands at S4. No numbers here are fabricated in the meantime.
+> **Status — S4 eval harness.** Full pipeline live: ingestion (S1) · hybrid
+> retrieval + RRF + rerank (S2) · agentic RAG with citations + calibrated refusal
+> (S3) · eval harness with retrieval + refusal + answer-quality tracks (S4).
+> Retrieval numbers below are real and reproducible. Refusal chiffres are
+> mechanically deterministic but were measured on the scripted stub agent used
+> in CI — the real-agent refusal calibration lands with the `--judge live` run
+> (pending). Faithfulness / citation accuracy / hallucination rate stay _pending
+> real judge_ until that same live run.
 
 ---
 
@@ -39,25 +41,46 @@ _Demo GIF — S7._
 
 ## Measured results
 
-<!-- Replaced at S4 by `verity eval run` output, tagged to a git SHA. -->
+Numbers below come from `verity eval run`, tagged to a git SHA, on the 16-question
+labeled dataset. **Every row carries the provenance it was measured under** — a
+number is only as trustworthy as the components that produced it.
 
-| Metric | Value | Notes |
+- **Retrieval** — real, deterministic. Local embeddings + local reranker, no LLM
+  in the loop. Reproducible bit-for-bit.
+- **Refusal calibration** — the *maths* is deterministic (a confusion matrix
+  built from the `answerable` labels and the observed refuses), but the observed
+  refuses come from whichever agent produced the answers. The scorecard below was
+  measured on `agent=stub-agent` (the scripted stub used for offline CI), so it
+  reflects the **stub's** refusal calibration — not Verity's real behaviour under
+  a live LLM. A `--judge live` run against a real agent lands the true refusal
+  chiffres alongside faithfulness.
+- **Answer quality** (faithfulness / citation accuracy / hallucination rate) —
+  the shipped scorecard uses `judge_model=stub-judge-v1`, a mechanical judge, so
+  these three stay marked _pending real judge_.
+
+| Metric | Value | Provenance |
 |---|---|---|
-| Retrieval precision@8 | _pending S4_ | on labeled dataset |
-| Retrieval recall@8 | _pending S4_ | |
-| Answer faithfulness | _pending S4_ | claim-level, LLM-judge |
-| Citation accuracy | _pending S4_ | |
-| Hallucination rate | _pending S4_ | ↓ better |
-| Refusal precision / recall | _pending S4_ | the headline metric |
-| Latency p50 / p99 | _pending S4_ | end-to-end |
-| Cost / query | _pending S4_ | USD |
+| Retrieval precision@8 | **0.148** | REAL · on 11 answerable questions (gold cap 1-2 chunks / 8 slots) |
+| Retrieval recall@8 | **1.000** | REAL · every gold chunk retrieved |
+| Retrieval nDCG@8 | **0.950** | REAL · macro-averaged ranking quality |
+| Refusal precision | 1.000 | REAL calc · **agent=stub-agent** (not real Verity) |
+| Refusal recall | 1.000 | REAL calc · **agent=stub-agent** · 5/5 out-of-scope refused incl. 3 near-miss |
+| Answer faithfulness | _pending real judge_ | (stub judge scorecard shows 1.000, not published) |
+| Citation accuracy | _pending real judge_ | |
+| Hallucination rate | _pending real judge_ | ↓ better |
+| Latency p50 / p95 / p99 | 84 / 1477 / 4784 ms | REAL · in-memory backend, stub LLM |
+| Cost / query | $0.00 | stub LLM; real cost measured on live-judge run |
 
-Retrieval is already measured on the pgvector backend — see
-[`datasets/eval/runs/`](datasets/eval/runs/). The full headline scorecard
-(retrieval + faithfulness + refusal) lands at S4 on an expanded corpus.
+Retrieval is a real, standalone chiffre. Refusal — including the 5/5 near-miss
+result — measures how a *deterministic scripted agent* behaves; the real-agent
+refusal calibration lands with the `--judge live` run (pending). Reproduce with
+`uv run verity eval run --judge stub`. Persisted scorecards under
+[`datasets/eval/runs/`](datasets/eval/runs/) carry the full provenance triple
+(`embedding_model`, `agent_model`, `judge_model`).
 
-Methodology, including how refusal is scored and why the dataset contains unanswerable
-questions, is in [`docs/evaluation-methodology.md`](docs/evaluation-methodology.md).
+Methodology — how refusal is scored and why the dataset contains unanswerable +
+near-miss questions — is in
+[`docs/evaluation-methodology.md`](docs/evaluation-methodology.md).
 
 ## Architecture
 

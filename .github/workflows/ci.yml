@@ -116,5 +116,16 @@ jobs:
       - name: Install
         run: uv sync --dev
 
-      - name: Run eval (CI mode)
-        run: uv run verity eval run --dataset datasets/eval --ci
+      - name: Run eval (deterministic — judge=stub)
+        # Retrieval + refusal + latency + cost are REAL numbers.
+        # faithfulness / citation_accuracy / hallucination_rate come from the
+        # mechanical stub judge and are labelled "stub-judge-v1" in the artefact —
+        # they are never presented as real LLM-judge chiffres.
+        # Floors are the S3-established anti-regression gates.
+        run: |
+          uv run verity eval run \
+            --judge stub \
+            --dataset datasets/eval/questions.jsonl \
+            --floor-refusal-recall 0.8 \
+            --floor-ndcg 0.5 \
+            --floor-recall 0.75
