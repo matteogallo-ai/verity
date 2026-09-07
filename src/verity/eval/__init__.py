@@ -9,7 +9,11 @@ from verity.eval.harness import (
     PerExampleAnswerMetrics,
     PerExampleRefusal,
 )
-from verity.eval.headline import build_headline_dict, write_headline_scorecard
+from verity.eval.headline import (
+    build_headline_dict,
+    build_headline_dict_from_eval_run,
+    write_headline_scorecard,
+)
 from verity.eval.judge import (
     STUB_JUDGE_MODEL,
     LLMFaithfulnessJudge,
@@ -53,6 +57,7 @@ __all__ = [
     "are_compatible",
     "build_confusion",
     "build_headline_dict",
+    "build_headline_dict_from_eval_run",
     "current_git_sha",
     "diff_runs",
     "load_dataset",

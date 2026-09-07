@@ -88,14 +88,23 @@ def render_block(data: dict[str, Any]) -> str:
     lines.append(
         f"| **Refusal precision** | **{_fmt(refu['refusal_precision'])}** | of the refusals, fraction that were genuinely unanswerable |"
     )
+    # v3: each judge-track metric is a {value, scope, n_denominator} triple.
+    # Render the value alongside the scope so no chiffre can be quoted
+    # without its denominator visible.
+    faith = ans["faithfulness"]
+    ca = ans["citation_accuracy"]
+    hall = ans["hallucination_rate"]
     lines.append(
-        f"| Faithfulness | {_fmt(ans['faithfulness'])} | claim-level, judge=`{prov['judge_model']}` |"
+        f"| Faithfulness ({faith['scope']}, n={faith['n_denominator']}) | "
+        f"{_fmt(faith['value'])} | claim-level, judge ran on {faith['n_denominator']} answered questions |"
     )
     lines.append(
-        f"| Citation accuracy | {_fmt(ans['citation_accuracy'])} | judge=`{prov['judge_model']}` |"
+        f"| Citation accuracy ({ca['scope']}, n={ca['n_denominator']}) | "
+        f"{_fmt(ca['value'])} | judge ran on {ca['n_denominator']} answered questions (refusals bypass the judge) |"
     )
     lines.append(
-        f"| Hallucination rate (answerable only) | {_fmt(ans['hallucination_rate_answerable'])} | ↓ better · gated on `example.answerable` |"
+        f"| Hallucination rate ({hall['scope']}, n={hall['n_denominator']}) | "
+        f"{_fmt(hall['value'])} | ↓ better · at-risk set = answerable questions the agent answered |"
     )
     ooa = refu.get("out_of_scope_answered", {})
     if isinstance(ooa, dict) and "count" in ooa and "total" in ooa:
@@ -163,9 +172,9 @@ def main(argv: list[str] | None = None) -> int:
     if not args.scorecard.is_file():
         raise SystemExit(f"scorecard JSON not found: {args.scorecard}")
     payload = json.loads(args.scorecard.read_text(encoding="utf-8"))
-    if payload.get("schema") != "verity.scorecard.headline/v2":
+    if payload.get("schema") != "verity.scorecard.headline/v3":
         raise SystemExit(
-            f"scorecard schema is not verity.scorecard.headline/v2 (got {payload.get('schema')!r})"
+            f"scorecard schema is not verity.scorecard.headline/v3 (got {payload.get('schema')!r})"
         )
     block = render_block(payload)
     changed = patch_readme(args.readme, block)

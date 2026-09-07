@@ -1,8 +1,20 @@
 {
   "answer_quality": {
-    "citation_accuracy": 0.7916666666666666,
-    "faithfulness": 1.0,
-    "hallucination_rate_answerable": 0.0
+    "citation_accuracy": {
+      "n_denominator": 12,
+      "scope": "answered",
+      "value": 0.722222
+    },
+    "faithfulness": {
+      "n_denominator": 12,
+      "scope": "answered",
+      "value": 1.0
+    },
+    "hallucination_rate": {
+      "n_denominator": 11,
+      "scope": "answerable_and_answered",
+      "value": 0.0
+    }
   },
   "cost": {
     "agent_usd": 0.194997,
@@ -109,7 +121,7 @@
   "provenance": {
     "agent_model": "claude-sonnet-4-6 (16/16)",
     "embedding_model": "BAAI/bge-small-en-v1.5",
-    "judge_model": "claude-sonnet-4-6 (12/12)",
+    "judge_model": "claude-sonnet-4-6 (12/16 answered \u2014 4 refusals bypass the judge)",
     "run_sha": "d0ca1d5"
   },
   "refusal_calibration": {
@@ -126,5 +138,12 @@
     "precision_at_k": 0.14772727272727273,
     "recall_at_k": 1.0
   },
-  "schema": "verity.scorecard.headline/v2"
+  "sample_sizes": {
+    "n_answerable_answered": 11,
+    "n_answered": 12,
+    "n_examples": 16,
+    "n_judged": 12,
+    "n_refused": 4
+  },
+  "schema": "verity.scorecard.headline/v3"
 }

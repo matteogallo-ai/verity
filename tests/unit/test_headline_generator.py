@@ -28,6 +28,7 @@ from verity.types import (
     AnswerMetrics,
     Confidence,
     LatencyMetrics,
+    PerExampleAudit,
     Provider,
     RetrievalMetrics,
     Scorecard,
@@ -106,18 +107,49 @@ def _fixture_result() -> HarnessResult:
             )
             for i in range(16)
         ],
+        # v3 requires per_audit for the honest per-scope aggregate computation.
+        # i in [0..10]: answerable, answered by judge → 11 at-risk. Each carries
+        # the per-example metrics that produce v3 aggregates matching the
+        # scorecard's field values (all 11 identical for simplicity).
+        # i in [11..15]: OOS, refused → judge bypassed, judge_claims=None.
+        per_audit=[
+            PerExampleAudit(
+                example_id=f"q-{i:03d}",
+                question=f"q{i}",
+                expected_answerable=(i < 11),
+                answer_text="stub" if i < 11 else "I don't know.",
+                refused=(i >= 11),
+                refusal_rationale=("" if i < 11 else "out-of-scope refusal"),
+                judge_claims=None if i >= 11 else (),
+                answer_metrics=AnswerMetrics(
+                    # Judged: match the aggregate values so v3 = the fixture
+                    # aggregates. Refusals: judge convention (1.0/1.0/0.0).
+                    faithfulness=0.94 if i < 11 else 1.0,
+                    citation_accuracy=0.90 if i < 11 else 1.0,
+                    hallucination_rate=0.06 if i < 11 else 0.0,
+                    refusal_precision=0.0,
+                    refusal_recall=0.0,
+                ),
+                usage=UsageStats(cost_usd=0.05),
+            )
+            for i in range(16)
+        ],
     )
 
 
 def test_build_headline_dict_carries_full_provenance_and_totals() -> None:
     result = _fixture_result()
     payload = build_headline_dict(result)
-    assert payload["schema"] == "verity.scorecard.headline/v2"
+    assert payload["schema"] == "verity.scorecard.headline/v3"
     prov = payload["provenance"]
-    # Agent summary: all 16 answers stamped claude-sonnet-4-6 → "claude-sonnet-4-6 (16/16)"
+    # Agent summary: all 16 answers stamped claude-sonnet-4-6 → "(16/16)"
     assert prov["agent_model"] == "claude-sonnet-4-6 (16/16)"
-    # Judge summary: 11 answerable questions got judged (5 refusals skipped) → 11/11
-    assert prov["judge_model"] == "claude-sonnet-4-6 (11/11)"
+    # Judge summary (v3): the 5 refusals bypass the judge, so the count MUST
+    # be expressed as "11/16 answered — 5 refusals bypass the judge" so a
+    # reader can never confuse the judge call count with the total question count.
+    assert prov["judge_model"] == (
+        "claude-sonnet-4-6 (11/16 answered — 5 refusals bypass the judge)"
+    )
     assert prov["embedding_model"] == "BAAI/bge-small-en-v1.5"
     assert prov["run_sha"] == "abc1234"
     # Total cost = 16 answers * $0.05 + judge $0.60 = $1.40 (exact — never rounded away).
@@ -127,14 +159,38 @@ def test_build_headline_dict_carries_full_provenance_and_totals() -> None:
     # Dataset counts derive from per_refusal — not from raw n_examples.
     assert payload["dataset"]["n_answerable"] == 11
     assert payload["dataset"]["n_unanswerable"] == 5
-    # Refusal + faithfulness carried verbatim, no rounding.
-    assert payload["refusal_calibration"]["refusal_recall"] == 0.80
-    assert payload["answer_quality"]["faithfulness"] == 0.94
-    # Renamed field (v2): the ``_answerable`` suffix makes the gating explicit.
-    assert payload["answer_quality"]["hallucination_rate_answerable"] == 0.06
+
+    # v3 sample-size table: every denominator is one click away from the scorecard.
+    sizes = payload["sample_sizes"]
+    assert sizes == {
+        "n_examples": 16,
+        "n_answered": 11,
+        "n_judged": 11,
+        "n_refused": 5,
+        "n_answerable_answered": 11,
+    }
+
+    # v3 answer_quality: each metric is {value, scope, n_denominator}.
+    aq = payload["answer_quality"]
+    # Faithfulness: scope=answered, n=11 judged answers, all with per-example 0.94.
+    assert aq["faithfulness"]["value"] == pytest.approx(0.94)
+    assert aq["faithfulness"]["scope"] == "answered"
+    assert aq["faithfulness"]["n_denominator"] == 11
+    # Citation accuracy: same scope, per-example 0.90.
+    assert aq["citation_accuracy"]["value"] == pytest.approx(0.90)
+    assert aq["citation_accuracy"]["scope"] == "answered"
+    assert aq["citation_accuracy"]["n_denominator"] == 11
+    # Hallucination: scope=answerable_and_answered, at-risk set = 11.
+    assert aq["hallucination_rate"]["value"] == pytest.approx(0.06)
+    assert aq["hallucination_rate"]["scope"] == "answerable_and_answered"
+    assert aq["hallucination_rate"]["n_denominator"] == 11
+
+    # Refusal calibration: precision/recall derived from per_refusal.
+    # 5 refusals, all on OOS (i>=11) → TP=5, FN=0 → precision=1.0, recall=1.0.
+    assert payload["refusal_calibration"]["refusal_precision"] == pytest.approx(1.0)
+    assert payload["refusal_calibration"]["refusal_recall"] == pytest.approx(1.0)
     # Companion field (v2): in this fixture per_refusal has i>=11 all refused,
-    # so 0 out-of-scope answers were shipped (out of 5). The mixed-provider
-    # test below exercises the "1/5" case.
+    # so 0 out-of-scope answers were shipped (out of 5).
     ooa = payload["refusal_calibration"]["out_of_scope_answered"]
     assert ooa == {"count": 0, "total": 5}
     # dataset.sha256 is None when no dataset_path is passed — surfaces honestly.
@@ -177,11 +233,16 @@ def test_agent_and_judge_summaries_reflect_a_mixed_provider_split() -> None:
         per_refusal=list(base.per_refusal),
         judge_cost_usd=base.judge_cost_usd,
         judge_stamps=mixed_judge,
+        per_audit=list(base.per_audit),
     )
     payload = build_headline_dict(result)
     assert payload["provenance"]["agent_model"] == "claude-sonnet-4-6 (15/16), gpt-4.1-mini (1/16)"
-    # 11 judge calls, one of them fell back to OpenAI.
-    assert payload["provenance"]["judge_model"] == "claude-sonnet-4-6 (10/11), gpt-4.1-mini (1/11)"
+    # v3 judge summary with refusal-skip disclosure: 11 judge calls out of 16
+    # examples, 5 refusals bypass. One of the 11 calls fell back to OpenAI.
+    assert payload["provenance"]["judge_model"] == (
+        "claude-sonnet-4-6 (10/16 answered — 5 refusals bypass the judge), "
+        "gpt-4.1-mini (1/16 answered — 5 refusals bypass the judge)"
+    )
 
 
 def test_dataset_sha256_is_included_when_path_provided(tmp_path: Path) -> None:
@@ -203,19 +264,23 @@ def test_render_block_shows_verbatim_headline_numbers() -> None:
     payload = build_headline_dict(result)
     generator = _load_generator()
     block = generator.render_block(payload)
-    assert "0.800" in block  # refusal_recall
-    assert "0.940" in block  # faithfulness
+    assert "1.000" in block  # refusal_recall (fixture: 5 OOS, all refused)
+    assert "0.940" in block  # faithfulness value
     assert "0.950" in block  # ndcg
     assert "claude-sonnet-4-6" in block  # provenance
     assert "abc1234" in block  # commit
     assert "$1.4000" in block  # total cost (4-decimal precision)
+    # v3 scope + denominator visible in every judge-track row.
+    assert "(answered, n=11)" in block
+    assert "(answerable_and_answered, n=11)" in block
+    assert "refusals bypass the judge" in block  # judge summary honesty
 
 
 def test_write_headline_scorecard_round_trips(tmp_path: Path) -> None:
     result = _fixture_result()
     out = write_headline_scorecard(result, tmp_path / "live.json")
     parsed = json.loads(out.read_text(encoding="utf-8"))
-    assert parsed["schema"] == "verity.scorecard.headline/v2"
+    assert parsed["schema"] == "verity.scorecard.headline/v3"
     assert parsed["cost"]["total_usd"] == pytest.approx(1.4)
 
 

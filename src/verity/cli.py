@@ -899,21 +899,32 @@ def _print_scorecard(result) -> None:  # type: ignore[no-untyped-def]
         if agent_is_stub
         else f"REAL calc / agent={result.agent_model}"
     )
-    answer.add_row("faithfulness", f"{sc.answer.faithfulness:.3f}", stub_note)
-    answer.add_row("citation_accuracy", f"{sc.answer.citation_accuracy:.3f}", stub_note)
-    # Renamed row (schema v2): the metric is gated on ``example.answerable`` in
-    # the judge, so the ``(answerable only)`` qualifier is load-bearing. The
-    # ``out_of_scope_answered`` companion row below covers the other half.
+    # v3 scoped metrics computed from per_audit — every judge-track chiffre
+    # displayed with its honest denominator so a reader cannot quote it
+    # without knowing what was averaged. See
+    # ``verity.eval.headline.build_headline_dict`` for the same rules on the
+    # JSON side.
+    judged = [a for a in result.per_audit if a.judge_claims is not None]
+    at_risk = [a for a in result.per_audit if a.expected_answerable and not a.refused]
+    n_judged = len(judged)
+    n_at_risk = len(at_risk)
+    faith_v3 = sum(a.answer_metrics.faithfulness for a in judged) / n_judged if n_judged else 0.0
+    ca_v3 = sum(a.answer_metrics.citation_accuracy for a in judged) / n_judged if n_judged else 0.0
+    hall_v3 = (
+        sum(a.answer_metrics.hallucination_rate for a in at_risk) / n_at_risk if n_at_risk else 0.0
+    )
+    answer.add_row(f"faithfulness (answered, n={n_judged})", f"{faith_v3:.3f}", stub_note)
+    answer.add_row(f"citation_accuracy (answered, n={n_judged})", f"{ca_v3:.3f}", stub_note)
     answer.add_row(
-        "hallucination_rate (answerable only)",
-        f"{sc.answer.hallucination_rate:.3f}",
+        f"hallucination_rate (answerable_and_answered, n={n_at_risk})",
+        f"{hall_v3:.3f}",
         stub_note,
     )
     answer.add_row("refusal_precision", f"{sc.answer.refusal_precision:.3f}", refusal_tag)
     answer.add_row("refusal_recall", f"{sc.answer.refusal_recall:.3f}", refusal_tag)
-    # Companion to ``hallucination_rate (answerable only)`` — the count of
-    # out-of-scope examples the agent DID NOT refuse. Computed here directly
-    # from ``per_refusal`` for parity with the JSON export.
+    # Companion to hallucination_rate — the count of out-of-scope examples
+    # the agent DID NOT refuse. Computed from per_refusal for parity with the
+    # JSON export.
     oos_answered = sum(
         1 for p in result.per_refusal if not p.expected_answerable and not p.observed_refused
     )

@@ -17,9 +17,11 @@ $0.2713. Every chiffre in the README derives verbatim from
 — no hand-typed numbers, no averaged runs, no re-shot chiffre. Committed
 as immutable artefacts.
 
-Headline (schema `verity.scorecard.headline/v2`) :
+Headline (schema `verity.scorecard.headline/v3`, each judge-track metric
+carries `{value, scope, n_denominator}`) :
 - **refusal_precision 1.000, refusal_recall 0.800** — the differentiator
-- faithfulness 1.000, citation_accuracy 0.792, hallucination_rate (answerable only) 0.000
+- faithfulness 1.000 (answered, n=12), citation_accuracy 0.722 (answered, n=12),
+  hallucination_rate 0.000 (answerable_and_answered, n=11)
 - retrieval nDCG@8 0.953, recall@8 1.000, precision@k 0.148 (k>gold ceiling)
 
 ### Added — audit trail persistence
@@ -59,7 +61,37 @@ Headline (schema `verity.scorecard.headline/v2`) :
   `FN (didn't refuse out-of-scope)` — the label was doing work the code
   didn't back up (confusion-matrix cell, not judge verdict).
 
-### Added — headline scorecard v2 schema
+### Added — headline scorecard v3 schema (pre-tag correction)
+- Every judge-track metric is now a `{value, scope, n_denominator}` triple —
+  no chiffre can be quoted without knowing what was averaged. Scoping rule:
+  - `faithfulness` / `citation_accuracy` : scope = `answered`,
+    denominator = `n_judged` (the answers the judge actually saw). Refusals
+    bypass the judge and no longer inflate these aggregates with a
+    convention 1.0. **Material effect on this run: `citation_accuracy`
+    corrects from 0.792 (over 16, refusals=1.0) to 0.722 (over 12
+    answered)** ; faithfulness stays 1.000 (all 12 judged were 1.0 too).
+  - `hallucination_rate` : scope = `answerable_and_answered`,
+    denominator = the at-risk set (the only questions where the
+    per-example formula can return 1.0). 0.000 on this run either way.
+- New top-level `sample_sizes` table (`n_examples`, `n_answered`,
+  `n_judged`, `n_refused`, `n_answerable_answered`) so every denominator
+  is one click away from the scorecard.
+- Judge provenance summary format is now
+  `"claude-sonnet-4-6 (12/16 answered — 4 refusals bypass the judge)"`
+  when refusals cause skips. The v2 `"(12/12)"` was arithmetically true
+  but misleading — 4 refusals had already been filtered out of the
+  denominator. Load-bearing honesty rule: a reader cannot confuse the
+  judge call count with the total question count.
+- CLI console rows now display each metric with its explicit
+  scope + denominator (e.g. `Citation accuracy (answered, n=12)`).
+  Console-vs-JSON label consistency asserted by
+  `tests/unit/test_label_source_of_truth.py`.
+- New `build_headline_dict_from_eval_run(EvalRun, dataset_path, ...)`
+  helper lets a persisted audit trail be re-serialised into the current
+  headline schema without re-running the LLM — used to migrate the v1.0.0
+  live scorecard from v2 to v3 with zero re-spend.
+
+### Added — headline scorecard v2 schema (superseded by v3 above)
 - `answer_quality.hallucination_rate` → `answer_quality.hallucination_rate_answerable`
   (same number, honest name — the metric is gated on `example.answerable`).
 - New companion `refusal_calibration.out_of_scope_answered` : `{count, total}`.

@@ -59,76 +59,83 @@ def _run_stub_and_capture(tmp_path: Path) -> tuple[str, dict]:
 
 
 # --------------------------------------------------------------------------------------
-# Load-bearing invariant: JSON v2 keys ↔ console labels.
+# Load-bearing invariant: JSON v3 keys ↔ console labels.
 # --------------------------------------------------------------------------------------
 
 
 class TestConsoleJsonLabelInvariant:
-    """Every user-visible metric name is defined ONCE. Console and JSON agree."""
+    """Every user-visible metric name + denominator is defined ONCE.
+    Console and JSON agree on vocabulary AND on scope/n_denominator."""
 
-    def test_json_has_v2_renamed_metric_and_companion(self, tmp_path: Path) -> None:
-        """Baseline: the JSON we generate today is the v2 schema — no drift back
-        to v1 ``hallucination_rate`` under any refactor."""
+    def test_json_is_v3_with_scoped_metrics(self, tmp_path: Path) -> None:
+        """Baseline: the JSON we generate today is schema v3 — no drift back
+        to a v2/v1 shape under any refactor. Each judge-track metric is a
+        ``{value, scope, n_denominator}`` triple so no chiffre can be
+        quoted without its denominator."""
         _, payload = _run_stub_and_capture(tmp_path)
-        assert payload["schema"] == "verity.scorecard.headline/v2"
-        assert "hallucination_rate_answerable" in payload["answer_quality"]
-        assert "hallucination_rate" not in payload["answer_quality"], (
-            "v1 name must not leak into a v2 scorecard — enforces the rename"
-        )
+        assert payload["schema"] == "verity.scorecard.headline/v3"
+        for name in ("faithfulness", "citation_accuracy", "hallucination_rate"):
+            entry = payload["answer_quality"][name]
+            assert set(entry.keys()) == {"value", "scope", "n_denominator"}, (
+                f"v3 answer_quality[{name!r}] must be a {{value, scope, n_denominator}} triple"
+            )
+        # v2 leftovers must be absent.
+        assert "hallucination_rate_answerable" not in payload["answer_quality"]
+        # Sample-size table is present and complete.
+        assert set(payload["sample_sizes"].keys()) == {
+            "n_examples",
+            "n_answered",
+            "n_judged",
+            "n_refused",
+            "n_answerable_answered",
+        }
+        # Companion refusal metric.
         assert "out_of_scope_answered" in payload["refusal_calibration"]
-        ooa = payload["refusal_calibration"]["out_of_scope_answered"]
-        assert set(ooa.keys()) == {"count", "total"}
 
-    def test_console_uses_the_v2_qualified_hallucination_label(self, tmp_path: Path) -> None:
-        """The console must display the v2-qualified name, not the bare v1 name.
-        The load-bearing bit: ``(answerable only)`` in the label so a reader
-        cannot quote the number without knowing the gate.
-        """
+    def test_console_uses_the_v3_scoped_hallucination_label(self, tmp_path: Path) -> None:
+        """The console must display the v3-scoped name with the denominator,
+        never the bare v1 name and never the v2 ``(answerable only)`` label
+        (which doesn't say ``n=…``). Load-bearing: no chiffre-without-denominator
+        can leak into a demo screenshot."""
         console, _ = _run_stub_and_capture(tmp_path)
-        assert "hallucination_rate (answerable only)" in console, (
-            "console must use the v2-qualified label — mirrors JSON key semantics"
+        assert "hallucination_rate (answerable_and_answered, n=" in console, (
+            "console must use the v3-scoped label including the denominator"
         )
-        # The bare v1 label without the qualifier must NOT appear as a row on its own.
-        # (It may appear as a substring inside the qualified label — that's fine;
-        # what we forbid is a stand-alone " hallucination_rate " column entry.)
+        # The v2 label must not survive.
+        assert "hallucination_rate (answerable only)" not in console, (
+            "console still shows the v2 label without a denominator — v3 rename incomplete"
+        )
+        # A bare row without qualifier is also forbidden.
         bare_v1_row = re.search(r"hallucination_rate\s+\|\s*\d", console)
-        assert bare_v1_row is None, (
-            "console still displays the bare v1 ``hallucination_rate`` — v2 rename incomplete"
-        )
+        assert bare_v1_row is None
+
+    def test_console_shows_denominators_on_every_judge_track_metric(self, tmp_path: Path) -> None:
+        """faithfulness and citation_accuracy also carry their v3 scope +
+        denominator in the console — a reader cannot quote 0.792 without
+        seeing the ``(answered, n=12)`` context."""
+        console, _ = _run_stub_and_capture(tmp_path)
+        assert "faithfulness (answered, n=" in console
+        assert "citation_accuracy (answered, n=" in console
 
     def test_console_shows_out_of_scope_answered_companion(self, tmp_path: Path) -> None:
-        """The v2 companion metric must appear in the console output too — the
-        row that captures the half ``hallucination_rate_answerable`` cannot see."""
+        """The v2 companion metric survives into v3 unchanged and must appear
+        in the console — parity with JSON."""
         console, _ = _run_stub_and_capture(tmp_path)
-        assert "out_of_scope_answered" in console, (
-            "console must show the v2 companion metric — parity with JSON"
-        )
+        assert "out_of_scope_answered" in console
 
-    def test_every_console_row_metric_is_a_v2_json_key(self, tmp_path: Path) -> None:
-        """The strongest invariant: every metric label that appears as a table
-        row in the console output must resolve to a key in the v2 JSON scorecard.
+    def test_every_v3_json_metric_appears_in_the_console(self, tmp_path: Path) -> None:
+        """The strongest invariant: every user-visible metric name in the v3
+        JSON scorecard must resolve to a labelled row in the console output.
         No console-only vocabulary, no JSON-only vocabulary — one source of truth.
-
-        Concretely, we assert the set of console row labels ⊆ the set of v2
-        JSON metric names (plus a small allow-list of console-only decorative
-        rows like latency percentiles which have their own top-level keys)."""
-        console, payload = _run_stub_and_capture(tmp_path)
-
-        # The v2 JSON scorecard's user-visible metric names, flattened from
-        # the schema. Keep this list in sync with ``build_headline_dict``.
-        json_metric_names: set[str] = set()
-        json_metric_names.update(payload["answer_quality"].keys())
-        json_metric_names.update(payload["refusal_calibration"].keys())
-        # Latency subkeys (p50/p95/p99/cold_start) show as e.g. "latency p50 ms".
-        # We assert the console shows *some* latency percentile prefix.
+        """
+        console, _payload = _run_stub_and_capture(tmp_path)
         assert any(k in console for k in ("p50", "p95", "p99")), (
             "console must expose latency percentiles"
         )
-        # Cost per query is its own JSON key with a console counterpart.
-        json_metric_names.add("cost_per_query_usd")
-        # Every explicitly-renamed v2 name must appear in the console.
+        # Every explicit v3 metric name (or the console-side equivalent) must
+        # appear as a row somewhere in the printed table.
         must_appear_in_console = {
-            "hallucination_rate_answerable",
+            "hallucination_rate",
             "out_of_scope_answered",
             "faithfulness",
             "citation_accuracy",
@@ -136,11 +143,8 @@ class TestConsoleJsonLabelInvariant:
             "refusal_recall",
         }
         for name in must_appear_in_console:
-            # The console prints e.g. "hallucination_rate (answerable only)" —
-            # so the JSON key without the suffix is enough as a substring probe.
-            probe = name.replace("_answerable", "")
-            assert probe in console, (
-                f"JSON metric {name!r} (probe={probe!r}) missing from console output — "
+            assert name in console, (
+                f"JSON metric {name!r} missing from console output — "
                 f"console/JSON labels have drifted; both must be sourced from one place"
             )
 
