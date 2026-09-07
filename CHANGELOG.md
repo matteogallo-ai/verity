@@ -6,6 +6,57 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-09-07
+
+### Added
+- **S5 — observability + latency de-biasing.**
+  - **Tracer stack.** `NoOpTracer` is the default (no dependency, no overhead
+    — keeps every existing test green) ; `OTelTracer` wraps the OpenTelemetry
+    SDK and exports every span through an `InMemorySpanExporter` the FastAPI
+    layer queries. When `settings.otel_endpoint` is set, spans are additionally
+    forwarded to an OTLP HTTP collector.
+  - **Span coverage.** `RagAgent.answer` opens one span per stage
+    (`agent.decompose`, `agent.retrieve`, `agent.synthesize`,
+    `agent.confidence`). `HybridRetriever` refines the retrieve stage into
+    `retrieve.embed_query`, `retrieve.dense`, `retrieve.sparse`,
+    `retrieve.fuse`, `retrieve.rerank`. Each span carries `latency_ms`,
+    `usage.*` (tokens + cost when relevant), and retrieval hit counts +
+    top-score.
+  - **Structured logging with trace_id.** `configure_logging()` wires
+    `structlog.contextvars.merge_contextvars` so every log line inside a
+    request carries the current `trace_id`. `request_trace(trace_id)` is the
+    single binding point (used by `RagAgent.answer`).
+  - **Warmup + `Scorecard.cold_start_ms`.** `AgentEvaluator(warmup=True)`
+    (default) runs one throwaway `agent.answer("warmup …")` to prime lazy
+    components before the timed loop starts. The measured wall-clock of that
+    priming call lands in `Scorecard.cold_start_ms` as a distinct field ; the
+    reported `latency.p50/p95/p99` reflects steady-state serving. `--no-warmup`
+    is available for the cold-start-inclusive measurement.
+  - **`GET /metrics` (JSON) + `GET /metrics/prom` (Prometheus text) + `GET
+    /dashboard` (server-rendered HTML)**. FastAPI app; `verity serve` boots
+    it via uvicorn. The dashboard shows live session metrics from the tracer
+    + persisted eval-run history — no raw chunk text or prompt ever exposed.
+
+### Measured latency de-biasing (git SHA d05355b, `--judge stub`, `agent=stub-agent`)
+Before (v0.5.0, no warmup):
+- p50 = 89.4 ms · p95 = **1534.7 ms** · p99 = **4992.6 ms** · `cold_start_ms` unavailable
+- p95/p99 dominated by first-invocation embedder+reranker model loads.
+
+After (v0.6.0, warmup ON):
+- p50 = 89.7 ms · **p95 = 104.8 ms** (×15) · **p99 = 107.4 ms** (×46)
+- `cold_start_ms = 5264.2` reported separately.
+
+Retrieval, refusal, and answer-quality chiffres are byte-identical
+(`retrieval nDCG=0.950`, `refusal_recall=1.000`, `hallucination_rate=0.0`) —
+the warmup only changes the operational metrics, never the eval verdicts.
+
+### Notes
+- No new dependencies added (opentelemetry, fastapi, uvicorn were already
+  pinned in S0).
+- The 116 prior unit tests are byte-preserved; +14 new S5 unit tests
+  (`test_tracer`, `test_trace_context`, `test_warmup`, `test_api_server`).
+  New integration test `test_api_serve.py` exercises the full FastAPI stack.
+
 ## [0.5.0] — 2026-09-06
 
 ### Added

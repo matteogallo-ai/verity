@@ -68,15 +68,17 @@ number is only as trustworthy as the components that produced it.
 | Answer faithfulness | _pending real judge_ | (stub judge scorecard shows 1.000, not published) |
 | Citation accuracy | _pending real judge_ | |
 | Hallucination rate | _pending real judge_ | ↓ better |
-| Latency p50 / p95 / p99 | 84 / 1477 / 4784 ms | REAL · in-memory backend, stub LLM |
+| Latency p50 / p95 / p99 (warm) | 89.7 / 104.8 / 107.4 ms | measured with **agent=stub-agent** (deterministic) · real-LLM latency lands at S7 |
+| Cold start (first request) | ~5.3 s | one-shot embedder + reranker model load, reported separately (not folded into percentiles) |
 | Cost / query | $0.00 | stub LLM; real cost measured on live-judge run |
 
-Retrieval is a real, standalone chiffre. Refusal — including the 5/5 near-miss
-result — measures how a *deterministic scripted agent* behaves; the real-agent
-refusal calibration lands with the `--judge live` run (pending). Reproduce with
+Retrieval is a real, standalone chiffre. Refusal and latency — including the
+5/5 near-miss result and the sub-110 ms p99 — measure how a *deterministic
+scripted agent* behaves ; the real-LLM refusal calibration and latency land
+with the `--judge live` run (S7 headline). Reproduce with
 `uv run verity eval run --judge stub`. Persisted scorecards under
 [`datasets/eval/runs/`](datasets/eval/runs/) carry the full provenance triple
-(`embedding_model`, `agent_model`, `judge_model`).
+(`embedding_model`, `agent_model`, `judge_model`) plus `cold_start_ms`.
 
 Methodology — how refusal is scored and why the dataset contains unanswerable +
 near-miss questions — is in

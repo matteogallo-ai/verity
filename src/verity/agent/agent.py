@@ -31,6 +31,9 @@ from verity.agent.scorer import LLMConfidenceScorer
 from verity.agent.synthesizer import CitedSynthesizer
 from verity.config import get_settings
 from verity.llm.base import RoutingClient
+from verity.observability.base import Tracer
+from verity.observability.logging import request_trace
+from verity.observability.tracer import NoOpTracer
 from verity.retrieval.base import Retriever
 from verity.types import Answer, RetrievalHit, UsageStats, new_id
 
@@ -61,6 +64,7 @@ class RagAgent(Agent):
         synthesizer: CitedSynthesizer,
         scorer: ConfidenceScorer,
         rerank_k: int | None = None,
+        tracer: Tracer | None = None,
     ) -> None:
         settings = get_settings()
         self._retriever = retriever
@@ -68,58 +72,79 @@ class RagAgent(Agent):
         self._synthesizer = synthesizer
         self._scorer = scorer
         self._rerank_k = rerank_k if rerank_k is not None else settings.rerank_k
+        # NoOp default keeps ~120 existing tests untouched: they instantiate the
+        # agent without supplying a tracer. Real observability is enabled by
+        # the CLI/API wiring in an ``OTelTracer``.
+        self._tracer: Tracer = tracer or NoOpTracer()
 
     async def answer(self, question: str) -> Answer:
-        started = time.perf_counter()
         trace_id = new_id()
-        sub_questions = await self._decomposer.decompose(question)
-        log.info("decomposed", trace_id=str(trace_id), n_sub_questions=len(sub_questions))
+        # Bind the trace id both on structlog contextvars (every log line gets
+        # it) and on ``current_trace_id`` (the retriever's spans piggy-back on
+        # it via the observability contextvar).
+        with request_trace(trace_id):
+            started = time.perf_counter()
 
-        hits = await self._collect_hits(sub_questions)
-        log.info("aggregated_hits", trace_id=str(trace_id), n_hits=len(hits))
+            async with self._tracer.stage("agent.decompose", trace_id) as span:
+                sub_questions = await self._decomposer.decompose(question)
+                span.set_attribute("n_sub_questions", len(sub_questions))
+                _bind_component_usage(span, self._decomposer)
+                log.info("decomposed", n_sub_questions=len(sub_questions))
 
-        synthesis = await self._synthesizer.synthesize(question, hits)
-        confidence = await self._scorer.score(question, synthesis.text, hits)
+            async with self._tracer.stage("agent.retrieve", trace_id) as span:
+                hits = await self._collect_hits(sub_questions)
+                span.record_hits(len(hits), hits[0].score if hits else None)
+                log.info("aggregated_hits", n_hits=len(hits))
 
-        # Aggregate token/cost accounting across every LLM call in the flow:
-        # decomposer + synthesizer + scorer (one call each in the current
-        # single-sub-question pipeline). Latency is the measured wall-clock,
-        # not a sum of per-call latencies — the individual calls run partially
-        # overlapped, so summing would over-count.
-        latency_ms = round((time.perf_counter() - started) * 1000, 2)
-        usage = _aggregate_usage(
-            _last_usage_of(self._decomposer),
-            synthesis.usage,
-            _last_usage_of(self._scorer),
-            latency_ms=latency_ms,
-        )
+            async with self._tracer.stage("agent.synthesize", trace_id) as span:
+                synthesis = await self._synthesizer.synthesize(question, hits)
+                span.set_usage(synthesis.usage)
+                span.set_attribute("n_citations", len(synthesis.citations))
 
-        if confidence.refused:
-            log.info(
-                "refused",
-                trace_id=str(trace_id),
-                score=confidence.score,
-                rationale=confidence.rationale,
+            async with self._tracer.stage("agent.confidence", trace_id) as span:
+                confidence = await self._scorer.score(question, synthesis.text, hits)
+                span.set_attribute("score", float(confidence.score))
+                span.set_attribute("refused", bool(confidence.refused))
+                _bind_component_usage(span, self._scorer)
+
+            # Aggregate token/cost accounting across every LLM call in the flow:
+            # decomposer + synthesizer + scorer (one call each in the current
+            # single-sub-question pipeline). Latency is the measured wall-clock,
+            # not a sum of per-call latencies — the individual calls run partially
+            # overlapped, so summing would over-count.
+            latency_ms = round((time.perf_counter() - started) * 1000, 2)
+            usage = _aggregate_usage(
+                _last_usage_of(self._decomposer),
+                synthesis.usage,
+                _last_usage_of(self._scorer),
+                latency_ms=latency_ms,
             )
+
+            if confidence.refused:
+                log.info(
+                    "refused",
+                    score=confidence.score,
+                    rationale=confidence.rationale,
+                )
+                return Answer(
+                    query=question,
+                    text=_REFUSAL_TEXT,
+                    citations=(),
+                    confidence=confidence,
+                    hits_used=tuple(hits),
+                    usage=usage,
+                    trace_id=trace_id,
+                )
+
             return Answer(
                 query=question,
-                text=_REFUSAL_TEXT,
-                citations=(),
+                text=synthesis.text or _REFUSAL_TEXT,
+                citations=synthesis.citations,
                 confidence=confidence,
                 hits_used=tuple(hits),
                 usage=usage,
                 trace_id=trace_id,
             )
-
-        return Answer(
-            query=question,
-            text=synthesis.text or _REFUSAL_TEXT,
-            citations=synthesis.citations,
-            confidence=confidence,
-            hits_used=tuple(hits),
-            usage=usage,
-            trace_id=trace_id,
-        )
 
     async def _collect_hits(self, sub_questions: list[str]) -> list[RetrievalHit]:
         """Retrieve per sub-question and deduplicate by chunk id, keeping the best score.
@@ -140,6 +165,13 @@ class RagAgent(Agent):
         # Preserve the best-score-first ordering so the synthesizer sees the strongest
         # evidence at the top of its rendered evidence block.
         return sorted(seen.values(), key=lambda h: -h.score)
+
+
+def _bind_component_usage(span, component: object) -> None:  # type: ignore[no-untyped-def]
+    """Attach a component's ``last_usage`` to the current stage span, if present."""
+    usage = _last_usage_of(component)
+    if usage is not None:
+        span.set_usage(usage)
 
 
 def _last_usage_of(component: object) -> UsageStats | None:
@@ -176,6 +208,7 @@ def create_default_agent(
     *,
     retriever: Retriever,
     client: RoutingClient,
+    tracer: Tracer | None = None,
 ) -> RagAgent:
     """Wire the default agent: LLM-based decomposer + synthesizer + scorer."""
     return RagAgent(
@@ -183,6 +216,7 @@ def create_default_agent(
         decomposer=LLMQuestionDecomposer(client),
         synthesizer=CitedSynthesizer(client),
         scorer=LLMConfidenceScorer(client),
+        tracer=tracer,
     )
 
 

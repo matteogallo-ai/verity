@@ -103,6 +103,7 @@ class AgentEvaluator(Evaluator):
         agent_model: str,
         dataset_name: str,
         k: int | None = None,
+        warmup: bool = True,
     ) -> None:
         settings = get_settings()
         self._agent = agent
@@ -112,6 +113,7 @@ class AgentEvaluator(Evaluator):
         self._agent_model = agent_model
         self._dataset_name = dataset_name
         self._k = k if k is not None else settings.rerank_k
+        self._warmup = warmup
 
     async def evaluate(self, dataset: list[EvalExample], git_sha: str) -> Scorecard:
         result = await self.run(dataset, git_sha=git_sha)
@@ -123,6 +125,16 @@ class AgentEvaluator(Evaluator):
         per_answer: list[PerExampleAnswerMetrics] = []
         per_refusal: list[PerExampleRefusal] = []
         retrieval_metric = BinaryRetrievalMetric()
+
+        cold_start_ms: float | None = None
+        if self._warmup:
+            # One throwaway agent call primes every lazy component (embedder,
+            # reranker, tokenisers) so the timed loop below reflects
+            # steady-state serving latency, not first-boot model loads.
+            from verity.observability.warmup import agent_warmup
+
+            cold_start_ms = await agent_warmup(self._agent)
+            log.info("harness_warmup_done", cold_start_ms=cold_start_ms)
 
         for example in dataset:
             answer = await self._agent.answer(example.question)
@@ -173,6 +185,7 @@ class AgentEvaluator(Evaluator):
             answer=answer_agg,
             latency=latency,
             cost_per_query_usd=cost_per_query,
+            cold_start_ms=cold_start_ms,
         )
         return HarnessResult(
             scorecard=scorecard,

@@ -11,14 +11,15 @@
       "refusal_precision": 1.0,
       "refusal_recall": 1.0
     },
+    "cold_start_ms": 5288.863,
     "cost_per_query_usd": 0.0,
-    "created_at": "2026-09-06T15:56:42.204845+00:00",
+    "created_at": "2026-09-07T08:17:43.451663+00:00",
     "dataset": "questions",
-    "git_sha": "72d47b9",
+    "git_sha": "d05355b",
     "latency": {
-      "p50_ms": 89.42500000000001,
-      "p95_ms": 1534.71,
-      "p99_ms": 4992.605999999998
+      "p50_ms": 87.56,
+      "p95_ms": 102.48,
+      "p99_ms": 104.75999999999999
     },
     "n_examples": 16,
     "retrieval": {

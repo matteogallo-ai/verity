@@ -453,9 +453,31 @@ def _first_client_model(client: object) -> str | None:
 def serve(
     host: Annotated[str, typer.Option(help="Bind host.")] = "0.0.0.0",
     port: Annotated[int, typer.Option(help="Bind port.")] = 8000,
+    runs_dir: Annotated[
+        Path, typer.Option(help="Where the dashboard reads persisted eval runs from.")
+    ] = Path("datasets/eval/runs"),
+    dataset: Annotated[
+        str, typer.Option(help="Dataset whose eval history to surface on /dashboard.")
+    ] = "questions",
 ) -> None:
-    """Run the API + dashboard. [implemented in S5/S6]"""
-    console.print(f"{_SCAFFOLD} serve → http://{host}:{port}  (API lands in S5)")
+    """Serve /metrics + /dashboard (FastAPI + uvicorn).
+
+    The dashboard is server-rendered HTML with two panels: live session metrics
+    (in-memory spans from this process's tracer) and persisted eval-run
+    history. The full Next.js UI is scheduled for S6 — this is the minimal
+    demo-ready surface.
+    """
+    import uvicorn
+
+    from verity.api import create_app
+    from verity.observability import OTelTracer, configure_logging
+
+    settings = get_settings()
+    configure_logging(settings.log_level)
+    tracer = OTelTracer(otel_endpoint=settings.otel_endpoint)
+    app_instance = create_app(tracer=tracer, runs_dir=runs_dir, dataset=dataset)
+    console.print(f"[cyan]Serving[/cyan] http://{host}:{port}  (dashboard: /dashboard)")
+    uvicorn.run(app_instance, host=host, port=port, log_level=settings.log_level.lower())
 
 
 @eval_app.command("run")
@@ -490,6 +512,16 @@ def eval_run(
             help="Legacy alias for --judge stub — kept for backwards compat with S0 CI.",
         ),
     ] = False,
+    warmup: Annotated[
+        bool,
+        typer.Option(
+            help=(
+                "Prime lazy components with one throwaway request BEFORE timing so "
+                "p50/p95/p99 reflect steady-state serving latency. cold_start_ms of "
+                "that priming request is reported separately in the Scorecard."
+            )
+        ),
+    ] = True,
     floor_refusal_recall: Annotated[
         float | None,
         typer.Option(help="Fail if refusal_recall drops below this value."),
@@ -568,6 +600,7 @@ def eval_run(
         judge_model=judge_model,
         agent_model=agent_model,
         dataset_name=dataset.stem,
+        warmup=warmup,
     )
     git_sha = current_git_sha()
     console.print(
@@ -760,8 +793,13 @@ def _print_scorecard(result) -> None:  # type: ignore[no-untyped-def]
     answer.add_row("refusal_recall", f"{sc.answer.refusal_recall:.3f}", refusal_tag)
     console.print(answer)
 
+    ops_title_suffix = (
+        " [dim](percentiles are steady-state; cold_start reported separately)[/dim]"
+        if sc.cold_start_ms is not None
+        else " [yellow](no warmup — percentiles include cold-start outlier)[/yellow]"
+    )
     ops = Table(
-        title="Operational [green](REAL — measured)[/green]",
+        title=f"Operational [green](REAL — measured)[/green]{ops_title_suffix}",
         show_header=True,
         header_style="bold cyan",
     )
@@ -770,6 +808,8 @@ def _print_scorecard(result) -> None:  # type: ignore[no-untyped-def]
     ops.add_row("latency p50 ms", f"{sc.latency.p50_ms:.1f}")
     ops.add_row("latency p95 ms", f"{sc.latency.p95_ms:.1f}")
     ops.add_row("latency p99 ms", f"{sc.latency.p99_ms:.1f}")
+    if sc.cold_start_ms is not None:
+        ops.add_row("cold start ms", f"{sc.cold_start_ms:.1f}")
     ops.add_row("cost / query USD", f"{sc.cost_per_query_usd:.4f}")
     console.print(ops)
 

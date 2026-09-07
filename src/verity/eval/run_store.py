@@ -83,6 +83,7 @@ def _run_to_dict(run: EvalRun) -> dict[str, object]:
             "answer": run.scorecard.answer.model_dump(),
             "latency": run.scorecard.latency.model_dump(),
             "cost_per_query_usd": run.scorecard.cost_per_query_usd,
+            "cold_start_ms": run.scorecard.cold_start_ms,
         },
     }
 
@@ -91,6 +92,7 @@ def _run_from_dict(data: dict[str, object]) -> EvalRun:
     sc = data.get("scorecard")
     assert isinstance(sc, dict)
     created_at = datetime.fromisoformat(str(sc["created_at"]))
+    cold_start_raw = sc.get("cold_start_ms")
     scorecard = Scorecard(
         git_sha=str(sc["git_sha"]),
         created_at=created_at,
@@ -100,6 +102,7 @@ def _run_from_dict(data: dict[str, object]) -> EvalRun:
         answer=AnswerMetrics.model_validate(sc["answer"]),
         latency=LatencyMetrics.model_validate(sc["latency"]),
         cost_per_query_usd=float(sc["cost_per_query_usd"]),
+        cold_start_ms=float(cold_start_raw) if cold_start_raw is not None else None,
     )
     return EvalRun(
         scorecard=scorecard,

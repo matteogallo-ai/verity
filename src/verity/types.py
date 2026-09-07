@@ -255,6 +255,11 @@ class Scorecard(BaseModel, frozen=True):
     answer: AnswerMetrics
     latency: LatencyMetrics
     cost_per_query_usd: float
+    # Cold-start latency of the first agent call (model loads, tokeniser init).
+    # Separated from ``latency`` so p50/p95/p99 reflect the *steady-state*
+    # serving latency an operator would see in production. ``None`` when no
+    # warmup was performed (measurement is combined into the percentiles then).
+    cold_start_ms: float | None = None
 
 
 class EvalRun(BaseModel, frozen=True):

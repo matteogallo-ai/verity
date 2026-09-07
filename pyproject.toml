@@ -1,6 +1,6 @@
 [project]
 name = "verity"
-version = "0.5.0"
+version = "0.6.0"
 description = "Evaluated, observable RAG agent platform for enterprise documents."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -68,7 +68,14 @@ mypy_path = "src"
 packages = ["verity"]
 
 [[tool.mypy.overrides]]
-module = ["rank_bm25.*", "sentence_transformers.*", "docling.*", "pgvector.*", "trafilatura.*"]
+module = [
+  "rank_bm25.*",
+  "sentence_transformers.*",
+  "docling.*",
+  "pgvector.*",
+  "trafilatura.*",
+  "opentelemetry.exporter.*",
+]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
