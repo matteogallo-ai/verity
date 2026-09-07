@@ -1,0 +1,130 @@
+{
+  "answer_quality": {
+    "citation_accuracy": 0.7916666666666666,
+    "faithfulness": 1.0,
+    "hallucination_rate_answerable": 0.0
+  },
+  "cost": {
+    "agent_usd": 0.194997,
+    "judge_usd": 0.076269,
+    "per_query_usd": 0.012187,
+    "total_usd": 0.271266
+  },
+  "dataset": {
+    "n_answerable": 11,
+    "n_questions": 16,
+    "n_unanswerable": 5,
+    "name": "questions",
+    "sha256": "56296e10faa19648c7987e2b0292b29934fb25e95dd6a237bc69e4bee7b7acfb"
+  },
+  "generated_at": "2026-09-07T14:19:24.390091+00:00",
+  "latency_ms": {
+    "cold_start": null,
+    "p50": 9374.68,
+    "p95": 32526.475,
+    "p99": 36653.095
+  },
+  "per_refusal": [
+    {
+      "example_id": "q-001",
+      "expected_answerable": true,
+      "observed_refused": false
+    },
+    {
+      "example_id": "q-002",
+      "expected_answerable": true,
+      "observed_refused": false
+    },
+    {
+      "example_id": "q-003",
+      "expected_answerable": true,
+      "observed_refused": false
+    },
+    {
+      "example_id": "q-004",
+      "expected_answerable": false,
+      "observed_refused": true
+    },
+    {
+      "example_id": "q-005",
+      "expected_answerable": true,
+      "observed_refused": false
+    },
+    {
+      "example_id": "q-006",
+      "expected_answerable": false,
+      "observed_refused": true
+    },
+    {
+      "example_id": "q-007",
+      "expected_answerable": true,
+      "observed_refused": false
+    },
+    {
+      "example_id": "q-008",
+      "expected_answerable": true,
+      "observed_refused": false
+    },
+    {
+      "example_id": "q-009",
+      "expected_answerable": true,
+      "observed_refused": false
+    },
+    {
+      "example_id": "q-010",
+      "expected_answerable": true,
+      "observed_refused": false
+    },
+    {
+      "example_id": "q-011",
+      "expected_answerable": true,
+      "observed_refused": false
+    },
+    {
+      "example_id": "q-012",
+      "expected_answerable": true,
+      "observed_refused": false
+    },
+    {
+      "example_id": "q-013",
+      "expected_answerable": true,
+      "observed_refused": false
+    },
+    {
+      "example_id": "q-014",
+      "expected_answerable": false,
+      "observed_refused": true
+    },
+    {
+      "example_id": "q-015",
+      "expected_answerable": false,
+      "observed_refused": false
+    },
+    {
+      "example_id": "q-016",
+      "expected_answerable": false,
+      "observed_refused": true
+    }
+  ],
+  "provenance": {
+    "agent_model": "claude-sonnet-4-6 (16/16)",
+    "embedding_model": "BAAI/bge-small-en-v1.5",
+    "judge_model": "claude-sonnet-4-6 (12/12)",
+    "run_sha": "d0ca1d5"
+  },
+  "refusal_calibration": {
+    "out_of_scope_answered": {
+      "count": 1,
+      "total": 5
+    },
+    "refusal_precision": 1.0,
+    "refusal_recall": 0.8
+  },
+  "retrieval": {
+    "k": 8,
+    "ndcg_at_k": 0.9528431508278374,
+    "precision_at_k": 0.14772727272727273,
+    "recall_at_k": 1.0
+  },
+  "schema": "verity.scorecard.headline/v2"
+}

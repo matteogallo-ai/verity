@@ -1,0 +1,2978 @@
+{
+  "agent_model": "claude-sonnet-4-6",
+  "embedding_model": "BAAI/bge-small-en-v1.5",
+  "judge_model": "claude-sonnet-4-6",
+  "notes": null,
+  "per_audit": [
+    {
+      "answer_metrics": {
+        "citation_accuracy": 0.0,
+        "faithfulness": 1.0,
+        "hallucination_rate": 0.0,
+        "refusal_precision": 0.0,
+        "refusal_recall": 0.0
+      },
+      "answer_text": "For termination for convenience, either party must provide at least 30 days' prior written notice. For termination for cause (material breach), either party may terminate immediately upon written notice if the breach is not cured within 15 days of receiving notice of the breach.",
+      "citations": [
+        {
+          "char_end": 667,
+          "char_start": 505,
+          "chunk_id": "ef55252e-8732-54d8-8131-f07d4a438bfd",
+          "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+          "quote": "Either party may terminate this Agreement or any Order Form for its convenience by providing the other party with at least thirty (30) days' prior written notice."
+        },
+        {
+          "char_end": 1126,
+          "char_start": 899,
+          "chunk_id": "74d77df1-4cc1-50e5-93ec-63d05f705eb5",
+          "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+          "quote": "Either party may terminate this Agreement immediately upon written notice if the other party materially breaches this Agreement and fails to cure the breach within fifteen (15) days after receiving written notice of the breach."
+        }
+      ],
+      "example_id": "q-001",
+      "expected_answerable": true,
+      "hits_used": [
+        {
+          "chunk": {
+            "char_end": 466,
+            "char_start": 0,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "bac3e0ee-f254-51b3-8df5-b3dc0c5bd891",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Master Services Agreement",
+            "text": "# Master Services Agreement\n\nThis Master Services Agreement (\"Agreement\") is entered into as of January 15, 2024 between Acme Corporation, a Delaware corporation (\"Provider\"), and the Customer identified in the applicable Order Form (\"Customer\").\n\n## 1. Term and Termination\n\n### 1.1 Initial Term\n\nThe Agreement commences on the Effective Date and continues for an initial term of twenty-four (24) months, unless terminated earlier in accordance with this Section 1."
+          },
+          "kind": "reranked",
+          "rank": 0,
+          "score": 5.0752854347229
+        },
+        {
+          "chunk": {
+            "char_end": 866,
+            "char_start": 468,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "ef55252e-8732-54d8-8131-f07d4a438bfd",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Master Services Agreement > 1. Term and Termination > 1.2 Termination for Convenience",
+            "text": "### 1.2 Termination for Convenience\n\nEither party may terminate this Agreement or any Order Form for its convenience by providing the other party with at least thirty (30) days' prior written notice. Fees paid in advance for services not yet delivered will be refunded on a pro-rata basis, and outstanding fees for services rendered through the effective date of termination remain due and payable."
+          },
+          "kind": "reranked",
+          "rank": 1,
+          "score": 4.405672073364258
+        },
+        {
+          "chunk": {
+            "char_end": 1126,
+            "char_start": 868,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "74d77df1-4cc1-50e5-93ec-63d05f705eb5",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Master Services Agreement > 1. Term and Termination > 1.3 Termination for Cause",
+            "text": "### 1.3 Termination for Cause\n\nEither party may terminate this Agreement immediately upon written notice if the other party materially breaches this Agreement and fails to cure the breach within fifteen (15) days after receiving written notice of the breach."
+          },
+          "kind": "reranked",
+          "rank": 2,
+          "score": 2.5354623794555664
+        },
+        {
+          "chunk": {
+            "char_end": 334,
+            "char_start": 0,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "f94196ac-b981-56b2-a237-bab09ef6fe9a",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Service Level Agreement",
+            "text": "# Service Level Agreement\n\nThis Service Level Agreement (\"SLA\") applies to the services provided by Acme Corporation under the Master Services Agreement.\n\n## 1. Uptime Commitment\nProvider commits to a monthly uptime of 99.9% for the production service. Uptime is measured per calendar month and excludes scheduled maintenance windows."
+          },
+          "kind": "reranked",
+          "rank": 3,
+          "score": -1.2880619764328003
+        },
+        {
+          "chunk": {
+            "char_end": 458,
+            "char_start": 0,
+            "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+            "id": "9bf7e49d-4e1e-52a1-a406-ef074bcb4087",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Schedule B \u2014 Data Processing Addendum",
+            "text": "# Schedule B \u2014 Data Processing Addendum\n\nThis Data Processing Addendum (\"DPA\") supplements the Master Services Agreement between Acme Corporation (\"Provider\", acting as data processor) and the Customer (\"Controller\"). It governs the processing of personal data on the Customer's behalf.\n\n## 1. Roles and Scope\nProvider processes personal data only on documented instructions from the Controller and solely to deliver the services described in the Order Form."
+          },
+          "kind": "reranked",
+          "rank": 4,
+          "score": -4.283601760864258
+        },
+        {
+          "chunk": {
+            "char_end": 968,
+            "char_start": 0,
+            "document_id": "42736f91-35fb-5f0d-8162-540d870cd8c1",
+            "id": "6a34fb90-f4f3-524b-b2c5-4a0d36d03ee8",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Employee Handbook",
+            "text": "# Employee Handbook\n\nThis handbook summarizes the principal policies for employees of Acme Corporation. It is an internal document and does not form part of any customer agreement.\n\n## Paid Time Off\nEmployees are entitled to twenty-five (25) days of paid time off per calendar year, accruing monthly. Up to five (5) unused days may be carried over into the following year.\n\n## Working Model\nAcme operates a hybrid working model. Employees must work from the office a minimum of two (2) days per week, with core collaboration hours between 10:00 and 16:00 local time.\n\n## Probation\nNew employees serve a probationary period of three (3) months, during which either party may end the employment with one (1) week's notice.\n\n## Notice of Resignation\nAfter probation, employees are asked to give at least one (1) month's written notice of resignation.\n\n## Business Expenses\nPre-approved business expenses are reimbursed within thirty (30) days of a complete expense claim."
+          },
+          "kind": "reranked",
+          "rank": 5,
+          "score": -7.715648651123047
+        },
+        {
+          "chunk": {
+            "char_end": 787,
+            "char_start": 460,
+            "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+            "id": "c1cbcdd9-a89a-50cd-9b56-8d3ad8c28c11",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Schedule B \u2014 Data Processing Addendum > 2. Sub-processors",
+            "text": "## 2. Sub-processors\nProvider engages a cloud infrastructure provider and a transactional email provider as sub-processors. Provider will give the Controller at least thirty (30) days' prior written notice before adding or replacing a sub-processor, during which the Controller may object on reasonable data-protection grounds."
+          },
+          "kind": "reranked",
+          "rank": 6,
+          "score": -8.857217788696289
+        },
+        {
+          "chunk": {
+            "char_end": 2109,
+            "char_start": 789,
+            "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+            "id": "64ecab1e-f7b0-52b9-b5f5-18bc03dd11f0",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Schedule B \u2014 Data Processing Addendum > 3. Data Location and International Transfers",
+            "text": "## 3. Data Location and International Transfers\nPersonal data is stored in data centers located in Frankfurt, Germany (European Union) and in Virginia, United States. Transfers of personal data from the EU to the US are carried out under the European Commission's Standard Contractual Clauses.\n\n## 4. Security Measures\nProvider encrypts personal data at rest using AES-256 and in transit using TLS 1.2 or higher. Access to production data is restricted to authorized personnel on a least-privilege basis.\n\n## 5. Breach Notification\nProvider will notify the Controller of any confirmed personal-data breach within seventy-two (72) hours of discovery, and will cooperate with the Controller's investigation and remediation.\n\n## 6. Data Subject Requests\nProvider will assist the Controller in responding to data-subject requests (access, rectification, erasure) and will forward any such request it receives directly to the Controller within five (5) business days.\n\n## 7. Retention and Deletion\nUpon termination of the Agreement, Provider will delete all personal data processed on the Controller's behalf within ninety (90) days, unless retention is required by applicable law.\n\n## 8. Audit\nThe Controller may audit Provider's compliance with this DPA once per calendar year, on at least thirty (30) days' written notice."
+          },
+          "kind": "reranked",
+          "rank": 7,
+          "score": -9.224184036254883
+        }
+      ],
+      "judge_claims": [
+        {
+          "citation_ok": false,
+          "claim": "For termination for convenience, either party must provide at least 30 days' prior written notice.",
+          "supported": true
+        },
+        {
+          "citation_ok": false,
+          "claim": "For termination for cause, either party may terminate immediately upon written notice.",
+          "supported": true
+        },
+        {
+          "citation_ok": false,
+          "claim": "For termination for cause, the breach must not be cured within 15 days of receiving notice of the breach.",
+          "supported": true
+        }
+      ],
+      "question": "What is the notice period for terminating the master services agreement?",
+      "refusal_rationale": "",
+      "refused": false,
+      "usage": {
+        "cost_usd": 0.012398999999999999,
+        "input_tokens": 2868,
+        "latency_ms": 30807.05,
+        "llm_calls": 3,
+        "output_tokens": 253
+      }
+    },
+    {
+      "answer_metrics": {
+        "citation_accuracy": 0.6666666666666666,
+        "faithfulness": 1.0,
+        "hallucination_rate": 0.0,
+        "refusal_precision": 0.0,
+        "refusal_recall": 0.0
+      },
+      "answer_text": "Acme Corporation (the Provider) is liable for data-processing breaches. The liability is subject to the general cap in Section 3.1, which is the greater of $1,000,000 or the total fees paid by the Customer in the twelve months preceding the claim.",
+      "citations": [
+        {
+          "char_end": 2060,
+          "char_start": 1866,
+          "chunk_id": "83f3e4c0-1cf3-5af7-acdf-51e64f3a805a",
+          "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+          "quote": "Acme Corporation, acting as Provider, shall be the entity liable for any breach of its data-processing obligations under Schedule B (Data Processing Addendum), subject to the cap in Section 3.1."
+        },
+        {
+          "char_end": 1832,
+          "char_start": 1458,
+          "chunk_id": "c315d244-e1fc-527c-8177-caedfced3de4",
+          "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+          "quote": "The aggregate liability of Provider arising out of or related to this Agreement, whether in contract, tort, or otherwise, shall not exceed one million United States dollars ($1,000,000) or the total fees paid by Customer to Provider under the applicable Order Form during the twelve (12) months immediately preceding the event giving rise to the claim, whichever is greater."
+        }
+      ],
+      "example_id": "q-002",
+      "expected_answerable": true,
+      "hits_used": [
+        {
+          "chunk": {
+            "char_end": 2236,
+            "char_start": 1834,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "83f3e4c0-1cf3-5af7-acdf-51e64f3a805a",
+            "metadata": {},
+            "ordinal": 5,
+            "page": null,
+            "section": "Master Services Agreement > 3. Liability and Indemnification > 3.2 Data-Processing Breach",
+            "text": "### 3.2 Data-Processing Breach\n\nAcme Corporation, acting as Provider, shall be the entity liable for any breach of its data-processing obligations under Schedule B (Data Processing Addendum), subject to the cap in Section 3.1. Provider shall notify Customer of any confirmed data-processing breach within seventy-two (72) hours of discovery and shall reasonably cooperate with Customer's investigation."
+          },
+          "kind": "reranked",
+          "rank": 0,
+          "score": 8.531200408935547
+        },
+        {
+          "chunk": {
+            "char_end": 2109,
+            "char_start": 789,
+            "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+            "id": "64ecab1e-f7b0-52b9-b5f5-18bc03dd11f0",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Schedule B \u2014 Data Processing Addendum > 3. Data Location and International Transfers",
+            "text": "## 3. Data Location and International Transfers\nPersonal data is stored in data centers located in Frankfurt, Germany (European Union) and in Virginia, United States. Transfers of personal data from the EU to the US are carried out under the European Commission's Standard Contractual Clauses.\n\n## 4. Security Measures\nProvider encrypts personal data at rest using AES-256 and in transit using TLS 1.2 or higher. Access to production data is restricted to authorized personnel on a least-privilege basis.\n\n## 5. Breach Notification\nProvider will notify the Controller of any confirmed personal-data breach within seventy-two (72) hours of discovery, and will cooperate with the Controller's investigation and remediation.\n\n## 6. Data Subject Requests\nProvider will assist the Controller in responding to data-subject requests (access, rectification, erasure) and will forward any such request it receives directly to the Controller within five (5) business days.\n\n## 7. Retention and Deletion\nUpon termination of the Agreement, Provider will delete all personal data processed on the Controller's behalf within ninety (90) days, unless retention is required by applicable law.\n\n## 8. Audit\nThe Controller may audit Provider's compliance with this DPA once per calendar year, on at least thirty (30) days' written notice."
+          },
+          "kind": "reranked",
+          "rank": 1,
+          "score": -4.372422218322754
+        },
+        {
+          "chunk": {
+            "char_end": 458,
+            "char_start": 0,
+            "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+            "id": "9bf7e49d-4e1e-52a1-a406-ef074bcb4087",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Schedule B \u2014 Data Processing Addendum",
+            "text": "# Schedule B \u2014 Data Processing Addendum\n\nThis Data Processing Addendum (\"DPA\") supplements the Master Services Agreement between Acme Corporation (\"Provider\", acting as data processor) and the Customer (\"Controller\"). It governs the processing of personal data on the Customer's behalf.\n\n## 1. Roles and Scope\nProvider processes personal data only on documented instructions from the Controller and solely to deliver the services described in the Order Form."
+          },
+          "kind": "reranked",
+          "rank": 2,
+          "score": -5.456632614135742
+        },
+        {
+          "chunk": {
+            "char_end": 2551,
+            "char_start": 2238,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "f9189abe-0635-5475-931a-9590be091d0f",
+            "metadata": {},
+            "ordinal": 6,
+            "page": null,
+            "section": "Master Services Agreement > 3. Liability and Indemnification > 3.3 Exclusion of Damages",
+            "text": "### 3.3 Exclusion of Damages\n\nExcept for a party's indemnification obligations and breaches of confidentiality, neither party shall be liable for any indirect, incidental, consequential, special, exemplary, or punitive damages, or for lost profits or loss of business, arising out of or related to this Agreement."
+          },
+          "kind": "reranked",
+          "rank": 3,
+          "score": -6.050531387329102
+        },
+        {
+          "chunk": {
+            "char_end": 1832,
+            "char_start": 1425,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "c315d244-e1fc-527c-8177-caedfced3de4",
+            "metadata": {},
+            "ordinal": 4,
+            "page": null,
+            "section": "Master Services Agreement > 3. Liability and Indemnification > 3.1 Limitation of Liability",
+            "text": "### 3.1 Limitation of Liability\n\nThe aggregate liability of Provider arising out of or related to this Agreement, whether in contract, tort, or otherwise, shall not exceed one million United States dollars ($1,000,000) or the total fees paid by Customer to Provider under the applicable Order Form during the twelve (12) months immediately preceding the event giving rise to the claim, whichever is greater."
+          },
+          "kind": "reranked",
+          "rank": 2,
+          "score": -6.504894256591797
+        },
+        {
+          "chunk": {
+            "char_end": 787,
+            "char_start": 460,
+            "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+            "id": "c1cbcdd9-a89a-50cd-9b56-8d3ad8c28c11",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Schedule B \u2014 Data Processing Addendum > 2. Sub-processors",
+            "text": "## 2. Sub-processors\nProvider engages a cloud infrastructure provider and a transactional email provider as sub-processors. Provider will give the Controller at least thirty (30) days' prior written notice before adding or replacing a sub-processor, during which the Controller may object on reasonable data-protection grounds."
+          },
+          "kind": "reranked",
+          "rank": 4,
+          "score": -8.826617240905762
+        },
+        {
+          "chunk": {
+            "char_end": 1423,
+            "char_start": 1128,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "77ccbcb6-43b3-54c6-b386-07c627f81665",
+            "metadata": {},
+            "ordinal": 3,
+            "page": null,
+            "section": "Master Services Agreement > 2. Fees and Payment",
+            "text": "## 2. Fees and Payment\n\nCustomer shall pay all fees set forth in the applicable Order Form within thirty (30) days of the invoice date. Late payments accrue interest at the lesser of one percent (1%) per month or the maximum rate permitted by applicable law.\n\n## 3. Liability and Indemnification"
+          },
+          "kind": "reranked",
+          "rank": 4,
+          "score": -9.439471244812012
+        },
+        {
+          "chunk": {
+            "char_end": 1126,
+            "char_start": 868,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "74d77df1-4cc1-50e5-93ec-63d05f705eb5",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Master Services Agreement > 1. Term and Termination > 1.3 Termination for Cause",
+            "text": "### 1.3 Termination for Cause\n\nEither party may terminate this Agreement immediately upon written notice if the other party materially breaches this Agreement and fails to cure the breach within fifteen (15) days after receiving written notice of the breach."
+          },
+          "kind": "reranked",
+          "rank": 5,
+          "score": -9.807969093322754
+        },
+        {
+          "chunk": {
+            "char_end": 466,
+            "char_start": 0,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "bac3e0ee-f254-51b3-8df5-b3dc0c5bd891",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Master Services Agreement",
+            "text": "# Master Services Agreement\n\nThis Master Services Agreement (\"Agreement\") is entered into as of January 15, 2024 between Acme Corporation, a Delaware corporation (\"Provider\"), and the Customer identified in the applicable Order Form (\"Customer\").\n\n## 1. Term and Termination\n\n### 1.1 Initial Term\n\nThe Agreement commences on the Effective Date and continues for an initial term of twenty-four (24) months, unless terminated earlier in accordance with this Section 1."
+          },
+          "kind": "reranked",
+          "rank": 7,
+          "score": -10.803564071655273
+        }
+      ],
+      "judge_claims": [
+        {
+          "citation_ok": true,
+          "claim": "Acme Corporation (the Provider) is liable for data-processing breaches.",
+          "supported": true
+        },
+        {
+          "citation_ok": true,
+          "claim": "The liability for data-processing breaches is subject to the general cap in Section 3.1.",
+          "supported": true
+        },
+        {
+          "citation_ok": false,
+          "claim": "The cap in Section 3.1 is the greater of $1,000,000 or the total fees paid by the Customer in the twelve months preceding the claim.",
+          "supported": true
+        }
+      ],
+      "question": "Which entity is liable for data-processing breaches, and up to what cap?",
+      "refusal_rationale": "",
+      "refused": false,
+      "usage": {
+        "cost_usd": 0.013839,
+        "input_tokens": 2883,
+        "latency_ms": 12314.1,
+        "llm_calls": 3,
+        "output_tokens": 346
+      }
+    },
+    {
+      "answer_metrics": {
+        "citation_accuracy": 0.3333333333333333,
+        "faithfulness": 1.0,
+        "hallucination_rate": 0.0,
+        "refusal_precision": 0.0,
+        "refusal_recall": 0.0
+      },
+      "answer_text": "Total revenue in FY2024 was $482.0 million, an increase of 18.4% year over year from $407.1 million in FY2023. Growth was driven by Enterprise Cloud subscription revenue ($312.7 million, up 24.1% YoY), Managed Services revenue ($128.6 million, up 11.2% YoY), and Other revenue ($40.7 million, roughly flat).",
+      "citations": [
+        {
+          "char_end": 505,
+          "char_start": 382,
+          "chunk_id": "fa9ec532-f77e-5b93-adb9-cf7470f9c894",
+          "document_id": "f7494ebb-4ccb-58cc-8284-6b83e6563e4d",
+          "quote": "Total revenue for fiscal year 2024 was $482.0 million, an increase of 18.4% compared to $407.1 million in fiscal year 2023."
+        },
+        {
+          "char_end": 755,
+          "char_start": 553,
+          "chunk_id": "fa9ec532-f77e-5b93-adb9-cf7470f9c894",
+          "document_id": "f7494ebb-4ccb-58cc-8284-6b83e6563e4d",
+          "quote": "Enterprise Cloud subscription revenue of $312.7 million (up 24.1% YoY).\n- Managed Services revenue of $128.6 million (up 11.2% YoY).\n- Other revenue of $40.7 million, roughly flat versus the prior year."
+        }
+      ],
+      "example_id": "q-003",
+      "expected_answerable": true,
+      "hits_used": [
+        {
+          "chunk": {
+            "char_end": 911,
+            "char_start": 370,
+            "document_id": "f7494ebb-4ccb-58cc-8284-6b83e6563e4d",
+            "id": "fa9ec532-f77e-5b93-adb9-cf7470f9c894",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Acme Corporation \u2014 Financial Summary FY2024 > Revenue",
+            "text": "## Revenue\n\nTotal revenue for fiscal year 2024 was $482.0 million, an increase of 18.4% compared to $407.1 million in fiscal year 2023. The year-over-year growth was propelled by:\n\n- Enterprise Cloud subscription revenue of $312.7 million (up 24.1% YoY).\n- Managed Services revenue of $128.6 million (up 11.2% YoY).\n- Other revenue of $40.7 million, roughly flat versus the prior year.\n\nThe revenue mix continues to shift toward recurring subscription revenue, which represented 84.6% of total revenue in FY2024, compared to 79.3% in FY2023."
+          },
+          "kind": "reranked",
+          "rank": 0,
+          "score": 7.779499053955078
+        },
+        {
+          "chunk": {
+            "char_end": 1421,
+            "char_start": 913,
+            "document_id": "f7494ebb-4ccb-58cc-8284-6b83e6563e4d",
+            "id": "ccb74035-d897-5f7b-955e-c2aea89e9b07",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Acme Corporation \u2014 Financial Summary FY2024 > Profitability",
+            "text": "## Profitability\n\nGross margin expanded to 71.8% in FY2024 from 68.9% in FY2023, primarily reflecting scale in cloud infrastructure and improved contract terms with third-party data-center providers. Operating income was $71.4 million, up from $46.8 million in the prior year.\n\n## Cash and liquidity\n\nCash and cash equivalents at fiscal year-end were $214.3 million, with total available liquidity \u2014 including undrawn credit facilities \u2014 of $364.3 million. Operating cash flow for the year was $92.5 million."
+          },
+          "kind": "reranked",
+          "rank": 1,
+          "score": 5.312356948852539
+        },
+        {
+          "chunk": {
+            "char_end": 368,
+            "char_start": 0,
+            "document_id": "f7494ebb-4ccb-58cc-8284-6b83e6563e4d",
+            "id": "233949e4-3d45-5187-947e-4a6247005387",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Acme Corporation \u2014 Financial Summary FY2024",
+            "text": "# Acme Corporation \u2014 Financial Summary FY2024\n\n*Prepared for internal review, dated March 5, 2025. All figures in United States dollars unless otherwise noted.*\n\n## Executive summary\n\nAcme Corporation reported a strong FY2024, with double-digit revenue growth driven by expansion of the Enterprise Cloud segment and continued adoption of the Managed Services offering."
+          },
+          "kind": "reranked",
+          "rank": 2,
+          "score": 1.612205982208252
+        },
+        {
+          "chunk": {
+            "char_end": 1702,
+            "char_start": 1423,
+            "document_id": "f7494ebb-4ccb-58cc-8284-6b83e6563e4d",
+            "id": "956c6b82-8588-52cf-b46a-91d44c705640",
+            "metadata": {},
+            "ordinal": 3,
+            "page": null,
+            "section": "Acme Corporation \u2014 Financial Summary FY2024 > Outlook",
+            "text": "## Outlook\n\nFor fiscal year 2025, management expects revenue growth in the range of 14% to 17%, with continued gross-margin expansion of approximately 100 basis points. These figures are forward-looking and subject to the risk factors disclosed in Section 8 of the Annual Report."
+          },
+          "kind": "reranked",
+          "rank": 3,
+          "score": -4.672450065612793
+        },
+        {
+          "chunk": {
+            "char_end": 1832,
+            "char_start": 1425,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "c315d244-e1fc-527c-8177-caedfced3de4",
+            "metadata": {},
+            "ordinal": 4,
+            "page": null,
+            "section": "Master Services Agreement > 3. Liability and Indemnification > 3.1 Limitation of Liability",
+            "text": "### 3.1 Limitation of Liability\n\nThe aggregate liability of Provider arising out of or related to this Agreement, whether in contract, tort, or otherwise, shall not exceed one million United States dollars ($1,000,000) or the total fees paid by Customer to Provider under the applicable Order Form during the twelve (12) months immediately preceding the event giving rise to the claim, whichever is greater."
+          },
+          "kind": "reranked",
+          "rank": 4,
+          "score": -10.490718841552734
+        },
+        {
+          "chunk": {
+            "char_end": 788,
+            "char_start": 336,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "72f5a452-ab45-5c6e-8ded-5d0abe97c0f3",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Service Level Agreement > 2. Service Credits",
+            "text": "## 2. Service Credits\nIf monthly uptime falls below the commitment, the Customer is entitled to a service credit calculated as a percentage of that month's fees:\n\n- Uptime from 99.0% up to 99.9%: 10% credit.\n- Uptime from 95.0% up to 99.0%: 25% credit.\n- Uptime below 95.0%: 50% credit.\n\nService credits are the Customer's sole and exclusive remedy for availability failures and must be claimed in writing within thirty (30) days of the affected month."
+          },
+          "kind": "reranked",
+          "rank": 5,
+          "score": -10.96993350982666
+        },
+        {
+          "chunk": {
+            "char_end": 1423,
+            "char_start": 1128,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "77ccbcb6-43b3-54c6-b386-07c627f81665",
+            "metadata": {},
+            "ordinal": 3,
+            "page": null,
+            "section": "Master Services Agreement > 2. Fees and Payment",
+            "text": "## 2. Fees and Payment\n\nCustomer shall pay all fees set forth in the applicable Order Form within thirty (30) days of the invoice date. Late payments accrue interest at the lesser of one percent (1%) per month or the maximum rate permitted by applicable law.\n\n## 3. Liability and Indemnification"
+          },
+          "kind": "reranked",
+          "rank": 6,
+          "score": -11.116722106933594
+        },
+        {
+          "chunk": {
+            "char_end": 466,
+            "char_start": 0,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "bac3e0ee-f254-51b3-8df5-b3dc0c5bd891",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Master Services Agreement",
+            "text": "# Master Services Agreement\n\nThis Master Services Agreement (\"Agreement\") is entered into as of January 15, 2024 between Acme Corporation, a Delaware corporation (\"Provider\"), and the Customer identified in the applicable Order Form (\"Customer\").\n\n## 1. Term and Termination\n\n### 1.1 Initial Term\n\nThe Agreement commences on the Effective Date and continues for an initial term of twenty-four (24) months, unless terminated earlier in accordance with this Section 1."
+          },
+          "kind": "reranked",
+          "rank": 7,
+          "score": -11.193422317504883
+        },
+        {
+          "chunk": {
+            "char_end": 3633,
+            "char_start": 2791,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "655a84c0-0af7-5090-b5ca-9cfb577ef613",
+            "metadata": {},
+            "ordinal": 8,
+            "page": null,
+            "section": "Master Services Agreement > 5. Assignment",
+            "text": "## 5. Assignment\n\nNeither party may assign this Agreement or any of its rights or obligations hereunder, whether by operation of law or otherwise, without the prior written consent of the other party; provided, however, that either party may assign this Agreement without such consent to a successor in interest in connection with a merger, acquisition, or sale of all or substantially all of its assets, other than to a direct competitor of the non-assigning party. Any assignment in violation of this Section is null and void. In particular, the Agreement does not permit assignment to a competitor of the non-assigning party without such party's prior written consent.\n\n## 6. Governing Law\n\nThis Agreement is governed by and construed in accordance with the laws of the State of Delaware, without regard to its conflict-of-laws principles."
+          },
+          "kind": "reranked",
+          "rank": 5,
+          "score": -11.236140251159668
+        },
+        {
+          "chunk": {
+            "char_end": 1323,
+            "char_start": 790,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "5cf7d938-ef50-57b4-bf2d-50077540cb43",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Service Level Agreement > 3. Support Response Times",
+            "text": "## 3. Support Response Times\nProvider responds to support requests according to severity:\n\n- Priority 1 (critical, service unavailable): within one (1) hour.\n- Priority 2 (high, major feature impaired): within four (4) business hours.\n- Priority 3 (normal): within one (1) business day.\n\n## 4. Scheduled Maintenance\nRoutine maintenance is performed on Sundays between 02:00 and 06:00 UTC. Provider gives at least forty-eight (48) hours' advance notice of any scheduled maintenance, which does not count against the uptime commitment."
+          },
+          "kind": "reranked",
+          "rank": 7,
+          "score": -11.295788764953613
+        }
+      ],
+      "judge_claims": [
+        {
+          "citation_ok": true,
+          "claim": "Total revenue in FY2024 was $482.0 million",
+          "supported": true
+        },
+        {
+          "citation_ok": true,
+          "claim": "FY2024 revenue was an increase of 18.4% year over year",
+          "supported": true
+        },
+        {
+          "citation_ok": true,
+          "claim": "FY2023 revenue was $407.1 million",
+          "supported": true
+        },
+        {
+          "citation_ok": false,
+          "claim": "Enterprise Cloud subscription revenue was $312.7 million",
+          "supported": true
+        },
+        {
+          "citation_ok": false,
+          "claim": "Enterprise Cloud subscription revenue was up 24.1% YoY",
+          "supported": true
+        },
+        {
+          "citation_ok": false,
+          "claim": "Managed Services revenue was $128.6 million",
+          "supported": true
+        },
+        {
+          "citation_ok": false,
+          "claim": "Managed Services revenue was up 11.2% YoY",
+          "supported": true
+        },
+        {
+          "citation_ok": false,
+          "claim": "Other revenue was $40.7 million",
+          "supported": true
+        },
+        {
+          "citation_ok": false,
+          "claim": "Other revenue was roughly flat year over year",
+          "supported": true
+        }
+      ],
+      "question": "What was total revenue in FY2024 and how did it change year over year?",
+      "refusal_rationale": "",
+      "refused": false,
+      "usage": {
+        "cost_usd": 0.016113,
+        "input_tokens": 3316,
+        "latency_ms": 37684.75,
+        "llm_calls": 3,
+        "output_tokens": 411
+      }
+    },
+    {
+      "answer_metrics": {
+        "citation_accuracy": 1.0,
+        "faithfulness": 1.0,
+        "hallucination_rate": 0.0,
+        "refusal_precision": 0.0,
+        "refusal_recall": 0.0
+      },
+      "answer_text": "I don't know based on the provided documents.",
+      "citations": [],
+      "example_id": "q-004",
+      "expected_answerable": false,
+      "hits_used": [
+        {
+          "chunk": {
+            "char_end": 368,
+            "char_start": 0,
+            "document_id": "f7494ebb-4ccb-58cc-8284-6b83e6563e4d",
+            "id": "233949e4-3d45-5187-947e-4a6247005387",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Acme Corporation \u2014 Financial Summary FY2024",
+            "text": "# Acme Corporation \u2014 Financial Summary FY2024\n\n*Prepared for internal review, dated March 5, 2025. All figures in United States dollars unless otherwise noted.*\n\n## Executive summary\n\nAcme Corporation reported a strong FY2024, with double-digit revenue growth driven by expansion of the Enterprise Cloud segment and continued adoption of the Managed Services offering."
+          },
+          "kind": "reranked",
+          "rank": 0,
+          "score": -11.072614669799805
+        },
+        {
+          "chunk": {
+            "char_end": 911,
+            "char_start": 370,
+            "document_id": "f7494ebb-4ccb-58cc-8284-6b83e6563e4d",
+            "id": "fa9ec532-f77e-5b93-adb9-cf7470f9c894",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Acme Corporation \u2014 Financial Summary FY2024 > Revenue",
+            "text": "## Revenue\n\nTotal revenue for fiscal year 2024 was $482.0 million, an increase of 18.4% compared to $407.1 million in fiscal year 2023. The year-over-year growth was propelled by:\n\n- Enterprise Cloud subscription revenue of $312.7 million (up 24.1% YoY).\n- Managed Services revenue of $128.6 million (up 11.2% YoY).\n- Other revenue of $40.7 million, roughly flat versus the prior year.\n\nThe revenue mix continues to shift toward recurring subscription revenue, which represented 84.6% of total revenue in FY2024, compared to 79.3% in FY2023."
+          },
+          "kind": "reranked",
+          "rank": 1,
+          "score": -11.219437599182129
+        },
+        {
+          "chunk": {
+            "char_end": 3633,
+            "char_start": 2791,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "655a84c0-0af7-5090-b5ca-9cfb577ef613",
+            "metadata": {},
+            "ordinal": 8,
+            "page": null,
+            "section": "Master Services Agreement > 5. Assignment",
+            "text": "## 5. Assignment\n\nNeither party may assign this Agreement or any of its rights or obligations hereunder, whether by operation of law or otherwise, without the prior written consent of the other party; provided, however, that either party may assign this Agreement without such consent to a successor in interest in connection with a merger, acquisition, or sale of all or substantially all of its assets, other than to a direct competitor of the non-assigning party. Any assignment in violation of this Section is null and void. In particular, the Agreement does not permit assignment to a competitor of the non-assigning party without such party's prior written consent.\n\n## 6. Governing Law\n\nThis Agreement is governed by and construed in accordance with the laws of the State of Delaware, without regard to its conflict-of-laws principles."
+          },
+          "kind": "reranked",
+          "rank": 2,
+          "score": -11.281267166137695
+        },
+        {
+          "chunk": {
+            "char_end": 466,
+            "char_start": 0,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "bac3e0ee-f254-51b3-8df5-b3dc0c5bd891",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Master Services Agreement",
+            "text": "# Master Services Agreement\n\nThis Master Services Agreement (\"Agreement\") is entered into as of January 15, 2024 between Acme Corporation, a Delaware corporation (\"Provider\"), and the Customer identified in the applicable Order Form (\"Customer\").\n\n## 1. Term and Termination\n\n### 1.1 Initial Term\n\nThe Agreement commences on the Effective Date and continues for an initial term of twenty-four (24) months, unless terminated earlier in accordance with this Section 1."
+          },
+          "kind": "reranked",
+          "rank": 3,
+          "score": -11.297948837280273
+        },
+        {
+          "chunk": {
+            "char_end": 1421,
+            "char_start": 913,
+            "document_id": "f7494ebb-4ccb-58cc-8284-6b83e6563e4d",
+            "id": "ccb74035-d897-5f7b-955e-c2aea89e9b07",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Acme Corporation \u2014 Financial Summary FY2024 > Profitability",
+            "text": "## Profitability\n\nGross margin expanded to 71.8% in FY2024 from 68.9% in FY2023, primarily reflecting scale in cloud infrastructure and improved contract terms with third-party data-center providers. Operating income was $71.4 million, up from $46.8 million in the prior year.\n\n## Cash and liquidity\n\nCash and cash equivalents at fiscal year-end were $214.3 million, with total available liquidity \u2014 including undrawn credit facilities \u2014 of $364.3 million. Operating cash flow for the year was $92.5 million."
+          },
+          "kind": "reranked",
+          "rank": 4,
+          "score": -11.311721801757812
+        },
+        {
+          "chunk": {
+            "char_end": 2109,
+            "char_start": 789,
+            "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+            "id": "64ecab1e-f7b0-52b9-b5f5-18bc03dd11f0",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Schedule B \u2014 Data Processing Addendum > 3. Data Location and International Transfers",
+            "text": "## 3. Data Location and International Transfers\nPersonal data is stored in data centers located in Frankfurt, Germany (European Union) and in Virginia, United States. Transfers of personal data from the EU to the US are carried out under the European Commission's Standard Contractual Clauses.\n\n## 4. Security Measures\nProvider encrypts personal data at rest using AES-256 and in transit using TLS 1.2 or higher. Access to production data is restricted to authorized personnel on a least-privilege basis.\n\n## 5. Breach Notification\nProvider will notify the Controller of any confirmed personal-data breach within seventy-two (72) hours of discovery, and will cooperate with the Controller's investigation and remediation.\n\n## 6. Data Subject Requests\nProvider will assist the Controller in responding to data-subject requests (access, rectification, erasure) and will forward any such request it receives directly to the Controller within five (5) business days.\n\n## 7. Retention and Deletion\nUpon termination of the Agreement, Provider will delete all personal data processed on the Controller's behalf within ninety (90) days, unless retention is required by applicable law.\n\n## 8. Audit\nThe Controller may audit Provider's compliance with this DPA once per calendar year, on at least thirty (30) days' written notice."
+          },
+          "kind": "reranked",
+          "rank": 5,
+          "score": -11.321455955505371
+        },
+        {
+          "chunk": {
+            "char_end": 968,
+            "char_start": 0,
+            "document_id": "42736f91-35fb-5f0d-8162-540d870cd8c1",
+            "id": "6a34fb90-f4f3-524b-b2c5-4a0d36d03ee8",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Employee Handbook",
+            "text": "# Employee Handbook\n\nThis handbook summarizes the principal policies for employees of Acme Corporation. It is an internal document and does not form part of any customer agreement.\n\n## Paid Time Off\nEmployees are entitled to twenty-five (25) days of paid time off per calendar year, accruing monthly. Up to five (5) unused days may be carried over into the following year.\n\n## Working Model\nAcme operates a hybrid working model. Employees must work from the office a minimum of two (2) days per week, with core collaboration hours between 10:00 and 16:00 local time.\n\n## Probation\nNew employees serve a probationary period of three (3) months, during which either party may end the employment with one (1) week's notice.\n\n## Notice of Resignation\nAfter probation, employees are asked to give at least one (1) month's written notice of resignation.\n\n## Business Expenses\nPre-approved business expenses are reimbursed within thirty (30) days of a complete expense claim."
+          },
+          "kind": "reranked",
+          "rank": 6,
+          "score": -11.340967178344727
+        },
+        {
+          "chunk": {
+            "char_end": 788,
+            "char_start": 336,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "72f5a452-ab45-5c6e-8ded-5d0abe97c0f3",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Service Level Agreement > 2. Service Credits",
+            "text": "## 2. Service Credits\nIf monthly uptime falls below the commitment, the Customer is entitled to a service credit calculated as a percentage of that month's fees:\n\n- Uptime from 99.0% up to 99.9%: 10% credit.\n- Uptime from 95.0% up to 99.0%: 25% credit.\n- Uptime below 95.0%: 50% credit.\n\nService credits are the Customer's sole and exclusive remedy for availability failures and must be claimed in writing within thirty (30) days of the affected month."
+          },
+          "kind": "reranked",
+          "rank": 7,
+          "score": -11.342363357543945
+        }
+      ],
+      "judge_claims": null,
+      "question": "What is the CEO's home address?",
+      "refusal_rationale": "None of the provided documents contain any reference to the CEO's home address, and the draft answer correctly acknowledges this absence.",
+      "refused": true,
+      "usage": {
+        "cost_usd": 0.011526000000000002,
+        "input_tokens": 3407,
+        "latency_ms": 8090.7,
+        "llm_calls": 3,
+        "output_tokens": 87
+      }
+    },
+    {
+      "answer_metrics": {
+        "citation_accuracy": 1.0,
+        "faithfulness": 1.0,
+        "hallucination_rate": 0.0,
+        "refusal_precision": 0.0,
+        "refusal_recall": 0.0
+      },
+      "answer_text": "No. Assignment to a direct competitor of the non-assigning party is explicitly prohibited without that party's prior written consent. While the contract allows assignment without consent in the context of a merger, acquisition, or sale of substantially all assets, it carves out assignments to a direct competitor, which always require prior written consent.",
+      "citations": [
+        {
+          "char_end": 3257,
+          "char_start": 3016,
+          "chunk_id": "655a84c0-0af7-5090-b5ca-9cfb577ef613",
+          "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+          "quote": "either party may assign this Agreement without such consent to a successor in interest in connection with a merger, acquisition, or sale of all or substantially all of its assets, other than to a direct competitor of the non-assigning party."
+        },
+        {
+          "char_end": 3462,
+          "char_start": 3335,
+          "chunk_id": "655a84c0-0af7-5090-b5ca-9cfb577ef613",
+          "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+          "quote": "the Agreement does not permit assignment to a competitor of the non-assigning party without such party's prior written consent."
+        }
+      ],
+      "example_id": "q-005",
+      "expected_answerable": true,
+      "hits_used": [
+        {
+          "chunk": {
+            "char_end": 3633,
+            "char_start": 2791,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "655a84c0-0af7-5090-b5ca-9cfb577ef613",
+            "metadata": {},
+            "ordinal": 8,
+            "page": null,
+            "section": "Master Services Agreement > 5. Assignment",
+            "text": "## 5. Assignment\n\nNeither party may assign this Agreement or any of its rights or obligations hereunder, whether by operation of law or otherwise, without the prior written consent of the other party; provided, however, that either party may assign this Agreement without such consent to a successor in interest in connection with a merger, acquisition, or sale of all or substantially all of its assets, other than to a direct competitor of the non-assigning party. Any assignment in violation of this Section is null and void. In particular, the Agreement does not permit assignment to a competitor of the non-assigning party without such party's prior written consent.\n\n## 6. Governing Law\n\nThis Agreement is governed by and construed in accordance with the laws of the State of Delaware, without regard to its conflict-of-laws principles."
+          },
+          "kind": "reranked",
+          "rank": 0,
+          "score": 7.331158638000488
+        },
+        {
+          "chunk": {
+            "char_end": 866,
+            "char_start": 468,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "ef55252e-8732-54d8-8131-f07d4a438bfd",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Master Services Agreement > 1. Term and Termination > 1.2 Termination for Convenience",
+            "text": "### 1.2 Termination for Convenience\n\nEither party may terminate this Agreement or any Order Form for its convenience by providing the other party with at least thirty (30) days' prior written notice. Fees paid in advance for services not yet delivered will be refunded on a pro-rata basis, and outstanding fees for services rendered through the effective date of termination remain due and payable."
+          },
+          "kind": "reranked",
+          "rank": 1,
+          "score": -6.430748462677002
+        },
+        {
+          "chunk": {
+            "char_end": 2551,
+            "char_start": 2238,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "f9189abe-0635-5475-931a-9590be091d0f",
+            "metadata": {},
+            "ordinal": 6,
+            "page": null,
+            "section": "Master Services Agreement > 3. Liability and Indemnification > 3.3 Exclusion of Damages",
+            "text": "### 3.3 Exclusion of Damages\n\nExcept for a party's indemnification obligations and breaches of confidentiality, neither party shall be liable for any indirect, incidental, consequential, special, exemplary, or punitive damages, or for lost profits or loss of business, arising out of or related to this Agreement."
+          },
+          "kind": "reranked",
+          "rank": 1,
+          "score": -8.950517654418945
+        },
+        {
+          "chunk": {
+            "char_end": 2789,
+            "char_start": 2553,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "0812a5b0-9e73-510e-b031-5b9d094b7563",
+            "metadata": {},
+            "ordinal": 7,
+            "page": null,
+            "section": "Master Services Agreement > 4. Confidentiality",
+            "text": "## 4. Confidentiality\n\nEach party agrees to protect the Confidential Information of the other party with the same degree of care it uses to protect its own confidential information, and in no event less than a reasonable degree of care."
+          },
+          "kind": "reranked",
+          "rank": 2,
+          "score": -9.024067878723145
+        },
+        {
+          "chunk": {
+            "char_end": 1832,
+            "char_start": 1425,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "c315d244-e1fc-527c-8177-caedfced3de4",
+            "metadata": {},
+            "ordinal": 4,
+            "page": null,
+            "section": "Master Services Agreement > 3. Liability and Indemnification > 3.1 Limitation of Liability",
+            "text": "### 3.1 Limitation of Liability\n\nThe aggregate liability of Provider arising out of or related to this Agreement, whether in contract, tort, or otherwise, shall not exceed one million United States dollars ($1,000,000) or the total fees paid by Customer to Provider under the applicable Order Form during the twelve (12) months immediately preceding the event giving rise to the claim, whichever is greater."
+          },
+          "kind": "reranked",
+          "rank": 2,
+          "score": -9.069931983947754
+        },
+        {
+          "chunk": {
+            "char_end": 1126,
+            "char_start": 868,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "74d77df1-4cc1-50e5-93ec-63d05f705eb5",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Master Services Agreement > 1. Term and Termination > 1.3 Termination for Cause",
+            "text": "### 1.3 Termination for Cause\n\nEither party may terminate this Agreement immediately upon written notice if the other party materially breaches this Agreement and fails to cure the breach within fifteen (15) days after receiving written notice of the breach."
+          },
+          "kind": "reranked",
+          "rank": 4,
+          "score": -9.765183448791504
+        },
+        {
+          "chunk": {
+            "char_end": 2109,
+            "char_start": 789,
+            "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+            "id": "64ecab1e-f7b0-52b9-b5f5-18bc03dd11f0",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Schedule B \u2014 Data Processing Addendum > 3. Data Location and International Transfers",
+            "text": "## 3. Data Location and International Transfers\nPersonal data is stored in data centers located in Frankfurt, Germany (European Union) and in Virginia, United States. Transfers of personal data from the EU to the US are carried out under the European Commission's Standard Contractual Clauses.\n\n## 4. Security Measures\nProvider encrypts personal data at rest using AES-256 and in transit using TLS 1.2 or higher. Access to production data is restricted to authorized personnel on a least-privilege basis.\n\n## 5. Breach Notification\nProvider will notify the Controller of any confirmed personal-data breach within seventy-two (72) hours of discovery, and will cooperate with the Controller's investigation and remediation.\n\n## 6. Data Subject Requests\nProvider will assist the Controller in responding to data-subject requests (access, rectification, erasure) and will forward any such request it receives directly to the Controller within five (5) business days.\n\n## 7. Retention and Deletion\nUpon termination of the Agreement, Provider will delete all personal data processed on the Controller's behalf within ninety (90) days, unless retention is required by applicable law.\n\n## 8. Audit\nThe Controller may audit Provider's compliance with this DPA once per calendar year, on at least thirty (30) days' written notice."
+          },
+          "kind": "reranked",
+          "rank": 3,
+          "score": -10.176545143127441
+        },
+        {
+          "chunk": {
+            "char_end": 2236,
+            "char_start": 1834,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "83f3e4c0-1cf3-5af7-acdf-51e64f3a805a",
+            "metadata": {},
+            "ordinal": 5,
+            "page": null,
+            "section": "Master Services Agreement > 3. Liability and Indemnification > 3.2 Data-Processing Breach",
+            "text": "### 3.2 Data-Processing Breach\n\nAcme Corporation, acting as Provider, shall be the entity liable for any breach of its data-processing obligations under Schedule B (Data Processing Addendum), subject to the cap in Section 3.1. Provider shall notify Customer of any confirmed data-processing breach within seventy-two (72) hours of discovery and shall reasonably cooperate with Customer's investigation."
+          },
+          "kind": "reranked",
+          "rank": 4,
+          "score": -10.354867935180664
+        },
+        {
+          "chunk": {
+            "char_end": 466,
+            "char_start": 0,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "bac3e0ee-f254-51b3-8df5-b3dc0c5bd891",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Master Services Agreement",
+            "text": "# Master Services Agreement\n\nThis Master Services Agreement (\"Agreement\") is entered into as of January 15, 2024 between Acme Corporation, a Delaware corporation (\"Provider\"), and the Customer identified in the applicable Order Form (\"Customer\").\n\n## 1. Term and Termination\n\n### 1.1 Initial Term\n\nThe Agreement commences on the Effective Date and continues for an initial term of twenty-four (24) months, unless terminated earlier in accordance with this Section 1."
+          },
+          "kind": "reranked",
+          "rank": 2,
+          "score": -10.80428695678711
+        },
+        {
+          "chunk": {
+            "char_end": 968,
+            "char_start": 0,
+            "document_id": "42736f91-35fb-5f0d-8162-540d870cd8c1",
+            "id": "6a34fb90-f4f3-524b-b2c5-4a0d36d03ee8",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Employee Handbook",
+            "text": "# Employee Handbook\n\nThis handbook summarizes the principal policies for employees of Acme Corporation. It is an internal document and does not form part of any customer agreement.\n\n## Paid Time Off\nEmployees are entitled to twenty-five (25) days of paid time off per calendar year, accruing monthly. Up to five (5) unused days may be carried over into the following year.\n\n## Working Model\nAcme operates a hybrid working model. Employees must work from the office a minimum of two (2) days per week, with core collaboration hours between 10:00 and 16:00 local time.\n\n## Probation\nNew employees serve a probationary period of three (3) months, during which either party may end the employment with one (1) week's notice.\n\n## Notice of Resignation\nAfter probation, employees are asked to give at least one (1) month's written notice of resignation.\n\n## Business Expenses\nPre-approved business expenses are reimbursed within thirty (30) days of a complete expense claim."
+          },
+          "kind": "reranked",
+          "rank": 7,
+          "score": -10.964278221130371
+        },
+        {
+          "chunk": {
+            "char_end": 334,
+            "char_start": 0,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "f94196ac-b981-56b2-a237-bab09ef6fe9a",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Service Level Agreement",
+            "text": "# Service Level Agreement\n\nThis Service Level Agreement (\"SLA\") applies to the services provided by Acme Corporation under the Master Services Agreement.\n\n## 1. Uptime Commitment\nProvider commits to a monthly uptime of 99.9% for the production service. Uptime is measured per calendar month and excludes scheduled maintenance windows."
+          },
+          "kind": "reranked",
+          "rank": 4,
+          "score": -11.005422592163086
+        }
+      ],
+      "judge_claims": [
+        {
+          "citation_ok": true,
+          "claim": "Assignment to a direct competitor of the non-assigning party is explicitly prohibited without that party's prior written consent.",
+          "supported": true
+        },
+        {
+          "citation_ok": true,
+          "claim": "The contract allows assignment without consent in the context of a merger, acquisition, or sale of substantially all assets.",
+          "supported": true
+        },
+        {
+          "citation_ok": true,
+          "claim": "The merger/acquisition/asset-sale exception carves out assignments to a direct competitor, which always require prior written consent.",
+          "supported": true
+        }
+      ],
+      "question": "Does the contract permit assignment to a competitor without consent?",
+      "refusal_rationale": "",
+      "refused": false,
+      "usage": {
+        "cost_usd": 0.01614,
+        "input_tokens": 3710,
+        "latency_ms": 14632.86,
+        "llm_calls": 3,
+        "output_tokens": 334
+      }
+    },
+    {
+      "answer_metrics": {
+        "citation_accuracy": 1.0,
+        "faithfulness": 1.0,
+        "hallucination_rate": 0.0,
+        "refusal_precision": 0.0,
+        "refusal_recall": 0.0
+      },
+      "answer_text": "I don't know based on the provided documents.",
+      "citations": [],
+      "example_id": "q-006",
+      "expected_answerable": false,
+      "hits_used": [
+        {
+          "chunk": {
+            "char_end": 968,
+            "char_start": 0,
+            "document_id": "42736f91-35fb-5f0d-8162-540d870cd8c1",
+            "id": "6a34fb90-f4f3-524b-b2c5-4a0d36d03ee8",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Employee Handbook",
+            "text": "# Employee Handbook\n\nThis handbook summarizes the principal policies for employees of Acme Corporation. It is an internal document and does not form part of any customer agreement.\n\n## Paid Time Off\nEmployees are entitled to twenty-five (25) days of paid time off per calendar year, accruing monthly. Up to five (5) unused days may be carried over into the following year.\n\n## Working Model\nAcme operates a hybrid working model. Employees must work from the office a minimum of two (2) days per week, with core collaboration hours between 10:00 and 16:00 local time.\n\n## Probation\nNew employees serve a probationary period of three (3) months, during which either party may end the employment with one (1) week's notice.\n\n## Notice of Resignation\nAfter probation, employees are asked to give at least one (1) month's written notice of resignation.\n\n## Business Expenses\nPre-approved business expenses are reimbursed within thirty (30) days of a complete expense claim."
+          },
+          "kind": "reranked",
+          "rank": 0,
+          "score": -11.129619598388672
+        },
+        {
+          "chunk": {
+            "char_end": 2236,
+            "char_start": 1834,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "83f3e4c0-1cf3-5af7-acdf-51e64f3a805a",
+            "metadata": {},
+            "ordinal": 5,
+            "page": null,
+            "section": "Master Services Agreement > 3. Liability and Indemnification > 3.2 Data-Processing Breach",
+            "text": "### 3.2 Data-Processing Breach\n\nAcme Corporation, acting as Provider, shall be the entity liable for any breach of its data-processing obligations under Schedule B (Data Processing Addendum), subject to the cap in Section 3.1. Provider shall notify Customer of any confirmed data-processing breach within seventy-two (72) hours of discovery and shall reasonably cooperate with Customer's investigation."
+          },
+          "kind": "reranked",
+          "rank": 1,
+          "score": -11.157119750976562
+        },
+        {
+          "chunk": {
+            "char_end": 911,
+            "char_start": 370,
+            "document_id": "f7494ebb-4ccb-58cc-8284-6b83e6563e4d",
+            "id": "fa9ec532-f77e-5b93-adb9-cf7470f9c894",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Acme Corporation \u2014 Financial Summary FY2024 > Revenue",
+            "text": "## Revenue\n\nTotal revenue for fiscal year 2024 was $482.0 million, an increase of 18.4% compared to $407.1 million in fiscal year 2023. The year-over-year growth was propelled by:\n\n- Enterprise Cloud subscription revenue of $312.7 million (up 24.1% YoY).\n- Managed Services revenue of $128.6 million (up 11.2% YoY).\n- Other revenue of $40.7 million, roughly flat versus the prior year.\n\nThe revenue mix continues to shift toward recurring subscription revenue, which represented 84.6% of total revenue in FY2024, compared to 79.3% in FY2023."
+          },
+          "kind": "reranked",
+          "rank": 2,
+          "score": -11.20680046081543
+        },
+        {
+          "chunk": {
+            "char_end": 3633,
+            "char_start": 2791,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "655a84c0-0af7-5090-b5ca-9cfb577ef613",
+            "metadata": {},
+            "ordinal": 8,
+            "page": null,
+            "section": "Master Services Agreement > 5. Assignment",
+            "text": "## 5. Assignment\n\nNeither party may assign this Agreement or any of its rights or obligations hereunder, whether by operation of law or otherwise, without the prior written consent of the other party; provided, however, that either party may assign this Agreement without such consent to a successor in interest in connection with a merger, acquisition, or sale of all or substantially all of its assets, other than to a direct competitor of the non-assigning party. Any assignment in violation of this Section is null and void. In particular, the Agreement does not permit assignment to a competitor of the non-assigning party without such party's prior written consent.\n\n## 6. Governing Law\n\nThis Agreement is governed by and construed in accordance with the laws of the State of Delaware, without regard to its conflict-of-laws principles."
+          },
+          "kind": "reranked",
+          "rank": 3,
+          "score": -11.259536743164062
+        },
+        {
+          "chunk": {
+            "char_end": 1421,
+            "char_start": 913,
+            "document_id": "f7494ebb-4ccb-58cc-8284-6b83e6563e4d",
+            "id": "ccb74035-d897-5f7b-955e-c2aea89e9b07",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Acme Corporation \u2014 Financial Summary FY2024 > Profitability",
+            "text": "## Profitability\n\nGross margin expanded to 71.8% in FY2024 from 68.9% in FY2023, primarily reflecting scale in cloud infrastructure and improved contract terms with third-party data-center providers. Operating income was $71.4 million, up from $46.8 million in the prior year.\n\n## Cash and liquidity\n\nCash and cash equivalents at fiscal year-end were $214.3 million, with total available liquidity \u2014 including undrawn credit facilities \u2014 of $364.3 million. Operating cash flow for the year was $92.5 million."
+          },
+          "kind": "reranked",
+          "rank": 4,
+          "score": -11.290948867797852
+        },
+        {
+          "chunk": {
+            "char_end": 1832,
+            "char_start": 1425,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "c315d244-e1fc-527c-8177-caedfced3de4",
+            "metadata": {},
+            "ordinal": 4,
+            "page": null,
+            "section": "Master Services Agreement > 3. Liability and Indemnification > 3.1 Limitation of Liability",
+            "text": "### 3.1 Limitation of Liability\n\nThe aggregate liability of Provider arising out of or related to this Agreement, whether in contract, tort, or otherwise, shall not exceed one million United States dollars ($1,000,000) or the total fees paid by Customer to Provider under the applicable Order Form during the twelve (12) months immediately preceding the event giving rise to the claim, whichever is greater."
+          },
+          "kind": "reranked",
+          "rank": 5,
+          "score": -11.300901412963867
+        },
+        {
+          "chunk": {
+            "char_end": 788,
+            "char_start": 336,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "72f5a452-ab45-5c6e-8ded-5d0abe97c0f3",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Service Level Agreement > 2. Service Credits",
+            "text": "## 2. Service Credits\nIf monthly uptime falls below the commitment, the Customer is entitled to a service credit calculated as a percentage of that month's fees:\n\n- Uptime from 99.0% up to 99.9%: 10% credit.\n- Uptime from 95.0% up to 99.0%: 25% credit.\n- Uptime below 95.0%: 50% credit.\n\nService credits are the Customer's sole and exclusive remedy for availability failures and must be claimed in writing within thirty (30) days of the affected month."
+          },
+          "kind": "reranked",
+          "rank": 6,
+          "score": -11.303884506225586
+        },
+        {
+          "chunk": {
+            "char_end": 1323,
+            "char_start": 790,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "5cf7d938-ef50-57b4-bf2d-50077540cb43",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Service Level Agreement > 3. Support Response Times",
+            "text": "## 3. Support Response Times\nProvider responds to support requests according to severity:\n\n- Priority 1 (critical, service unavailable): within one (1) hour.\n- Priority 2 (high, major feature impaired): within four (4) business hours.\n- Priority 3 (normal): within one (1) business day.\n\n## 4. Scheduled Maintenance\nRoutine maintenance is performed on Sundays between 02:00 and 06:00 UTC. Provider gives at least forty-eight (48) hours' advance notice of any scheduled maintenance, which does not count against the uptime commitment."
+          },
+          "kind": "reranked",
+          "rank": 7,
+          "score": -11.311315536499023
+        }
+      ],
+      "judge_claims": null,
+      "question": "What is the company's policy on Martian mining rights?",
+      "refusal_rationale": "None of the eight evidence sections (Employee Handbook, MSA, SLA, Financial Summary) contain any mention of Martian mining rights, so the draft answer correctly refuses to answer.",
+      "refused": true,
+      "usage": {
+        "cost_usd": 0.011355,
+        "input_tokens": 3165,
+        "latency_ms": 15863.88,
+        "llm_calls": 3,
+        "output_tokens": 124
+      }
+    },
+    {
+      "answer_metrics": {
+        "citation_accuracy": 0.0,
+        "faithfulness": 1.0,
+        "hallucination_rate": 0.0,
+        "refusal_precision": 0.0,
+        "refusal_recall": 0.0
+      },
+      "answer_text": "The monthly uptime commitment is 99.9%. If uptime falls below 95.0%, a 50% service credit applies on that month's fees.",
+      "citations": [
+        {
+          "char_end": 252,
+          "char_start": 179,
+          "chunk_id": "f94196ac-b981-56b2-a237-bab09ef6fe9a",
+          "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+          "quote": "Provider commits to a monthly uptime of 99.9% for the production service."
+        },
+        {
+          "char_end": 622,
+          "char_start": 591,
+          "chunk_id": "72f5a452-ab45-5c6e-8ded-5d0abe97c0f3",
+          "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+          "quote": "Uptime below 95.0%: 50% credit."
+        }
+      ],
+      "example_id": "q-007",
+      "expected_answerable": true,
+      "hits_used": [
+        {
+          "chunk": {
+            "char_end": 788,
+            "char_start": 336,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "72f5a452-ab45-5c6e-8ded-5d0abe97c0f3",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Service Level Agreement > 2. Service Credits",
+            "text": "## 2. Service Credits\nIf monthly uptime falls below the commitment, the Customer is entitled to a service credit calculated as a percentage of that month's fees:\n\n- Uptime from 99.0% up to 99.9%: 10% credit.\n- Uptime from 95.0% up to 99.0%: 25% credit.\n- Uptime below 95.0%: 50% credit.\n\nService credits are the Customer's sole and exclusive remedy for availability failures and must be claimed in writing within thirty (30) days of the affected month."
+          },
+          "kind": "reranked",
+          "rank": 0,
+          "score": 9.305267333984375
+        },
+        {
+          "chunk": {
+            "char_end": 334,
+            "char_start": 0,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "f94196ac-b981-56b2-a237-bab09ef6fe9a",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Service Level Agreement",
+            "text": "# Service Level Agreement\n\nThis Service Level Agreement (\"SLA\") applies to the services provided by Acme Corporation under the Master Services Agreement.\n\n## 1. Uptime Commitment\nProvider commits to a monthly uptime of 99.9% for the production service. Uptime is measured per calendar month and excludes scheduled maintenance windows."
+          },
+          "kind": "reranked",
+          "rank": 0,
+          "score": 6.356548309326172
+        },
+        {
+          "chunk": {
+            "char_end": 1323,
+            "char_start": 790,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "5cf7d938-ef50-57b4-bf2d-50077540cb43",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Service Level Agreement > 3. Support Response Times",
+            "text": "## 3. Support Response Times\nProvider responds to support requests according to severity:\n\n- Priority 1 (critical, service unavailable): within one (1) hour.\n- Priority 2 (high, major feature impaired): within four (4) business hours.\n- Priority 3 (normal): within one (1) business day.\n\n## 4. Scheduled Maintenance\nRoutine maintenance is performed on Sundays between 02:00 and 06:00 UTC. Provider gives at least forty-eight (48) hours' advance notice of any scheduled maintenance, which does not count against the uptime commitment."
+          },
+          "kind": "reranked",
+          "rank": 2,
+          "score": -3.298274517059326
+        },
+        {
+          "chunk": {
+            "char_end": 1423,
+            "char_start": 1128,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "77ccbcb6-43b3-54c6-b386-07c627f81665",
+            "metadata": {},
+            "ordinal": 3,
+            "page": null,
+            "section": "Master Services Agreement > 2. Fees and Payment",
+            "text": "## 2. Fees and Payment\n\nCustomer shall pay all fees set forth in the applicable Order Form within thirty (30) days of the invoice date. Late payments accrue interest at the lesser of one percent (1%) per month or the maximum rate permitted by applicable law.\n\n## 3. Liability and Indemnification"
+          },
+          "kind": "reranked",
+          "rank": 2,
+          "score": -6.0314483642578125
+        },
+        {
+          "chunk": {
+            "char_end": 1702,
+            "char_start": 1423,
+            "document_id": "f7494ebb-4ccb-58cc-8284-6b83e6563e4d",
+            "id": "956c6b82-8588-52cf-b46a-91d44c705640",
+            "metadata": {},
+            "ordinal": 3,
+            "page": null,
+            "section": "Acme Corporation \u2014 Financial Summary FY2024 > Outlook",
+            "text": "## Outlook\n\nFor fiscal year 2025, management expects revenue growth in the range of 14% to 17%, with continued gross-margin expansion of approximately 100 basis points. These figures are forward-looking and subject to the risk factors disclosed in Section 8 of the Annual Report."
+          },
+          "kind": "reranked",
+          "rank": 4,
+          "score": -9.690964698791504
+        },
+        {
+          "chunk": {
+            "char_end": 911,
+            "char_start": 370,
+            "document_id": "f7494ebb-4ccb-58cc-8284-6b83e6563e4d",
+            "id": "fa9ec532-f77e-5b93-adb9-cf7470f9c894",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Acme Corporation \u2014 Financial Summary FY2024 > Revenue",
+            "text": "## Revenue\n\nTotal revenue for fiscal year 2024 was $482.0 million, an increase of 18.4% compared to $407.1 million in fiscal year 2023. The year-over-year growth was propelled by:\n\n- Enterprise Cloud subscription revenue of $312.7 million (up 24.1% YoY).\n- Managed Services revenue of $128.6 million (up 11.2% YoY).\n- Other revenue of $40.7 million, roughly flat versus the prior year.\n\nThe revenue mix continues to shift toward recurring subscription revenue, which represented 84.6% of total revenue in FY2024, compared to 79.3% in FY2023."
+          },
+          "kind": "reranked",
+          "rank": 5,
+          "score": -10.077652931213379
+        },
+        {
+          "chunk": {
+            "char_end": 968,
+            "char_start": 0,
+            "document_id": "42736f91-35fb-5f0d-8162-540d870cd8c1",
+            "id": "6a34fb90-f4f3-524b-b2c5-4a0d36d03ee8",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Employee Handbook",
+            "text": "# Employee Handbook\n\nThis handbook summarizes the principal policies for employees of Acme Corporation. It is an internal document and does not form part of any customer agreement.\n\n## Paid Time Off\nEmployees are entitled to twenty-five (25) days of paid time off per calendar year, accruing monthly. Up to five (5) unused days may be carried over into the following year.\n\n## Working Model\nAcme operates a hybrid working model. Employees must work from the office a minimum of two (2) days per week, with core collaboration hours between 10:00 and 16:00 local time.\n\n## Probation\nNew employees serve a probationary period of three (3) months, during which either party may end the employment with one (1) week's notice.\n\n## Notice of Resignation\nAfter probation, employees are asked to give at least one (1) month's written notice of resignation.\n\n## Business Expenses\nPre-approved business expenses are reimbursed within thirty (30) days of a complete expense claim."
+          },
+          "kind": "reranked",
+          "rank": 6,
+          "score": -10.177385330200195
+        },
+        {
+          "chunk": {
+            "char_end": 1421,
+            "char_start": 913,
+            "document_id": "f7494ebb-4ccb-58cc-8284-6b83e6563e4d",
+            "id": "ccb74035-d897-5f7b-955e-c2aea89e9b07",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Acme Corporation \u2014 Financial Summary FY2024 > Profitability",
+            "text": "## Profitability\n\nGross margin expanded to 71.8% in FY2024 from 68.9% in FY2023, primarily reflecting scale in cloud infrastructure and improved contract terms with third-party data-center providers. Operating income was $71.4 million, up from $46.8 million in the prior year.\n\n## Cash and liquidity\n\nCash and cash equivalents at fiscal year-end were $214.3 million, with total available liquidity \u2014 including undrawn credit facilities \u2014 of $364.3 million. Operating cash flow for the year was $92.5 million."
+          },
+          "kind": "reranked",
+          "rank": 7,
+          "score": -10.437429428100586
+        },
+        {
+          "chunk": {
+            "char_end": 1832,
+            "char_start": 1425,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "c315d244-e1fc-527c-8177-caedfced3de4",
+            "metadata": {},
+            "ordinal": 4,
+            "page": null,
+            "section": "Master Services Agreement > 3. Liability and Indemnification > 3.1 Limitation of Liability",
+            "text": "### 3.1 Limitation of Liability\n\nThe aggregate liability of Provider arising out of or related to this Agreement, whether in contract, tort, or otherwise, shall not exceed one million United States dollars ($1,000,000) or the total fees paid by Customer to Provider under the applicable Order Form during the twelve (12) months immediately preceding the event giving rise to the claim, whichever is greater."
+          },
+          "kind": "reranked",
+          "rank": 7,
+          "score": -10.888639450073242
+        }
+      ],
+      "judge_claims": [
+        {
+          "citation_ok": false,
+          "claim": "The monthly uptime commitment is 99.9%.",
+          "supported": true
+        },
+        {
+          "citation_ok": false,
+          "claim": "If uptime falls below 95.0%, a 50% service credit applies on that month's fees.",
+          "supported": true
+        }
+      ],
+      "question": "What is the monthly uptime commitment, and what service credit applies if uptime falls below 95%?",
+      "refusal_rationale": "",
+      "refused": false,
+      "usage": {
+        "cost_usd": 0.012606,
+        "input_tokens": 3102,
+        "latency_ms": 14034.85,
+        "llm_calls": 3,
+        "output_tokens": 220
+      }
+    },
+    {
+      "answer_metrics": {
+        "citation_accuracy": 1.0,
+        "faithfulness": 1.0,
+        "hallucination_rate": 0.0,
+        "refusal_precision": 0.0,
+        "refusal_recall": 0.0
+      },
+      "answer_text": "Personal data is stored in Frankfurt, Germany (EU) and Virginia, US. EU-to-US transfers are covered by the European Commission's Standard Contractual Clauses.",
+      "citations": [
+        {
+          "char_end": 1082,
+          "char_start": 837,
+          "chunk_id": "64ecab1e-f7b0-52b9-b5f5-18bc03dd11f0",
+          "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+          "quote": "Personal data is stored in data centers located in Frankfurt, Germany (European Union) and in Virginia, United States. Transfers of personal data from the EU to the US are carried out under the European Commission's Standard Contractual Clauses."
+        }
+      ],
+      "example_id": "q-008",
+      "expected_answerable": true,
+      "hits_used": [
+        {
+          "chunk": {
+            "char_end": 2109,
+            "char_start": 789,
+            "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+            "id": "64ecab1e-f7b0-52b9-b5f5-18bc03dd11f0",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Schedule B \u2014 Data Processing Addendum > 3. Data Location and International Transfers",
+            "text": "## 3. Data Location and International Transfers\nPersonal data is stored in data centers located in Frankfurt, Germany (European Union) and in Virginia, United States. Transfers of personal data from the EU to the US are carried out under the European Commission's Standard Contractual Clauses.\n\n## 4. Security Measures\nProvider encrypts personal data at rest using AES-256 and in transit using TLS 1.2 or higher. Access to production data is restricted to authorized personnel on a least-privilege basis.\n\n## 5. Breach Notification\nProvider will notify the Controller of any confirmed personal-data breach within seventy-two (72) hours of discovery, and will cooperate with the Controller's investigation and remediation.\n\n## 6. Data Subject Requests\nProvider will assist the Controller in responding to data-subject requests (access, rectification, erasure) and will forward any such request it receives directly to the Controller within five (5) business days.\n\n## 7. Retention and Deletion\nUpon termination of the Agreement, Provider will delete all personal data processed on the Controller's behalf within ninety (90) days, unless retention is required by applicable law.\n\n## 8. Audit\nThe Controller may audit Provider's compliance with this DPA once per calendar year, on at least thirty (30) days' written notice."
+          },
+          "kind": "reranked",
+          "rank": 0,
+          "score": 6.212677955627441
+        },
+        {
+          "chunk": {
+            "char_end": 458,
+            "char_start": 0,
+            "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+            "id": "9bf7e49d-4e1e-52a1-a406-ef074bcb4087",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Schedule B \u2014 Data Processing Addendum",
+            "text": "# Schedule B \u2014 Data Processing Addendum\n\nThis Data Processing Addendum (\"DPA\") supplements the Master Services Agreement between Acme Corporation (\"Provider\", acting as data processor) and the Customer (\"Controller\"). It governs the processing of personal data on the Customer's behalf.\n\n## 1. Roles and Scope\nProvider processes personal data only on documented instructions from the Controller and solely to deliver the services described in the Order Form."
+          },
+          "kind": "reranked",
+          "rank": 1,
+          "score": -3.818664073944092
+        },
+        {
+          "chunk": {
+            "char_end": 2789,
+            "char_start": 2553,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "0812a5b0-9e73-510e-b031-5b9d094b7563",
+            "metadata": {},
+            "ordinal": 7,
+            "page": null,
+            "section": "Master Services Agreement > 4. Confidentiality",
+            "text": "## 4. Confidentiality\n\nEach party agrees to protect the Confidential Information of the other party with the same degree of care it uses to protect its own confidential information, and in no event less than a reasonable degree of care."
+          },
+          "kind": "reranked",
+          "rank": 2,
+          "score": -10.928050994873047
+        },
+        {
+          "chunk": {
+            "char_end": 2236,
+            "char_start": 1834,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "83f3e4c0-1cf3-5af7-acdf-51e64f3a805a",
+            "metadata": {},
+            "ordinal": 5,
+            "page": null,
+            "section": "Master Services Agreement > 3. Liability and Indemnification > 3.2 Data-Processing Breach",
+            "text": "### 3.2 Data-Processing Breach\n\nAcme Corporation, acting as Provider, shall be the entity liable for any breach of its data-processing obligations under Schedule B (Data Processing Addendum), subject to the cap in Section 3.1. Provider shall notify Customer of any confirmed data-processing breach within seventy-two (72) hours of discovery and shall reasonably cooperate with Customer's investigation."
+          },
+          "kind": "reranked",
+          "rank": 3,
+          "score": -11.025108337402344
+        },
+        {
+          "chunk": {
+            "char_end": 787,
+            "char_start": 460,
+            "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+            "id": "c1cbcdd9-a89a-50cd-9b56-8d3ad8c28c11",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Schedule B \u2014 Data Processing Addendum > 2. Sub-processors",
+            "text": "## 2. Sub-processors\nProvider engages a cloud infrastructure provider and a transactional email provider as sub-processors. Provider will give the Controller at least thirty (30) days' prior written notice before adding or replacing a sub-processor, during which the Controller may object on reasonable data-protection grounds."
+          },
+          "kind": "reranked",
+          "rank": 4,
+          "score": -11.215147018432617
+        },
+        {
+          "chunk": {
+            "char_end": 911,
+            "char_start": 370,
+            "document_id": "f7494ebb-4ccb-58cc-8284-6b83e6563e4d",
+            "id": "fa9ec532-f77e-5b93-adb9-cf7470f9c894",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Acme Corporation \u2014 Financial Summary FY2024 > Revenue",
+            "text": "## Revenue\n\nTotal revenue for fiscal year 2024 was $482.0 million, an increase of 18.4% compared to $407.1 million in fiscal year 2023. The year-over-year growth was propelled by:\n\n- Enterprise Cloud subscription revenue of $312.7 million (up 24.1% YoY).\n- Managed Services revenue of $128.6 million (up 11.2% YoY).\n- Other revenue of $40.7 million, roughly flat versus the prior year.\n\nThe revenue mix continues to shift toward recurring subscription revenue, which represented 84.6% of total revenue in FY2024, compared to 79.3% in FY2023."
+          },
+          "kind": "reranked",
+          "rank": 5,
+          "score": -11.229607582092285
+        },
+        {
+          "chunk": {
+            "char_end": 1421,
+            "char_start": 913,
+            "document_id": "f7494ebb-4ccb-58cc-8284-6b83e6563e4d",
+            "id": "ccb74035-d897-5f7b-955e-c2aea89e9b07",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Acme Corporation \u2014 Financial Summary FY2024 > Profitability",
+            "text": "## Profitability\n\nGross margin expanded to 71.8% in FY2024 from 68.9% in FY2023, primarily reflecting scale in cloud infrastructure and improved contract terms with third-party data-center providers. Operating income was $71.4 million, up from $46.8 million in the prior year.\n\n## Cash and liquidity\n\nCash and cash equivalents at fiscal year-end were $214.3 million, with total available liquidity \u2014 including undrawn credit facilities \u2014 of $364.3 million. Operating cash flow for the year was $92.5 million."
+          },
+          "kind": "reranked",
+          "rank": 6,
+          "score": -11.248479843139648
+        },
+        {
+          "chunk": {
+            "char_end": 3633,
+            "char_start": 2791,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "655a84c0-0af7-5090-b5ca-9cfb577ef613",
+            "metadata": {},
+            "ordinal": 8,
+            "page": null,
+            "section": "Master Services Agreement > 5. Assignment",
+            "text": "## 5. Assignment\n\nNeither party may assign this Agreement or any of its rights or obligations hereunder, whether by operation of law or otherwise, without the prior written consent of the other party; provided, however, that either party may assign this Agreement without such consent to a successor in interest in connection with a merger, acquisition, or sale of all or substantially all of its assets, other than to a direct competitor of the non-assigning party. Any assignment in violation of this Section is null and void. In particular, the Agreement does not permit assignment to a competitor of the non-assigning party without such party's prior written consent.\n\n## 6. Governing Law\n\nThis Agreement is governed by and construed in accordance with the laws of the State of Delaware, without regard to its conflict-of-laws principles."
+          },
+          "kind": "reranked",
+          "rank": 7,
+          "score": -11.271097183227539
+        },
+        {
+          "chunk": {
+            "char_end": 1832,
+            "char_start": 1425,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "c315d244-e1fc-527c-8177-caedfced3de4",
+            "metadata": {},
+            "ordinal": 4,
+            "page": null,
+            "section": "Master Services Agreement > 3. Liability and Indemnification > 3.1 Limitation of Liability",
+            "text": "### 3.1 Limitation of Liability\n\nThe aggregate liability of Provider arising out of or related to this Agreement, whether in contract, tort, or otherwise, shall not exceed one million United States dollars ($1,000,000) or the total fees paid by Customer to Provider under the applicable Order Form during the twelve (12) months immediately preceding the event giving rise to the claim, whichever is greater."
+          },
+          "kind": "reranked",
+          "rank": 5,
+          "score": -11.344016075134277
+        }
+      ],
+      "judge_claims": [
+        {
+          "citation_ok": true,
+          "claim": "Personal data is stored in Frankfurt, Germany (EU).",
+          "supported": true
+        },
+        {
+          "citation_ok": true,
+          "claim": "Personal data is stored in Virginia, US.",
+          "supported": true
+        },
+        {
+          "citation_ok": true,
+          "claim": "EU-to-US transfers are covered by the European Commission's Standard Contractual Clauses.",
+          "supported": true
+        }
+      ],
+      "question": "Where is personal data stored, and what mechanism covers EU-to-US transfers?",
+      "refusal_rationale": "",
+      "refused": false,
+      "usage": {
+        "cost_usd": 0.013092,
+        "input_tokens": 3274,
+        "latency_ms": 8741.29,
+        "llm_calls": 3,
+        "output_tokens": 218
+      }
+    },
+    {
+      "answer_metrics": {
+        "citation_accuracy": 1.0,
+        "faithfulness": 1.0,
+        "hallucination_rate": 0.0,
+        "refusal_precision": 0.0,
+        "refusal_recall": 0.0
+      },
+      "answer_text": "Personal data is retained for up to 90 days after termination before deletion, unless retention is required by applicable law.",
+      "citations": [
+        {
+          "char_end": 1965,
+          "char_start": 1782,
+          "chunk_id": "64ecab1e-f7b0-52b9-b5f5-18bc03dd11f0",
+          "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+          "quote": "Upon termination of the Agreement, Provider will delete all personal data processed on the Controller's behalf within ninety (90) days, unless retention is required by applicable law."
+        }
+      ],
+      "example_id": "q-009",
+      "expected_answerable": true,
+      "hits_used": [
+        {
+          "chunk": {
+            "char_end": 2109,
+            "char_start": 789,
+            "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+            "id": "64ecab1e-f7b0-52b9-b5f5-18bc03dd11f0",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Schedule B \u2014 Data Processing Addendum > 3. Data Location and International Transfers",
+            "text": "## 3. Data Location and International Transfers\nPersonal data is stored in data centers located in Frankfurt, Germany (European Union) and in Virginia, United States. Transfers of personal data from the EU to the US are carried out under the European Commission's Standard Contractual Clauses.\n\n## 4. Security Measures\nProvider encrypts personal data at rest using AES-256 and in transit using TLS 1.2 or higher. Access to production data is restricted to authorized personnel on a least-privilege basis.\n\n## 5. Breach Notification\nProvider will notify the Controller of any confirmed personal-data breach within seventy-two (72) hours of discovery, and will cooperate with the Controller's investigation and remediation.\n\n## 6. Data Subject Requests\nProvider will assist the Controller in responding to data-subject requests (access, rectification, erasure) and will forward any such request it receives directly to the Controller within five (5) business days.\n\n## 7. Retention and Deletion\nUpon termination of the Agreement, Provider will delete all personal data processed on the Controller's behalf within ninety (90) days, unless retention is required by applicable law.\n\n## 8. Audit\nThe Controller may audit Provider's compliance with this DPA once per calendar year, on at least thirty (30) days' written notice."
+          },
+          "kind": "reranked",
+          "rank": 0,
+          "score": 0.9427355527877808
+        },
+        {
+          "chunk": {
+            "char_end": 1126,
+            "char_start": 868,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "74d77df1-4cc1-50e5-93ec-63d05f705eb5",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Master Services Agreement > 1. Term and Termination > 1.3 Termination for Cause",
+            "text": "### 1.3 Termination for Cause\n\nEither party may terminate this Agreement immediately upon written notice if the other party materially breaches this Agreement and fails to cure the breach within fifteen (15) days after receiving written notice of the breach."
+          },
+          "kind": "reranked",
+          "rank": 1,
+          "score": -2.088702917098999
+        },
+        {
+          "chunk": {
+            "char_end": 866,
+            "char_start": 468,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "ef55252e-8732-54d8-8131-f07d4a438bfd",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Master Services Agreement > 1. Term and Termination > 1.2 Termination for Convenience",
+            "text": "### 1.2 Termination for Convenience\n\nEither party may terminate this Agreement or any Order Form for its convenience by providing the other party with at least thirty (30) days' prior written notice. Fees paid in advance for services not yet delivered will be refunded on a pro-rata basis, and outstanding fees for services rendered through the effective date of termination remain due and payable."
+          },
+          "kind": "reranked",
+          "rank": 2,
+          "score": -3.4646730422973633
+        },
+        {
+          "chunk": {
+            "char_end": 2236,
+            "char_start": 1834,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "83f3e4c0-1cf3-5af7-acdf-51e64f3a805a",
+            "metadata": {},
+            "ordinal": 5,
+            "page": null,
+            "section": "Master Services Agreement > 3. Liability and Indemnification > 3.2 Data-Processing Breach",
+            "text": "### 3.2 Data-Processing Breach\n\nAcme Corporation, acting as Provider, shall be the entity liable for any breach of its data-processing obligations under Schedule B (Data Processing Addendum), subject to the cap in Section 3.1. Provider shall notify Customer of any confirmed data-processing breach within seventy-two (72) hours of discovery and shall reasonably cooperate with Customer's investigation."
+          },
+          "kind": "reranked",
+          "rank": 3,
+          "score": -7.72440767288208
+        },
+        {
+          "chunk": {
+            "char_end": 787,
+            "char_start": 460,
+            "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+            "id": "c1cbcdd9-a89a-50cd-9b56-8d3ad8c28c11",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Schedule B \u2014 Data Processing Addendum > 2. Sub-processors",
+            "text": "## 2. Sub-processors\nProvider engages a cloud infrastructure provider and a transactional email provider as sub-processors. Provider will give the Controller at least thirty (30) days' prior written notice before adding or replacing a sub-processor, during which the Controller may object on reasonable data-protection grounds."
+          },
+          "kind": "reranked",
+          "rank": 4,
+          "score": -8.487161636352539
+        },
+        {
+          "chunk": {
+            "char_end": 466,
+            "char_start": 0,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "bac3e0ee-f254-51b3-8df5-b3dc0c5bd891",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Master Services Agreement",
+            "text": "# Master Services Agreement\n\nThis Master Services Agreement (\"Agreement\") is entered into as of January 15, 2024 between Acme Corporation, a Delaware corporation (\"Provider\"), and the Customer identified in the applicable Order Form (\"Customer\").\n\n## 1. Term and Termination\n\n### 1.1 Initial Term\n\nThe Agreement commences on the Effective Date and continues for an initial term of twenty-four (24) months, unless terminated earlier in accordance with this Section 1."
+          },
+          "kind": "reranked",
+          "rank": 5,
+          "score": -8.511232376098633
+        },
+        {
+          "chunk": {
+            "char_end": 968,
+            "char_start": 0,
+            "document_id": "42736f91-35fb-5f0d-8162-540d870cd8c1",
+            "id": "6a34fb90-f4f3-524b-b2c5-4a0d36d03ee8",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Employee Handbook",
+            "text": "# Employee Handbook\n\nThis handbook summarizes the principal policies for employees of Acme Corporation. It is an internal document and does not form part of any customer agreement.\n\n## Paid Time Off\nEmployees are entitled to twenty-five (25) days of paid time off per calendar year, accruing monthly. Up to five (5) unused days may be carried over into the following year.\n\n## Working Model\nAcme operates a hybrid working model. Employees must work from the office a minimum of two (2) days per week, with core collaboration hours between 10:00 and 16:00 local time.\n\n## Probation\nNew employees serve a probationary period of three (3) months, during which either party may end the employment with one (1) week's notice.\n\n## Notice of Resignation\nAfter probation, employees are asked to give at least one (1) month's written notice of resignation.\n\n## Business Expenses\nPre-approved business expenses are reimbursed within thirty (30) days of a complete expense claim."
+          },
+          "kind": "reranked",
+          "rank": 6,
+          "score": -9.782157897949219
+        },
+        {
+          "chunk": {
+            "char_end": 1423,
+            "char_start": 1128,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "77ccbcb6-43b3-54c6-b386-07c627f81665",
+            "metadata": {},
+            "ordinal": 3,
+            "page": null,
+            "section": "Master Services Agreement > 2. Fees and Payment",
+            "text": "## 2. Fees and Payment\n\nCustomer shall pay all fees set forth in the applicable Order Form within thirty (30) days of the invoice date. Late payments accrue interest at the lesser of one percent (1%) per month or the maximum rate permitted by applicable law.\n\n## 3. Liability and Indemnification"
+          },
+          "kind": "reranked",
+          "rank": 7,
+          "score": -10.221399307250977
+        }
+      ],
+      "judge_claims": [
+        {
+          "citation_ok": true,
+          "claim": "Personal data is retained for up to 90 days after termination before deletion",
+          "supported": true
+        },
+        {
+          "citation_ok": true,
+          "claim": "The 90-day retention period applies unless retention is required by applicable law",
+          "supported": true
+        }
+      ],
+      "question": "How long after termination is personal data retained before deletion?",
+      "refusal_rationale": "",
+      "refused": false,
+      "usage": {
+        "cost_usd": 0.011127000000000001,
+        "input_tokens": 2869,
+        "latency_ms": 8425.48,
+        "llm_calls": 3,
+        "output_tokens": 168
+      }
+    },
+    {
+      "answer_metrics": {
+        "citation_accuracy": 1.0,
+        "faithfulness": 1.0,
+        "hallucination_rate": 0.0,
+        "refusal_precision": 0.0,
+        "refusal_recall": 0.0
+      },
+      "answer_text": "The response time for a Priority 1 (critical, service unavailable) support request is within one (1) hour.",
+      "citations": [
+        {
+          "char_end": 947,
+          "char_start": 883,
+          "chunk_id": "5cf7d938-ef50-57b4-bf2d-50077540cb43",
+          "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+          "quote": "Priority 1 (critical, service unavailable): within one (1) hour."
+        }
+      ],
+      "example_id": "q-010",
+      "expected_answerable": true,
+      "hits_used": [
+        {
+          "chunk": {
+            "char_end": 1323,
+            "char_start": 790,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "5cf7d938-ef50-57b4-bf2d-50077540cb43",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Service Level Agreement > 3. Support Response Times",
+            "text": "## 3. Support Response Times\nProvider responds to support requests according to severity:\n\n- Priority 1 (critical, service unavailable): within one (1) hour.\n- Priority 2 (high, major feature impaired): within four (4) business hours.\n- Priority 3 (normal): within one (1) business day.\n\n## 4. Scheduled Maintenance\nRoutine maintenance is performed on Sundays between 02:00 and 06:00 UTC. Provider gives at least forty-eight (48) hours' advance notice of any scheduled maintenance, which does not count against the uptime commitment."
+          },
+          "kind": "reranked",
+          "rank": 0,
+          "score": 8.027809143066406
+        },
+        {
+          "chunk": {
+            "char_end": 1126,
+            "char_start": 868,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "74d77df1-4cc1-50e5-93ec-63d05f705eb5",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Master Services Agreement > 1. Term and Termination > 1.3 Termination for Cause",
+            "text": "### 1.3 Termination for Cause\n\nEither party may terminate this Agreement immediately upon written notice if the other party materially breaches this Agreement and fails to cure the breach within fifteen (15) days after receiving written notice of the breach."
+          },
+          "kind": "reranked",
+          "rank": 1,
+          "score": -9.679357528686523
+        },
+        {
+          "chunk": {
+            "char_end": 2109,
+            "char_start": 789,
+            "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+            "id": "64ecab1e-f7b0-52b9-b5f5-18bc03dd11f0",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Schedule B \u2014 Data Processing Addendum > 3. Data Location and International Transfers",
+            "text": "## 3. Data Location and International Transfers\nPersonal data is stored in data centers located in Frankfurt, Germany (European Union) and in Virginia, United States. Transfers of personal data from the EU to the US are carried out under the European Commission's Standard Contractual Clauses.\n\n## 4. Security Measures\nProvider encrypts personal data at rest using AES-256 and in transit using TLS 1.2 or higher. Access to production data is restricted to authorized personnel on a least-privilege basis.\n\n## 5. Breach Notification\nProvider will notify the Controller of any confirmed personal-data breach within seventy-two (72) hours of discovery, and will cooperate with the Controller's investigation and remediation.\n\n## 6. Data Subject Requests\nProvider will assist the Controller in responding to data-subject requests (access, rectification, erasure) and will forward any such request it receives directly to the Controller within five (5) business days.\n\n## 7. Retention and Deletion\nUpon termination of the Agreement, Provider will delete all personal data processed on the Controller's behalf within ninety (90) days, unless retention is required by applicable law.\n\n## 8. Audit\nThe Controller may audit Provider's compliance with this DPA once per calendar year, on at least thirty (30) days' written notice."
+          },
+          "kind": "reranked",
+          "rank": 2,
+          "score": -10.035625457763672
+        },
+        {
+          "chunk": {
+            "char_end": 787,
+            "char_start": 460,
+            "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+            "id": "c1cbcdd9-a89a-50cd-9b56-8d3ad8c28c11",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Schedule B \u2014 Data Processing Addendum > 2. Sub-processors",
+            "text": "## 2. Sub-processors\nProvider engages a cloud infrastructure provider and a transactional email provider as sub-processors. Provider will give the Controller at least thirty (30) days' prior written notice before adding or replacing a sub-processor, during which the Controller may object on reasonable data-protection grounds."
+          },
+          "kind": "reranked",
+          "rank": 3,
+          "score": -10.14393424987793
+        },
+        {
+          "chunk": {
+            "char_end": 866,
+            "char_start": 468,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "ef55252e-8732-54d8-8131-f07d4a438bfd",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Master Services Agreement > 1. Term and Termination > 1.2 Termination for Convenience",
+            "text": "### 1.2 Termination for Convenience\n\nEither party may terminate this Agreement or any Order Form for its convenience by providing the other party with at least thirty (30) days' prior written notice. Fees paid in advance for services not yet delivered will be refunded on a pro-rata basis, and outstanding fees for services rendered through the effective date of termination remain due and payable."
+          },
+          "kind": "reranked",
+          "rank": 4,
+          "score": -10.280780792236328
+        },
+        {
+          "chunk": {
+            "char_end": 1423,
+            "char_start": 1128,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "77ccbcb6-43b3-54c6-b386-07c627f81665",
+            "metadata": {},
+            "ordinal": 3,
+            "page": null,
+            "section": "Master Services Agreement > 2. Fees and Payment",
+            "text": "## 2. Fees and Payment\n\nCustomer shall pay all fees set forth in the applicable Order Form within thirty (30) days of the invoice date. Late payments accrue interest at the lesser of one percent (1%) per month or the maximum rate permitted by applicable law.\n\n## 3. Liability and Indemnification"
+          },
+          "kind": "reranked",
+          "rank": 5,
+          "score": -10.667065620422363
+        },
+        {
+          "chunk": {
+            "char_end": 2236,
+            "char_start": 1834,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "83f3e4c0-1cf3-5af7-acdf-51e64f3a805a",
+            "metadata": {},
+            "ordinal": 5,
+            "page": null,
+            "section": "Master Services Agreement > 3. Liability and Indemnification > 3.2 Data-Processing Breach",
+            "text": "### 3.2 Data-Processing Breach\n\nAcme Corporation, acting as Provider, shall be the entity liable for any breach of its data-processing obligations under Schedule B (Data Processing Addendum), subject to the cap in Section 3.1. Provider shall notify Customer of any confirmed data-processing breach within seventy-two (72) hours of discovery and shall reasonably cooperate with Customer's investigation."
+          },
+          "kind": "reranked",
+          "rank": 6,
+          "score": -10.840879440307617
+        },
+        {
+          "chunk": {
+            "char_end": 334,
+            "char_start": 0,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "f94196ac-b981-56b2-a237-bab09ef6fe9a",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Service Level Agreement",
+            "text": "# Service Level Agreement\n\nThis Service Level Agreement (\"SLA\") applies to the services provided by Acme Corporation under the Master Services Agreement.\n\n## 1. Uptime Commitment\nProvider commits to a monthly uptime of 99.9% for the production service. Uptime is measured per calendar month and excludes scheduled maintenance windows."
+          },
+          "kind": "reranked",
+          "rank": 7,
+          "score": -10.899374008178711
+        }
+      ],
+      "judge_claims": [
+        {
+          "citation_ok": true,
+          "claim": "The response time for a Priority 1 (critical, service unavailable) support request is within one (1) hour.",
+          "supported": true
+        }
+      ],
+      "question": "What is the response time for a Priority 1 support request?",
+      "refusal_rationale": "",
+      "refused": false,
+      "usage": {
+        "cost_usd": 0.010092,
+        "input_tokens": 2644,
+        "latency_ms": 7292.19,
+        "llm_calls": 3,
+        "output_tokens": 144
+      }
+    },
+    {
+      "answer_metrics": {
+        "citation_accuracy": 1.0,
+        "faithfulness": 1.0,
+        "hallucination_rate": 0.0,
+        "refusal_precision": 0.0,
+        "refusal_recall": 0.0
+      },
+      "answer_text": "Employees get 25 paid time off days per calendar year.",
+      "citations": [
+        {
+          "char_end": 300,
+          "char_start": 199,
+          "chunk_id": "6a34fb90-f4f3-524b-b2c5-4a0d36d03ee8",
+          "document_id": "42736f91-35fb-5f0d-8162-540d870cd8c1",
+          "quote": "Employees are entitled to twenty-five (25) days of paid time off per calendar year, accruing monthly."
+        }
+      ],
+      "example_id": "q-011",
+      "expected_answerable": true,
+      "hits_used": [
+        {
+          "chunk": {
+            "char_end": 968,
+            "char_start": 0,
+            "document_id": "42736f91-35fb-5f0d-8162-540d870cd8c1",
+            "id": "6a34fb90-f4f3-524b-b2c5-4a0d36d03ee8",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Employee Handbook",
+            "text": "# Employee Handbook\n\nThis handbook summarizes the principal policies for employees of Acme Corporation. It is an internal document and does not form part of any customer agreement.\n\n## Paid Time Off\nEmployees are entitled to twenty-five (25) days of paid time off per calendar year, accruing monthly. Up to five (5) unused days may be carried over into the following year.\n\n## Working Model\nAcme operates a hybrid working model. Employees must work from the office a minimum of two (2) days per week, with core collaboration hours between 10:00 and 16:00 local time.\n\n## Probation\nNew employees serve a probationary period of three (3) months, during which either party may end the employment with one (1) week's notice.\n\n## Notice of Resignation\nAfter probation, employees are asked to give at least one (1) month's written notice of resignation.\n\n## Business Expenses\nPre-approved business expenses are reimbursed within thirty (30) days of a complete expense claim."
+          },
+          "kind": "reranked",
+          "rank": 0,
+          "score": 6.858038902282715
+        },
+        {
+          "chunk": {
+            "char_end": 866,
+            "char_start": 468,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "ef55252e-8732-54d8-8131-f07d4a438bfd",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Master Services Agreement > 1. Term and Termination > 1.2 Termination for Convenience",
+            "text": "### 1.2 Termination for Convenience\n\nEither party may terminate this Agreement or any Order Form for its convenience by providing the other party with at least thirty (30) days' prior written notice. Fees paid in advance for services not yet delivered will be refunded on a pro-rata basis, and outstanding fees for services rendered through the effective date of termination remain due and payable."
+          },
+          "kind": "reranked",
+          "rank": 1,
+          "score": -8.867265701293945
+        },
+        {
+          "chunk": {
+            "char_end": 1423,
+            "char_start": 1128,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "77ccbcb6-43b3-54c6-b386-07c627f81665",
+            "metadata": {},
+            "ordinal": 3,
+            "page": null,
+            "section": "Master Services Agreement > 2. Fees and Payment",
+            "text": "## 2. Fees and Payment\n\nCustomer shall pay all fees set forth in the applicable Order Form within thirty (30) days of the invoice date. Late payments accrue interest at the lesser of one percent (1%) per month or the maximum rate permitted by applicable law.\n\n## 3. Liability and Indemnification"
+          },
+          "kind": "reranked",
+          "rank": 2,
+          "score": -9.653879165649414
+        },
+        {
+          "chunk": {
+            "char_end": 334,
+            "char_start": 0,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "f94196ac-b981-56b2-a237-bab09ef6fe9a",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Service Level Agreement",
+            "text": "# Service Level Agreement\n\nThis Service Level Agreement (\"SLA\") applies to the services provided by Acme Corporation under the Master Services Agreement.\n\n## 1. Uptime Commitment\nProvider commits to a monthly uptime of 99.9% for the production service. Uptime is measured per calendar month and excludes scheduled maintenance windows."
+          },
+          "kind": "reranked",
+          "rank": 3,
+          "score": -10.473847389221191
+        },
+        {
+          "chunk": {
+            "char_end": 1323,
+            "char_start": 790,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "5cf7d938-ef50-57b4-bf2d-50077540cb43",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Service Level Agreement > 3. Support Response Times",
+            "text": "## 3. Support Response Times\nProvider responds to support requests according to severity:\n\n- Priority 1 (critical, service unavailable): within one (1) hour.\n- Priority 2 (high, major feature impaired): within four (4) business hours.\n- Priority 3 (normal): within one (1) business day.\n\n## 4. Scheduled Maintenance\nRoutine maintenance is performed on Sundays between 02:00 and 06:00 UTC. Provider gives at least forty-eight (48) hours' advance notice of any scheduled maintenance, which does not count against the uptime commitment."
+          },
+          "kind": "reranked",
+          "rank": 4,
+          "score": -10.484657287597656
+        },
+        {
+          "chunk": {
+            "char_end": 911,
+            "char_start": 370,
+            "document_id": "f7494ebb-4ccb-58cc-8284-6b83e6563e4d",
+            "id": "fa9ec532-f77e-5b93-adb9-cf7470f9c894",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Acme Corporation \u2014 Financial Summary FY2024 > Revenue",
+            "text": "## Revenue\n\nTotal revenue for fiscal year 2024 was $482.0 million, an increase of 18.4% compared to $407.1 million in fiscal year 2023. The year-over-year growth was propelled by:\n\n- Enterprise Cloud subscription revenue of $312.7 million (up 24.1% YoY).\n- Managed Services revenue of $128.6 million (up 11.2% YoY).\n- Other revenue of $40.7 million, roughly flat versus the prior year.\n\nThe revenue mix continues to shift toward recurring subscription revenue, which represented 84.6% of total revenue in FY2024, compared to 79.3% in FY2023."
+          },
+          "kind": "reranked",
+          "rank": 5,
+          "score": -10.6299409866333
+        },
+        {
+          "chunk": {
+            "char_end": 1421,
+            "char_start": 913,
+            "document_id": "f7494ebb-4ccb-58cc-8284-6b83e6563e4d",
+            "id": "ccb74035-d897-5f7b-955e-c2aea89e9b07",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Acme Corporation \u2014 Financial Summary FY2024 > Profitability",
+            "text": "## Profitability\n\nGross margin expanded to 71.8% in FY2024 from 68.9% in FY2023, primarily reflecting scale in cloud infrastructure and improved contract terms with third-party data-center providers. Operating income was $71.4 million, up from $46.8 million in the prior year.\n\n## Cash and liquidity\n\nCash and cash equivalents at fiscal year-end were $214.3 million, with total available liquidity \u2014 including undrawn credit facilities \u2014 of $364.3 million. Operating cash flow for the year was $92.5 million."
+          },
+          "kind": "reranked",
+          "rank": 6,
+          "score": -10.710685729980469
+        },
+        {
+          "chunk": {
+            "char_end": 788,
+            "char_start": 336,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "72f5a452-ab45-5c6e-8ded-5d0abe97c0f3",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Service Level Agreement > 2. Service Credits",
+            "text": "## 2. Service Credits\nIf monthly uptime falls below the commitment, the Customer is entitled to a service credit calculated as a percentage of that month's fees:\n\n- Uptime from 99.0% up to 99.9%: 10% credit.\n- Uptime from 95.0% up to 99.0%: 25% credit.\n- Uptime below 95.0%: 50% credit.\n\nService credits are the Customer's sole and exclusive remedy for availability failures and must be claimed in writing within thirty (30) days of the affected month."
+          },
+          "kind": "reranked",
+          "rank": 7,
+          "score": -10.788579940795898
+        }
+      ],
+      "judge_claims": [
+        {
+          "citation_ok": true,
+          "claim": "Employees get 25 paid time off days per calendar year.",
+          "supported": true
+        }
+      ],
+      "question": "How many paid time off days do employees get per year?",
+      "refusal_rationale": "",
+      "refused": false,
+      "usage": {
+        "cost_usd": 0.010758,
+        "input_tokens": 2866,
+        "latency_ms": 10738.8,
+        "llm_calls": 3,
+        "output_tokens": 144
+      }
+    },
+    {
+      "answer_metrics": {
+        "citation_accuracy": 1.0,
+        "faithfulness": 1.0,
+        "hallucination_rate": 0.0,
+        "refusal_precision": 0.0,
+        "refusal_recall": 0.0
+      },
+      "answer_text": "Employees must work from the office a minimum of two (2) days per week.",
+      "citations": [
+        {
+          "char_end": 566,
+          "char_start": 429,
+          "chunk_id": "6a34fb90-f4f3-524b-b2c5-4a0d36d03ee8",
+          "document_id": "42736f91-35fb-5f0d-8162-540d870cd8c1",
+          "quote": "Employees must work from the office a minimum of two (2) days per week, with core collaboration hours between 10:00 and 16:00 local time."
+        }
+      ],
+      "example_id": "q-012",
+      "expected_answerable": true,
+      "hits_used": [
+        {
+          "chunk": {
+            "char_end": 968,
+            "char_start": 0,
+            "document_id": "42736f91-35fb-5f0d-8162-540d870cd8c1",
+            "id": "6a34fb90-f4f3-524b-b2c5-4a0d36d03ee8",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Employee Handbook",
+            "text": "# Employee Handbook\n\nThis handbook summarizes the principal policies for employees of Acme Corporation. It is an internal document and does not form part of any customer agreement.\n\n## Paid Time Off\nEmployees are entitled to twenty-five (25) days of paid time off per calendar year, accruing monthly. Up to five (5) unused days may be carried over into the following year.\n\n## Working Model\nAcme operates a hybrid working model. Employees must work from the office a minimum of two (2) days per week, with core collaboration hours between 10:00 and 16:00 local time.\n\n## Probation\nNew employees serve a probationary period of three (3) months, during which either party may end the employment with one (1) week's notice.\n\n## Notice of Resignation\nAfter probation, employees are asked to give at least one (1) month's written notice of resignation.\n\n## Business Expenses\nPre-approved business expenses are reimbursed within thirty (30) days of a complete expense claim."
+          },
+          "kind": "reranked",
+          "rank": 0,
+          "score": 5.64856481552124
+        },
+        {
+          "chunk": {
+            "char_end": 1323,
+            "char_start": 790,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "5cf7d938-ef50-57b4-bf2d-50077540cb43",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Service Level Agreement > 3. Support Response Times",
+            "text": "## 3. Support Response Times\nProvider responds to support requests according to severity:\n\n- Priority 1 (critical, service unavailable): within one (1) hour.\n- Priority 2 (high, major feature impaired): within four (4) business hours.\n- Priority 3 (normal): within one (1) business day.\n\n## 4. Scheduled Maintenance\nRoutine maintenance is performed on Sundays between 02:00 and 06:00 UTC. Provider gives at least forty-eight (48) hours' advance notice of any scheduled maintenance, which does not count against the uptime commitment."
+          },
+          "kind": "reranked",
+          "rank": 1,
+          "score": -8.969422340393066
+        },
+        {
+          "chunk": {
+            "char_end": 866,
+            "char_start": 468,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "ef55252e-8732-54d8-8131-f07d4a438bfd",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Master Services Agreement > 1. Term and Termination > 1.2 Termination for Convenience",
+            "text": "### 1.2 Termination for Convenience\n\nEither party may terminate this Agreement or any Order Form for its convenience by providing the other party with at least thirty (30) days' prior written notice. Fees paid in advance for services not yet delivered will be refunded on a pro-rata basis, and outstanding fees for services rendered through the effective date of termination remain due and payable."
+          },
+          "kind": "reranked",
+          "rank": 2,
+          "score": -9.73891544342041
+        },
+        {
+          "chunk": {
+            "char_end": 1423,
+            "char_start": 1128,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "77ccbcb6-43b3-54c6-b386-07c627f81665",
+            "metadata": {},
+            "ordinal": 3,
+            "page": null,
+            "section": "Master Services Agreement > 2. Fees and Payment",
+            "text": "## 2. Fees and Payment\n\nCustomer shall pay all fees set forth in the applicable Order Form within thirty (30) days of the invoice date. Late payments accrue interest at the lesser of one percent (1%) per month or the maximum rate permitted by applicable law.\n\n## 3. Liability and Indemnification"
+          },
+          "kind": "reranked",
+          "rank": 3,
+          "score": -9.85609245300293
+        },
+        {
+          "chunk": {
+            "char_end": 787,
+            "char_start": 460,
+            "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+            "id": "c1cbcdd9-a89a-50cd-9b56-8d3ad8c28c11",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Schedule B \u2014 Data Processing Addendum > 2. Sub-processors",
+            "text": "## 2. Sub-processors\nProvider engages a cloud infrastructure provider and a transactional email provider as sub-processors. Provider will give the Controller at least thirty (30) days' prior written notice before adding or replacing a sub-processor, during which the Controller may object on reasonable data-protection grounds."
+          },
+          "kind": "reranked",
+          "rank": 4,
+          "score": -10.52572250366211
+        },
+        {
+          "chunk": {
+            "char_end": 788,
+            "char_start": 336,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "72f5a452-ab45-5c6e-8ded-5d0abe97c0f3",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Service Level Agreement > 2. Service Credits",
+            "text": "## 2. Service Credits\nIf monthly uptime falls below the commitment, the Customer is entitled to a service credit calculated as a percentage of that month's fees:\n\n- Uptime from 99.0% up to 99.9%: 10% credit.\n- Uptime from 95.0% up to 99.0%: 25% credit.\n- Uptime below 95.0%: 50% credit.\n\nService credits are the Customer's sole and exclusive remedy for availability failures and must be claimed in writing within thirty (30) days of the affected month."
+          },
+          "kind": "reranked",
+          "rank": 5,
+          "score": -10.545343399047852
+        },
+        {
+          "chunk": {
+            "char_end": 1126,
+            "char_start": 868,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "74d77df1-4cc1-50e5-93ec-63d05f705eb5",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Master Services Agreement > 1. Term and Termination > 1.3 Termination for Cause",
+            "text": "### 1.3 Termination for Cause\n\nEither party may terminate this Agreement immediately upon written notice if the other party materially breaches this Agreement and fails to cure the breach within fifteen (15) days after receiving written notice of the breach."
+          },
+          "kind": "reranked",
+          "rank": 6,
+          "score": -10.617210388183594
+        },
+        {
+          "chunk": {
+            "char_end": 2109,
+            "char_start": 789,
+            "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+            "id": "64ecab1e-f7b0-52b9-b5f5-18bc03dd11f0",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Schedule B \u2014 Data Processing Addendum > 3. Data Location and International Transfers",
+            "text": "## 3. Data Location and International Transfers\nPersonal data is stored in data centers located in Frankfurt, Germany (European Union) and in Virginia, United States. Transfers of personal data from the EU to the US are carried out under the European Commission's Standard Contractual Clauses.\n\n## 4. Security Measures\nProvider encrypts personal data at rest using AES-256 and in transit using TLS 1.2 or higher. Access to production data is restricted to authorized personnel on a least-privilege basis.\n\n## 5. Breach Notification\nProvider will notify the Controller of any confirmed personal-data breach within seventy-two (72) hours of discovery, and will cooperate with the Controller's investigation and remediation.\n\n## 6. Data Subject Requests\nProvider will assist the Controller in responding to data-subject requests (access, rectification, erasure) and will forward any such request it receives directly to the Controller within five (5) business days.\n\n## 7. Retention and Deletion\nUpon termination of the Agreement, Provider will delete all personal data processed on the Controller's behalf within ninety (90) days, unless retention is required by applicable law.\n\n## 8. Audit\nThe Controller may audit Provider's compliance with this DPA once per calendar year, on at least thirty (30) days' written notice."
+          },
+          "kind": "reranked",
+          "rank": 7,
+          "score": -10.860221862792969
+        }
+      ],
+      "judge_claims": [
+        {
+          "citation_ok": true,
+          "claim": "Employees must work from the office a minimum of two (2) days per week.",
+          "supported": true
+        }
+      ],
+      "question": "How many days per week must employees work from the office?",
+      "refusal_rationale": "",
+      "refused": false,
+      "usage": {
+        "cost_usd": 0.011487,
+        "input_tokens": 2994,
+        "latency_ms": 9345.27,
+        "llm_calls": 3,
+        "output_tokens": 167
+      }
+    },
+    {
+      "answer_metrics": {
+        "citation_accuracy": 0.6666666666666666,
+        "faithfulness": 1.0,
+        "hallucination_rate": 0.0,
+        "refusal_precision": 0.0,
+        "refusal_recall": 0.0
+      },
+      "answer_text": "Scheduled maintenance does not count against the uptime commitment. The provider gives at least 48 hours' advance notice before any scheduled maintenance window (Sundays, 02:00\u201306:00 UTC).",
+      "citations": [
+        {
+          "char_end": 1323,
+          "char_start": 1179,
+          "chunk_id": "5cf7d938-ef50-57b4-bf2d-50077540cb43",
+          "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+          "quote": "Provider gives at least forty-eight (48) hours' advance notice of any scheduled maintenance, which does not count against the uptime commitment."
+        },
+        {
+          "char_end": 334,
+          "char_start": 253,
+          "chunk_id": "f94196ac-b981-56b2-a237-bab09ef6fe9a",
+          "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+          "quote": "Uptime is measured per calendar month and excludes scheduled maintenance windows."
+        }
+      ],
+      "example_id": "q-013",
+      "expected_answerable": true,
+      "hits_used": [
+        {
+          "chunk": {
+            "char_end": 1323,
+            "char_start": 790,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "5cf7d938-ef50-57b4-bf2d-50077540cb43",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Service Level Agreement > 3. Support Response Times",
+            "text": "## 3. Support Response Times\nProvider responds to support requests according to severity:\n\n- Priority 1 (critical, service unavailable): within one (1) hour.\n- Priority 2 (high, major feature impaired): within four (4) business hours.\n- Priority 3 (normal): within one (1) business day.\n\n## 4. Scheduled Maintenance\nRoutine maintenance is performed on Sundays between 02:00 and 06:00 UTC. Provider gives at least forty-eight (48) hours' advance notice of any scheduled maintenance, which does not count against the uptime commitment."
+          },
+          "kind": "reranked",
+          "rank": 0,
+          "score": 7.582155704498291
+        },
+        {
+          "chunk": {
+            "char_end": 334,
+            "char_start": 0,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "f94196ac-b981-56b2-a237-bab09ef6fe9a",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Service Level Agreement",
+            "text": "# Service Level Agreement\n\nThis Service Level Agreement (\"SLA\") applies to the services provided by Acme Corporation under the Master Services Agreement.\n\n## 1. Uptime Commitment\nProvider commits to a monthly uptime of 99.9% for the production service. Uptime is measured per calendar month and excludes scheduled maintenance windows."
+          },
+          "kind": "reranked",
+          "rank": 1,
+          "score": 4.623520851135254
+        },
+        {
+          "chunk": {
+            "char_end": 866,
+            "char_start": 468,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "ef55252e-8732-54d8-8131-f07d4a438bfd",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Master Services Agreement > 1. Term and Termination > 1.2 Termination for Convenience",
+            "text": "### 1.2 Termination for Convenience\n\nEither party may terminate this Agreement or any Order Form for its convenience by providing the other party with at least thirty (30) days' prior written notice. Fees paid in advance for services not yet delivered will be refunded on a pro-rata basis, and outstanding fees for services rendered through the effective date of termination remain due and payable."
+          },
+          "kind": "reranked",
+          "rank": 1,
+          "score": -1.8803905248641968
+        },
+        {
+          "chunk": {
+            "char_end": 788,
+            "char_start": 336,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "72f5a452-ab45-5c6e-8ded-5d0abe97c0f3",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Service Level Agreement > 2. Service Credits",
+            "text": "## 2. Service Credits\nIf monthly uptime falls below the commitment, the Customer is entitled to a service credit calculated as a percentage of that month's fees:\n\n- Uptime from 99.0% up to 99.9%: 10% credit.\n- Uptime from 95.0% up to 99.0%: 25% credit.\n- Uptime below 95.0%: 50% credit.\n\nService credits are the Customer's sole and exclusive remedy for availability failures and must be claimed in writing within thirty (30) days of the affected month."
+          },
+          "kind": "reranked",
+          "rank": 2,
+          "score": -2.5844757556915283
+        },
+        {
+          "chunk": {
+            "char_end": 787,
+            "char_start": 460,
+            "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+            "id": "c1cbcdd9-a89a-50cd-9b56-8d3ad8c28c11",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Schedule B \u2014 Data Processing Addendum > 2. Sub-processors",
+            "text": "## 2. Sub-processors\nProvider engages a cloud infrastructure provider and a transactional email provider as sub-processors. Provider will give the Controller at least thirty (30) days' prior written notice before adding or replacing a sub-processor, during which the Controller may object on reasonable data-protection grounds."
+          },
+          "kind": "reranked",
+          "rank": 2,
+          "score": -3.9242172241210938
+        },
+        {
+          "chunk": {
+            "char_end": 1423,
+            "char_start": 1128,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "77ccbcb6-43b3-54c6-b386-07c627f81665",
+            "metadata": {},
+            "ordinal": 3,
+            "page": null,
+            "section": "Master Services Agreement > 2. Fees and Payment",
+            "text": "## 2. Fees and Payment\n\nCustomer shall pay all fees set forth in the applicable Order Form within thirty (30) days of the invoice date. Late payments accrue interest at the lesser of one percent (1%) per month or the maximum rate permitted by applicable law.\n\n## 3. Liability and Indemnification"
+          },
+          "kind": "reranked",
+          "rank": 4,
+          "score": -8.24032211303711
+        },
+        {
+          "chunk": {
+            "char_end": 1126,
+            "char_start": 868,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "74d77df1-4cc1-50e5-93ec-63d05f705eb5",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Master Services Agreement > 1. Term and Termination > 1.3 Termination for Cause",
+            "text": "### 1.3 Termination for Cause\n\nEither party may terminate this Agreement immediately upon written notice if the other party materially breaches this Agreement and fails to cure the breach within fifteen (15) days after receiving written notice of the breach."
+          },
+          "kind": "reranked",
+          "rank": 5,
+          "score": -8.730131149291992
+        },
+        {
+          "chunk": {
+            "char_end": 968,
+            "char_start": 0,
+            "document_id": "42736f91-35fb-5f0d-8162-540d870cd8c1",
+            "id": "6a34fb90-f4f3-524b-b2c5-4a0d36d03ee8",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Employee Handbook",
+            "text": "# Employee Handbook\n\nThis handbook summarizes the principal policies for employees of Acme Corporation. It is an internal document and does not form part of any customer agreement.\n\n## Paid Time Off\nEmployees are entitled to twenty-five (25) days of paid time off per calendar year, accruing monthly. Up to five (5) unused days may be carried over into the following year.\n\n## Working Model\nAcme operates a hybrid working model. Employees must work from the office a minimum of two (2) days per week, with core collaboration hours between 10:00 and 16:00 local time.\n\n## Probation\nNew employees serve a probationary period of three (3) months, during which either party may end the employment with one (1) week's notice.\n\n## Notice of Resignation\nAfter probation, employees are asked to give at least one (1) month's written notice of resignation.\n\n## Business Expenses\nPre-approved business expenses are reimbursed within thirty (30) days of a complete expense claim."
+          },
+          "kind": "reranked",
+          "rank": 6,
+          "score": -8.77920913696289
+        },
+        {
+          "chunk": {
+            "char_end": 1832,
+            "char_start": 1425,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "c315d244-e1fc-527c-8177-caedfced3de4",
+            "metadata": {},
+            "ordinal": 4,
+            "page": null,
+            "section": "Master Services Agreement > 3. Liability and Indemnification > 3.1 Limitation of Liability",
+            "text": "### 3.1 Limitation of Liability\n\nThe aggregate liability of Provider arising out of or related to this Agreement, whether in contract, tort, or otherwise, shall not exceed one million United States dollars ($1,000,000) or the total fees paid by Customer to Provider under the applicable Order Form during the twelve (12) months immediately preceding the event giving rise to the claim, whichever is greater."
+          },
+          "kind": "reranked",
+          "rank": 7,
+          "score": -9.006664276123047
+        },
+        {
+          "chunk": {
+            "char_end": 2236,
+            "char_start": 1834,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "83f3e4c0-1cf3-5af7-acdf-51e64f3a805a",
+            "metadata": {},
+            "ordinal": 5,
+            "page": null,
+            "section": "Master Services Agreement > 3. Liability and Indemnification > 3.2 Data-Processing Breach",
+            "text": "### 3.2 Data-Processing Breach\n\nAcme Corporation, acting as Provider, shall be the entity liable for any breach of its data-processing obligations under Schedule B (Data Processing Addendum), subject to the cap in Section 3.1. Provider shall notify Customer of any confirmed data-processing breach within seventy-two (72) hours of discovery and shall reasonably cooperate with Customer's investigation."
+          },
+          "kind": "reranked",
+          "rank": 3,
+          "score": -10.524862289428711
+        }
+      ],
+      "judge_claims": [
+        {
+          "citation_ok": true,
+          "claim": "Scheduled maintenance does not count against the uptime commitment.",
+          "supported": true
+        },
+        {
+          "citation_ok": true,
+          "claim": "The provider gives at least 48 hours' advance notice before any scheduled maintenance window.",
+          "supported": true
+        },
+        {
+          "citation_ok": false,
+          "claim": "Scheduled maintenance windows occur on Sundays between 02:00 and 06:00 UTC.",
+          "supported": true
+        }
+      ],
+      "question": "Does scheduled maintenance count against the uptime commitment, and how much notice is given?",
+      "refusal_rationale": "",
+      "refused": false,
+      "usage": {
+        "cost_usd": 0.012696,
+        "input_tokens": 3062,
+        "latency_ms": 8289.13,
+        "llm_calls": 3,
+        "output_tokens": 234
+      }
+    },
+    {
+      "answer_metrics": {
+        "citation_accuracy": 1.0,
+        "faithfulness": 1.0,
+        "hallucination_rate": 0.0,
+        "refusal_precision": 0.0,
+        "refusal_recall": 0.0
+      },
+      "answer_text": "I don't know based on the provided documents.",
+      "citations": [],
+      "example_id": "q-014",
+      "expected_answerable": false,
+      "hits_used": [
+        {
+          "chunk": {
+            "char_end": 968,
+            "char_start": 0,
+            "document_id": "42736f91-35fb-5f0d-8162-540d870cd8c1",
+            "id": "6a34fb90-f4f3-524b-b2c5-4a0d36d03ee8",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Employee Handbook",
+            "text": "# Employee Handbook\n\nThis handbook summarizes the principal policies for employees of Acme Corporation. It is an internal document and does not form part of any customer agreement.\n\n## Paid Time Off\nEmployees are entitled to twenty-five (25) days of paid time off per calendar year, accruing monthly. Up to five (5) unused days may be carried over into the following year.\n\n## Working Model\nAcme operates a hybrid working model. Employees must work from the office a minimum of two (2) days per week, with core collaboration hours between 10:00 and 16:00 local time.\n\n## Probation\nNew employees serve a probationary period of three (3) months, during which either party may end the employment with one (1) week's notice.\n\n## Notice of Resignation\nAfter probation, employees are asked to give at least one (1) month's written notice of resignation.\n\n## Business Expenses\nPre-approved business expenses are reimbursed within thirty (30) days of a complete expense claim."
+          },
+          "kind": "reranked",
+          "rank": 0,
+          "score": -10.179306030273438
+        },
+        {
+          "chunk": {
+            "char_end": 458,
+            "char_start": 0,
+            "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+            "id": "9bf7e49d-4e1e-52a1-a406-ef074bcb4087",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Schedule B \u2014 Data Processing Addendum",
+            "text": "# Schedule B \u2014 Data Processing Addendum\n\nThis Data Processing Addendum (\"DPA\") supplements the Master Services Agreement between Acme Corporation (\"Provider\", acting as data processor) and the Customer (\"Controller\"). It governs the processing of personal data on the Customer's behalf.\n\n## 1. Roles and Scope\nProvider processes personal data only on documented instructions from the Controller and solely to deliver the services described in the Order Form."
+          },
+          "kind": "reranked",
+          "rank": 1,
+          "score": -10.876541137695312
+        },
+        {
+          "chunk": {
+            "char_end": 2236,
+            "char_start": 1834,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "83f3e4c0-1cf3-5af7-acdf-51e64f3a805a",
+            "metadata": {},
+            "ordinal": 5,
+            "page": null,
+            "section": "Master Services Agreement > 3. Liability and Indemnification > 3.2 Data-Processing Breach",
+            "text": "### 3.2 Data-Processing Breach\n\nAcme Corporation, acting as Provider, shall be the entity liable for any breach of its data-processing obligations under Schedule B (Data Processing Addendum), subject to the cap in Section 3.1. Provider shall notify Customer of any confirmed data-processing breach within seventy-two (72) hours of discovery and shall reasonably cooperate with Customer's investigation."
+          },
+          "kind": "reranked",
+          "rank": 2,
+          "score": -10.894698143005371
+        },
+        {
+          "chunk": {
+            "char_end": 866,
+            "char_start": 468,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "ef55252e-8732-54d8-8131-f07d4a438bfd",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Master Services Agreement > 1. Term and Termination > 1.2 Termination for Convenience",
+            "text": "### 1.2 Termination for Convenience\n\nEither party may terminate this Agreement or any Order Form for its convenience by providing the other party with at least thirty (30) days' prior written notice. Fees paid in advance for services not yet delivered will be refunded on a pro-rata basis, and outstanding fees for services rendered through the effective date of termination remain due and payable."
+          },
+          "kind": "reranked",
+          "rank": 3,
+          "score": -11.102619171142578
+        },
+        {
+          "chunk": {
+            "char_end": 466,
+            "char_start": 0,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "bac3e0ee-f254-51b3-8df5-b3dc0c5bd891",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Master Services Agreement",
+            "text": "# Master Services Agreement\n\nThis Master Services Agreement (\"Agreement\") is entered into as of January 15, 2024 between Acme Corporation, a Delaware corporation (\"Provider\"), and the Customer identified in the applicable Order Form (\"Customer\").\n\n## 1. Term and Termination\n\n### 1.1 Initial Term\n\nThe Agreement commences on the Effective Date and continues for an initial term of twenty-four (24) months, unless terminated earlier in accordance with this Section 1."
+          },
+          "kind": "reranked",
+          "rank": 4,
+          "score": -11.106740951538086
+        },
+        {
+          "chunk": {
+            "char_end": 334,
+            "char_start": 0,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "f94196ac-b981-56b2-a237-bab09ef6fe9a",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Service Level Agreement",
+            "text": "# Service Level Agreement\n\nThis Service Level Agreement (\"SLA\") applies to the services provided by Acme Corporation under the Master Services Agreement.\n\n## 1. Uptime Commitment\nProvider commits to a monthly uptime of 99.9% for the production service. Uptime is measured per calendar month and excludes scheduled maintenance windows."
+          },
+          "kind": "reranked",
+          "rank": 5,
+          "score": -11.158865928649902
+        },
+        {
+          "chunk": {
+            "char_end": 1423,
+            "char_start": 1128,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "77ccbcb6-43b3-54c6-b386-07c627f81665",
+            "metadata": {},
+            "ordinal": 3,
+            "page": null,
+            "section": "Master Services Agreement > 2. Fees and Payment",
+            "text": "## 2. Fees and Payment\n\nCustomer shall pay all fees set forth in the applicable Order Form within thirty (30) days of the invoice date. Late payments accrue interest at the lesser of one percent (1%) per month or the maximum rate permitted by applicable law.\n\n## 3. Liability and Indemnification"
+          },
+          "kind": "reranked",
+          "rank": 6,
+          "score": -11.184263229370117
+        },
+        {
+          "chunk": {
+            "char_end": 1832,
+            "char_start": 1425,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "c315d244-e1fc-527c-8177-caedfced3de4",
+            "metadata": {},
+            "ordinal": 4,
+            "page": null,
+            "section": "Master Services Agreement > 3. Liability and Indemnification > 3.1 Limitation of Liability",
+            "text": "### 3.1 Limitation of Liability\n\nThe aggregate liability of Provider arising out of or related to this Agreement, whether in contract, tort, or otherwise, shall not exceed one million United States dollars ($1,000,000) or the total fees paid by Customer to Provider under the applicable Order Form during the twelve (12) months immediately preceding the event giving rise to the claim, whichever is greater."
+          },
+          "kind": "reranked",
+          "rank": 7,
+          "score": -11.190666198730469
+        }
+      ],
+      "judge_claims": null,
+      "question": "What is the employee stock option vesting schedule?",
+      "refusal_rationale": "None of the provided documents contain any information about employee stock options or a vesting schedule; the Employee Handbook only covers PTO, working model, probation, resignation notice, and expense reimbursement, and the draft answer correctly acknowledges this gap.",
+      "refused": true,
+      "usage": {
+        "cost_usd": 0.009999000000000001,
+        "input_tokens": 2528,
+        "latency_ms": 6868.0,
+        "llm_calls": 3,
+        "output_tokens": 161
+      }
+    },
+    {
+      "answer_metrics": {
+        "citation_accuracy": 1.0,
+        "faithfulness": 1.0,
+        "hallucination_rate": 0.0,
+        "refusal_precision": 0.0,
+        "refusal_recall": 0.0
+      },
+      "answer_text": "The evidence does not specify which particular cloud provider (e.g., AWS, Azure, GCP) hosts the production infrastructure. It only states that a 'cloud infrastructure provider' is engaged as a sub-processor, without naming them.",
+      "citations": [
+        {
+          "char_end": 583,
+          "char_start": 481,
+          "chunk_id": "c1cbcdd9-a89a-50cd-9b56-8d3ad8c28c11",
+          "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+          "quote": "Provider engages a cloud infrastructure provider and a transactional email provider as sub-processors."
+        }
+      ],
+      "example_id": "q-015",
+      "expected_answerable": false,
+      "hits_used": [
+        {
+          "chunk": {
+            "char_end": 787,
+            "char_start": 460,
+            "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+            "id": "c1cbcdd9-a89a-50cd-9b56-8d3ad8c28c11",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Schedule B \u2014 Data Processing Addendum > 2. Sub-processors",
+            "text": "## 2. Sub-processors\nProvider engages a cloud infrastructure provider and a transactional email provider as sub-processors. Provider will give the Controller at least thirty (30) days' prior written notice before adding or replacing a sub-processor, during which the Controller may object on reasonable data-protection grounds."
+          },
+          "kind": "reranked",
+          "rank": 0,
+          "score": -0.8499605655670166
+        },
+        {
+          "chunk": {
+            "char_end": 334,
+            "char_start": 0,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "f94196ac-b981-56b2-a237-bab09ef6fe9a",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Service Level Agreement",
+            "text": "# Service Level Agreement\n\nThis Service Level Agreement (\"SLA\") applies to the services provided by Acme Corporation under the Master Services Agreement.\n\n## 1. Uptime Commitment\nProvider commits to a monthly uptime of 99.9% for the production service. Uptime is measured per calendar month and excludes scheduled maintenance windows."
+          },
+          "kind": "reranked",
+          "rank": 1,
+          "score": -6.273540496826172
+        },
+        {
+          "chunk": {
+            "char_end": 1421,
+            "char_start": 913,
+            "document_id": "f7494ebb-4ccb-58cc-8284-6b83e6563e4d",
+            "id": "ccb74035-d897-5f7b-955e-c2aea89e9b07",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Acme Corporation \u2014 Financial Summary FY2024 > Profitability",
+            "text": "## Profitability\n\nGross margin expanded to 71.8% in FY2024 from 68.9% in FY2023, primarily reflecting scale in cloud infrastructure and improved contract terms with third-party data-center providers. Operating income was $71.4 million, up from $46.8 million in the prior year.\n\n## Cash and liquidity\n\nCash and cash equivalents at fiscal year-end were $214.3 million, with total available liquidity \u2014 including undrawn credit facilities \u2014 of $364.3 million. Operating cash flow for the year was $92.5 million."
+          },
+          "kind": "reranked",
+          "rank": 2,
+          "score": -8.059298515319824
+        },
+        {
+          "chunk": {
+            "char_end": 2109,
+            "char_start": 789,
+            "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+            "id": "64ecab1e-f7b0-52b9-b5f5-18bc03dd11f0",
+            "metadata": {},
+            "ordinal": 2,
+            "page": null,
+            "section": "Schedule B \u2014 Data Processing Addendum > 3. Data Location and International Transfers",
+            "text": "## 3. Data Location and International Transfers\nPersonal data is stored in data centers located in Frankfurt, Germany (European Union) and in Virginia, United States. Transfers of personal data from the EU to the US are carried out under the European Commission's Standard Contractual Clauses.\n\n## 4. Security Measures\nProvider encrypts personal data at rest using AES-256 and in transit using TLS 1.2 or higher. Access to production data is restricted to authorized personnel on a least-privilege basis.\n\n## 5. Breach Notification\nProvider will notify the Controller of any confirmed personal-data breach within seventy-two (72) hours of discovery, and will cooperate with the Controller's investigation and remediation.\n\n## 6. Data Subject Requests\nProvider will assist the Controller in responding to data-subject requests (access, rectification, erasure) and will forward any such request it receives directly to the Controller within five (5) business days.\n\n## 7. Retention and Deletion\nUpon termination of the Agreement, Provider will delete all personal data processed on the Controller's behalf within ninety (90) days, unless retention is required by applicable law.\n\n## 8. Audit\nThe Controller may audit Provider's compliance with this DPA once per calendar year, on at least thirty (30) days' written notice."
+          },
+          "kind": "reranked",
+          "rank": 3,
+          "score": -9.205276489257812
+        },
+        {
+          "chunk": {
+            "char_end": 368,
+            "char_start": 0,
+            "document_id": "f7494ebb-4ccb-58cc-8284-6b83e6563e4d",
+            "id": "233949e4-3d45-5187-947e-4a6247005387",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Acme Corporation \u2014 Financial Summary FY2024",
+            "text": "# Acme Corporation \u2014 Financial Summary FY2024\n\n*Prepared for internal review, dated March 5, 2025. All figures in United States dollars unless otherwise noted.*\n\n## Executive summary\n\nAcme Corporation reported a strong FY2024, with double-digit revenue growth driven by expansion of the Enterprise Cloud segment and continued adoption of the Managed Services offering."
+          },
+          "kind": "reranked",
+          "rank": 4,
+          "score": -10.004171371459961
+        },
+        {
+          "chunk": {
+            "char_end": 458,
+            "char_start": 0,
+            "document_id": "dd92c89a-455f-5033-8d9a-86d9793ec989",
+            "id": "9bf7e49d-4e1e-52a1-a406-ef074bcb4087",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Schedule B \u2014 Data Processing Addendum",
+            "text": "# Schedule B \u2014 Data Processing Addendum\n\nThis Data Processing Addendum (\"DPA\") supplements the Master Services Agreement between Acme Corporation (\"Provider\", acting as data processor) and the Customer (\"Controller\"). It governs the processing of personal data on the Customer's behalf.\n\n## 1. Roles and Scope\nProvider processes personal data only on documented instructions from the Controller and solely to deliver the services described in the Order Form."
+          },
+          "kind": "reranked",
+          "rank": 5,
+          "score": -10.97457504272461
+        },
+        {
+          "chunk": {
+            "char_end": 2236,
+            "char_start": 1834,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "83f3e4c0-1cf3-5af7-acdf-51e64f3a805a",
+            "metadata": {},
+            "ordinal": 5,
+            "page": null,
+            "section": "Master Services Agreement > 3. Liability and Indemnification > 3.2 Data-Processing Breach",
+            "text": "### 3.2 Data-Processing Breach\n\nAcme Corporation, acting as Provider, shall be the entity liable for any breach of its data-processing obligations under Schedule B (Data Processing Addendum), subject to the cap in Section 3.1. Provider shall notify Customer of any confirmed data-processing breach within seventy-two (72) hours of discovery and shall reasonably cooperate with Customer's investigation."
+          },
+          "kind": "reranked",
+          "rank": 6,
+          "score": -11.188250541687012
+        },
+        {
+          "chunk": {
+            "char_end": 911,
+            "char_start": 370,
+            "document_id": "f7494ebb-4ccb-58cc-8284-6b83e6563e4d",
+            "id": "fa9ec532-f77e-5b93-adb9-cf7470f9c894",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Acme Corporation \u2014 Financial Summary FY2024 > Revenue",
+            "text": "## Revenue\n\nTotal revenue for fiscal year 2024 was $482.0 million, an increase of 18.4% compared to $407.1 million in fiscal year 2023. The year-over-year growth was propelled by:\n\n- Enterprise Cloud subscription revenue of $312.7 million (up 24.1% YoY).\n- Managed Services revenue of $128.6 million (up 11.2% YoY).\n- Other revenue of $40.7 million, roughly flat versus the prior year.\n\nThe revenue mix continues to shift toward recurring subscription revenue, which represented 84.6% of total revenue in FY2024, compared to 79.3% in FY2023."
+          },
+          "kind": "reranked",
+          "rank": 7,
+          "score": -11.195610046386719
+        }
+      ],
+      "judge_claims": [
+        {
+          "citation_ok": true,
+          "claim": "The evidence does not specify which particular cloud provider (e.g., AWS, Azure, GCP) hosts the production infrastructure.",
+          "supported": true
+        },
+        {
+          "citation_ok": true,
+          "claim": "The evidence states that a 'cloud infrastructure provider' is engaged as a sub-processor.",
+          "supported": true
+        },
+        {
+          "citation_ok": true,
+          "claim": "The cloud infrastructure provider is not named in the evidence.",
+          "supported": true
+        }
+      ],
+      "question": "Which specific cloud provider hosts the production infrastructure?",
+      "refusal_rationale": "",
+      "refused": false,
+      "usage": {
+        "cost_usd": 0.011259,
+        "input_tokens": 2868,
+        "latency_ms": 9404.09,
+        "llm_calls": 3,
+        "output_tokens": 177
+      }
+    },
+    {
+      "answer_metrics": {
+        "citation_accuracy": 1.0,
+        "faithfulness": 1.0,
+        "hallucination_rate": 0.0,
+        "refusal_precision": 0.0,
+        "refusal_recall": 0.0
+      },
+      "answer_text": "I don't know based on the provided documents.",
+      "citations": [],
+      "example_id": "q-016",
+      "expected_answerable": false,
+      "hits_used": [
+        {
+          "chunk": {
+            "char_end": 968,
+            "char_start": 0,
+            "document_id": "42736f91-35fb-5f0d-8162-540d870cd8c1",
+            "id": "6a34fb90-f4f3-524b-b2c5-4a0d36d03ee8",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Employee Handbook",
+            "text": "# Employee Handbook\n\nThis handbook summarizes the principal policies for employees of Acme Corporation. It is an internal document and does not form part of any customer agreement.\n\n## Paid Time Off\nEmployees are entitled to twenty-five (25) days of paid time off per calendar year, accruing monthly. Up to five (5) unused days may be carried over into the following year.\n\n## Working Model\nAcme operates a hybrid working model. Employees must work from the office a minimum of two (2) days per week, with core collaboration hours between 10:00 and 16:00 local time.\n\n## Probation\nNew employees serve a probationary period of three (3) months, during which either party may end the employment with one (1) week's notice.\n\n## Notice of Resignation\nAfter probation, employees are asked to give at least one (1) month's written notice of resignation.\n\n## Business Expenses\nPre-approved business expenses are reimbursed within thirty (30) days of a complete expense claim."
+          },
+          "kind": "reranked",
+          "rank": 0,
+          "score": -8.772493362426758
+        },
+        {
+          "chunk": {
+            "char_end": 866,
+            "char_start": 468,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "ef55252e-8732-54d8-8131-f07d4a438bfd",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Master Services Agreement > 1. Term and Termination > 1.2 Termination for Convenience",
+            "text": "### 1.2 Termination for Convenience\n\nEither party may terminate this Agreement or any Order Form for its convenience by providing the other party with at least thirty (30) days' prior written notice. Fees paid in advance for services not yet delivered will be refunded on a pro-rata basis, and outstanding fees for services rendered through the effective date of termination remain due and payable."
+          },
+          "kind": "reranked",
+          "rank": 1,
+          "score": -10.991713523864746
+        },
+        {
+          "chunk": {
+            "char_end": 466,
+            "char_start": 0,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "bac3e0ee-f254-51b3-8df5-b3dc0c5bd891",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Master Services Agreement",
+            "text": "# Master Services Agreement\n\nThis Master Services Agreement (\"Agreement\") is entered into as of January 15, 2024 between Acme Corporation, a Delaware corporation (\"Provider\"), and the Customer identified in the applicable Order Form (\"Customer\").\n\n## 1. Term and Termination\n\n### 1.1 Initial Term\n\nThe Agreement commences on the Effective Date and continues for an initial term of twenty-four (24) months, unless terminated earlier in accordance with this Section 1."
+          },
+          "kind": "reranked",
+          "rank": 2,
+          "score": -11.023496627807617
+        },
+        {
+          "chunk": {
+            "char_end": 334,
+            "char_start": 0,
+            "document_id": "e1acb2d6-45aa-5ee9-abc4-91428d0b1ed0",
+            "id": "f94196ac-b981-56b2-a237-bab09ef6fe9a",
+            "metadata": {},
+            "ordinal": 0,
+            "page": null,
+            "section": "Service Level Agreement",
+            "text": "# Service Level Agreement\n\nThis Service Level Agreement (\"SLA\") applies to the services provided by Acme Corporation under the Master Services Agreement.\n\n## 1. Uptime Commitment\nProvider commits to a monthly uptime of 99.9% for the production service. Uptime is measured per calendar month and excludes scheduled maintenance windows."
+          },
+          "kind": "reranked",
+          "rank": 3,
+          "score": -11.02911376953125
+        },
+        {
+          "chunk": {
+            "char_end": 2236,
+            "char_start": 1834,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "83f3e4c0-1cf3-5af7-acdf-51e64f3a805a",
+            "metadata": {},
+            "ordinal": 5,
+            "page": null,
+            "section": "Master Services Agreement > 3. Liability and Indemnification > 3.2 Data-Processing Breach",
+            "text": "### 3.2 Data-Processing Breach\n\nAcme Corporation, acting as Provider, shall be the entity liable for any breach of its data-processing obligations under Schedule B (Data Processing Addendum), subject to the cap in Section 3.1. Provider shall notify Customer of any confirmed data-processing breach within seventy-two (72) hours of discovery and shall reasonably cooperate with Customer's investigation."
+          },
+          "kind": "reranked",
+          "rank": 4,
+          "score": -11.090006828308105
+        },
+        {
+          "chunk": {
+            "char_end": 2789,
+            "char_start": 2553,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "0812a5b0-9e73-510e-b031-5b9d094b7563",
+            "metadata": {},
+            "ordinal": 7,
+            "page": null,
+            "section": "Master Services Agreement > 4. Confidentiality",
+            "text": "## 4. Confidentiality\n\nEach party agrees to protect the Confidential Information of the other party with the same degree of care it uses to protect its own confidential information, and in no event less than a reasonable degree of care."
+          },
+          "kind": "reranked",
+          "rank": 5,
+          "score": -11.130629539489746
+        },
+        {
+          "chunk": {
+            "char_end": 911,
+            "char_start": 370,
+            "document_id": "f7494ebb-4ccb-58cc-8284-6b83e6563e4d",
+            "id": "fa9ec532-f77e-5b93-adb9-cf7470f9c894",
+            "metadata": {},
+            "ordinal": 1,
+            "page": null,
+            "section": "Acme Corporation \u2014 Financial Summary FY2024 > Revenue",
+            "text": "## Revenue\n\nTotal revenue for fiscal year 2024 was $482.0 million, an increase of 18.4% compared to $407.1 million in fiscal year 2023. The year-over-year growth was propelled by:\n\n- Enterprise Cloud subscription revenue of $312.7 million (up 24.1% YoY).\n- Managed Services revenue of $128.6 million (up 11.2% YoY).\n- Other revenue of $40.7 million, roughly flat versus the prior year.\n\nThe revenue mix continues to shift toward recurring subscription revenue, which represented 84.6% of total revenue in FY2024, compared to 79.3% in FY2023."
+          },
+          "kind": "reranked",
+          "rank": 6,
+          "score": -11.2203369140625
+        },
+        {
+          "chunk": {
+            "char_end": 1832,
+            "char_start": 1425,
+            "document_id": "c82ccae0-5a1c-5e9e-b39e-9d6e4c49e3ec",
+            "id": "c315d244-e1fc-527c-8177-caedfced3de4",
+            "metadata": {},
+            "ordinal": 4,
+            "page": null,
+            "section": "Master Services Agreement > 3. Liability and Indemnification > 3.1 Limitation of Liability",
+            "text": "### 3.1 Limitation of Liability\n\nThe aggregate liability of Provider arising out of or related to this Agreement, whether in contract, tort, or otherwise, shall not exceed one million United States dollars ($1,000,000) or the total fees paid by Customer to Provider under the applicable Order Form during the twelve (12) months immediately preceding the event giving rise to the claim, whichever is greater."
+          },
+          "kind": "reranked",
+          "rank": 7,
+          "score": -11.221725463867188
+        }
+      ],
+      "judge_claims": null,
+      "question": "What is the company's parental leave policy?",
+      "refusal_rationale": "The Employee Handbook in the evidence covers PTO, working model, probation, resignation notice, and expenses, but contains no mention of parental leave, making it impossible to answer the question from the available evidence.",
+      "refused": true,
+      "usage": {
+        "cost_usd": 0.010509000000000001,
+        "input_tokens": 2643,
+        "latency_ms": 8842.08,
+        "llm_calls": 3,
+        "output_tokens": 172
+      }
+    }
+  ],
+  "scorecard": {
+    "answer": {
+      "citation_accuracy": 0.7916666666666666,
+      "faithfulness": 1.0,
+      "hallucination_rate": 0.0,
+      "refusal_precision": 1.0,
+      "refusal_recall": 0.8
+    },
+    "cold_start_ms": null,
+    "cost_per_query_usd": 0.0121873125,
+    "created_at": "2026-09-07T14:19:24.390091+00:00",
+    "dataset": "questions",
+    "git_sha": "d0ca1d5",
+    "latency": {
+      "p50_ms": 9374.68,
+      "p95_ms": 32526.475,
+      "p99_ms": 36653.095
+    },
+    "n_examples": 16,
+    "retrieval": {
+      "k": 8,
+      "ndcg_at_k": 0.9528431508278374,
+      "precision_at_k": 0.14772727272727273,
+      "recall_at_k": 1.0
+    }
+  }
+}
