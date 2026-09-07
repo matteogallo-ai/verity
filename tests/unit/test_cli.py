@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
@@ -10,6 +12,14 @@ from typer.testing import CliRunner
 from verity import __version__
 from verity.cli import MISSING_KEY_MESSAGE, app
 from verity.config import get_settings
+from verity.eval import FileRunStore
+from verity.types import (
+    AnswerMetrics,
+    EvalRun,
+    LatencyMetrics,
+    RetrievalMetrics,
+    Scorecard,
+)
 
 runner = CliRunner()
 
@@ -34,9 +44,139 @@ def test_eval_run_ci_exits_clean() -> None:
     assert result.exit_code == 0
 
 
-def test_eval_compare_exits_clean() -> None:
-    result = runner.invoke(app, ["eval", "compare"])
+def _seed_run(
+    store: FileRunStore,
+    *,
+    sha: str,
+    when: datetime,
+    ndcg: float = 0.90,
+    refusal_recall: float = 1.0,
+    p95: float = 200.0,
+) -> None:
+    """Seed a controlled ``EvalRun`` under a hermetic runs directory.
+
+    Every seeded run shares the same ``(dataset, agent_model, judge_model)``
+    provenance so the compat filter picks them up as comparable — the tests
+    exercise the diff logic, not the compatibility filter (that's covered by a
+    dedicated harness test elsewhere).
+    """
+    store.save(
+        EvalRun(
+            scorecard=Scorecard(
+                git_sha=sha,
+                created_at=when,
+                dataset="questions",
+                n_examples=16,
+                retrieval=RetrievalMetrics(
+                    precision_at_k=0.15,
+                    recall_at_k=1.0,
+                    ndcg_at_k=ndcg,
+                    k=8,
+                ),
+                answer=AnswerMetrics(
+                    faithfulness=1.0,
+                    citation_accuracy=1.0,
+                    hallucination_rate=0.0,
+                    refusal_precision=1.0,
+                    refusal_recall=refusal_recall,
+                ),
+                latency=LatencyMetrics(p50_ms=80.0, p95_ms=p95, p99_ms=400.0),
+                cost_per_query_usd=0.0,
+            ),
+            embedding_model="bge-small",
+            judge_model="stub-judge-v1",
+            agent_model="stub-agent",
+        )
+    )
+
+
+def test_eval_compare_zero_runs_exits_clean(tmp_path: Path) -> None:
+    """Fresh checkout with no history → 'nothing to compare' → exit 0.
+
+    Hermetic on ``--runs-dir tmp_path`` so the result is invariant of the real
+    repo's ``datasets/eval/runs/`` contents."""
+    result = runner.invoke(app, ["eval", "compare", "--runs-dir", str(tmp_path)])
     assert result.exit_code == 0
+
+
+def test_eval_compare_single_run_exits_clean(tmp_path: Path) -> None:
+    """Exactly one persisted run → 'nothing to compare' → exit 0 (no false alarm)."""
+    store = FileRunStore(tmp_path)
+    _seed_run(store, sha="aaa1111", when=datetime(2026, 9, 6, tzinfo=UTC))
+    result = runner.invoke(app, ["eval", "compare", "--runs-dir", str(tmp_path)])
+    assert result.exit_code == 0
+
+
+def test_eval_compare_identical_runs_exits_clean(tmp_path: Path) -> None:
+    """Two byte-identical runs → no metric moved → exit 0."""
+    store = FileRunStore(tmp_path)
+    _seed_run(store, sha="aaa1111", when=datetime(2026, 9, 5, tzinfo=UTC))
+    _seed_run(store, sha="bbb2222", when=datetime(2026, 9, 6, tzinfo=UTC))
+    result = runner.invoke(app, ["eval", "compare", "--runs-dir", str(tmp_path)])
+    assert result.exit_code == 0
+
+
+def test_eval_compare_regression_exits_three(tmp_path: Path) -> None:
+    """A degraded metric between two comparable runs → exit 3."""
+    store = FileRunStore(tmp_path)
+    _seed_run(
+        store,
+        sha="prev0000",
+        when=datetime(2026, 9, 5, tzinfo=UTC),
+        ndcg=0.90,
+        refusal_recall=1.0,
+    )
+    _seed_run(
+        store,
+        sha="curr0000",
+        when=datetime(2026, 9, 6, tzinfo=UTC),
+        ndcg=0.60,  # nDCG dropped by 0.30 → regression
+        refusal_recall=1.0,
+    )
+    result = runner.invoke(app, ["eval", "compare", "--runs-dir", str(tmp_path)])
+    assert result.exit_code == 3, (
+        f"expected exit 3 on regression, got {result.exit_code}; output={result.output!r}"
+    )
+
+
+def test_eval_compare_skips_incompatible_provenance(tmp_path: Path) -> None:
+    """Latest run vs a prior run with different (agent, judge) → skipped, exit 0.
+
+    Guards the compat rule: comparing a live-agent run against a stub-agent run
+    would surface deltas that reflect the provenance change, not a regression."""
+    store = FileRunStore(tmp_path)
+    _seed_run(store, sha="stub0000", when=datetime(2026, 9, 5, tzinfo=UTC))
+    # Second run has a *different* agent_model → compat filter must skip it.
+    store.save(
+        EvalRun(
+            scorecard=Scorecard(
+                git_sha="live0000",
+                created_at=datetime(2026, 9, 6, tzinfo=UTC),
+                dataset="questions",
+                n_examples=16,
+                retrieval=RetrievalMetrics(
+                    precision_at_k=0.15, recall_at_k=1.0, ndcg_at_k=0.90, k=8
+                ),
+                answer=AnswerMetrics(
+                    faithfulness=1.0,
+                    citation_accuracy=1.0,
+                    hallucination_rate=0.0,
+                    refusal_precision=1.0,
+                    refusal_recall=0.4,  # would be a huge "regression" if compared
+                ),
+                latency=LatencyMetrics(p50_ms=80.0, p95_ms=200.0, p99_ms=400.0),
+                cost_per_query_usd=0.0,
+            ),
+            embedding_model="bge-small",
+            judge_model="stub-judge-v1",
+            agent_model="claude-sonnet-4-6",  # different agent
+        )
+    )
+    result = runner.invoke(app, ["eval", "compare", "--runs-dir", str(tmp_path)])
+    assert result.exit_code == 0, (
+        f"incompatible provenance must not surface a fake regression; "
+        f"got exit {result.exit_code}, output={result.output!r}"
+    )
 
 
 def test_ingest_exits_clean(tmp_path: object) -> None:

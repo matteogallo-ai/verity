@@ -30,7 +30,7 @@ from verity.eval.retrieval_run import (
     persist_scorecard,
     run_retrieval_eval,
 )
-from verity.eval.run_store import FileRunStore, MetricDelta, diff_runs
+from verity.eval.run_store import FileRunStore, MetricDelta, are_compatible, diff_runs
 
 __all__ = [
     "STUB_JUDGE_MODEL",
@@ -47,6 +47,7 @@ __all__ = [
     "RefusalOutcome",
     "RetrievalScorecard",
     "StubFaithfulnessJudge",
+    "are_compatible",
     "build_confusion",
     "current_git_sha",
     "diff_runs",

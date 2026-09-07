@@ -144,6 +144,25 @@ class MetricDelta:
     is_regression: bool
 
 
+def are_compatible(a: EvalRun, b: EvalRun) -> bool:
+    """Two runs are comparable iff they share the same dataset AND the same
+    provenance triple's *variable* components — the agent model and the judge
+    model.
+
+    Comparing a run measured on ``agent=stub-agent`` against one measured on
+    ``agent=claude-sonnet-4-6`` is apples-to-oranges: any refusal or latency
+    delta reflects the change of agent, not a real regression. Same reasoning
+    for ``judge_model`` (a stub-judge chiffre vs a real-judge chiffre for
+    faithfulness). ``embedding_model`` isn't checked because it is stable across
+    the whole S1-S4 codebase; if it ever becomes tunable, add it here.
+    """
+    return (
+        a.scorecard.dataset == b.scorecard.dataset
+        and a.agent_model == b.agent_model
+        and a.judge_model == b.judge_model
+    )
+
+
 def diff_runs(previous: EvalRun, current: EvalRun, *, epsilon: float = 1e-6) -> list[MetricDelta]:
     """Compare metric-by-metric. A regression is any delta whose sign is worse than
     the metric's "better" direction, larger than ``epsilon`` in absolute value."""
@@ -181,4 +200,4 @@ def _iter_pairs(prev: Scorecard, curr: Scorecard):  # type: ignore[no-untyped-de
     yield "cost_per_query_usd", prev.cost_per_query_usd, curr.cost_per_query_usd
 
 
-__all__ = ["FileRunStore", "MetricDelta", "diff_runs"]
+__all__ = ["FileRunStore", "MetricDelta", "are_compatible", "diff_runs"]

@@ -85,6 +85,22 @@ Every `EvalRun` now carries three model labels: `embedding_model` (retrieval),
 the persisted JSON, and the README table all render them explicitly so no
 chiffre can be interpreted without its provenance.
 
+### `verity eval compare` — compatibility filter + documented exit codes
+- Two runs are comparable **iff** they share the same `dataset`, `agent_model`,
+  and `judge_model`. A stub-agent run is never diff'd against a live-agent run
+  (any refusal/latency delta would reflect the provenance change, not a real
+  regression); same for stub-judge vs real-judge. Incompatible runs are skipped
+  with an explicit "nothing comparable" message.
+- Exit codes are documented in the command's help and stable:
+  - **0** — no regression. Includes the "fewer than 2 compatible runs" case
+    ("nothing to compare"), so a fresh checkout with a single persisted
+    scorecard exits cleanly.
+  - **3** — at least one metric regressed beyond epsilon (worse than the
+    metric's "better" direction).
+- Unit tests are hermetic: they seed a `tmp_path` runs directory via
+  `--runs-dir` rather than reading the real `datasets/eval/runs/`, so the
+  suite is deterministic regardless of what the local checkout has committed.
+
 ### Notes
 - The README's `_pending S4_` placeholders are replaced by real retrieval
   numbers; refusal numbers are shown alongside their `agent=stub-agent`

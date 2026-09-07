@@ -614,23 +614,52 @@ def eval_compare(
     runs_dir: Annotated[Path, typer.Option(help="Where run JSONs live.")] = Path(
         "datasets/eval/runs"
     ),
-    limit: Annotated[int, typer.Option(help="Number of recent runs to display.")] = 5,
+    limit: Annotated[int, typer.Option(help="Number of recent runs to inspect.")] = 20,
 ) -> None:
-    """Diff the two most recent eval runs and highlight regressions."""
-    from verity.eval import FileRunStore, diff_runs
+    """Diff the latest eval run against the most recent COMPATIBLE prior run.
+
+    Two runs are compatible iff they share the same dataset, the same
+    ``agent_model``, and the same ``judge_model``. Comparing a stub-agent run
+    against a live-agent run (or a stub-judge run against a real-judge run) would
+    surface deltas that reflect the *provenance change*, not a real regression —
+    so those pairs are skipped and reported as "nothing comparable".
+
+    Exit codes:
+
+    - **0** — no regression detected. Includes the "fewer than two compatible
+      runs" case ("nothing to compare"), so a fresh checkout with a single
+      persisted scorecard exits cleanly.
+    - **3** — at least one metric regressed beyond the numerical epsilon (worse
+      than the metric's "better" direction).
+    """
+    from verity.eval import FileRunStore, are_compatible, diff_runs
 
     store = FileRunStore(runs_dir)
     history = store.history(dataset, limit=limit)
     if len(history) < 2:
         console.print(
-            f"[yellow]Not enough runs to compare ({len(history)} found); need ≥2.[/yellow]"
+            f"[yellow]Nothing to compare ({len(history)} run(s) for dataset "
+            f"{dataset!r}); need ≥2.[/yellow]"
         )
         raise typer.Exit(code=0)
 
-    current, previous = history[0], history[1]
+    current = history[0]
+    previous = next(
+        (run for run in history[1:] if are_compatible(current, run)),
+        None,
+    )
+    if previous is None:
+        # There are older runs, but none share the current run's (agent, judge).
+        console.print(
+            f"[yellow]Nothing comparable: current run "
+            f"(agent={current.agent_model}, judge={current.judge_model}) "
+            f"has no prior run with the same provenance in dataset {dataset!r}.[/yellow]"
+        )
+        raise typer.Exit(code=0)
+
     console.print(
         f"[bold cyan]Compare[/bold cyan] {previous.scorecard.git_sha} → {current.scorecard.git_sha} "
-        f"(judge_model was {previous.judge_model!r} → now {current.judge_model!r})"
+        f"(agent={current.agent_model}, judge={current.judge_model})"
     )
 
     deltas = diff_runs(previous, current)
