@@ -17,20 +17,50 @@ from verity.types import (
     AnswerMetrics,
     EvalRun,
     LatencyMetrics,
+    PerExampleAudit,
     RetrievalMetrics,
     Scorecard,
 )
 
 
+class StubOverwritesLiveError(RuntimeError):
+    """Raised when a stub-provenance run would clobber an on-disk live run
+    at the same ``(git_sha, dataset)`` path.
+
+    Guards the audit trail: the S7 pre-tag audit exposed that the same file
+    is used for both stub verification runs and live runs of record, so a
+    routine ``verity eval run --ci`` after a $0.30 live run silently
+    destroyed the audit data. This error stops that class of accident;
+    callers who genuinely want to overwrite pass ``allow_overwrite=True``.
+    """
+
+
 class FileRunStore(RunStore):
-    """JSON-file backed :class:`RunStore`. Deterministic filename per SHA + dataset."""
+    """JSON-file backed :class:`RunStore`. Deterministic filename per SHA + dataset.
+
+    Refuses to clobber a live run with a stub run unless the caller sets
+    ``allow_overwrite=True`` on :meth:`save`. See
+    :class:`StubOverwritesLiveError`.
+    """
 
     def __init__(self, runs_dir: Path) -> None:
         self._runs_dir = runs_dir
 
-    def save(self, run: EvalRun) -> None:
+    def save(self, run: EvalRun, *, allow_overwrite: bool = False) -> None:
         self._runs_dir.mkdir(parents=True, exist_ok=True)
         path = self._path_for(run.scorecard.git_sha, run.scorecard.dataset)
+        if path.is_file() and not allow_overwrite and _is_stub_run(run):
+            try:
+                existing = json.loads(path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                existing = None
+            if isinstance(existing, dict) and not _is_stub_payload(existing):
+                raise StubOverwritesLiveError(
+                    f"refusing to overwrite live run at {path.name} with a stub run "
+                    f"(existing agent={existing.get('agent_model')!r}, "
+                    f"judge={existing.get('judge_model')!r}). "
+                    "Pass allow_overwrite=True if this is intentional."
+                )
         payload = _run_to_dict(run)
         with path.open("w", encoding="utf-8") as fh:
             json.dump(payload, fh, indent=2, sort_keys=True)
@@ -64,12 +94,29 @@ class FileRunStore(RunStore):
 
 
 # --------------------------------------------------------------------------------------
+# Stub-vs-live provenance detection (audit-trail safeguard)
+# --------------------------------------------------------------------------------------
+
+
+def _is_stub_run(run: EvalRun) -> bool:
+    """True iff either the agent or the judge is a stub (canonical labels
+    ``stub-agent`` / ``stub-judge-v1``)."""
+    return "stub" in run.agent_model.lower() or "stub" in run.judge_model.lower()
+
+
+def _is_stub_payload(payload: dict[str, object]) -> bool:
+    agent = str(payload.get("agent_model", "")).lower()
+    judge = str(payload.get("judge_model", "")).lower()
+    return "stub" in agent or "stub" in judge
+
+
+# --------------------------------------------------------------------------------------
 # Serialisation
 # --------------------------------------------------------------------------------------
 
 
 def _run_to_dict(run: EvalRun) -> dict[str, object]:
-    return {
+    payload: dict[str, object] = {
         "embedding_model": run.embedding_model,
         "judge_model": run.judge_model,
         "agent_model": run.agent_model,
@@ -86,6 +133,12 @@ def _run_to_dict(run: EvalRun) -> dict[str, object]:
             "cold_start_ms": run.scorecard.cold_start_ms,
         },
     }
+    # Per-example audit trail — omitted from the dict when empty so pre-v1.0.0
+    # persisted runs stay byte-identical (regression tests depend on this).
+    # ``mode="json"`` serialises UUIDs, tuples etc. into JSON-friendly primitives.
+    if run.per_audit:
+        payload["per_audit"] = [audit.model_dump(mode="json") for audit in run.per_audit]
+    return payload
 
 
 def _run_from_dict(data: dict[str, object]) -> EvalRun:
@@ -104,12 +157,19 @@ def _run_from_dict(data: dict[str, object]) -> EvalRun:
         cost_per_query_usd=float(sc["cost_per_query_usd"]),
         cold_start_ms=float(cold_start_raw) if cold_start_raw is not None else None,
     )
+    per_audit_raw = data.get("per_audit")
+    per_audit: tuple[PerExampleAudit, ...]
+    if isinstance(per_audit_raw, list):
+        per_audit = tuple(PerExampleAudit.model_validate(a) for a in per_audit_raw)
+    else:
+        per_audit = ()
     return EvalRun(
         scorecard=scorecard,
         embedding_model=str(data.get("embedding_model", "")),
         judge_model=str(data.get("judge_model", "")),
         agent_model=str(data.get("agent_model", "unknown")),
         notes=(str(data["notes"]) if data.get("notes") else None),
+        per_audit=per_audit,
     )
 
 

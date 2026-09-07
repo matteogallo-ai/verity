@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from verity.eval.harness import (
     AgentEvaluator,
+    BudgetExceededError,
     HarnessResult,
     PerExampleAnswerMetrics,
     PerExampleRefusal,
 )
+from verity.eval.headline import build_headline_dict, write_headline_scorecard
 from verity.eval.judge import (
     STUB_JUDGE_MODEL,
     LLMFaithfulnessJudge,
@@ -36,6 +38,7 @@ __all__ = [
     "STUB_JUDGE_MODEL",
     "AgentEvaluator",
     "BinaryRetrievalMetric",
+    "BudgetExceededError",
     "ConfusionMatrix",
     "FileRunStore",
     "HarnessResult",
@@ -49,6 +52,7 @@ __all__ = [
     "StubFaithfulnessJudge",
     "are_compatible",
     "build_confusion",
+    "build_headline_dict",
     "current_git_sha",
     "diff_runs",
     "load_dataset",
@@ -59,4 +63,5 @@ __all__ = [
     "precision_at_k",
     "recall_at_k",
     "run_retrieval_eval",
+    "write_headline_scorecard",
 ]

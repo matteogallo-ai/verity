@@ -1,6 +1,6 @@
 [project]
 name = "verity"
-version = "0.7.0"
+version = "1.0.0"
 description = "Evaluated, observable RAG agent platform for enterprise documents."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -23,8 +23,15 @@ dependencies = [
   "opentelemetry-api>=1.27",
   "opentelemetry-sdk>=1.27",
   "httpx>=0.27",
-  "anthropic>=0.39",
-  "openai>=1.54",
+  # Pinned to the 1.x line: 1.x removed ``temperature`` from the typed
+  # ``messages.create`` signature — we pass it via ``extra_body`` in
+  # ``verity.llm.clients.AnthropicClient``. Pin ``<2.0`` because a major
+  # bump would need re-validating that path (and the SDK-schema smoke test
+  # in ``tests/unit/test_llm_sdk_schema.py`` will catch a silent break).
+  "anthropic>=1.0,<2.0",
+  # Pinned to the 3.x line: matches the ``chat.completions.create`` signature
+  # asserted by the SDK-schema smoke test.
+  "openai>=3.0,<4.0",
   "rank-bm25>=0.2.2",
   "sentence-transformers>=3.2",
   "docling>=2.0",

@@ -14,8 +14,8 @@
 system: |
   You assess whether an answer is adequately grounded in the supplied evidence and how
   confident a careful analyst should be. Reward honest refusal on weak or out-of-scope
-  evidence over confident guessing. Return ONLY the specified JSON with a concrete
-  rationale citing what is missing when confidence is low.
+  evidence over confident guessing. Return ONLY a JSON object matching the schema in the
+  user message, with a concrete rationale citing what is missing when confidence is low.
 
 user: |
   QUESTION: {{ question }}
@@ -24,3 +24,9 @@ user: |
   {{ evidence }}
 
   DRAFT ANSWER: {{ answer }}
+
+  Respond with JSON of exactly this shape (use these exact keys, no other keys):
+    {"score": <number in [0.0, 1.0]>, "refused": <true|false>, "rationale": "<one-sentence reason>"}
+  Set "refused" to true when the evidence does not support the draft answer or is out
+  of scope. "score" is your calibrated confidence; "rationale" cites what the evidence
+  does or does not show. Emit ONLY the JSON object, no prose before or after.

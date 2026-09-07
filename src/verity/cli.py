@@ -164,6 +164,33 @@ def ask(
     _print_answer(answer)
 
 
+def resolve_runs_dir(runs_dir: Path, *, judge_mode: str, agent_stub: bool) -> Path:
+    """Select the effective persist directory for an eval run.
+
+    **Rule**: any run whose agent OR judge is a real LLM (i.e. spends at
+    least one dollar) nests into a ``live/`` subdirectory of ``runs_dir``.
+    Stub-only runs stay at the plain ``runs_dir``. This physically
+    separates the payable audit trail from freely-overwritable CI churn.
+
+    Truth table — pinned by ``tests/unit/test_stub_live_path_separation``:
+
+    ============  ============  ==============  =========================
+    judge_mode    agent_stub    spends money?   effective path
+    ============  ============  ==============  =========================
+    ``"stub"``    ``True``      no              ``runs_dir/``
+    ``"stub"``    ``False``     agent           ``runs_dir/live/``
+    ``"live"``    ``True``      judge           ``runs_dir/live/``
+    ``"live"``    ``False``     both            ``runs_dir/live/``
+    ============  ============  ==============  =========================
+
+    The rule is defined once here so the CLI, the CLI tests, and any future
+    caller share the same source of truth — no drift between the runtime
+    behaviour and its regression assertions.
+    """
+    spends_money = (judge_mode == "live") or (not agent_stub)
+    return runs_dir / "live" if spends_money else runs_dir
+
+
 MISSING_KEY_MESSAGE = (
     "No LLM API key configured — set VERITY_ANTHROPIC_API_KEY "
     "(or VERITY_OPENAI_API_KEY), or run with --stub."
@@ -503,9 +530,17 @@ def eval_run(
             )
         ),
     ] = True,
-    runs_dir: Annotated[Path, typer.Option(help="Where to persist the eval run JSON.")] = Path(
-        "datasets/eval/runs"
-    ),
+    runs_dir: Annotated[
+        Path,
+        typer.Option(
+            help=(
+                "Where to persist the eval run JSON. Stub-provenance runs write "
+                "directly here (freely overwritable by CI); live-provenance runs "
+                "auto-nest into a ``live/`` subdirectory to keep audit artefacts "
+                "physically separate from stub churn."
+            ),
+        ),
+    ] = Path("datasets/eval/runs"),
     ci: Annotated[
         bool,
         typer.Option(
@@ -534,6 +569,38 @@ def eval_run(
         float | None,
         typer.Option(help="Fail if retrieval recall@k drops below this value."),
     ] = None,
+    scorecard_json: Annotated[
+        Path | None,
+        typer.Option(
+            help=(
+                "Path to write the enriched publishable scorecard JSON — full "
+                "provenance triple + total_cost_usd + per-example refusal + "
+                "latency percentiles. Used by scripts/generate_headline_results.py "
+                "to render the README's headline table. Independent of --runs-dir."
+            )
+        ),
+    ] = None,
+    budget_usd: Annotated[
+        float | None,
+        typer.Option(
+            help=(
+                "Hard budget cap in USD. Aborts the run when cumulative "
+                "cost_usd across answers exceeds this cap. Intended for the "
+                "one-shot live-judge run (spec: ~$8 ceiling, ~$5 expected)."
+            )
+        ),
+    ] = None,
+    report_only_floors: Annotated[
+        bool,
+        typer.Option(
+            help=(
+                "Print 'below floor' constats but exit 0 anyway. Intended for "
+                "the one-shot LIVE run: a floor breach on a run of record must "
+                "NOT be presented as 'failure' that invites a re-run (=re-spend). "
+                "Stub / CI runs keep hard floors (do NOT set this in CI)."
+            )
+        ),
+    ] = False,
 ) -> None:
     """Run the full eval harness on the labeled dataset and print a Scorecard.
 
@@ -549,6 +616,7 @@ def eval_run(
     from verity.eval import (
         STUB_JUDGE_MODEL,
         AgentEvaluator,
+        BudgetExceededError,
         FileRunStore,
         LLMFaithfulnessJudge,
         StubFaithfulnessJudge,
@@ -608,15 +676,52 @@ def eval_run(
         f"agent=[bold]{agent_model}[/bold] · judge=[bold]{judge_model}[/bold] · "
         f"backend={backend_name} · n={len(examples)}"
     )
-    result = asyncio.run(evaluator.run(examples, git_sha=git_sha))
+    try:
+        result = asyncio.run(evaluator.run(examples, git_sha=git_sha, budget_usd_cap=budget_usd))
+    except BudgetExceededError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=4) from exc
 
     _print_scorecard(result)
 
-    store = FileRunStore(runs_dir)
+    from verity.eval.run_store import StubOverwritesLiveError
+
+    effective_runs_dir = resolve_runs_dir(runs_dir, judge_mode=judge_mode, agent_stub=agent_stub)
+    store = FileRunStore(effective_runs_dir)
     run = result.as_eval_run()
-    store.save(run)
+    try:
+        store.save(run)
+    except StubOverwritesLiveError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=5) from exc
     path = store._path_for(run.scorecard.git_sha, run.scorecard.dataset)
     console.print(f"[green]Persisted[/green] {path}")
+
+    # JSON write is deliberately UNCONDITIONAL and happens BEFORE any floor
+    # evaluation: a floor breached on the one-shot measurement must never
+    # prevent the artefact from being written to disk. See the S7 micro-patch
+    # rationale — a "failed run" that also loses its scorecard invites a
+    # re-spend, which contradicts the "one run of record" invariant.
+    if scorecard_json is not None:
+        from verity.eval import write_headline_scorecard
+        from verity.eval.headline import StubOverwritesLiveScorecardError
+
+        try:
+            headline_path = write_headline_scorecard(result, scorecard_json, dataset_path=dataset)
+        except StubOverwritesLiveScorecardError as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(code=5) from exc
+        console.print(f"[green]Wrote headline scorecard[/green] {headline_path}")
+
+    # Real total_cost_usd — displayed at the end for the operator to eyeball
+    # before the live artefact is committed.
+    total_cost = sum(a.usage.cost_usd for a in result.answers) + result.judge_cost_usd
+    console.print(
+        f"[dim]total observed cost:[/dim] "
+        f"[bold]${total_cost:.4f}[/bold] "
+        f"(agent ${total_cost - result.judge_cost_usd:.4f}, "
+        f"judge ${result.judge_cost_usd:.4f})"
+    )
 
     failed: list[str] = []
     if (
@@ -634,9 +739,17 @@ def eval_run(
             f"recall@k {result.scorecard.retrieval.recall_at_k:.3f} < floor {floor_recall:.3f}"
         )
     if failed:
-        for msg in failed:
-            console.print(f"[red]{msg}[/red]")
-        raise typer.Exit(code=2)
+        if report_only_floors:
+            # Report-only: log the constat honestly (so the operator sees the
+            # breach in the run of record) but exit 0. Semantics for the LIVE
+            # one-shot: the JSON is committed above, the below-floor observation
+            # is recorded in the console log, no re-run is invited.
+            for msg in failed:
+                console.print(f"[yellow]below floor (report-only): {msg}[/yellow]")
+        else:
+            for msg in failed:
+                console.print(f"[red]{msg}[/red]")
+            raise typer.Exit(code=2)
 
 
 @eval_app.command("compare")
@@ -788,9 +901,24 @@ def _print_scorecard(result) -> None:  # type: ignore[no-untyped-def]
     )
     answer.add_row("faithfulness", f"{sc.answer.faithfulness:.3f}", stub_note)
     answer.add_row("citation_accuracy", f"{sc.answer.citation_accuracy:.3f}", stub_note)
-    answer.add_row("hallucination_rate", f"{sc.answer.hallucination_rate:.3f}", stub_note)
+    # Renamed row (schema v2): the metric is gated on ``example.answerable`` in
+    # the judge, so the ``(answerable only)`` qualifier is load-bearing. The
+    # ``out_of_scope_answered`` companion row below covers the other half.
+    answer.add_row(
+        "hallucination_rate (answerable only)",
+        f"{sc.answer.hallucination_rate:.3f}",
+        stub_note,
+    )
     answer.add_row("refusal_precision", f"{sc.answer.refusal_precision:.3f}", refusal_tag)
     answer.add_row("refusal_recall", f"{sc.answer.refusal_recall:.3f}", refusal_tag)
+    # Companion to ``hallucination_rate (answerable only)`` — the count of
+    # out-of-scope examples the agent DID NOT refuse. Computed here directly
+    # from ``per_refusal`` for parity with the JSON export.
+    oos_answered = sum(
+        1 for p in result.per_refusal if not p.expected_answerable and not p.observed_refused
+    )
+    oos_total = sum(1 for p in result.per_refusal if not p.expected_answerable)
+    answer.add_row("out_of_scope_answered", f"{oos_answered}/{oos_total}", refusal_tag)
     console.print(answer)
 
     ops_title_suffix = (
@@ -835,7 +963,11 @@ def _print_scorecard(result) -> None:  # type: ignore[no-untyped-def]
         elif p.observed_refused and p.expected_answerable:
             verdict = "[yellow]FP (uselessly timid)[/yellow]"
         elif not p.observed_refused and not p.expected_answerable:
-            verdict = "[red]FN (hallucinated on out-of-scope)[/red]"
+            # "FN" here is the confusion-matrix cell (unrefused + out-of-scope),
+            # NOT a verdict on the answer text (the judge has its own per-claim
+            # verdicts under ``per_audit``). Renamed away from "hallucinated"
+            # to stop conflating the two — see PerExampleAudit.
+            verdict = "[red]FN (didn't refuse out-of-scope)[/red]"
         else:
             verdict = "[green]TN (correctly answered)[/green]"
         refusal.add_row(p.example_id, expected, str(p.observed_refused), verdict)

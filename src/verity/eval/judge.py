@@ -36,11 +36,20 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from typing import Any
 
 from verity.eval.base import FaithfulnessJudge
 from verity.llm.base import RoutingClient
 from verity.llm.prompt import load_prompt
-from verity.types import Answer, AnswerMetrics, EvalExample, RetrievalHit, UsageStats
+from verity.types import (
+    Answer,
+    AnswerMetrics,
+    ClaimVerdict,
+    EvalExample,
+    Provider,
+    RetrievalHit,
+    UsageStats,
+)
 
 STUB_JUDGE_MODEL = "stub-judge-v1"
 
@@ -107,6 +116,16 @@ class StubFaithfulnessJudge(FaithfulnessJudge):
     def __init__(self) -> None:
         self.model = STUB_JUDGE_MODEL
         self.last_usage: UsageStats | None = None
+        # Per-call provenance stamps (mirror the agent side). Populated on every
+        # ``judge()`` invocation so the harness can aggregate a truthful
+        # "who actually served each judge call" summary into the headline
+        # scorecard rather than a boot-time default.
+        self.last_provider: Provider | None = Provider.LOCAL
+        self.last_model: str | None = STUB_JUDGE_MODEL
+        # Per-claim verdicts from the most recent judge call. ``None`` on the
+        # refusal short-circuit (judge bypassed); a possibly-empty tuple
+        # otherwise. Persisted per-example in ``PerExampleAudit.judge_claims``.
+        self.last_claims: tuple[ClaimVerdict, ...] | None = None
 
     async def judge(self, example: EvalExample, answer: Answer) -> AnswerMetrics:
         # Refusals have no claims — nothing to fail, nothing to hallucinate.
@@ -119,11 +138,13 @@ class StubFaithfulnessJudge(FaithfulnessJudge):
                 refusal_recall=0.0,
             )
             self.last_usage = _zero_usage()
+            self.last_claims = None
             return metrics
 
         claims = _atomic_claims(answer.text)
         if not claims:
             self.last_usage = _zero_usage()
+            self.last_claims = ()
             return AnswerMetrics(
                 faithfulness=0.0,
                 citation_accuracy=0.0,
@@ -135,9 +156,21 @@ class StubFaithfulnessJudge(FaithfulnessJudge):
         context = "\n\n".join(h.chunk.text for h in answer.hits_used)
         quotes = [c.quote for c in answer.citations]
 
+        verdicts: list[ClaimVerdict] = []
         supported = 0
         for claim in claims:
-            if _claim_supported(claim, quotes, context):
+            is_supported = _claim_supported(claim, quotes, context)
+            # Per-claim citation_ok: at least one citation quote overlaps or is
+            # in the retrieved context. Mirrors the aggregate rule below so the
+            # per-claim breakdown is consistent with the aggregate metric.
+            citation_ok = bool(
+                answer.citations
+                and any(q and (q in claim or claim.lower() in q.lower()) for q in quotes)
+            )
+            verdicts.append(
+                ClaimVerdict(claim=claim, supported=is_supported, citation_ok=citation_ok)
+            )
+            if is_supported:
                 supported += 1
         faithfulness = supported / len(claims)
 
@@ -153,6 +186,7 @@ class StubFaithfulnessJudge(FaithfulnessJudge):
         hallucination_rate = 1.0 if (example.answerable and supported < len(claims)) else 0.0
 
         self.last_usage = _zero_usage()
+        self.last_claims = tuple(verdicts)
         return AnswerMetrics(
             faithfulness=faithfulness,
             citation_accuracy=citation_accuracy,
@@ -203,11 +237,26 @@ class LLMFaithfulnessJudge(FaithfulnessJudge):
         self._prompt = load_prompt(prompt_name)
         self.model = model_label or _first_client_model(client) or "llm-judge"
         self.last_usage: UsageStats | None = None
+        # Per-call provenance stamps sourced from the ``Completion`` the router
+        # returns — i.e. the provider/model that actually served the request,
+        # including any routing fallback. ``None`` on the refusal short-circuit
+        # (no LLM call happens) so the harness can distinguish "we called the
+        # judge and it was Anthropic" from "we skipped the judge for a refusal".
+        self.last_provider: Provider | None = None
+        self.last_model: str | None = None
+        # Per-claim verdicts from the most recent judge call. ``None`` on the
+        # refusal short-circuit (judge bypassed); an empty tuple when parsing
+        # failed; otherwise the verdicts from the LLM. Persisted per-example
+        # in ``PerExampleAudit.judge_claims``.
+        self.last_claims: tuple[ClaimVerdict, ...] | None = None
 
     async def judge(self, example: EvalExample, answer: Answer) -> AnswerMetrics:
         # Refusals bypass the judge — same convention as the stub.
         if _is_refusal(answer):
             self.last_usage = _zero_usage()
+            self.last_provider = None
+            self.last_model = None
+            self.last_claims = None
             return AnswerMetrics(
                 faithfulness=1.0,
                 citation_accuracy=1.0,
@@ -223,10 +272,13 @@ class LLMFaithfulnessJudge(FaithfulnessJudge):
         )
         completion = await self._client.complete(messages, max_tokens=512, temperature=0.0)
         self.last_usage = completion.usage
+        self.last_provider = completion.provider
+        self.last_model = completion.model
         parsed = _parse_judge_output(completion.text)
         if parsed is None:
             # Refuse to fabricate a chiffre on malformed output — flag as
             # unsupported so the scorecard reflects the failure honestly.
+            self.last_claims = ()
             return AnswerMetrics(
                 faithfulness=0.0,
                 citation_accuracy=0.0,
@@ -234,7 +286,8 @@ class LLMFaithfulnessJudge(FaithfulnessJudge):
                 refusal_precision=0.0,
                 refusal_recall=0.0,
             )
-        supported, citation_ok, total = parsed
+        verdicts, supported, citation_ok, total = parsed
+        self.last_claims = verdicts
         faithfulness = supported / total if total else 0.0
         citation_accuracy = citation_ok / total if total else 0.0
         hallucination_rate = 1.0 if (example.answerable and supported < total) else 0.0
@@ -256,8 +309,24 @@ def _first_client_model(client: RoutingClient) -> str | None:
     return None
 
 
-def _parse_judge_output(text: str) -> tuple[int, int, int] | None:
-    """Return ``(supported_count, citation_ok_count, total_claims)`` or ``None``."""
+_JUDGE_CLAIMS_KEYS = ("claims", "atomic_claims", "assessments", "verdicts")
+_JUDGE_SUPPORTED_KEYS = ("supported", "is_supported", "grounded")
+_JUDGE_CITATION_OK_KEYS = ("citation_ok", "citation_supports", "citation_valid")
+_JUDGE_CLAIM_TEXT_KEYS = ("claim", "text", "statement")
+
+
+def _parse_judge_output(text: str) -> tuple[tuple[ClaimVerdict, ...], int, int, int] | None:
+    """Return ``(verdicts, supported_count, citation_ok_count, total_claims)`` or ``None``.
+
+    Tolerant to the same real-model drifts as the scorer parser: prose wrappers,
+    code fences, ``[{...}]`` wrapping, and a small set of alias keys (``claims``
+    / ``atomic_claims`` / ``assessments`` etc.). Prevents a benign key rename
+    from silently dropping every judge verdict to 0/0/0.
+
+    ``verdicts`` is the tuple of :class:`ClaimVerdict` records — persisted per
+    example in the audit trail. Aggregate counts are returned alongside for
+    the aggregate ``AnswerMetrics`` computation.
+    """
     stripped = text.strip()
     if not stripped:
         return None
@@ -266,29 +335,53 @@ def _parse_judge_output(text: str) -> tuple[int, int, int] | None:
         parsed = json.loads(candidate)
     except json.JSONDecodeError:
         return None
+    # Model wraps the object in ``[{...}]``.
+    if isinstance(parsed, list):
+        parsed = next((item for item in parsed if isinstance(item, dict)), None)
     if not isinstance(parsed, dict):
         return None
-    claims = parsed.get("claims")
+    claims = _first_matching(parsed, _JUDGE_CLAIMS_KEYS)
     if not isinstance(claims, list) or not claims:
         return None
+    verdicts: list[ClaimVerdict] = []
     supported = 0
     citation_ok = 0
     for entry in claims:
         if not isinstance(entry, dict):
             return None
-        if entry.get("supported"):
+        claim_text_raw = _first_matching(entry, _JUDGE_CLAIM_TEXT_KEYS)
+        claim_text = str(claim_text_raw).strip() if claim_text_raw is not None else ""
+        is_supported = bool(_first_matching(entry, _JUDGE_SUPPORTED_KEYS))
+        is_citation_ok = bool(_first_matching(entry, _JUDGE_CITATION_OK_KEYS))
+        verdicts.append(
+            ClaimVerdict(claim=claim_text, supported=is_supported, citation_ok=is_citation_ok)
+        )
+        if is_supported:
             supported += 1
-        if entry.get("citation_ok"):
+        if is_citation_ok:
             citation_ok += 1
-    return supported, citation_ok, len(claims)
+    return tuple(verdicts), supported, citation_ok, len(claims)
+
+
+def _first_matching(mapping: dict[str, Any], keys: tuple[str, ...]) -> Any:
+    for key in keys:
+        if key in mapping:
+            return mapping[key]
+    return None
 
 
 def _first_json_object(text: str) -> str:
+    """Return the largest ``{...}`` slice, or the first ``[...]`` slice as a
+    fallback for models that wrap the response in a single-element array."""
     start = text.find("{")
     end = text.rfind("}")
-    if start == -1 or end == -1 or end <= start:
-        return ""
-    return text[start : end + 1]
+    if start != -1 and end != -1 and end > start:
+        return text[start : end + 1]
+    array_start = text.find("[")
+    array_end = text.rfind("]")
+    if array_start != -1 and array_end != -1 and array_end > array_start:
+        return text[array_start : array_end + 1]
+    return ""
 
 
 __all__ = [

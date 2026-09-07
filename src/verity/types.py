@@ -273,6 +273,53 @@ class Scorecard(BaseModel, frozen=True):
     cold_start_ms: float | None = None
 
 
+class ClaimVerdict(BaseModel, frozen=True):
+    """One claim from a judged answer, with the judge's verdict on it.
+
+    Persisted per example in :attr:`PerExampleAudit.judge_claims` so a scorecard
+    reader can trace *why* a per-example ``AnswerMetrics.faithfulness`` was
+    below 1.0 without re-running the judge. ``supported`` is grounding in the
+    CONTEXT; ``citation_ok`` is whether the attached citation actually supports
+    the claim.
+    """
+
+    claim: str
+    supported: bool
+    citation_ok: bool
+
+
+class PerExampleAudit(BaseModel, frozen=True):
+    """Full per-example audit record — the layer that lets a run of record be
+    RE-READ later without re-spending on the judge.
+
+    The published headline scorecard remains aggregated; this record is the
+    audit trail that stands behind every chiffre. Persisted verbatim under
+    :attr:`EvalRun.per_audit` so ``verity eval compare`` (or a future audit UI)
+    can walk from an aggregate metric back to the exact answer, citations, hits
+    and per-claim judge verdict that produced it.
+
+    Design guarantee — see ``tests/unit/test_audit_persistence.py``:
+
+    - Non-refused examples MUST carry non-empty ``answer_text`` + at least
+      the citations the synthesizer emitted.
+    - Refused examples MUST carry a non-empty ``refusal_rationale``.
+    - ``judge_claims`` is ``None`` on refusals (the judge short-circuits) and
+      a (possibly empty) tuple otherwise.
+    """
+
+    example_id: str
+    question: str
+    expected_answerable: bool
+    answer_text: str
+    refused: bool
+    refusal_rationale: str = ""
+    citations: tuple[Citation, ...] = ()
+    hits_used: tuple[RetrievalHit, ...] = ()
+    judge_claims: tuple[ClaimVerdict, ...] | None = None
+    answer_metrics: AnswerMetrics
+    usage: UsageStats = Field(default_factory=UsageStats)
+
+
 class EvalRun(BaseModel, frozen=True):
     """A stored eval run: the scorecard plus the environment it was produced in.
     ``compare`` reads a sequence of these to surface regressions.
@@ -290,6 +337,11 @@ class EvalRun(BaseModel, frozen=True):
 
     All three are persisted so a scorecard can never be interpreted without
     knowing which model produced each track.
+
+    ``per_audit`` is the audit trail — one :class:`PerExampleAudit` per dataset
+    example, capturing the raw answer text, citations, hits, and per-claim
+    judge verdict. Empty by default for backwards compatibility with pre-v1.0.0
+    persisted runs. See :class:`PerExampleAudit` for the auditability contract.
     """
 
     scorecard: Scorecard
@@ -297,3 +349,4 @@ class EvalRun(BaseModel, frozen=True):
     judge_model: str
     agent_model: str = "unknown"
     notes: str | None = None
+    per_audit: tuple[PerExampleAudit, ...] = ()

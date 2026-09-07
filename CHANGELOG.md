@@ -6,6 +6,101 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-09-07
+
+### S7 finale — evaluated on real Anthropic + audit-first persistence
+
+**One live run of record**. `claude-sonnet-4-6` as agent and judge, over the
+16-question labelled dataset (11 answerable + 5 out-of-scope). Total cost
+$0.2713. Every chiffre in the README derives verbatim from
+`scorecards/live-v1.0.0.json` + `datasets/eval/runs/live/eval_d0ca1d5_questions.json`
+— no hand-typed numbers, no averaged runs, no re-shot chiffre. Committed
+as immutable artefacts.
+
+Headline (schema `verity.scorecard.headline/v2`) :
+- **refusal_precision 1.000, refusal_recall 0.800** — the differentiator
+- faithfulness 1.000, citation_accuracy 0.792, hallucination_rate (answerable only) 0.000
+- retrieval nDCG@8 0.953, recall@8 1.000, precision@k 0.148 (k>gold ceiling)
+
+### Added — audit trail persistence
+- `PerExampleAudit` model (question, answer_text, refused, refusal_rationale,
+  citations, hits_used, `judge_claims` with per-claim `supported`/`citation_ok`,
+  per-example `AnswerMetrics`, `UsageStats`) persisted verbatim under
+  `EvalRun.per_audit`. Every published aggregate is now traceable back to the
+  exact answer + judge verdict that produced it, without re-spending on the
+  judge. Contract locked by `tests/unit/test_audit_persistence.py`.
+- Enriched headline scorecard JSON at `scorecards/live-v1.0.0.json` — full
+  provenance triple + per-request agent/judge summaries + `dataset.sha256` +
+  `total_cost_usd` broken into agent + judge.
+
+### Added — audit-write-protected paths
+- **Path separation**: live-provenance runs (any run where agent OR judge is a
+  real LLM) auto-nest into `runs_dir/live/`. Stub runs stay at plain
+  `runs_dir/`. Neither CI, nor `verity eval run --ci`, nor
+  `generate_headline_results --check` ever touches `live/`. Truth-table
+  proof for all 4 (judge, agent) combos in
+  `tests/unit/test_stub_live_path_separation.py`.
+- **`StubOverwritesLiveError` / `StubOverwritesLiveScorecardError`** in the
+  run store and headline writer as a belt-and-braces safeguard. Bypassable
+  only via explicit `allow_overwrite=True`. Prompted by an incident where
+  a routine `--ci` invocation destroyed a live audit trail; the class of
+  accident is closed.
+
+### Added — CLI + observability
+- `--report-only-floors` flag on `verity eval run` : for the one-shot LIVE
+  run, floor breaches log as constats without blocking (exit 0) so a run of
+  record is never marked as "failed" in a way that invites a re-spend.
+- `--budget-usd MAX` hard cap on cumulative cost. Aborts (exit 4) mid-run
+  if the cap is exceeded — safety net for the one-shot run.
+- `--scorecard-json PATH` writes the enriched headline JSON alongside the
+  regular `EvalRun` file. **Written unconditionally BEFORE floor evaluation**
+  so a breach never destroys the artefact.
+- Console verdict `FN (hallucinated on out-of-scope)` renamed to
+  `FN (didn't refuse out-of-scope)` — the label was doing work the code
+  didn't back up (confusion-matrix cell, not judge verdict).
+
+### Added — headline scorecard v2 schema
+- `answer_quality.hallucination_rate` → `answer_quality.hallucination_rate_answerable`
+  (same number, honest name — the metric is gated on `example.answerable`).
+- New companion `refusal_calibration.out_of_scope_answered` : `{count, total}`.
+  Covers the half the answerable-gated metric cannot see.
+- New CLI console row for the companion, matching JSON labels 1:1. Console
+  and JSON vocabulary locked by
+  `tests/unit/test_label_source_of_truth.py` — no more drift possible
+  between the two surfaces.
+
+### Fixed — anthropic SDK 1.x + prompt drift + scorer parser
+- **`anthropic` 1.x removed `temperature`** from `AsyncMessages.create` typed
+  kwargs. `AnthropicClient.complete()` now passes it via `extra_body`. Pinned
+  `anthropic>=1.0,<2.0` and `openai>=3.0,<4.0`.
+  SDK-signature smoke tests in `tests/unit/test_llm_sdk_schema.py` bind the
+  kwargs to the real signatures per LLM call site — a future SDK bump that
+  renames or drops a kwarg fails CI, not the live spend.
+- **Confidence scorer refused 16/16 on first live attempt** because the
+  prompt didn't render the JSON schema (it was in a `#` comment stripped by
+  the PromptLang parser). Added the schema to the user block, mirroring the
+  synthesize prompt. Same fix applied to the judge prompt. Parsers gained
+  tolerance for common alias keys (`confidence`/`should_refuse`/`reasoning`,
+  `atomic_claims`/`is_supported`/`citation_supports`) as defence in depth.
+  23 real-Sonnet-shape parser tests in `tests/unit/test_llm_output_parsers.py`.
+- **Refusal-path provenance invariant**: `RagAgent.__init__` gains
+  `preferred_provider` / `preferred_model` populated from the routing
+  client; `Answer.provider_used` falls back to that when a synthesis
+  bypass returns unstamped. `api.state.provenance_for` returns
+  `agent_model="unknown"` instead of the boot fallback when a synthesizer
+  bypass yields no stamp — no silent claim that a run served a live model
+  when it actually did not.
+
+### Added — README, demo, engineering discipline
+- README rewritten with **results table first**, generated from the
+  scorecard JSON via `scripts/generate_headline_results.py` (never
+  hand-typed, idempotent, fails loudly on missing markers). Architecture
+  Mermaid diagram (GitHub-native), 90-second demo script at
+  `docs/demo-script.md`, Constats Ouverts section.
+- README `Engineering discipline` section surfaces the path-separation
+  guarantee, the safeguard, and the "one run of record" invariant — real
+  guarantees, not narrative.
+
 ## [0.7.0] — 2026-09-07
 
 ### S6 micro-patch (pre-tag audit) — honesty tightening

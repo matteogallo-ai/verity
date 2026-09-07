@@ -39,9 +39,74 @@ def test_version_command() -> None:
     assert __version__ in result.stdout
 
 
-def test_eval_run_ci_exits_clean() -> None:
-    result = runner.invoke(app, ["eval", "run", "--ci"])
+def test_eval_run_ci_exits_clean(tmp_path: Path) -> None:
+    """Hermetic on ``--runs-dir tmp_path`` so the test never writes to the real
+    ``datasets/eval/runs/`` tree. The S7 pre-tag audit exposed that the two
+    prior tests running without ``--runs-dir`` would clobber whatever sat at
+    the default path — including a committed live-run audit artefact.
+    """
+    result = runner.invoke(app, ["eval", "run", "--ci", "--runs-dir", str(tmp_path)])
     assert result.exit_code == 0
+
+
+def test_eval_run_report_only_floors_writes_json_and_exits_zero(tmp_path: Path) -> None:
+    """One-shot LIVE-run invariant, exercised on the stub:
+
+    ``--report-only-floors`` + an impossible floor must
+      (a) still write the scorecard JSON to disk (the artefact is committed
+          regardless — a floor breach must never lose the run of record), AND
+      (b) exit 0 (a breach on a run of record must NOT invite a re-spend).
+
+    The stub verifies the wiring — the live run inherits the same semantics."""
+    scorecard = tmp_path / "live.json"
+    runs_dir = tmp_path / "runs"
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "run",
+            "--ci",  # judge stub + agent stub — zero cost
+            "--runs-dir",
+            str(runs_dir),
+            "--scorecard-json",
+            str(scorecard),
+            "--report-only-floors",
+            "--floor-ndcg",
+            "0.999",  # impossible on this dataset — will breach
+        ],
+    )
+    assert result.exit_code == 0, (
+        f"report-only floors must not exit non-zero; got {result.exit_code}. "
+        f"output={result.output!r}"
+    )
+    # JSON was written despite the breach — the load-bearing invariant.
+    assert scorecard.is_file(), "scorecard JSON must be written before floor evaluation"
+    combined = _clean(result.output or "")
+    assert "below floor" in combined, (
+        "the operator must see the breach in the log — report-only ≠ silent"
+    )
+
+
+def test_eval_run_fatal_floors_exit_two_on_stub(tmp_path: Path) -> None:
+    """Same impossible floor WITHOUT --report-only-floors → exit 2 (CI behaviour).
+
+    Hermetic on ``--runs-dir tmp_path`` — see the note on
+    ``test_eval_run_ci_exits_clean`` above."""
+    result = runner.invoke(
+        app,
+        [
+            "eval",
+            "run",
+            "--ci",
+            "--runs-dir",
+            str(tmp_path),
+            "--floor-ndcg",
+            "0.999",
+        ],
+    )
+    assert result.exit_code == 2, (
+        f"CI floor breach must exit 2; got {result.exit_code}. output={result.output!r}"
+    )
 
 
 def _seed_run(

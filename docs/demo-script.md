@@ -1,19 +1,56 @@
-# 90-second demo script (S7)
+# 90-second demo script — v1.0.0
 
-Order is deliberate: lead with the differentiator (refusal + measurement), not the upload.
+Beat-for-beat script matching the v1.0.0 thesis :
+**upload → cited answer → calibrated refusal → measured**.
 
-1. **0:00–0:10 — The claim.** One line on screen: "RAG that refuses instead of
-   hallucinating — and proves it." Show the README scorecard (real numbers).
-2. **0:10–0:30 — Ask an answerable question.** Answer appears with inline citations;
-   click a citation → the exact source passage highlights. Confidence panel shows high
-   confidence + which chunks were used.
-3. **0:30–0:50 — Ask an out-of-scope question.** System refuses: honest "I don't know"
-   with a rationale, not a fabricated answer. This is the money shot.
-4. **0:50–1:10 — Show the eval.** Run `verity eval run` in a terminal → scorecard prints
-   (retrieval P/R, faithfulness, hallucination rate, refusal precision/recall, latency,
-   cost). `verity eval compare` → quality tracked across commits.
-5. **1:10–1:30 — Show the trace.** One query's end-to-end trace: per-stage latency,
-   tokens, cost, retrieval scores. Close on the architecture diagram + repo link.
+No voiceover. Silent-captioned. Recorded from a real session or omitted — no fake
+GIF, no re-shoot to nudge a chiffre.
 
-Record at S7 once the pipeline and UI are live. Keep it silent-captioned; no voiceover
-needed if the on-screen actions are legible.
+## Frame
+
+```bash
+make demo          # FastAPI (stub) on :8000 + Next dev on :3000, both offline
+```
+
+## Beats
+
+### 0:00–0:10 — the claim
+Open on the README's headline table.
+Highlight `refusal_recall 0.800`, `refusal_precision 1.000`,
+`hallucination_rate (answerable only) 0.000`.
+Overlay caption : *"RAG that refuses when the evidence is weak — and proves it. Every number below comes from one live run, committed as an audit artefact."*
+
+### 0:10–0:35 — upload → cited answer
+Drop `sample-msa.pdf` on the UI.
+Ingestion progress bar → chunk count → embedding done.
+Type : *"What is the notice period for terminating the master services agreement?"*
+Answer appears with inline citation. Click the citation → source pane
+highlights the exact clause. Confidence panel shows `1.000` + which chunks
+were used + rerank scores. Provenance badge reads `claude-sonnet-4-6`.
+
+### 0:35–0:55 — calibrated refusal (the differentiator)
+Same corpus, ask an out-of-scope question :
+*"What is the company's parental leave policy?"*
+System refuses with a concrete rationale : *"The Employee Handbook and all
+other evidence documents contain no mention of parental leave policy…"*
+No fabricated answer, no null citation, no fluent hallucination. This is
+the money shot.
+
+### 0:55–1:25 — the eval track
+Terminal :
+
+```bash
+uv run verity eval run --ci                  # deterministic stub, seconds
+uv run verity eval compare                   # regression diff across commits
+cat scorecards/live-v1.0.0.json | jq         # committed audit of the live run of record
+```
+
+Show :
+- The scorecard's per-example `per_refusal` (4 TP refusals, 1 FN — q-015 documented in Constats).
+- The `per_audit` array — for every answer, the raw text, citations, judge's per-claim verdict.
+- The `provenance` block — `agent=claude-sonnet-4-6 (16/16)`, `judge=claude-sonnet-4-6 (12/12)`, commit sha, dataset sha256.
+
+### 1:25–1:30 — close
+Architecture diagram (Mermaid in the README) → repo link.
+Overlay caption : *"Every chiffre in the README derives from `scorecards/live-v1.0.0.json`
++ `datasets/eval/runs/live/…` — no hand-typed numbers, no averaged runs."*

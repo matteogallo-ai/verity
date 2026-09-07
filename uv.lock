@@ -3685,7 +3685,7 @@ wheels = [
 
 [[package]]
 name = "verity"
-version = "0.7.0"
+version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
@@ -3721,11 +3721,11 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "anthropic", specifier = ">=0.39" },
+    { name = "anthropic", specifier = ">=1.0,<2.0" },
     { name = "docling", specifier = ">=2.0" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", specifier = ">=0.27" },
-    { name = "openai", specifier = ">=1.54" },
+    { name = "openai", specifier = ">=3.0,<4.0" },
     { name = "opentelemetry-api", specifier = ">=1.27" },
     { name = "opentelemetry-sdk", specifier = ">=1.27" },
     { name = "pgvector", specifier = ">=0.3" },

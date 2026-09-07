@@ -43,11 +43,22 @@ from verity.types import (
     EvalExample,
     EvalRun,
     LatencyMetrics,
+    PerExampleAudit,
+    Provider,
     RetrievalMetrics,
     Scorecard,
 )
 
 log = structlog.get_logger(__name__)
+
+
+class BudgetExceededError(RuntimeError):
+    """Raised when a ``--judge live`` run's cumulative cost crosses the budget cap.
+
+    Aborts the harness mid-loop so the operator does not accidentally spend
+    beyond the pre-agreed ceiling. The ``verity eval run`` CLI surfaces this
+    as a distinct exit code so scripts can distinguish "cost cap hit" from
+    "metric floor missed"."""
 
 
 @dataclass(frozen=True)
@@ -61,6 +72,21 @@ class PerExampleRefusal:
     example_id: str
     expected_answerable: bool
     observed_refused: bool
+
+
+@dataclass(frozen=True)
+class JudgeCallStamp:
+    """Per-call judge provenance — what the router actually served this call.
+
+    Both fields are ``None`` on the refusal short-circuit (the judge is
+    bypassed and no LLM call happens). This lets the headline aggregator show
+    e.g. "judge=claude-sonnet-4-6 (11/16), skipped for 5 refusals" instead of
+    a boot-time default that lies about what ran.
+    """
+
+    example_id: str
+    provider: Provider | None
+    model: str | None
 
 
 @dataclass(frozen=True)
@@ -79,6 +105,18 @@ class HarnessResult:
     per_retrieval: list[PerExampleScore] = field(default_factory=list)
     per_answer: list[PerExampleAnswerMetrics] = field(default_factory=list)
     per_refusal: list[PerExampleRefusal] = field(default_factory=list)
+    # Per-call judge cost accumulator — the harness sums it across the loop so
+    # ``total_cost_usd = sum(a.usage.cost_usd for a in answers) + judge_cost_usd``
+    # is exact. Zero in ``--judge stub`` mode.
+    judge_cost_usd: float = 0.0
+    # Per-call judge provenance stamps — one entry per dataset example. Used by
+    # ``build_headline_dict`` to emit a truthful aggregate ("who actually
+    # served each judge call") rather than a boot-time model_label.
+    judge_stamps: list[JudgeCallStamp] = field(default_factory=list)
+    # Per-example audit records — the layer that lets a run of record be
+    # RE-READ later without re-spending on the judge. Serialised verbatim
+    # into ``EvalRun.per_audit`` by :meth:`as_eval_run`.
+    per_audit: list[PerExampleAudit] = field(default_factory=list)
 
     def as_eval_run(self, *, notes: str | None = None) -> EvalRun:
         return EvalRun(
@@ -87,6 +125,7 @@ class HarnessResult:
             judge_model=self.judge_model,
             agent_model=self.agent_model,
             notes=notes,
+            per_audit=tuple(self.per_audit),
         )
 
 
@@ -119,12 +158,26 @@ class AgentEvaluator(Evaluator):
         result = await self.run(dataset, git_sha=git_sha)
         return result.scorecard
 
-    async def run(self, dataset: list[EvalExample], *, git_sha: str) -> HarnessResult:
+    async def run(
+        self,
+        dataset: list[EvalExample],
+        *,
+        git_sha: str,
+        budget_usd_cap: float | None = None,
+    ) -> HarnessResult:
+        """Run the full harness. When ``budget_usd_cap`` is set, the loop aborts
+        (raises :class:`BudgetExceededError`) the first time cumulative agent +
+        judge cost crosses the cap. Intended for the one-shot live run: it is
+        the hard safety guard that prevents an accidental $50 spend if the
+        cost estimation was off."""
         answers: list[Answer] = []
         per_retrieval: list[PerExampleScore] = []
         per_answer: list[PerExampleAnswerMetrics] = []
         per_refusal: list[PerExampleRefusal] = []
+        judge_stamps: list[JudgeCallStamp] = []
+        per_audit: list[PerExampleAudit] = []
         retrieval_metric = BinaryRetrievalMetric()
+        judge_cost_usd = 0.0
 
         cold_start_ms: float | None = None
         if self._warmup:
@@ -163,6 +216,25 @@ class AgentEvaluator(Evaluator):
                 PerExampleAnswerMetrics(example_id=example.id, metrics=answer_metrics)
             )
 
+            # Accumulate judge cost from ``judge.last_usage`` — set by both
+            # LLMFaithfulnessJudge and StubFaithfulnessJudge on every call
+            # (zero for the stub, real for the LLM judge).
+            judge_last_usage = getattr(self._judge, "last_usage", None)
+            if judge_last_usage is not None:
+                judge_cost_usd += float(judge_last_usage.cost_usd)
+
+            # Per-call judge provenance — both StubFaithfulnessJudge and
+            # LLMFaithfulnessJudge set ``last_provider`` / ``last_model`` per
+            # call (both None on the refusal skip path, honest that no LLM
+            # was called).
+            judge_stamps.append(
+                JudgeCallStamp(
+                    example_id=example.id,
+                    provider=getattr(self._judge, "last_provider", None),
+                    model=getattr(self._judge, "last_model", None),
+                )
+            )
+
             per_refusal.append(
                 PerExampleRefusal(
                     example_id=example.id,
@@ -170,6 +242,39 @@ class AgentEvaluator(Evaluator):
                     observed_refused=answer.confidence.refused,
                 )
             )
+
+            # Audit record — the layer that makes this run RE-READABLE later
+            # without re-spending on the judge. See ``PerExampleAudit`` for the
+            # contract asserted by ``tests/unit/test_audit_persistence.py``.
+            raw_judge_claims = getattr(self._judge, "last_claims", None)
+            per_audit.append(
+                PerExampleAudit(
+                    example_id=example.id,
+                    question=example.question,
+                    expected_answerable=example.answerable,
+                    answer_text=answer.text,
+                    refused=answer.confidence.refused,
+                    refusal_rationale=(
+                        answer.confidence.rationale if answer.confidence.refused else ""
+                    ),
+                    citations=answer.citations,
+                    hits_used=answer.hits_used,
+                    judge_claims=(
+                        tuple(raw_judge_claims) if isinstance(raw_judge_claims, tuple) else None
+                    ),
+                    answer_metrics=answer_metrics,
+                    usage=answer.usage,
+                )
+            )
+
+            if budget_usd_cap is not None:
+                agent_cost_so_far = sum(a.usage.cost_usd for a in answers)
+                cumulative = agent_cost_so_far + judge_cost_usd
+                if cumulative > budget_usd_cap:
+                    raise BudgetExceededError(
+                        f"Aborted after {example.id}: cumulative cost "
+                        f"${cumulative:.4f} exceeded budget cap ${budget_usd_cap:.2f}"
+                    )
 
         retrieval_agg = _aggregate_retrieval(per_retrieval, k=self._k)
         answer_agg = _aggregate_answer(per_answer, per_refusal)
@@ -196,6 +301,9 @@ class AgentEvaluator(Evaluator):
             per_retrieval=per_retrieval,
             per_answer=per_answer,
             per_refusal=per_refusal,
+            judge_cost_usd=round(judge_cost_usd, 6),
+            judge_stamps=judge_stamps,
+            per_audit=per_audit,
         )
 
 
@@ -273,7 +381,9 @@ _ = cast
 
 __all__ = [
     "AgentEvaluator",
+    "BudgetExceededError",
     "HarnessResult",
+    "JudgeCallStamp",
     "PerExampleAnswerMetrics",
     "PerExampleRefusal",
 ]

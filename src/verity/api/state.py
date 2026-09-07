@@ -182,23 +182,32 @@ class AppRuntime:
         This is the load-bearing surface: what the UI badge, ``AskResponse``,
         and any downstream metric consumer sees. ``Answer.provider_used`` is
         populated by :class:`RagAgent` from the synthesizer's ``Completion``,
-        so a live routing fallback (Anthropic → OpenAI) is captured here.
+        with the router's first-configured provider stamped as a fallback so
+        even a graceful short-circuit refusal (e.g. mid-flight LLM error)
+        still carries the honest routing decision.
 
-        When ``provider_used`` is ``None`` (older tests or non-agent call
-        paths that don't stamp it), we fall back to the boot-time
-        :meth:`provenance` — clearly a best-effort case documented on
-        :class:`~verity.api.models.Provenance`.
+        When ``provider_used`` is genuinely ``None`` — the caller built an
+        Answer manually, no routing decision available — we surface
+        ``agent_model="unknown"`` explicitly. We deliberately do **not**
+        silently fall back to the boot-time :meth:`provenance` here: a live
+        deployment with a stub-side fallback that misreports as "live" is
+        exactly the class of dishonest label this fix closes.
         """
         from verity.types import Provider
 
         settings = get_settings()
         provider = getattr(answer, "provider_used", None)
-        model = getattr(answer, "model_used", None) or self.agent_model
+        model = getattr(answer, "model_used", None)
         if provider is None:
-            return self.provenance()
+            return Provenance(
+                agent_model="unknown",
+                is_stub=(self._mode == "stub"),
+                embedding_model=settings.embedding_model,
+                reranker_model=settings.reranker_model,
+            )
         is_stub = provider is Provider.LOCAL
         return Provenance(
-            agent_model="stub-agent" if is_stub else model,
+            agent_model="stub-agent" if is_stub else (model or "llm-agent"),
             is_stub=is_stub,
             embedding_model=settings.embedding_model,
             reranker_model=settings.reranker_model,

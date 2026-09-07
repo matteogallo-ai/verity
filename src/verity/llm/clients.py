@@ -141,13 +141,19 @@ class AnthropicClient(LLMClient):
         client = self._get_client()
         started = time.perf_counter()
         system, chat = _split_system(messages)
+        # ``anthropic`` SDK 1.x removed ``temperature`` from the typed
+        # ``messages.create`` kwargs (the parameter is no longer exposed on
+        # ``AsyncMessages.create``). The Anthropic API still accepts it, so we
+        # pass it through as a raw JSON field via ``extra_body``. Keep this
+        # code path in lock-step with ``pyproject.toml``'s pin
+        # ``anthropic>=1.0,<2.0`` — a 2.x bump would need re-validation.
         try:
             resp = await client.messages.create(
                 model=self._model,
                 max_tokens=max_tokens,
-                temperature=temperature,
                 system=system,
                 messages=[{"role": m.role.value, "content": m.content} for m in chat],
+                extra_body={"temperature": temperature},
             )
         except Exception as exc:  # translate vendor errors
             _raise_translated(exc, provider="anthropic")

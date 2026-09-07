@@ -83,7 +83,33 @@ def _render_evidence(hits: list[RetrievalHit]) -> str:
     return "\n\n".join(lines) if lines else "(no evidence available)"
 
 
+# Key aliases the scorer accepts as a defence-in-depth against real-model
+# drift. The prompt now shows the exact schema (score/refused/rationale) so
+# Sonnet-class models generally comply, but weaker/older/rewritten variants
+# occasionally emit natural-sounding keys (e.g. "confidence", "should_refuse",
+# "reasoning"). We accept those rather than refusing on principle — the
+# scorer's job is to catch WEAK EVIDENCE, not to punish a well-formed answer
+# because the model chose a synonym for the top-level key.
+_SCORE_KEYS = ("score", "confidence", "confidence_score")
+_REFUSED_KEYS = ("refused", "should_refuse", "refuse", "decline")
+_RATIONALE_KEYS = ("rationale", "reasoning", "reason", "explanation", "justification")
+
+
+def _first_matching(mapping: dict[str, object], keys: tuple[str, ...]) -> object | None:
+    for key in keys:
+        if key in mapping:
+            return mapping[key]
+    return None
+
+
 def _parse_confidence(text: str) -> tuple[float, str, bool] | None:
+    """Extract ``(score, rationale, refused)`` from a scorer LLM completion.
+
+    Robust to (a) prose wrapping the JSON, (b) markdown code fences, (c) a
+    one-element array wrapping the object, and (d) common key aliases. Returns
+    ``None`` only when the payload truly does not carry a numeric score — the
+    only shape the caller cannot recover meaning from.
+    """
     stripped = text.strip()
     if not stripped:
         return None
@@ -92,23 +118,36 @@ def _parse_confidence(text: str) -> tuple[float, str, bool] | None:
         parsed = json.loads(candidate)
     except json.JSONDecodeError:
         return None
+    # Unwrap ``[{...}]`` — models sometimes wrap the object in a single-element
+    # array. Take the first dict; ignore the rest (the prompt asks for one).
+    if isinstance(parsed, list):
+        parsed = next((item for item in parsed if isinstance(item, dict)), None)
     if not isinstance(parsed, dict):
         return None
-    raw_score = parsed.get("score")
+    raw_score = _first_matching(parsed, _SCORE_KEYS)
     if isinstance(raw_score, bool) or not isinstance(raw_score, (int, float)):
         return None
     score = max(0.0, min(1.0, float(raw_score)))
-    rationale = str(parsed.get("rationale", "")).strip()
-    refused = bool(parsed.get("refused", False))
+    rationale_raw = _first_matching(parsed, _RATIONALE_KEYS)
+    rationale = str(rationale_raw).strip() if rationale_raw is not None else ""
+    refused_raw = _first_matching(parsed, _REFUSED_KEYS)
+    refused = bool(refused_raw) if refused_raw is not None else False
     return score, rationale, refused
 
 
 def _first_json_object(text: str) -> str:
+    """Return the largest ``{...}`` slice in ``text``, or the first ``[...]``
+    slice if no braced object is present. The array path handles the case where
+    the model wraps the response in ``[{...}]``."""
     start = text.find("{")
     end = text.rfind("}")
-    if start == -1 or end == -1 or end <= start:
-        return ""
-    return text[start : end + 1]
+    if start != -1 and end != -1 and end > start:
+        return text[start : end + 1]
+    array_start = text.find("[")
+    array_end = text.rfind("]")
+    if array_start != -1 and array_end != -1 and array_end > array_start:
+        return text[array_start : array_end + 1]
+    return ""
 
 
 __all__ = ["LLMConfidenceScorer"]

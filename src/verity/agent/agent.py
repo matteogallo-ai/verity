@@ -35,7 +35,7 @@ from verity.observability.base import Tracer
 from verity.observability.logging import request_trace
 from verity.observability.tracer import NoOpTracer
 from verity.retrieval.base import Retriever
-from verity.types import Answer, RetrievalHit, UsageStats, new_id
+from verity.types import Answer, Provider, RetrievalHit, UsageStats, new_id
 
 log = structlog.get_logger(__name__)
 
@@ -65,6 +65,8 @@ class RagAgent(Agent):
         scorer: ConfidenceScorer,
         rerank_k: int | None = None,
         tracer: Tracer | None = None,
+        preferred_provider: Provider | None = None,
+        preferred_model: str | None = None,
     ) -> None:
         settings = get_settings()
         self._retriever = retriever
@@ -76,6 +78,13 @@ class RagAgent(Agent):
         # agent without supplying a tracer. Real observability is enabled by
         # the CLI/API wiring in an ``OTelTracer``.
         self._tracer: Tracer = tracer or NoOpTracer()
+        # Routing-decision fallback stamped on every Answer this agent emits.
+        # Prevents a future short-circuit (e.g. mid-flight refusal on a
+        # transient LLM error) from producing an Answer with
+        # ``provider_used = None`` and letting downstream provenance fall back
+        # to a boot-time default that lies about who would have served.
+        self._preferred_provider = preferred_provider
+        self._preferred_model = preferred_model
 
     async def answer(self, question: str) -> Answer:
         trace_id = new_id()
@@ -125,8 +134,14 @@ class RagAgent(Agent):
             # client falls back (e.g. Anthropic unavailable → OpenAI), this
             # reflects the fallback, not the primary. Load-bearing for the
             # provenance badge in the UI.
-            provider_used = synthesis.provider
-            model_used = synthesis.model
+            #
+            # If synthesis is ever short-circuited by a future code path
+            # (e.g. graceful mid-flight refusal on a transient LLM error),
+            # ``synthesis.provider`` / ``synthesis.model`` may be missing;
+            # we fall through to the routing-decision fallback stamped at
+            # construction time so the Answer NEVER carries a None provider.
+            provider_used = synthesis.provider or self._preferred_provider
+            model_used = synthesis.model or self._preferred_model
 
             if confidence.refused:
                 log.info(
@@ -222,14 +237,42 @@ def create_default_agent(
     client: RoutingClient,
     tracer: Tracer | None = None,
 ) -> RagAgent:
-    """Wire the default agent: LLM-based decomposer + synthesizer + scorer."""
+    """Wire the default agent: LLM-based decomposer + synthesizer + scorer.
+
+    The routing client's first configured provider + model is stamped on the
+    agent as the ``preferred_*`` fallback so any Answer (including one from a
+    future graceful mid-flight refusal that skips synthesis) carries the real
+    routing decision — not a None that would leak up to the API's boot-time
+    default and lie about who would have served.
+    """
+    preferred_provider, preferred_model = _resolve_preferred(client)
     return RagAgent(
         retriever=retriever,
         decomposer=LLMQuestionDecomposer(client),
         synthesizer=CitedSynthesizer(client),
         scorer=LLMConfidenceScorer(client),
         tracer=tracer,
+        preferred_provider=preferred_provider,
+        preferred_model=preferred_model,
     )
+
+
+def _resolve_preferred(client: RoutingClient) -> tuple[Provider | None, str | None]:
+    """Peek at the routing client and return the first configured client's
+    ``(provider, model)``. Best-effort — unknown routers return ``(None, None)``
+    and the agent transparently ships an Answer with no provenance stamp, which
+    is what the API layer surfaces as ``agent_model="unknown"``."""
+    clients = getattr(client, "clients", None)
+    if not clients:
+        return None, None
+    first = clients[0]
+    provider = getattr(first, "provider", None)
+    model = getattr(first, "model", None)
+    if not isinstance(provider, Provider):
+        provider = None
+    if not isinstance(model, str):
+        model = None
+    return provider, model
 
 
 __all__ = ["AgentDeps", "RagAgent", "create_default_agent"]

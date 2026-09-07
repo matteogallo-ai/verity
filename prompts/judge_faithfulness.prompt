@@ -15,7 +15,7 @@ system: |
   You are a strict grounding judge. Decompose the answer into atomic factual claims.
   For each claim, decide (a) whether it is supported by the provided CONTEXT only —
   not your own knowledge — and (b) whether its attached citation actually supports it.
-  Return ONLY the specified JSON. Unsupported claims are hallucinations; say so.
+  Return ONLY a JSON object matching the schema in the user message, no prose.
 
 user: |
   CONTEXT:
@@ -26,3 +26,8 @@ user: |
 
   CITATIONS:
   {{ citations }}
+
+  Respond with JSON of exactly this shape (use these exact keys, no other keys):
+    {"claims": [{"claim": "<atomic claim>", "supported": <true|false>, "citation_ok": <true|false>}]}
+  One entry per atomic claim. "supported" = the CONTEXT supports the claim. "citation_ok"
+  = the attached citation actually points at supporting text. Emit ONLY the JSON object.

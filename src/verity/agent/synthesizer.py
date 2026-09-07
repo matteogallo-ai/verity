@@ -41,13 +41,19 @@ class SynthesisResult:
     :attr:`Answer.provider_used` / :attr:`Answer.model_used` without needing
     to re-query the router. This is the load-bearing signal for per-request
     provenance in the UI.
+
+    ``provider`` and ``model`` may be ``None`` when a future degraded synthesis
+    path (e.g. graceful mid-flight refusal on a transient LLM error) short-
+    circuits before it can consult the router. In that case the RagAgent's
+    ``preferred_*`` fallback stamps the honest routing decision — the invariant
+    covered by ``tests/unit/test_refusal_provenance.py``.
     """
 
     text: str
     citations: tuple[Citation, ...]
     usage: UsageStats
-    provider: Provider
-    model: str
+    provider: Provider | None
+    model: str | None
 
 
 class CitedSynthesizer:
@@ -97,14 +103,18 @@ def _render_evidence(hits: list[RetrievalHit]) -> str:
 def _parse_synth_output(text: str) -> tuple[str, list[tuple[str, int]]]:
     """Extract ``(answer, [(quote, chunk_index), ...])`` from the LLM's JSON output.
 
-    On any parse failure, return ``(text, [])`` — the caller will drop citations and
-    the confidence scorer will (almost certainly) refuse, which is the safe path.
+    Robust to prose wrapping, markdown code fences, and single-element array
+    wrappers (all real-model drifts observed with Sonnet-class outputs). On
+    total parse failure return ``(text.strip(), [])`` so the citation validator
+    drops the citations and the scorer refuses — safe path.
     """
     candidate = _first_json_object(text) or text
     try:
         parsed = json.loads(candidate)
     except json.JSONDecodeError:
         return text.strip(), []
+    if isinstance(parsed, list):
+        parsed = next((item for item in parsed if isinstance(item, dict)), None)
     if not isinstance(parsed, dict):
         return text.strip(), []
     answer = str(parsed.get("answer", "")).strip()
@@ -124,11 +134,17 @@ def _parse_synth_output(text: str) -> tuple[str, list[tuple[str, int]]]:
 
 
 def _first_json_object(text: str) -> str:
+    """Return the largest ``{...}`` slice, or the first ``[...]`` slice as a
+    fallback for models that wrap the response in a single-element array."""
     start = text.find("{")
     end = text.rfind("}")
-    if start == -1 or end == -1 or end <= start:
-        return ""
-    return text[start : end + 1]
+    if start != -1 and end != -1 and end > start:
+        return text[start : end + 1]
+    array_start = text.find("[")
+    array_end = text.rfind("]")
+    if array_start != -1 and array_end != -1 and array_end > array_start:
+        return text[array_start : array_end + 1]
+    return ""
 
 
 def _validate_citations(
