@@ -1,0 +1,82 @@
+/*
+ * Verity UI — restrained, engineering-tool aesthetic.
+ * Dark background · high legibility · monospace for numerics, IDs, scores.
+ */
+
+:root {
+  --bg: #0e1013;
+  --bg-elev: #171a20;
+  --bg-panel: #12151a;
+  --border: #232830;
+  --border-hi: #2f3641;
+  --fg: #dde3ea;
+  --fg-dim: #8b95a3;
+  --fg-mute: #5b6572;
+  --accent: #7cc4ff;
+  --accent-soft: rgba(124, 196, 255, 0.12);
+  --warn: #f0b350;
+  --warn-soft: rgba(240, 179, 80, 0.14);
+  --refuse: #b6a4f0;
+  --refuse-soft: rgba(182, 164, 240, 0.12);
+  --error: #f26d6d;
+  --ok: #77dd88;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  --sans: -apple-system, "Inter", "Segoe UI", system-ui, sans-serif;
+  --radius: 8px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+
+button:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+input, textarea {
+  font: inherit;
+  color: inherit;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+}
+
+input:focus, textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+code, .mono {
+  font-family: var(--mono);
+  font-size: 0.85em;
+}
+
+a { color: var(--accent); }

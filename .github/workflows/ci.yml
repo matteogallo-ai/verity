@@ -129,3 +129,35 @@ jobs:
             --floor-refusal-recall 0.8 \
             --floor-ndcg 0.5 \
             --floor-recall 0.75
+
+  web:
+    name: web (Next.js UI · Node 22 · pnpm@9)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable corepack + pin pnpm from packageManager
+        run: corepack enable
+
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck (tsc --noEmit strict)
+        run: pnpm typecheck
+
+      - name: Unit tests (vitest)
+        run: pnpm test
+
+      - name: Build (next build)
+        run: pnpm build

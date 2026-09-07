@@ -120,6 +120,14 @@ class RagAgent(Agent):
                 latency_ms=latency_ms,
             )
 
+            # Stamp the provider that ACTUALLY served the synthesis step —
+            # the LLM call that produced the answer text. When a live routing
+            # client falls back (e.g. Anthropic unavailable → OpenAI), this
+            # reflects the fallback, not the primary. Load-bearing for the
+            # provenance badge in the UI.
+            provider_used = synthesis.provider
+            model_used = synthesis.model
+
             if confidence.refused:
                 log.info(
                     "refused",
@@ -134,6 +142,8 @@ class RagAgent(Agent):
                     hits_used=tuple(hits),
                     usage=usage,
                     trace_id=trace_id,
+                    provider_used=provider_used,
+                    model_used=model_used,
                 )
 
             return Answer(
@@ -144,6 +154,8 @@ class RagAgent(Agent):
                 hits_used=tuple(hits),
                 usage=usage,
                 trace_id=trace_id,
+                provider_used=provider_used,
+                model_used=model_used,
             )
 
     async def _collect_hits(self, sub_questions: list[str]) -> list[RetrievalHit]:

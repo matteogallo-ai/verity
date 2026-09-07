@@ -156,7 +156,16 @@ class UsageStats(BaseModel, frozen=True):
 class Answer(BaseModel, frozen=True):
     """The complete result of a query: text, citations, calibrated confidence,
     the evidence actually used, and full accounting — everything the UI and the
-    eval harness need, nothing they have to reconstruct."""
+    eval harness need, nothing they have to reconstruct.
+
+    ``provider_used`` and ``model_used`` are stamped by :class:`RagAgent` from
+    the *synthesizer's* :class:`Completion` — the LLM call that actually produced
+    the answer text. This is what makes the UI's provenance badge reflect what
+    served the request, not the boot-time default. When live routing falls back
+    (e.g. Anthropic unavailable → OpenAI), these fields reflect the fallback,
+    not the primary. Optional (``None``) for backwards compatibility with
+    pre-S6.1 callers that build ``Answer`` without a routed synthesis step.
+    """
 
     query: str
     text: str
@@ -165,6 +174,8 @@ class Answer(BaseModel, frozen=True):
     hits_used: tuple[RetrievalHit, ...] = ()
     usage: UsageStats = Field(default_factory=UsageStats)
     trace_id: TraceId = Field(default_factory=new_id)
+    provider_used: Provider | None = None
+    model_used: str | None = None
 
 
 # --------------------------------------------------------------------------------------

@@ -23,11 +23,15 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 
 from verity import __version__
 from verity.api.aggregator import SessionMetrics, aggregate_spans, to_prometheus
+from verity.api.router import router as api_router
+from verity.api.state import AppRuntime, default_agent_mode
 from verity.eval import FileRunStore
+from verity.observability.tracer import NoOpTracer
 
 
 def create_app(
@@ -35,13 +39,18 @@ def create_app(
     tracer: Any = None,
     runs_dir: Path = Path("datasets/eval/runs"),
     dataset: str = "questions",
+    corpus_dir: Path = Path("datasets/corpus"),
+    agent_mode: str | None = None,
+    cors_origins: tuple[str, ...] = ("http://localhost:3000",),
 ) -> FastAPI:
     """Build the FastAPI app.
 
     ``tracer`` may be a :class:`~verity.observability.tracer.OTelTracer`
     (session spans populate ``/metrics``) or ``None`` (all session aggregates
     read zero — endpoints still respond 200). ``runs_dir`` + ``dataset``
-    control which persisted eval runs the dashboard surfaces.
+    control which persisted eval runs the dashboard surfaces. ``corpus_dir``
+    is preloaded into the shared in-memory store on first request so the
+    demo UI can ask questions immediately.
     """
     app = FastAPI(
         title="verity",
@@ -49,6 +58,26 @@ def create_app(
         docs_url="/docs",
         redoc_url=None,
     )
+    if cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(cors_origins),
+            allow_credentials=False,
+            allow_methods=["GET", "POST", "OPTIONS"],
+            allow_headers=["*"],
+        )
+    runtime_tracer = tracer if tracer is not None else NoOpTracer()
+    resolved_mode = agent_mode or default_agent_mode()
+    if resolved_mode not in {"stub", "live"}:
+        raise ValueError(f"agent_mode must be 'stub' or 'live', got {resolved_mode!r}")
+    runtime = AppRuntime(
+        mode="stub" if resolved_mode == "stub" else "live",
+        corpus_dir=corpus_dir,
+        tracer=runtime_tracer,
+    )
+    app.state.runtime = runtime
+    app.include_router(api_router)
+
     store = FileRunStore(runs_dir)
 
     def _session_metrics() -> SessionMetrics:

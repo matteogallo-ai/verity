@@ -27,16 +27,27 @@ from dataclasses import dataclass
 from verity.config import get_settings
 from verity.llm.base import RoutingClient
 from verity.llm.prompt import load_prompt
-from verity.types import Citation, RetrievalHit, UsageStats
+from verity.types import Citation, Provider, RetrievalHit, UsageStats
 
 
 @dataclass(frozen=True)
 class SynthesisResult:
-    """Output of the synthesizer — draft text, validated citations, usage."""
+    """Output of the synthesizer — draft text, validated citations, usage, and the
+    concrete LLM provider/model that produced ``text``.
+
+    The synthesizer's ``Completion`` is what carries the actual provider a
+    :class:`RoutingClient` served the request with (including any fallback the
+    router performed). We surface it here so :class:`RagAgent` can stamp
+    :attr:`Answer.provider_used` / :attr:`Answer.model_used` without needing
+    to re-query the router. This is the load-bearing signal for per-request
+    provenance in the UI.
+    """
 
     text: str
     citations: tuple[Citation, ...]
     usage: UsageStats
+    provider: Provider
+    model: str
 
 
 class CitedSynthesizer:
@@ -64,7 +75,13 @@ class CitedSynthesizer:
         self.last_usage = completion.usage
         text, raw_citations = _parse_synth_output(completion.text)
         citations = _validate_citations(raw_citations, hits)
-        return SynthesisResult(text=text, citations=citations, usage=completion.usage)
+        return SynthesisResult(
+            text=text,
+            citations=citations,
+            usage=completion.usage,
+            provider=completion.provider,
+            model=completion.model,
+        )
 
 
 def _render_evidence(hits: list[RetrievalHit]) -> str:

@@ -6,6 +6,95 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-09-07
+
+### S6 micro-patch (pre-tag audit) — honesty tightening
+
+- **Provenance is now per-request, not boot-time.** `Answer` gains optional
+  `provider_used: Provider | None` + `model_used: str | None`, stamped by
+  `RagAgent` from the synthesizer's `Completion`. `AppRuntime.provenance_for
+  (answer)` derives `Provenance` from that stamp. When S7 live routing lands,
+  a `ProviderUnavailableError` fallback (Anthropic → OpenAI) is reflected
+  honestly per request instead of showing the boot-time primary model.
+  `AskResponse.answer` now also carries `provider_used` + `model_used` on the
+  wire. New test: `test_ask_provenance_reflects_the_actual_provider_used`.
+- **Confidence readout is labelled + shows signals.** New UI component
+  `ConfidenceReadout` renders `answer.confidence.score` verbatim (passthrough,
+  no client-side composite) with an explicit provenance label
+  (`agent-reported (stub: stub-agent)` or `agent-reported (<model>)`) and the
+  underlying signals a careful reader would want: `refused`, `citations` count,
+  top rerank score, evidence hits count. Never a bare authoritative percentage
+  next to an answer. Both `AnswerCard` and `RefusalState` embed the readout.
+  +5 vitest cases covering the labelling and signal exposure.
+- **Verbatim citation invariant enforced by test.** New
+  `tests/unit/test_citation_verbatim_invariant.py` walks the whole answerable
+  question set and asserts
+  `document.text[citation.char_start:citation.char_end] == citation.quote`
+  on every emitted citation. Stacks on top of the existing synthesizer
+  substring guard, so any future refactor that lets a paraphrased citation
+  through breaks CI.
+
+### Added
+- **S6 — Next.js UI (`web/`) + thin HTTP wrappers.**
+  - **Backend endpoints (additive serializer layer)** — three thin wrappers
+    over the same runtime the CLI uses (:mod:`verity.runtime`):
+    - `GET /status` — real provenance triple (`agent_model`, `is_stub`,
+      `embedding_model`, `reranker_model`), real corpus counts. No hard-coded
+      `"ok"` — honest state of the process.
+    - `POST /ask` — returns `AnswerView` (verbatim mirror of
+      :class:`Answer` / :class:`Citation` / :class:`UsageStats` /
+      :class:`Confidence`) with `provenance` adjacent so a chiffre can't be
+      lifted without its badge. Every `hits_used[i]` carries a
+      structurally-derived `cited` flag (chunk id ∈ citations set).
+    - `POST /ingest` — multipart upload. Document id is **content-addressed**:
+      `uri = upload://<sha256><ext>`, `doc_id = uuid5(NAMESPACE_URL, uri)`.
+      Same bytes under a different filename → same id (idempotent re-uploads).
+  - **`verity.runtime`** — shared composition helpers so the CLI and the API
+    build identical component graphs. Zero business logic reimplemented in
+    the HTTP layer.
+  - **`verity.api.state.AppRuntime`** — process-scoped singleton owning the
+    in-memory store + embedder + reranker + agent, with corpus preload on
+    first request. Configured via a `packageManager`-style boot toggle
+    (`agent_mode="stub"|"live"`; auto-picks `stub` when no key is set).
+  - **Web UI** (`web/`):
+    - Next.js 15 App Router, TypeScript strict, ESLint 9 flat config, pnpm@9.15.0
+      pinned via `packageManager`, Node 22.
+    - `AnswerCard` renders the answer with inline `[N]` citation markers that
+      map to source chunks; refusal is a first-class visual state
+      (`RefusalState`), never an error.
+    - `SourcePanel` shows every retrieved chunk with its rerank score, kind,
+      section, and cited/not-cited badge — all values verbatim from the API.
+    - `ProvenanceBadge` is rendered next to every answer AND in the topbar;
+      `StubModeBanner` is persistent iff `provenance.is_stub` on the API
+      response (same condition the tests assert against).
+    - Typed API client (`lib/api.ts`); `NEXT_PUBLIC_API_BASE` (default
+      `http://localhost:8000`). No secrets client-side.
+  - **Demo path**: `make demo` boots the FastAPI stub-mode server + Next.js
+    dev server together on `:8000` + `:3000`. Ctrl-C stops both cleanly.
+  - **CI**: new `web` job (Node 22 · corepack pnpm@9.15.0 · frozen lockfile)
+    runs lint + typecheck + vitest + `next build`. The 3 existing Python
+    jobs (`quality`, `integration`, `evaluation`) are byte-preserved.
+
+### Honesty guarantees (rules of iron — enforced by tests)
+- No value on screen is fabricated. Every latency, score, cited flag, and
+  confidence originates in the API response for that specific request.
+- **Provenance is adjacent to every answer.** `AskResponse` never returns an
+  answer without its `provenance` triple. The badge sourced from
+  `agent_model` renders next to the answer text.
+- Refusal is a state, not an error — the UI has a dedicated
+  `RefusalState` component with rationale + hits shown for auditability.
+- Content-addressed upload IDs prevent the S1.1 non-portable-id class of bug
+  from re-emerging in the upload path.
+- Stub mode is loudly visible: yellow banner across the top whenever the API
+  reports `provenance.is_stub === true`; yellow badge on every answer card.
+
+### Notes
+- No new eval numbers published. Retrieval + refusal chiffres shown in the
+  UI come from the exact same `answer.confidence` and `answer.hits_used`
+  fields the eval harness already surfaces — S7 will add the live-judge
+  headline numbers.
+- No Playwright/E2E in S6 (flake budget). Candidate for S7.
+
 ## [0.6.0] — 2026-09-07
 
 ### Added

@@ -137,6 +137,21 @@ fully offline.
 
 Full local run (app + db) once S5/S6 land: `docker compose up`.
 
+## UI
+
+Next.js 15 + TypeScript strict, in [`web/`](web/). Zero-key demo path:
+
+```bash
+make demo          # FastAPI (stub) on :8000 + Next dev on :3000, both offline
+```
+
+Upload → cited answer with inline citations that highlight the source chunk on
+click, honest source panel (rerank score + cited/not-cited flag per chunk),
+first-class refusal state, and a persistent provenance badge on every answer
+(`stub-agent` for the demo, `<model>` in live mode). No fabricated numbers —
+see [`web/README.md`](web/README.md) for the honesty guarantees and the demo
+script.
+
 ## Development
 
 ```bash
