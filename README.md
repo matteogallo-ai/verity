@@ -9,7 +9,7 @@ Every published metric traceable to the exact answer + judge verdict that produc
 [![ci](https://github.com/matteogallo-ai/verity/actions/workflows/ci.yml/badge.svg)](https://github.com/matteogallo-ai/verity/actions/workflows/ci.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-black.svg)](LICENSE)
 ![python](https://img.shields.io/badge/python-3.12+-blue.svg)
-![version](https://img.shields.io/badge/version-1.0.0-brightgreen.svg)
+![version](https://img.shields.io/badge/version-1.0.1-brightgreen.svg)
 
 </div>
 

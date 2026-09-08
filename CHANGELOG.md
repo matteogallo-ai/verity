@@ -6,6 +6,77 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.1] — 2026-09-08
+
+### Fixed — headline scorecard denominators (schema v2 → v3)
+
+**Reporting-only correction, no re-spend, no new run.** The v1.0.0
+scorecard published on 2026-09-07 (tag `v1.0.0`, commit `94bd0ba`)
+averaged its judge-track metrics over all 16 examples with refusals
+contributing 1.0 by judge convention. That convention inflates
+`citation_accuracy` : refusals get a "free" 1.0 even though the judge
+never ran on them (`4 refusals bypass the judge` → 4 gratuitous 1.0
+contributions pushed the aggregate up).
+
+Concretely on the same audit trail
+(`datasets/eval/runs/live/eval_d0ca1d5_questions.json`, unchanged) :
+
+| Metric | v1.0.0 (v2) | **v1.0.1 (v3)** | Delta |
+|---|---:|---:|---:|
+| citation_accuracy | 0.792 (over 16) | **0.722 (answered, n=12)** | −0.070 |
+| faithfulness | 1.000 | 1.000 (answered, n=12) | 0 |
+| hallucination_rate | 0.000 | 0.000 (answerable_and_answered, n=11) | 0 |
+| judge_model | `"(12/12)"` | **`"(12/16 answered — 4 refusals bypass the judge)"`** | wording |
+
+The **audit trail is untouched** — every per-example `judge_claims`
+record is bit-identical to what v1.0.0 shipped. The recompute from
+`per_audit` gives the exact v3 numbers, proving this is a reporting
+refinement, not a rerun.
+
+### Schema v3 details
+
+- Every judge-track metric is now a `{value, scope, n_denominator}`
+  triple — a chiffre cannot be quoted without knowing what was averaged.
+  Scoping rule:
+  - `faithfulness` / `citation_accuracy` : scope = `answered`,
+    denominator = `n_judged` (the answers the judge actually saw).
+    Refusals bypass the judge and no longer inflate these aggregates.
+  - `hallucination_rate` : scope = `answerable_and_answered`,
+    denominator = the at-risk set (the only questions where the
+    per-example formula can return 1.0).
+- New top-level `sample_sizes` block (`n_examples`, `n_answered`,
+  `n_judged`, `n_refused`, `n_answerable_answered`) so every
+  denominator is one click away from the scorecard.
+- Judge provenance summary format is now
+  `"claude-sonnet-4-6 (12/16 answered — 4 refusals bypass the judge)"`
+  when refusals cause skips. The v2 `"(12/12)"` was arithmetically
+  true but misleading — 4 refusals had already been filtered out of
+  the denominator, hidden from the reader.
+- CLI console rows now display each metric with its explicit
+  scope + denominator (e.g. `Citation accuracy (answered, n=12)`).
+  Console-vs-JSON label consistency asserted by
+  `tests/unit/test_label_source_of_truth.py`.
+- New `build_headline_dict_from_eval_run(EvalRun, dataset_path, …)`
+  helper lets a persisted audit trail be re-serialised into the
+  current headline schema without re-running the LLM — used to
+  migrate the v1.0.0 live scorecard from v2 to v3 with zero re-spend.
+
+### Docs
+- **README restructured for the 15 s CTO scan** : title + tagline →
+  problem in two sentences → two real UI screenshots (cited answer +
+  calibrated refusal, captured via Playwright against the running app,
+  no fabrication) → scorecard table with explicit scope on every
+  metric → architecture Mermaid → Quickstart → Constats Ouverts →
+  Engineering discipline → Stack → Demo → UI → Dev.
+- New `docs/assets/screenshot-answer.png` and
+  `docs/assets/screenshot-refusal.png` — un-edited Playwright captures
+  of the demo (stub agent, `make demo`), reproducible locally in ~30 s.
+
+### Note on the v1.0.0 Release
+The tag `v1.0.0` is left in place at `94bd0ba` (never retag a public
+release). The v1.0.0 Release notes on GitHub carry a banner pointing
+at v1.0.1 as the honest headline ; the audit trail at v1.0.0 stands.
+
 ## [1.0.0] — 2026-09-07
 
 ### S7 finale — evaluated on real Anthropic + audit-first persistence

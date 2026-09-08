@@ -1,6 +1,6 @@
 {
   "name": "verity-web",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Verity UI — upload → cited answer → honest source & confidence panel.",
   "packageManager": "pnpm@9.15.0",
