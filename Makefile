@@ -28,7 +28,7 @@ ui-test:
 test: test-fast test-slow
 
 test-fast:
-	uv run pytest -m "not integration and not slow"
+	HF_HUB_OFFLINE=1 uv run pytest -m "not integration and not slow"
 
 test-slow:
 	uv run pytest -m "slow and not integration"

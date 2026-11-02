@@ -257,7 +257,7 @@ pytest · GitHub Actions. Eval history is kept as versioned JSON files.
 uv run ruff check . && uv run ruff format --check .
 uv run mypy
 uv run vulture && uv run deptry src
-uv run pytest -m "not integration and not slow"    # fast lane, < 60 s
+HF_HUB_OFFLINE=1 uv run pytest -m "not integration and not slow"  # fast lane, no network
 uv run pytest -m "slow and not integration"        # loads the local models
 VERITY_DATABASE_URL=postgresql://verity:verity@localhost:5432/verity \
   uv run pytest -m integration                     # needs pgvector

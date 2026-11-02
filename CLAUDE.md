@@ -45,7 +45,7 @@ uv run ruff check . && uv run ruff format --check .        # lint + format
 uv run mypy                                                # typecheck (strict)
 uv run vulture                                             # dead code
 uv run deptry src                                          # dependency hygiene
-uv run pytest -m "not integration and not slow"            # fast lane, < 60 s
+HF_HUB_OFFLINE=1 uv run pytest -m "not integration and not slow"  # fast lane: < 60 s, network blocked
 uv run pytest -m "slow and not integration"                # slow lane: loads local models (~3 min)
 docker compose up -d db && uv run verity db upgrade        # pgvector for the integration lane
 uv run pytest -m integration                               # integration lane (VERITY_DATABASE_URL)

@@ -58,6 +58,7 @@ dev = [
   "mypy>=1.13",
   "vulture>=2.16",
   "deptry>=0.25.1",
+  "pytest-socket>=0.8.1",
 ]
 
 [tool.ruff]

@@ -45,7 +45,11 @@ jobs:
       - name: README results block matches the committed scorecard
         run: uv run python scripts/generate_headline_results.py --check
 
-      - name: Pytest — fast lane (no local models, must stay < 60 s)
+      - name: Pytest — fast lane (no models, no network, must stay < 60 s)
+        # tests/conftest.py disables inet sockets for this lane; HF_HUB_OFFLINE makes
+        # a hidden model download fail fast instead of retrying.
+        env:
+          HF_HUB_OFFLINE: "1"
         run: uv run pytest -m "not integration and not slow"
 
       - name: Pytest — slow lane (loads the local embedding / reranker models)
