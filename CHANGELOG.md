@@ -6,6 +6,11 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- An answer that fails after some LLM calls returned now reports their tokens and cost
+  (it reported zero), in `Answer.usage` and in the `answer_failed` log line.
+
 ## [1.0.1] — 2026-09-08
 
 ### Fixed — headline scorecard denominators (schema v2 → v3)
