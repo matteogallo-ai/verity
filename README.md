@@ -67,27 +67,28 @@ CI job `claims` runs those tests.
 ## Measured results
 
 <!-- RESULTS:START -->
-**Measured on**: `agent=claude-sonnet-4-6 (16/16)` · `judge=claude-sonnet-4-6 (12/16 answered — 4 refusals bypass the judge)` · `embedding=BAAI/bge-small-en-v1.5` · commit `d0ca1d5` · 2026-09-07 · dataset `questions` · n=16 (11 answerable + 5 unanswerable) · **0 errored** (kept out of every metric) · total cost **not recorded**
+**Measured on**: `agent=claude-sonnet-4-6 (56/56)` · `judge=claude-opus-5-5 (34/56 answered — 22 refusals bypass the judge)` · `embedding=BAAI/bge-small-en-v1.5` · commit `969e1d5` · 2026-11-02 · dataset `test` · n=56 (36 answerable + 20 unanswerable) · **0 errored** (kept out of every metric) · total cost **$1.2768**
 
 | Metric | Value | Notes |
 |---|---:|---|
-| **Refusal recall** | **0.800** | unanswerable questions refused / unanswerable (5) · threshold not recorded |
-| **Refusal precision** | **1.000** | refusals that were unanswerable / refusals (4) |
-| Faithfulness, per question | 1.000 | mean over 12 judged answers · judge unvalidated |
-| Faithfulness, per claim | 1.000 | pooled over 34 claims · judge unvalidated |
-| Citation accuracy, per question | 0.722 | mean over 12 judged answers · judge unvalidated |
-| Citation accuracy, per claim | 0.618 | pooled over 34 claims · judge unvalidated |
-| Hallucination rate | 0.000 | ↓ better · answers with an unsupported claim, over 11 answered answerable questions |
-| Unanswerable answered | 1/5 | ↓ better · an answer shipped where the corpus has none |
-| Retrieval nDCG@8 | 0.953 | deterministic (no LLM) |
-| Retrieval recall@8 | 1.000 | deterministic |
-| Retrieval precision@8 | 0.148 | k>gold ceiling; interpret with recall |
-| Latency p50 / p95 / p99 | 9374.7 ms / 32526.5 ms / 36653.1 ms | no warmup: includes the first question's model loading |
-| Cost / query | $0.0122 | total not recorded = agent $0.1950 + judge not recorded |
+| **Refusal recall** | **0.850** | unanswerable questions refused / unanswerable (20) · threshold 0 |
+| **Refusal precision** | **0.773** | refusals that were unanswerable / refusals (22) |
+| Faithfulness, per question | 0.990 | mean over 34 judged answers · judge unvalidated |
+| Faithfulness, per claim | 0.991 | pooled over 109 claims · judge unvalidated |
+| Citation accuracy, per question | 0.968 | mean over 34 judged answers · judge unvalidated |
+| Citation accuracy, per claim | 0.963 | pooled over 109 claims · judge unvalidated |
+| Hallucination rate | 0.000 | ↓ better · answers with an unsupported claim, over 31 answered answerable questions |
+| Unanswerable answered | 3/20 | ↓ better · an answer shipped where the corpus has none |
+| Retrieval nDCG@8 | 0.929 | deterministic (no LLM) |
+| Retrieval recall@8 | 0.986 | deterministic |
+| Retrieval precision@8 | 0.146 | k>gold ceiling; interpret with recall |
+| Latency p50 / p95 / p99 | 5445.7 ms / 8949.3 ms / 10929.3 ms | warm; cold start `8460.1 ms` measured separately |
+| Cost / query | $0.0132 | total $1.2768 = agent $0.7408 + judge $0.5360 |
 
-4 refusal(s) with no recorded cause (artefact predates it).
+Refusals by cause: `irrelevant_citation` 4 (4 answerable) · `low_citation_coverage` 7 (1 answerable) · `model_refused` 2 (0 answerable) · `no_citation` 6 (0 answerable) · `suspected_injection` 3 (0 answerable).
+No refusal has the cause `below_threshold`: the confidence threshold decided none of them.
 
-Generated from [`scorecards/live-v1.0.0.json`](scorecards/live-v1.0.0.json), itself computed from the run artefact `datasets/eval/runs/live/eval_d0ca1d5_questions.json` (`scripts/generate_headline_results.py --check` recomputes both).
+Generated from [`scorecards/live-v1.1.0.json`](scorecards/live-v1.1.0.json), itself computed from the run artefact `datasets/eval/runs/live/eval_969e1d5_test.json` (`scripts/generate_headline_results.py --check` recomputes both).
 
 <!-- RESULTS:END -->
 

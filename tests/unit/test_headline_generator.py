@@ -351,7 +351,12 @@ def test_check_mode_never_writes_the_readme(tmp_path: Path) -> None:
     """``--check`` compares and exits 1 on drift; the file on disk is left as is."""
     generator = _load_generator()
     readme = tmp_path / "README.md"
-    stale = (REPO_ROOT / "README.md").read_text(encoding="utf-8").replace("| 0.722", "| 0.999")
+    current = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    # A line inside the generated block: drift whatever the published numbers are.
+    stale = current.replace(
+        "<!-- RESULTS:END -->", "| Edited | 0.999 | by hand |\n<!-- RESULTS:END -->"
+    )
+    assert stale != current
     readme.write_text(stale, encoding="utf-8")
     assert generator.main(["--check", "--readme", str(readme)]) == 1
     assert readme.read_text(encoding="utf-8") == stale

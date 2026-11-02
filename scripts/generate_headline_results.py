@@ -26,7 +26,7 @@ from verity.eval.headline import build_headline_dict_from_eval_run
 from verity.eval.run_store import load_run
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_SCORECARD = REPO_ROOT / "scorecards" / "live-v1.0.0.json"
+DEFAULT_SCORECARD = REPO_ROOT / "scorecards" / "live-v1.1.0.json"
 DEFAULT_README = REPO_ROOT / "README.md"
 START = "<!-- RESULTS:START -->"
 END = "<!-- RESULTS:END -->"
