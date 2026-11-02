@@ -376,3 +376,31 @@ def test_store_defaults_to_the_setting(monkeypatch: pytest.MonkeyPatch) -> None:
         assert _resolve_store("pgvector") == "pgvector"
     finally:
         get_settings.cache_clear()
+
+
+@pytest.mark.slow
+def test_eval_run_with_errored_examples_exits_six(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An outage on one question makes the run incomplete: its metrics cover fewer
+    questions than the scorecard's n, so it must not exit as a clean run."""
+    from verity.agent.agent import RagAgent
+    from verity.types import Answer, AnswerError, ErrorKind
+
+    original = RagAgent.answer
+    seen: list[str] = []
+
+    async def _first_fails(self: RagAgent, question: str) -> Answer:
+        seen.append(question)
+        if len(seen) == 2:  # the first call after the warm-up
+            return Answer(
+                query=question,
+                text="",
+                error=AnswerError(kind=ErrorKind.PROVIDER_UNAVAILABLE, detail="down"),
+            )
+        return await original(self, question)
+
+    monkeypatch.setattr(RagAgent, "answer", _first_fails)
+    result = runner.invoke(app, ["eval", "run", "--ci", "--runs-dir", str(tmp_path)])
+    assert result.exit_code == 6, result.output
+    assert "errored" in result.output

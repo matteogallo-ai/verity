@@ -619,6 +619,10 @@ def eval_run(
     ``judge_model`` field is set to ``stub-judge-v1`` so they are never mistaken
     for a real LLM verdict. Switch to ``--judge live`` (with an API key configured)
     to publish real answer-quality numbers.
+
+    Exit codes: 2 a floor is breached (0 with ``--report-only-floors``); 4 the
+    budget is exceeded; 5 a stub run would overwrite a live artefact; 6 at least
+    one example errored (provider or store outage), so the run is incomplete.
     """
     from verity.agent.agent import create_default_agent
     from verity.agent.scripted_stub import build_stub_router
@@ -734,6 +738,16 @@ def eval_run(
         f"(agent ${total_cost - result.judge_cost_usd:.4f}, "
         f"judge ${result.judge_cost_usd:.4f})"
     )
+
+    if result.scorecard.errored_example_ids:
+        # Metrics cover fewer questions than the scorecard's n: the run is
+        # incomplete and must not pass as a run of record, even with report-only
+        # floors. The artefacts above are kept for diagnosis.
+        console.print(
+            f"[red]{len(result.scorecard.errored_example_ids)} example(s) errored: "
+            "the run is incomplete; do not publish it.[/red]"
+        )
+        raise typer.Exit(code=6)
 
     failed: list[str] = []
     if (
