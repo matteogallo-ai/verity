@@ -70,6 +70,9 @@ def render_block(data: dict[str, Any]) -> str:
         else ""
     )
     date = _short_date(str(data["generated_at"]))
+    # Scorecards written before errors were tracked have no count; say so, never 0.
+    n_errored = data.get("sample_sizes", {}).get("n_errored")
+    errored = "errored: not recorded" if n_errored is None else f"**{n_errored} errored**"
     lines: list[str] = []
     lines.append(
         f"**Measured on**: `agent={prov['agent_model']}` · "
@@ -77,6 +80,7 @@ def render_block(data: dict[str, Any]) -> str:
         f"`embedding={prov['embedding_model']}` · "
         f"commit `{prov['run_sha']}` · {date} · "
         f"n={ds['n_questions']} ({ds['n_answerable']} answerable + {ds['n_unanswerable']} out-of-scope) · "
+        f"{errored} (kept out of every metric) · "
         f"total cost **${cost['total_usd']:.4f}**"
     )
     lines.append("")

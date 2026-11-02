@@ -120,6 +120,8 @@ class _NormalizedInputs:
     scorecard_created_at_iso: str
     scorecard_dataset: str
     n_examples: int
+    # Infrastructure errors: kept out of every metric's denominator, counted here.
+    n_errored: int
     retrieval_k: int
     retrieval_precision: float
     retrieval_recall: float
@@ -191,6 +193,7 @@ def _compute_headline(inputs: _NormalizedInputs, *, dataset_sha: str | None) -> 
             # Explicit sample-size table so every metric's denominator is one
             # click away from the scorecard, not buried in a comment.
             "n_examples": inputs.n_examples,
+            "n_errored": inputs.n_errored,
             "n_answered": n_answered,
             "n_judged": n_judged,
             "n_refused": n_refused,
@@ -313,6 +316,7 @@ def build_headline_dict(
             scorecard_created_at_iso=sc.created_at.isoformat(),
             scorecard_dataset=sc.dataset,
             n_examples=sc.n_examples,
+            n_errored=len(sc.errored_example_ids),
             retrieval_k=sc.retrieval.k,
             retrieval_precision=sc.retrieval.precision_at_k,
             retrieval_recall=sc.retrieval.recall_at_k,
@@ -398,6 +402,7 @@ def build_headline_dict_from_eval_run(
             scorecard_created_at_iso=sc.created_at.isoformat(),
             scorecard_dataset=sc.dataset,
             n_examples=sc.n_examples,
+            n_errored=len(sc.errored_example_ids),
             retrieval_k=sc.retrieval.k,
             retrieval_precision=sc.retrieval.precision_at_k,
             retrieval_recall=sc.retrieval.recall_at_k,

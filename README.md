@@ -67,7 +67,7 @@ CI job `claims` runs those tests.
 ## Measured results
 
 <!-- RESULTS:START -->
-**Measured on**: `agent=claude-sonnet-4-6 (16/16)` · `judge=claude-sonnet-4-6 (12/16 answered — 4 refusals bypass the judge)` · `embedding=BAAI/bge-small-en-v1.5` · commit `d0ca1d5` · 2026-09-07 · n=16 (11 answerable + 5 out-of-scope) · total cost **$0.2713**
+**Measured on**: `agent=claude-sonnet-4-6 (16/16)` · `judge=claude-sonnet-4-6 (12/16 answered — 4 refusals bypass the judge)` · `embedding=BAAI/bge-small-en-v1.5` · commit `d0ca1d5` · 2026-09-07 · n=16 (11 answerable + 5 out-of-scope) · errored: not recorded (kept out of every metric) · total cost **$0.2713**
 
 | Metric | Value | Notes |
 |---|---:|---|

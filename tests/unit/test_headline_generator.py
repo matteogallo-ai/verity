@@ -164,6 +164,7 @@ def test_build_headline_dict_carries_full_provenance_and_totals() -> None:
     sizes = payload["sample_sizes"]
     assert sizes == {
         "n_examples": 16,
+        "n_errored": 0,
         "n_answered": 11,
         "n_judged": 11,
         "n_refused": 5,
@@ -365,3 +366,20 @@ def test_check_mode_never_writes_the_readme(tmp_path: Path) -> None:
     readme.write_text(stale, encoding="utf-8")
     assert generator.main(["--check", "--readme", str(readme)]) == 1
     assert readme.read_text(encoding="utf-8") == stale
+
+
+def test_errored_examples_are_counted_in_the_scorecard_and_the_readme_block() -> None:
+    base = _fixture_result()
+    scorecard = base.scorecard.model_copy(update={"errored_example_ids": ("q01", "q07")})
+    payload = build_headline_dict(
+        HarnessResult(**{**base.__dict__, "scorecard": scorecard})  # type: ignore[arg-type]
+    )
+    assert payload["sample_sizes"]["n_errored"] == 2
+    block = _load_generator().render_block(payload)
+    assert "**2 errored**" in block
+
+
+def test_a_scorecard_without_the_errored_count_says_it_was_not_recorded() -> None:
+    payload = build_headline_dict(_fixture_result())
+    del payload["sample_sizes"]["n_errored"]
+    assert "errored: not recorded" in _load_generator().render_block(payload)
