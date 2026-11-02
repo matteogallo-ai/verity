@@ -145,6 +145,13 @@ def _run_to_dict(run: EvalRun) -> dict[str, object]:
         payload["per_audit"] = [audit.model_dump(mode="json") for audit in run.per_audit]
     if run.errored_cost_usd:
         payload["errored_cost_usd"] = run.errored_cost_usd
+    # Written only when set, so files from earlier runs keep their exact bytes.
+    if run.dataset_sha256 is not None:
+        payload["dataset_sha256"] = run.dataset_sha256
+    if run.prompt_sha256:
+        payload["prompt_sha256"] = dict(sorted(run.prompt_sha256.items()))
+    if run.duration_s is not None:
+        payload["duration_s"] = run.duration_s
     return payload
 
 
@@ -184,6 +191,9 @@ def _run_from_dict(data: dict[str, object]) -> EvalRun:
         agent_model=str(data.get("agent_model", "unknown")),
         notes=(str(data["notes"]) if data.get("notes") else None),
         per_audit=per_audit,
+        dataset_sha256=data.get("dataset_sha256"),
+        prompt_sha256=data.get("prompt_sha256") or {},
+        duration_s=data.get("duration_s"),
     )
 
 

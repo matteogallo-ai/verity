@@ -402,6 +402,10 @@ class PerExampleAudit(BaseModel, frozen=True):
     # The judge call for this example (zero usage when a refusal bypassed the judge);
     # None in runs recorded before it was stored.
     judge_usage: UsageStats | None = None
+    # Models that actually served this example (a routing fallback can differ from the
+    # run-level labels). None when not called or in runs recorded before they were stored.
+    agent_model_used: str | None = None
+    judge_model_used: str | None = None
 
 
 class EvalRun(BaseModel, frozen=True):
@@ -437,3 +441,9 @@ class EvalRun(BaseModel, frozen=True):
     # Agent cost of examples that ended in an infrastructure error: they have no
     # audit record, but their calls were billed.
     errored_cost_usd: float = 0.0
+    # What the run measured with, so its numbers can be tied to exact inputs: the
+    # dataset file's SHA-256, each prompt file's SHA-256, and the wall-clock duration.
+    # None / empty in runs recorded before they were stored.
+    dataset_sha256: str | None = None
+    prompt_sha256: dict[str, str] = Field(default_factory=dict)
+    duration_s: float | None = None

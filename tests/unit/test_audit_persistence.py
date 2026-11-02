@@ -335,3 +335,21 @@ async def test_scorecard_answer_quality_is_the_mean_over_judged_answers_only() -
     assert len(judged) < len(result.per_audit), "the stub run must contain refusals"
     expected = sum(a.answer_metrics.faithfulness for a in judged) / len(judged)
     assert result.scorecard.answer.faithfulness == pytest.approx(expected)
+
+
+@pytest.mark.asyncio
+async def test_the_artefact_records_what_the_run_measured_with(tmp_path: Path) -> None:
+    """Dataset hash, prompt hashes, duration and per-example models survive a save and
+    load, so a published number can be tied to its exact inputs."""
+    result, _ = await _run_stub_harness()
+    assert set(result.prompt_sha256) == {p.stem for p in (REPO_ROOT / "prompts").glob("*.prompt")}
+    assert result.duration_s is not None and result.duration_s > 0
+    run = result.as_eval_run(dataset_sha256="d" * 64)
+    store = FileRunStore(tmp_path)
+    store.save(run)
+    back = load_run(store.path_for(run.scorecard.git_sha, run.scorecard.dataset))
+    assert back.dataset_sha256 == "d" * 64
+    assert back.prompt_sha256 == result.prompt_sha256
+    assert back.duration_s == result.duration_s
+    answered = [a for a in back.per_audit if not a.refused]
+    assert answered and all(a.agent_model_used and a.judge_model_used for a in answered)

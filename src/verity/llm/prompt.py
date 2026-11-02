@@ -16,6 +16,7 @@ on :class:`PromptTemplate.render`, so the parser can be replaced without touchin
 
 from __future__ import annotations
 
+import hashlib
 import re
 from dataclasses import dataclass, field
 from functools import lru_cache
@@ -136,4 +137,14 @@ def load_prompt(name: str, *, prompts_dir: Path | None = None) -> PromptTemplate
     return parse_prompt(path.read_text(encoding="utf-8"), name=name)
 
 
-__all__ = ["PromptTemplate", "load_prompt", "parse_prompt"]
+def prompt_sha256(*, prompts_dir: Path | None = None) -> dict[str, str]:
+    """SHA-256 of every ``.prompt`` file, by prompt name: an eval run records these so
+    its numbers are tied to the exact prompts that produced them."""
+    base = prompts_dir or _PROMPTS_DIR
+    return {
+        path.stem: hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in sorted(base.glob("*.prompt"))
+    }
+
+
+__all__ = ["PromptTemplate", "load_prompt", "parse_prompt", "prompt_sha256"]

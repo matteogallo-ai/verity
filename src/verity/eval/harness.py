@@ -22,6 +22,7 @@ regressions.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import cast
@@ -38,6 +39,7 @@ from verity.eval.retrieval_metric import (
     PerExampleScore,
     macro_average,
 )
+from verity.llm.prompt import prompt_sha256
 from verity.types import (
     Answer,
     AnswerMetrics,
@@ -121,8 +123,12 @@ class HarnessResult:
     # RE-READ later without re-spending on the judge. Serialised verbatim
     # into ``EvalRun.per_audit`` by :meth:`as_eval_run`.
     per_audit: list[PerExampleAudit] = field(default_factory=list)
+    prompt_sha256: dict[str, str] = field(default_factory=dict)
+    duration_s: float | None = None
 
-    def as_eval_run(self, *, notes: str | None = None) -> EvalRun:
+    def as_eval_run(
+        self, *, notes: str | None = None, dataset_sha256: str | None = None
+    ) -> EvalRun:
         return EvalRun(
             scorecard=self.scorecard,
             embedding_model=self.embedding_model,
@@ -131,6 +137,9 @@ class HarnessResult:
             notes=notes,
             per_audit=tuple(self.per_audit),
             errored_cost_usd=self.errored_cost_usd,
+            dataset_sha256=dataset_sha256,
+            prompt_sha256=self.prompt_sha256,
+            duration_s=self.duration_s,
         )
 
 
@@ -212,6 +221,8 @@ class AgentEvaluator(Evaluator):
             cold_start_ms = await agent_warmup(self._agent)
             log.info("harness_warmup_done", cold_start_ms=cold_start_ms)
 
+        prompts = prompt_sha256()
+        started = time.monotonic()
         errored: list[str] = []
         errored_cost_usd = 0.0
         for example in dataset:
@@ -305,6 +316,8 @@ class AgentEvaluator(Evaluator):
                     answer_metrics=answer_metrics,
                     usage=answer.usage,
                     judge_usage=judge_last_usage,
+                    agent_model_used=answer.model_used,
+                    judge_model_used=getattr(self._judge, "last_model", None),
                 )
             )
 
@@ -312,6 +325,7 @@ class AgentEvaluator(Evaluator):
                 budget_usd_cap, example.id, answers, errored_cost_usd, judge_cost_usd
             )
 
+        duration_s = round(time.monotonic() - started, 3)
         retrieval_agg = _aggregate_retrieval(per_retrieval, k=self._k)
         answer_agg = _aggregate_answer(per_audit, per_refusal)
         latency = _latency_percentiles(answers)
@@ -342,6 +356,8 @@ class AgentEvaluator(Evaluator):
             errored_cost_usd=round(errored_cost_usd, 6),
             judge_stamps=judge_stamps,
             per_audit=per_audit,
+            prompt_sha256=prompts,
+            duration_s=duration_s,
         )
 
 
