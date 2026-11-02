@@ -105,6 +105,9 @@ class IngestionPipeline:
         started = time.perf_counter()
 
         for uri in uris:
+            # Each stage below catches everything on purpose: one unreadable source is
+            # logged and recorded as a failure, and the rest of the batch continues
+            # (module docstring). Store errors that affect every document re-raise.
             try:
                 doc = await self._parser.parse(uri)
             except Exception as exc:

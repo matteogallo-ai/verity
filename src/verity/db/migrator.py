@@ -88,6 +88,8 @@ def apply_pending(database_url: str, directory: Path | None = None) -> list[str]
                             (m.name, m.sha256),
                         )
                         cur.execute("COMMIT")
+                    # Whatever failed, the transaction must not stay open on a
+                    # half-applied file; the original error propagates unchanged.
                     except Exception:
                         cur.execute("ROLLBACK")
                         raise
