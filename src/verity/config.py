@@ -100,7 +100,8 @@ class Settings(BaseSettings):
     api_max_question_chars: int = Field(default=2000, gt=0)
     # The shipped corpus files are 1-4 KB; 1 MiB fits a long contract or a short PDF.
     api_max_upload_bytes: int = Field(default=1_048_576, gt=0)
-    # The corpus is shared by every client and lives in memory; this caps its growth.
+    # The corpus is shared by every client and, on pgvector, outlives the process; this
+    # caps its growth because no endpoint deletes a document.
     api_max_documents: int = Field(default=200, gt=0)
     # JSON list in the environment: VERITY_API_KEYS='["key-1","key-2"]'.
     api_keys: tuple[SecretStr, ...] = ()
