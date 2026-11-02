@@ -54,6 +54,78 @@ jobs:
           name: coverage
           path: coverage.xml
 
+  stale-narrative:
+    name: stale narrative (rule 2)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: No sprint labels, future promises or untracked TODOs
+        run: python scripts/check_stale_narrative.py
+
+  commits:
+    name: conventional commits (rule 8)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Every commit subject in the PR is a Conventional Commit
+        run: |
+          python scripts/check_commit_messages.py \
+            "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+
+  claims:
+    name: claims (rule 1)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: verity
+          POSTGRES_PASSWORD: verity
+          POSTGRES_DB: verity
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U verity -d verity"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      VERITY_DATABASE_URL: postgresql://verity:verity@localhost:5432/verity
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install (with dev group)
+        run: uv sync --dev
+
+      - name: Apply migrations
+        run: uv run verity db upgrade
+
+      - name: Every shipped claim's tests pass; README matches docs/CLAIMS.md
+        run: uv run python scripts/check_claims.py
+
   integration:
     name: integration (pgvector round-trip)
     runs-on: ubuntu-latest
