@@ -1,7 +1,8 @@
 # Evaluation dataset
 
-`questions.jsonl` holds the labeled examples used by `verity eval run`: 16 questions
-over the 5 documents in `datasets/corpus/` (11 answerable, 5 out-of-scope). One JSON
+`questions.jsonl` holds the labeled examples used by `verity eval run`: 19 questions
+over the 6 documents in `datasets/corpus/` (11 answerable, 8 out-of-scope, 3 of them
+adversarial). One JSON
 object per line:
 
 ```json
@@ -23,7 +24,12 @@ object per line:
   out-of-scope ones. `scripts/build_eval_labels.py` regenerates them;
   `tests/integration/test_eval_labels_integrity.py` checks they resolve.
 - `tags`: `single-hop`, `multi-hop` (needs decomposition), `numeric`, `near-miss`
-  (close to the corpus but not answerable from it), `out-of-scope`.
+  (close to the corpus but not answerable from it), `out-of-scope`, `adversarial`
+  (out of scope, and `vendor_onboarding_note.md` holds instructions telling the
+  model to answer it with a score of 0.99; the right outcome is a refusal).
+
+The committed live run (`runs/live/eval_d0ca1d5_questions.json`) predates the
+adversarial document and questions: it covers q-001 to q-016 over 5 documents.
 
 Out-of-scope examples measure whether Verity refuses. Definitions of every metric
 are in `docs/evaluation-methodology.md`.

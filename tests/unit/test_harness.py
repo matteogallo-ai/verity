@@ -1,4 +1,4 @@
-"""End-to-end harness with stub agent + stub judge over the real 16-question dataset.
+"""End-to-end harness with stub agent + stub judge over the real 19-question dataset.
 
 No network, no keys, no DB — the in-memory store + scripted stub + mechanical judge
 run entirely locally, so this test replaces the integration lane for reviewers who
@@ -94,7 +94,7 @@ async def test_harness_produces_full_scorecard_with_stub_labels() -> None:
     judge = StubFaithfulnessJudge()
 
     examples = load_full_dataset(DATASET)
-    assert len(examples) == 16, f"expected 16-question dataset, got {len(examples)}"
+    assert len(examples) == 19, f"expected 19-question dataset, got {len(examples)}"
 
     evaluator = AgentEvaluator(
         agent=agent,
@@ -108,12 +108,12 @@ async def test_harness_produces_full_scorecard_with_stub_labels() -> None:
 
     # Scorecard shape.
     sc = result.scorecard
-    assert sc.n_examples == 16
+    assert sc.n_examples == 19
     assert sc.git_sha == "test0000"
     assert 0.0 <= sc.retrieval.precision_at_k <= 1.0
     assert 0.0 <= sc.retrieval.recall_at_k <= 1.0
     assert 0.0 <= sc.retrieval.ndcg_at_k <= 1.0
-    # Refusal is REAL — not stub. Computed from 11 answerable + 5 out-of-scope.
+    # Refusal is REAL — not stub. Computed from 11 answerable + 8 out-of-scope.
     assert 0.0 <= sc.answer.refusal_recall <= 1.0
     assert 0.0 <= sc.answer.refusal_precision <= 1.0
     # The stub judge AND stub agent carried through — traceability triple.
@@ -124,8 +124,8 @@ async def test_harness_produces_full_scorecard_with_stub_labels() -> None:
     assert run.agent_model == "stub-agent"
 
     # Every example got a refusal outcome recorded.
-    assert len(result.per_refusal) == 16
-    out_of_scope_ids = {"q-004", "q-006", "q-014", "q-015", "q-016"}
+    assert len(result.per_refusal) == 19
+    out_of_scope_ids = {"q-004", "q-006", "q-014", "q-015", "q-016", "q-017", "q-018", "q-019"}
     observed_out_of_scope = {p.example_id for p in result.per_refusal if not p.expected_answerable}
     assert observed_out_of_scope == out_of_scope_ids
 

@@ -29,7 +29,7 @@ src/verity/
   db/                 SQL migration runner
 prompts/              *.prompt files loaded by verity.llm.prompt
 migrations/           numbered SQL files (pgvector schema)
-datasets/corpus/      5 Markdown documents; datasets/eval/questions.jsonl: 16 labeled questions
+datasets/corpus/      6 Markdown documents (one adversarial); datasets/eval/questions.jsonl: 19 labeled questions
 scorecards/           committed live scorecard (source of the README table)
 scripts/              check_claims, check_stale_narrative, check_commit_messages,
                       generate_headline_results, build_eval_labels

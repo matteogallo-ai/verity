@@ -147,7 +147,7 @@ def test_octet_stream_markdown_is_accepted_after_sniffing(client: TestClient) ->
 
 
 def test_corpus_document_limit_is_409(tmp_path: Path) -> None:
-    with api_app(tmp_path, _settings(api_max_documents=6)) as c:
+    with api_app(tmp_path, _settings(api_max_documents=7)) as c:
         c.headers["X-API-Key"] = _KEY
         assert _upload(c, "a.txt", b"first upload", "text/plain").status_code == 200
         assert _upload(c, "b.txt", b"second upload", "text/plain").status_code == 409
