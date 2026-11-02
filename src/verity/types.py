@@ -164,8 +164,8 @@ class Answer(BaseModel, frozen=True):
     the answer text. This is what makes the UI's provenance badge reflect what
     served the request, not the boot-time default. When live routing falls back
     (e.g. Anthropic unavailable → OpenAI), these fields reflect the fallback,
-    not the primary. Optional (``None``) for backwards compatibility with
-    pre-S6.1 callers that build ``Answer`` without a routed synthesis step.
+    not the primary. Optional (``None``) so code that builds an ``Answer``
+    without a routed synthesis step (tests, persisted runs) stays valid.
     """
 
     query: str

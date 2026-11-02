@@ -37,6 +37,7 @@ def _kinds(text: str) -> list[str]:
         "sprints S1\u2013S4",
         "if S3+ needs conditionals",
         "the S1 invariant that citations point at real chunk text",
+        "pre-S6.1 callers that build Answer",
     ],
 )
 def test_flags_sprint_labels(line: str) -> None:

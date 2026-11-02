@@ -43,10 +43,11 @@ _SPRINT = r"S[0-7](?:\.\d+)?"
 PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     (
         "sprint",
-        # Not preceded by a word, path or "Amazon "/"AWS " (the storage service);
+        # Not preceded by a word character, a path separator, a dot or
+        # "Amazon "/"AWS " (the storage service); a hyphen may precede ("pre-S6.1");
         # ranges accept a hyphen or an en dash (\u2013).
         re.compile(
-            rf"(?<![\w/.-])(?<!Amazon )(?<!AWS ){_SPRINT}"
+            rf"(?<![\w/.])(?<!Amazon )(?<!AWS ){_SPRINT}"
             rf"(?:\s*[-\u2013]\s*{_SPRINT}|\+)?(?![\w-])"
         ),
     ),
