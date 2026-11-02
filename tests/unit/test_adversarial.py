@@ -106,7 +106,7 @@ async def test_an_echoed_injection_is_refused_with_real_models(
     (it mentions the CEO's salary): only the injection-marker check refuses it."""
     from verity.runtime import build_local_components, build_retriever, ingest_corpus
 
-    store, embedder, reranker = build_local_components(no_rerank=False)
+    store, embedder, reranker = build_local_components(store="memory", no_rerank=False)
     await ingest_corpus(corpus_dir=Path("datasets/corpus"), store=store, embedder=embedder)
     retriever: HybridRetriever = build_retriever(store=store, embedder=embedder, reranker=reranker)
     seen: list[str] = []
