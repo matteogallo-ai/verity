@@ -100,7 +100,7 @@ citation accuracy, hallucination rate, refusal precision and recall, unanswerabl
 answered) is published as `k/n` with its 95 % Wilson score interval
 (`verity.eval.intervals`), computed by `verity.eval.headline` from the artefact.
 Wilson rather than the normal approximation because the latter gives [0, 0] at 0/n
-and leaves [0, 1] at the sizes published here. The per-question (macro) figures are
+and overshoots [0, 1] at the sizes published here. The per-question (macro) figures are
 means of per-answer ratios, not proportions, and carry no Wilson interval. The
 interval assumes independent trials: questions roughly are, claims of one answer are
 not (they share evidence and an author), so per-claim intervals are too narrow.
@@ -180,15 +180,23 @@ model different from the agent's (`VERITY_JUDGE_ANTHROPIC_MODEL`, default
 scorecard is the one that judged; a judge equal to the agent's model stops the run.
 Whatever the judge, Cohen's κ against human labels is required before its numbers are
 published as validated; until then the README marks them "judge unvalidated". κ alone
-cannot validate this judge: it marked 161 of the 164 live claims supported, and on
-real claims alone κ is undefined (one label) or 0 whatever the judge does. The
+cannot validate this judge: it marked 161 of the 164 live claims supported, so on a
+sample of real claims its labels are almost all "supported" and κ is undefined or
+rests on one or two items. The
 validation (`scripts/judge_agreement.py`) therefore mixes 40 real claims, the 3
-unsupported ones included, with 20 claims falsified by `verity.eval.perturb` (one
-figure, date, negation or same-type entity changed, five of each). A human labels
-all 60 blind, without origin or verdict, in two files of 30. Two figures are
-published separately: the judge's sensitivity (perturbed claims it finds
-unsupported, also among those the human finds unsupported, since a perturbation can
-leave a claim true) and κ on the mixed set. v1.1.0
+unsupported ones included, with 20 claims perturbed to be false by
+`verity.eval.perturb` (one figure, date, negation or same-type entity changed, five
+of each). Every answer gives two items, both real or both perturbed, so a repeated
+block of extracts says nothing about origin. A human labels all 60 blind, without
+origin or verdict, in two files of 30. Published separately: the judge's sensitivity
+(perturbed claims it finds unsupported, also among those the human finds
+unsupported, since a perturbation can leave a claim true) and κ on the mixed set.
+The two halves are judged under two protocols: real claims carry the verdict of the
+live run, where the judge split the whole answer; a perturbed claim is judged alone
+and counts as detected if any sub-claim the judge makes of it is unsupported, so
+sensitivity is an upper bound. κ on real claims only and the judge's specificity on
+them are published next to the mixed κ. κ is not a proportion and has no Wilson
+interval. v1.1.0
 was judged by `claude-opus-5-5` (no OpenAI key was available), a different Claude
 model from the agent, not a different family. Claim-level verdicts are
 stored per example in the run artefact so disagreements can be inspected.

@@ -1,7 +1,7 @@
 """Wilson score interval for a published proportion.
 
-The normal approximation p ± z·sqrt(p(1-p)/n) collapses to [0, 0] at 0/n and leaves
-[0, 1] at small n; Wilson's interval does neither, which matters at the sizes this
+The normal approximation p ± z·sqrt(p(1-p)/n) collapses to [0, 0] at 0/n and overshoots
+[0, 1] at small n (17/20 gives an upper bound of 1.006); Wilson's interval does neither, which matters at the sizes this
 eval publishes (0/31 hallucinations, 17/22 refusals). It assumes independent trials:
 for per-claim ratios, claims of one answer are correlated, so the interval is too
 narrow there (docs/evaluation-methodology.md says so next to the figures).

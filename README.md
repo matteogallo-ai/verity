@@ -137,7 +137,7 @@ pgvector (`--store memory` reproduces it). Definitions:
   scorer model's self-report.
 - **The judge is not yet validated against humans.** It is `claude-opus-5-5`, a
   different Claude model from the agent (`claude-sonnet-4-6`), not a different
-  family. Its sensitivity on deliberately falsified claims and Cohen's κ against
+  family. Its sensitivity on claims perturbed to be false and Cohen's κ against
   blind human labels on 60 claims (`scripts/judge_agreement.py`) are pending.
 - **n = 56 is small.** The 95 % Wilson intervals in the table show how little it
   pins down: no hallucination in the sample does not rule out a rate up to the
