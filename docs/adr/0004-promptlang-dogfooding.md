@@ -1,6 +1,6 @@
 # ADR 0004 — Orchestration prompts authored in PromptLang
 
-**Status:** accepted · 2026-09
+**Status:** accepted 2026-09 · superseded by [ADR 0005](0005-prompt-files-without-promptlang.md) 2026-11
 
 ## Context
 Verity's agent depends on several non-trivial prompts: question decomposition, the

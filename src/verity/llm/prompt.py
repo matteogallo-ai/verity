@@ -1,8 +1,7 @@
 """Loader for ``prompts/*.prompt`` files.
 
 The files use a small syntax borrowed from PromptLang, parsed here with regular
-expressions; the PromptLang compiler is not a dependency. ADR 0004 describes an
-intended PromptLang integration that this module does not implement.
+expressions; the PromptLang compiler is not a dependency (ADR 0005).
 
 The syntax this module reads:
 

@@ -36,9 +36,10 @@ answerable question, and the top hit agrees on 17 of 19.
 `QuestionDecomposer → (multi-step retrieve) → synthesize with citations → ConfidenceScorer`.
 Simple questions pass straight through (single sub-question); complex ones decompose,
 retrieve per sub-question, and combine evidence. Synthesis emits inline citations mapped to
-exact passages. The confidence scorer owns the **refusal** decision. The prompts live in
-`prompts/*.prompt`, read by a local parser (`verity.llm.prompt`); ADR 0004 describes a
-PromptLang integration that the code does not implement.
+exact passages. **Refusal** is decided in order: no citation, then the deterministic support
+check (`verity.agent.support`: injection markers, citation coverage, cited relevance), then
+the confidence scorer and its threshold. The scorer cannot override the checks before it. The prompts live in
+`prompts/*.prompt`, read by a local parser (`verity.llm.prompt`, ADR 0005).
 
 ### 4. LLM runtime (`verity.llm`)
 `LLMClient` per provider behind a `RoutingClient` with ordered fallback. Fallback on

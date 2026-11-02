@@ -1,4 +1,4 @@
-"""Question decomposition via the ``decompose.prompt`` PromptLang source.
+"""Question decomposition via ``prompts/decompose.prompt``.
 
 Contract: return a list of sub-questions in the order they should be answered. A
 simple, single-fact question returns a one-element list — we **do not** force
