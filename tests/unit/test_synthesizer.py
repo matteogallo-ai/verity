@@ -92,9 +92,9 @@ async def test_synthesizer_drops_out_of_range_index() -> None:
 
 
 @pytest.mark.asyncio
-async def test_synthesizer_falls_open_on_malformed_output() -> None:
+async def test_synthesizer_never_ships_malformed_output() -> None:
     hits = [_hit("Foo bar baz.", cs=0)]
     synthesizer = CitedSynthesizer(_router(lambda _: "definitely not JSON"))
     result = await synthesizer.synthesize("q?", hits)
     assert result.citations == ()
-    assert "not JSON" in result.text
+    assert result.text == ""

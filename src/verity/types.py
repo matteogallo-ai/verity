@@ -14,9 +14,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Any
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 # --------------------------------------------------------------------------------------
 # Identifiers
@@ -129,6 +130,20 @@ class Citation(BaseModel, frozen=True):
     char_end: int
 
 
+REFUSAL_TEXT = "I don't know based on the provided documents."
+NO_CITATION_RATIONALE = "The draft answer carried no verifiable citation."
+
+
+class RefusalReason(StrEnum):
+    """Why an answer was refused. Distinct from :class:`ErrorKind`: a refusal is a
+    decision about the evidence, an error means the system could not decide."""
+
+    MODEL_REFUSED = "model_refused"
+    BELOW_THRESHOLD = "below_threshold"
+    SCORER_UNPARSEABLE = "scorer_unparseable"
+    NO_CITATION = "no_citation"
+
+
 class Confidence(BaseModel, frozen=True):
     """The scorer's confidence in the answer and the refusal decision.
 
@@ -142,6 +157,7 @@ class Confidence(BaseModel, frozen=True):
     score: float = Field(ge=0.0, le=1.0)
     refused: bool
     rationale: str
+    reason: RefusalReason | None = None
 
 
 class UsageStats(BaseModel, frozen=True):
@@ -177,6 +193,39 @@ class Answer(BaseModel, frozen=True):
     trace_id: TraceId = Field(default_factory=new_id)
     provider_used: Provider | None = None
     model_used: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _uncited_answers_are_refusals(cls, data: Any) -> Any:
+        """An answer that is not refused and carries no citation is converted into
+        a refusal (``no_citation``).
+
+        The agent already refuses such drafts; this holds the invariant for every
+        other way an Answer is built, so no caller can ship uncited text.
+        """
+        if not isinstance(data, dict):
+            return data
+        confidence = data.get("confidence")
+        if confidence is None:
+            return data
+        conf = (
+            confidence
+            if isinstance(confidence, Confidence)
+            else Confidence.model_validate(confidence)
+        )
+        if conf.refused or data.get("citations"):
+            return data
+        return {
+            **data,
+            "text": REFUSAL_TEXT,
+            "citations": (),
+            "confidence": Confidence(
+                score=conf.score,
+                refused=True,
+                rationale=NO_CITATION_RATIONALE,
+                reason=RefusalReason.NO_CITATION,
+            ),
+        }
 
 
 # --------------------------------------------------------------------------------------

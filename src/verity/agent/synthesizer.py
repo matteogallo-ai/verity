@@ -93,13 +93,12 @@ def _parse_synth_output(text: str) -> tuple[str, list[tuple[str, int]]]:
 
     Robust to prose wrapping, markdown code fences, and single-element array
     wrappers (all real-model drifts observed with Sonnet-class outputs). On
-    total parse failure return ``(text.strip(), [])``: the raw text becomes the
-    draft answer with no citations, and the scorer judges it like any other draft.
-    Nothing forces a refusal here; see the module docstring of ``agent.py``.
+    total parse failure return ``("", [])``: the raw model text is never shipped,
+    and the agent refuses the empty, uncited draft with reason ``no_citation``.
     """
     parsed = parse_json_object(text)
     if parsed is None:
-        return text.strip(), []
+        return "", []
     answer = str(parsed.get("answer", "")).strip()
     citations_raw = parsed.get("citations", []) or []
     citations: list[tuple[str, int]] = []

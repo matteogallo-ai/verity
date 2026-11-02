@@ -20,7 +20,7 @@ from verity.config import get_settings
 from verity.llm.base import RoutingClient
 from verity.llm.json_output import first_matching, parse_json_object
 from verity.llm.prompt import load_prompt
-from verity.types import Confidence, RetrievalHit, UsageStats
+from verity.types import Confidence, RefusalReason, RetrievalHit, UsageStats
 
 
 class LLMConfidenceScorer(ConfidenceScorer):
@@ -63,16 +63,22 @@ class LLMConfidenceScorer(ConfidenceScorer):
                 score=0.0,
                 refused=True,
                 rationale="Scorer returned malformed output; refusing on principle.",
+                reason=RefusalReason.SCORER_UNPARSEABLE,
             )
         score, rationale, model_refused = raw
         # We honour the model's refusal *and* apply the local threshold — either is
         # sufficient reason to refuse. The threshold is the audit-trail decision.
-        refused = model_refused or score < self._threshold
+        reason: RefusalReason | None = None
+        if model_refused:
+            reason = RefusalReason.MODEL_REFUSED
+        elif score < self._threshold:
+            reason = RefusalReason.BELOW_THRESHOLD
+        refused = reason is not None
         if not rationale:
             rationale = (
                 "Confidence below threshold." if refused else "Evidence supports the answer."
             )
-        return Confidence(score=score, refused=refused, rationale=rationale)
+        return Confidence(score=score, refused=refused, rationale=rationale, reason=reason)
 
 
 # Key aliases the scorer accepts as a defence-in-depth against real-model
