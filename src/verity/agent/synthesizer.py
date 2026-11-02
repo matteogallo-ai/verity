@@ -93,8 +93,9 @@ def _parse_synth_output(text: str) -> tuple[str, list[tuple[str, int]]]:
 
     Robust to prose wrapping, markdown code fences, and single-element array
     wrappers (all real-model drifts observed with Sonnet-class outputs). On
-    total parse failure return ``(text.strip(), [])`` so the citation validator
-    drops the citations and the scorer refuses — safe path.
+    total parse failure return ``(text.strip(), [])``: the raw text becomes the
+    draft answer with no citations, and the scorer judges it like any other draft.
+    Nothing forces a refusal here; see the module docstring of ``agent.py``.
     """
     parsed = parse_json_object(text)
     if parsed is None:

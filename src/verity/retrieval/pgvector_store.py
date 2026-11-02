@@ -77,7 +77,10 @@ class PgVectorStore:
     (``VECTOR(384)``), while ``embedding_dim`` is configurable. The first operation
     on a store reads the column's declared dimension and raises
     :class:`EmbeddingDimensionMismatchError` if they differ, so a changed embedding
-    model fails at once with an actionable message instead of on the first insert.
+    model fails on the first connection with an actionable message instead of a
+    driver error on insert. The check is retried on each connection until it
+    passes; ``IngestionPipeline`` catches it per document, so ``verity ingest``
+    reports it once per document and exits 1.
     """
 
     def __init__(
@@ -96,6 +99,8 @@ class PgVectorStore:
         if not self._schema_checked:
             try:
                 await _check_embedding_dim(conn, self._embedding_dim)
+            # BaseException so cancellation also closes the connection before
+            # propagating; nothing is swallowed.
             except BaseException:
                 await conn.close()
                 raise
