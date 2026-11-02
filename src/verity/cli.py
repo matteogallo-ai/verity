@@ -207,7 +207,7 @@ def _require_llm_api_key() -> None:
     on Rich's terminal-width-driven panel wrapping.
     """
     settings = get_settings()
-    if settings.anthropic_api_key or settings.openai_api_key:
+    if settings.has_llm_api_key:
         return
     raise typer.BadParameter(MISSING_KEY_MESSAGE)
 

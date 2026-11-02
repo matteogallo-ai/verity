@@ -234,7 +234,7 @@ def _extension_for(name: str) -> str:
 def default_agent_mode() -> AgentMode:
     """Stub by default when no LLM key is configured — matches the CLI guard."""
     settings = get_settings()
-    if settings.anthropic_api_key or settings.openai_api_key:
+    if settings.has_llm_api_key:
         return "live"
     return "stub"
 
