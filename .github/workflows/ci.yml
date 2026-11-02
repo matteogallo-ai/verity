@@ -267,3 +267,19 @@ jobs:
 
       - name: Build (next build)
         run: pnpm build
+
+  osv-scanner:
+    name: osv-scanner (known vulnerabilities in uv.lock and web/pnpm-lock.yaml)
+    runs-on: ubuntu-latest
+    # Dependabot proposes updates on its weekly schedule; this job fails the PR that
+    # resolves a package with a known vulnerability (OSV database) today. Accepted
+    # exceptions, each with its reason and expiry date, live in osv-scanner.toml.
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: No known vulnerability in the lockfiles
+        uses: google/osv-scanner-action/osv-scanner-action@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
+        with:
+          scan-args: |-
+            --config=./osv-scanner.toml
+            --lockfile=./uv.lock
+            --lockfile=./web/pnpm-lock.yaml
