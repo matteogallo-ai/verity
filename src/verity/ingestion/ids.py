@@ -28,7 +28,10 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 
 from verity.types import ChunkId, DocumentId
 
-_URL_SCHEMES = {"http", "https"}
+# URIs that already name their document independently of any machine. ``upload`` is
+# the API's content address (``upload://<sha256><ext>``); read as a path it would be
+# resolved against the working directory and its id would change with it.
+_PORTABLE_SCHEMES = {"http", "https", "upload"}
 
 _repo_root_cache: Path | None = None
 
@@ -55,7 +58,7 @@ def _find_repo_root() -> Path:
 def identity_for(uri: str) -> str:
     """Return the stable identity string derived from an access URI.
 
-    - ``http(s)://`` URLs are returned unchanged.
+    - ``http(s)://`` URLs and ``upload://`` content addresses are returned unchanged.
     - ``file://`` URIs and bare filesystem paths are resolved and expressed as the
       POSIX path *relative to the repo root* — the key portability property. Files
       outside the repo root fall back to their absolute POSIX path so callers still
@@ -63,7 +66,7 @@ def identity_for(uri: str) -> str:
       review rather than silently paper over it).
     """
     parsed = urlparse(uri)
-    if parsed.scheme in _URL_SCHEMES:
+    if parsed.scheme in _PORTABLE_SCHEMES:
         return uri
     raw_path = parsed.path if parsed.scheme == "file" else uri
     resolved = Path(raw_path).expanduser().resolve()
