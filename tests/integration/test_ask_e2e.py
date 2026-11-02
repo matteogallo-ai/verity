@@ -35,7 +35,7 @@ CORPUS_DIR = REPO_ROOT / "datasets" / "corpus"
 
 
 def _database_url() -> str:
-    return os.environ.get("VERITY_DATABASE_URL", get_settings().database_url)
+    return os.environ.get("VERITY_DATABASE_URL", get_settings().database_url.get_secret_value())
 
 
 @pytest.fixture(scope="module")

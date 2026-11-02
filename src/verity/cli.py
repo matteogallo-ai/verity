@@ -84,7 +84,7 @@ def ingest(
     parser = create_default_parser()
     chunker = StructureAwareChunker()
     embedder = LocalEmbedder()
-    sink = None if dry_run else PgVectorStore(settings.database_url)
+    sink = None if dry_run else PgVectorStore(settings.database_url.get_secret_value())
 
     console.print(
         f"[cyan]Ingesting[/cyan] {len(uris)} source(s) with model "
@@ -123,13 +123,13 @@ def db_upgrade() -> None:
     from verity.db import apply_pending, list_applied
     from verity.db.redact import redact_conninfo
 
-    settings = get_settings()
+    database_url = get_settings().database_url.get_secret_value()
     try:
-        applied = apply_pending(settings.database_url)
-        total = list_applied(settings.database_url)
+        applied = apply_pending(database_url)
+        total = list_applied(database_url)
     except psycopg.Error as exc:
         # Printed redacted and not chained: libpq may quote the password.
-        reason = redact_conninfo(str(exc).strip(), settings.database_url)
+        reason = redact_conninfo(str(exc).strip(), database_url)
         console.print(f"[red]Migration failed:[/red] {type(exc).__name__}: {reason}")
         raise typer.Exit(code=2) from None
     if applied:

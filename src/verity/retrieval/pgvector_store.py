@@ -89,7 +89,7 @@ class PgVectorStore:
         self, database_url: str | None = None, *, embedding_dim: int | None = None
     ) -> None:
         settings = get_settings()
-        self._url = database_url or settings.database_url
+        self._url = database_url or settings.database_url.get_secret_value()
         self._embedding_dim = embedding_dim if embedding_dim is not None else settings.embedding_dim
         self._schema_checked = False
 

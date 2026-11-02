@@ -36,7 +36,7 @@ DATASET_PATH = REPO_ROOT / "datasets" / "eval" / "questions.jsonl"
 
 
 def _database_url() -> str:
-    return os.environ.get("VERITY_DATABASE_URL", get_settings().database_url)
+    return os.environ.get("VERITY_DATABASE_URL", get_settings().database_url.get_secret_value())
 
 
 @pytest.fixture(scope="module")
