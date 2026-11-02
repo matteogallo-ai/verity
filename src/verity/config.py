@@ -91,6 +91,12 @@ class Settings(BaseSettings):
     api_max_upload_bytes: int = Field(default=1_048_576, gt=0)
     # The corpus is shared by every client and lives in memory; this caps its growth.
     api_max_documents: int = Field(default=200, gt=0)
+    # JSON list in the environment: VERITY_API_KEYS='["key-1","key-2"]'.
+    api_keys: tuple[SecretStr, ...] = ()
+    # No key configured is a startup error unless this is set: an open API must be a
+    # deliberate choice (local development), never the result of a missing variable.
+    api_auth_disabled: bool = False
+    api_rate_limit_per_minute: int = Field(default=30, gt=0)
 
     # --- Observability ----------------------------------------------------------------
     # None → spans stay in the in-process exporter only (backs /metrics).

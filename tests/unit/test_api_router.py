@@ -18,8 +18,8 @@ from verity.config import Settings
 
 @pytest.fixture
 def client(tmp_path: Path):  # type: ignore[no-untyped-def]
-    """Stub-mode app on the shipped corpus."""
-    with api_app(tmp_path, Settings()) as test_client:
+    """Stub-mode app on the shipped corpus with authentication disabled, as in dev."""
+    with api_app(tmp_path, Settings(api_auth_disabled=True)) as test_client:
         yield test_client
 
 

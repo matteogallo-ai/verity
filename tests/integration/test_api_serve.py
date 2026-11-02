@@ -20,6 +20,7 @@ import pytest
 from verity.agent.agent import create_default_agent
 from verity.agent.scripted_stub import build_stub_router
 from verity.api import create_app
+from verity.config import Settings
 from verity.ingestion.chunker import StructureAwareChunker
 from verity.ingestion.embedder import LocalEmbedder
 from verity.ingestion.parsers import create_default_parser
@@ -31,6 +32,8 @@ pytestmark = pytest.mark.integration
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CORPUS = REPO_ROOT / "datasets" / "corpus"
+
+_DEV = Settings(api_auth_disabled=True)
 
 
 class _FakeEmbeddingBackend:
@@ -100,7 +103,7 @@ async def _seed_and_query(tracer: OTelTracer) -> None:
 async def test_metrics_and_dashboard_after_real_requests(tmp_path: Path) -> None:
     tracer = OTelTracer()
     await _seed_and_query(tracer)
-    app = create_app(tracer=tracer, runs_dir=tmp_path, dataset="questions")
+    app = create_app(tracer=tracer, runs_dir=tmp_path, dataset="questions", settings=_DEV)
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://verity.test") as client:
         health = await client.get("/health")

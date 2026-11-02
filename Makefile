@@ -8,12 +8,12 @@
 demo: ui-install
 	@echo "==> Starting Verity demo (API :8000 · web :3000, both stub-mode)"
 	@bash -c 'trap "kill %1 2>/dev/null" EXIT; \
-		uv run verity serve --host 127.0.0.1 --port 8000 & \
+		VERITY_API_AUTH_DISABLED=true uv run verity serve --host 127.0.0.1 --port 8000 & \
 		cd web && NEXT_PUBLIC_API_BASE=http://localhost:8000 corepack pnpm dev'
 
 # API only — for the demo transcript that shows API responses directly.
 demo-api:
-	uv run verity serve --host 127.0.0.1 --port 8000
+	VERITY_API_AUTH_DISABLED=true uv run verity serve --host 127.0.0.1 --port 8000
 
 # Web dev server only (API expected to be running elsewhere).
 demo-web: ui-install

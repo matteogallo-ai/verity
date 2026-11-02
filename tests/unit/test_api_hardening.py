@@ -1,4 +1,4 @@
-"""API hardening: bounded inputs, typed uploads, generic errors with a request ID."""
+"""API hardening: bounded inputs, typed uploads, generic errors, API keys, rate limit."""
 
 from __future__ import annotations
 
@@ -7,25 +7,101 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 
 from tests.unit.api_app import api_app
+from verity.api import create_app
+from verity.api.guards import RateLimiter
 from verity.config import Settings
 
+_KEY = "test-key-0123456789"
 _QUESTION = "What is the notice period for terminating the agreement?"
 
 
 def _settings(**overrides: object) -> Settings:
-    return Settings(**overrides)  # type: ignore[arg-type]
+    base: dict[str, object] = {"api_keys": (SecretStr(_KEY),)}
+    base.update(overrides)
+    return Settings(**base)  # type: ignore[arg-type]
 
 
 @pytest.fixture
 def client(tmp_path: Path):  # type: ignore[no-untyped-def]
     with api_app(tmp_path, _settings()) as test_client:
+        test_client.headers["X-API-Key"] = _KEY
         yield test_client
 
 
 def _upload(client: TestClient, name: str, content: bytes, mime: str):  # type: ignore[no-untyped-def]
     return client.post("/ingest", files={"file": (name, io.BytesIO(content), mime)})
+
+
+# --- startup ---------------------------------------------------------------------------
+
+
+def test_app_refuses_to_start_without_keys_unless_auth_is_disabled(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="VERITY_API_KEYS"):
+        create_app(runs_dir=tmp_path, agent_mode="stub", settings=Settings())
+
+
+# --- authentication --------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("path", ["/ask", "/ingest"])
+def test_missing_key_is_401(client: TestClient, path: str) -> None:
+    del client.headers["X-API-Key"]
+    r = client.post(path, json={"question": _QUESTION})
+    assert r.status_code == 401
+
+
+def test_wrong_key_is_401(client: TestClient) -> None:
+    r = client.post("/ask", json={"question": _QUESTION}, headers={"X-API-Key": "nope"})
+    assert r.status_code == 401
+
+
+def test_health_stays_public(client: TestClient) -> None:
+    del client.headers["X-API-Key"]
+    assert client.get("/health").status_code == 200
+
+
+def test_valid_key_is_served(client: TestClient) -> None:
+    assert client.post("/ask", json={"question": _QUESTION}).status_code == 200
+
+
+def test_auth_can_be_disabled_explicitly_for_dev(tmp_path: Path) -> None:
+    with api_app(tmp_path, Settings(api_auth_disabled=True)) as anonymous:
+        assert anonymous.post("/ask", json={"question": _QUESTION}).status_code == 200
+
+
+# --- rate limit ------------------------------------------------------------------------
+
+
+def test_rate_limit_is_per_key_and_answers_429_with_retry_after(tmp_path: Path) -> None:
+    settings = _settings(
+        api_keys=(SecretStr(_KEY), SecretStr("second-key-0123456789")),
+        api_rate_limit_per_minute=2,
+    )
+    with api_app(tmp_path, settings) as c:
+        c.headers["X-API-Key"] = _KEY
+        assert c.post("/ask", json={"question": _QUESTION}).status_code == 200
+        assert c.post("/ask", json={"question": _QUESTION}).status_code == 200
+        limited = c.post("/ask", json={"question": _QUESTION})
+        assert limited.status_code == 429
+        assert int(limited.headers["Retry-After"]) >= 1
+        other = c.post(
+            "/ask", json={"question": _QUESTION}, headers={"X-API-Key": "second-key-0123456789"}
+        )
+        assert other.status_code == 200
+
+
+def test_rate_limiter_window_slides() -> None:
+    now = [0.0]
+    limiter = RateLimiter(limit=2, window_s=60.0, clock=lambda: now[0])
+    assert limiter.hit("k") is None
+    assert limiter.hit("k") is None
+    retry = limiter.hit("k")
+    assert retry is not None and 59.0 < retry <= 60.0
+    now[0] = 60.5
+    assert limiter.hit("k") is None
 
 
 # --- input bounds ----------------------------------------------------------------------
@@ -72,6 +148,7 @@ def test_octet_stream_markdown_is_accepted_after_sniffing(client: TestClient) ->
 
 def test_corpus_document_limit_is_409(tmp_path: Path) -> None:
     with api_app(tmp_path, _settings(api_max_documents=6)) as c:
+        c.headers["X-API-Key"] = _KEY
         assert _upload(c, "a.txt", b"first upload", "text/plain").status_code == 200
         assert _upload(c, "b.txt", b"second upload", "text/plain").status_code == 409
         # Re-uploading the same bytes is idempotent and does not count twice.

@@ -11,11 +11,11 @@ from __future__ import annotations
 from typing import Annotated, cast
 
 import structlog
-from fastapi import APIRouter, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 
 from verity import __version__
-from verity.api.guards import UploadRejectedError, check_upload
+from verity.api.guards import UploadRejectedError, check_upload, require_api_key
 from verity.api.models import (
     AskResponse,
     CorpusSummary,
@@ -69,7 +69,7 @@ async def status_endpoint(request: Request) -> StatusResponse:
     )
 
 
-@router.post("/ingest", response_model=IngestResponse)
+@router.post("/ingest", response_model=IngestResponse, dependencies=[Depends(require_api_key)])
 async def ingest_endpoint(
     request: Request,
     file: Annotated[UploadFile, File(description="Document to ingest (pdf, docx, md, txt).")],
@@ -124,7 +124,7 @@ async def ingest_endpoint(
     )
 
 
-@router.post("/ask", response_model=AskResponse)
+@router.post("/ask", response_model=AskResponse, dependencies=[Depends(require_api_key)])
 async def ask_endpoint(request: Request, body: AskRequest) -> AskResponse:
     """One agent turn. Returns the full :class:`AnswerView` + the
     :class:`Provenance` **derived per-request** from the synthesizer's actual

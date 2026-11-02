@@ -1,8 +1,94 @@
-"""Request guards for the HTTP API: upload type checks."""
+"""Request guards for the HTTP API: API-key authentication, per-key rate limit, and
+upload type checks.
+
+Everything here is deterministic and in process: one API process serves one tenant
+(see SECURITY.md), so the limiter does not need shared state across processes.
+"""
 
 from __future__ import annotations
 
+import hmac
+import math
+import time
+from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass
+
+import structlog
+from fastapi import HTTPException, Request
+
+from verity.config import Settings
+
+_ANONYMOUS = "anonymous"
+
+
+class RateLimiter:
+    """Sliding-window limit of ``limit`` hits per ``window_s`` seconds, per principal.
+
+    Principals are configured keys (plus ``anonymous`` when auth is disabled), so the
+    number of buckets is bounded by configuration, not by client behaviour.
+    """
+
+    def __init__(
+        self, *, limit: int, window_s: float, clock: Callable[[], float] = time.monotonic
+    ) -> None:
+        self._limit = limit
+        self._window_s = window_s
+        self._clock = clock
+        self._hits: dict[str, deque[float]] = {}
+
+    def hit(self, principal: str) -> float | None:
+        """Record one hit. ``None`` when allowed, else the seconds until a slot frees."""
+        now = self._clock()
+        hits = self._hits.setdefault(principal, deque())
+        while hits and hits[0] <= now - self._window_s:
+            hits.popleft()
+        if len(hits) >= self._limit:
+            return hits[0] + self._window_s - now
+        hits.append(now)
+        return None
+
+
+def _principal_for(supplied: str | None, settings: Settings) -> str | None:
+    """The configured key ``supplied`` matches, by index; ``None`` if none does.
+
+    Every key is compared, with ``hmac.compare_digest``, so the response time does not
+    reveal which key or how much of it matched.
+    """
+    if not supplied:
+        return None
+    matched: str | None = None
+    for index, key in enumerate(settings.api_keys):
+        if hmac.compare_digest(supplied.encode(), key.get_secret_value().encode()):
+            matched = f"key-{index}"
+    return matched
+
+
+def require_api_key(request: Request) -> str:
+    """FastAPI dependency: authenticate ``X-API-Key`` and apply the rate limit.
+
+    Returns the principal (``key-<n>`` or ``anonymous``), bound on the log context.
+    The key itself is never logged.
+    """
+    settings: Settings = request.app.state.settings
+    if settings.api_auth_disabled:
+        principal = _ANONYMOUS
+    else:
+        found = _principal_for(request.headers.get("x-api-key"), settings)
+        if found is None:
+            raise HTTPException(status_code=401, detail="Missing or invalid X-API-Key.")
+        principal = found
+    limiter: RateLimiter = request.app.state.rate_limiter
+    retry_after = limiter.hit(principal)
+    if retry_after is not None:
+        raise HTTPException(
+            status_code=429,
+            detail="Rate limit exceeded.",
+            headers={"Retry-After": str(max(1, math.ceil(retry_after)))},
+        )
+    structlog.contextvars.bind_contextvars(principal=principal)
+    return principal
+
 
 # --- uploads ---------------------------------------------------------------------------
 
@@ -59,6 +145,8 @@ def _is_utf8(content: bytes) -> bool:
 
 __all__ = [
     "ALLOWED_EXTENSIONS",
+    "RateLimiter",
     "UploadRejectedError",
     "check_upload",
+    "require_api_key",
 ]

@@ -32,6 +32,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 
 from verity import __version__
 from verity.api.aggregator import SessionMetrics, aggregate_spans, to_prometheus
+from verity.api.guards import RateLimiter
 from verity.api.router import router as api_router
 from verity.api.state import AppRuntime, default_agent_mode
 from verity.config import Settings, get_settings
@@ -64,9 +65,15 @@ def create_app(
     control which persisted eval runs the dashboard surfaces. ``corpus_dir``
     is preloaded into the shared in-memory store on first request so the
     demo UI can ask questions immediately. ``settings`` defaults to the process
-    settings.
+    settings; without API keys the app refuses to start unless authentication is
+    explicitly disabled.
     """
     settings = settings or get_settings()
+    if not settings.api_keys and not settings.api_auth_disabled:
+        raise ValueError(
+            "API authentication is on but VERITY_API_KEYS is empty: set keys, or "
+            "VERITY_API_AUTH_DISABLED=true for local development only."
+        )
     app = FastAPI(
         title="verity",
         version=__version__,
@@ -92,6 +99,7 @@ def create_app(
     )
     app.state.runtime = runtime
     app.state.settings = settings
+    app.state.rate_limiter = RateLimiter(limit=settings.api_rate_limit_per_minute, window_s=60.0)
     _install_request_context(app, settings)
     app.include_router(api_router)
 
@@ -154,7 +162,7 @@ def _install_request_context(app: FastAPI, settings: Settings) -> None:
         try:
             response = await _guarded(request, call_next, settings)
         finally:
-            structlog.contextvars.unbind_contextvars("request_id")
+            structlog.contextvars.unbind_contextvars("request_id", "principal")
         response.headers["X-Request-ID"] = request_id
         return response
 

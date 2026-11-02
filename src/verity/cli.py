@@ -511,7 +511,11 @@ def serve(
     settings = get_settings()
     configure_logging(settings.log_level)
     tracer = OTelTracer(otel_endpoint=settings.otel_endpoint)
-    app_instance = create_app(tracer=tracer, runs_dir=runs_dir, dataset=dataset)
+    try:
+        app_instance = create_app(tracer=tracer, runs_dir=runs_dir, dataset=dataset)
+    except ValueError as exc:
+        console.print(f"[red]Cannot start:[/red] {exc}")
+        raise typer.Exit(code=2) from exc
     if host not in _LOOPBACK_HOSTS:
         console.print(
             f"[yellow]Bound to {host}: the API is reachable from other machines. "

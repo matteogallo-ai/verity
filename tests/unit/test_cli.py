@@ -340,3 +340,20 @@ def test_serve_warns_when_bound_to_all_interfaces(monkeypatch: pytest.MonkeyPatc
     seen, output = _capture_serve(monkeypatch, ["--host", "0.0.0.0"])
     assert seen["host"] == "0.0.0.0"
     assert "reachable from other machines" in output
+
+
+def test_serve_refuses_to_start_without_api_keys(monkeypatch: pytest.MonkeyPatch) -> None:
+    import uvicorn
+
+    from verity.config import get_settings
+
+    monkeypatch.delenv("VERITY_API_KEYS", raising=False)
+    monkeypatch.delenv("VERITY_API_AUTH_DISABLED", raising=False)
+    get_settings.cache_clear()
+    monkeypatch.setattr(uvicorn, "run", lambda *_a, **_kw: pytest.fail("must not serve"))
+    try:
+        result = runner.invoke(app, ["serve"], env={"COLUMNS": "200"})
+    finally:
+        get_settings.cache_clear()
+    assert result.exit_code == 2
+    assert "VERITY_API_KEYS" in result.output
