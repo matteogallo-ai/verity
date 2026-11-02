@@ -64,6 +64,8 @@ dev = [
   "pytest-socket>=0.8.1",
   "pyyaml>=6",
   "types-pyyaml>=6",
+  "matplotlib>=3.11.2",
+  "scikit-learn>=1.9.0",
 ]
 
 [tool.ruff]
@@ -79,7 +81,7 @@ ignore = ["E501"]  # line length handled by formatter
 known-first-party = ["verity"]
 
 [tool.vulture]
-paths = ["src"]
+paths = ["src", "scripts/refusal_analysis.py"]
 min_confidence = 60
 # Called by a framework, not by our code: Typer commands, FastAPI routes, pydantic validators.
 ignore_decorators = ["@app.*", "@router.*", "@*_app.command", "@model_validator"]
