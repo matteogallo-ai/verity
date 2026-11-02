@@ -44,7 +44,11 @@ _log = structlog.get_logger("verity.api")
 _REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 # Multipart framing around one file part; generous so a legal upload is never refused.
 _MULTIPART_OVERHEAD_BYTES = 16 * 1024
-# JSON envelope around a question at 4 UTF-8 bytes per character, plus headroom.
+# A JSON client may escape every non-ASCII character: an astral one is a surrogate
+# pair, \uXXXX\uXXXX, 12 bytes. Budgeting 12 bytes per character means a question
+# within the character limit always reaches the length check (422), never 413.
+_JSON_BYTES_PER_CHAR = 12
+# Envelope around the question, plus headroom.
 _JSON_OVERHEAD_BYTES = 4 * 1024
 
 
@@ -143,7 +147,7 @@ def _request_id(request: Request) -> str:
 def _body_limit(path: str, settings: Settings) -> int:
     if path == "/ingest":
         return settings.api_max_upload_bytes + _MULTIPART_OVERHEAD_BYTES
-    return settings.api_max_question_chars * 4 + _JSON_OVERHEAD_BYTES
+    return settings.api_max_question_chars * _JSON_BYTES_PER_CHAR + _JSON_OVERHEAD_BYTES
 
 
 def _install_request_context(app: FastAPI, settings: Settings) -> None:

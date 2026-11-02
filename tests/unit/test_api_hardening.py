@@ -254,3 +254,15 @@ def test_a_store_failure_on_ingest_is_not_blamed_on_the_document(
     assert response.status_code == status
     assert "parsed" not in response.text
     assert "VECTOR" not in response.text and "Postgres" not in response.text
+
+
+def test_a_question_at_the_limit_fits_the_body_even_when_json_escaped(
+    client: TestClient,
+) -> None:
+    """Python's json.dumps escapes non-ASCII: an astral character is 12 bytes on the
+    wire. A question within the character limit must reach the length check."""
+    import json
+
+    body = json.dumps({"question": "\U0001f600" * 2000})  # 2000 characters, 24 KB
+    response = client.post("/ask", content=body, headers={"content-type": "application/json"})
+    assert response.status_code != 413
