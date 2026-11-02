@@ -13,6 +13,7 @@ from verity.ingestion.pipeline import (
     IngestionPipeline,
     discover_sources,
 )
+from verity.retrieval.pgvector_store import EmbeddingDimensionMismatchError, SchemaNotMigratedError
 from verity.types import Chunk, EmbeddedChunk
 
 CORPUS = Path(__file__).resolve().parents[2] / "datasets" / "corpus"
@@ -125,3 +126,40 @@ async def test_pipeline_survives_parse_failure(tmp_path: Path) -> None:
     assert result.n_documents == 0
     assert len(result.failures) == 3
     assert all("parse: boom" in f.error for f in result.failures)
+
+
+class _MisconfiguredSink(_RecordingSink):
+    def __init__(self, error: Exception) -> None:
+        super().__init__()
+        self.error = error
+        self.calls = 0
+
+    async def upsert_documents(self, documents) -> None:  # type: ignore[no-untyped-def]
+        self.calls += 1
+        raise self.error
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "error",
+    [
+        EmbeddingDimensionMismatchError("schema holds VECTOR(384), configured 768"),
+        SchemaNotMigratedError("chunks table missing"),
+    ],
+)
+async def test_schema_error_stops_ingestion_at_the_first_document(error: Exception) -> None:
+    """A schema error is a configuration bug: it aborts the run instead of being
+    recorded once per document."""
+    sink = _MisconfiguredSink(error)
+    pipeline = IngestionPipeline(
+        parser=create_default_parser(),
+        chunker=StructureAwareChunker(),
+        embedder=LocalEmbedder(model="fake", expected_dim=4, backend=_FakeBackend(4)),
+        sink=sink,
+    )
+    uris = discover_sources(str(CORPUS))
+    assert len(uris) > 1
+
+    with pytest.raises(type(error)):
+        await pipeline.ingest(uris)
+    assert sink.calls == 1

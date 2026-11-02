@@ -59,7 +59,8 @@ def ingest(
     """Ingest documents into the index.
 
     Runs parse → chunk → embed → upsert. Errors per source are logged and skipped so
-    a single bad file does not sink the whole batch.
+    a single bad file does not sink the whole batch; a store schema error (wrong
+    embedding dimension, migrations not applied) stops the run with exit code 2.
     """
     # Local imports keep `verity version` and `verity db upgrade` cheap when the
     # heavy ingestion deps (docling, torch) are not needed for the invoked command.
@@ -71,6 +72,7 @@ def ingest(
     )
     from verity.ingestion.pipeline import discover_sources
     from verity.retrieval import PgVectorStore
+    from verity.retrieval.base import StoreSchemaError
 
     uris = discover_sources(str(path))
     if not uris:
@@ -89,7 +91,11 @@ def ingest(
         + (" [yellow](dry run — no writes)[/yellow]" if dry_run else "")
     )
     pipeline = IngestionPipeline(parser=parser, chunker=chunker, embedder=embedder, sink=sink)
-    result = asyncio.run(pipeline.ingest(uris))
+    try:
+        result = asyncio.run(pipeline.ingest(uris))
+    except StoreSchemaError as exc:
+        console.print(f"[red]Ingestion stopped:[/red] {exc}")
+        raise typer.Exit(code=2) from exc
 
     table = Table(title="Ingestion summary", show_header=True, header_style="bold cyan")
     table.add_column("Metric")

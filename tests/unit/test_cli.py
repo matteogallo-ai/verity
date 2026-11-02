@@ -252,6 +252,23 @@ def test_ingest_exits_clean(tmp_path: object) -> None:
     assert result.exit_code == 0
 
 
+def test_ingest_stops_with_exit_2_on_a_schema_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from verity.ingestion.pipeline import IngestionPipeline
+    from verity.retrieval.pgvector_store import SchemaNotMigratedError
+
+    async def _raise(self, uris):  # type: ignore[no-untyped-def]
+        raise SchemaNotMigratedError("chunks table missing; run `verity db upgrade`")
+
+    monkeypatch.setattr(IngestionPipeline, "ingest", _raise)
+    (tmp_path / "a.md").write_text("# A\n\nbody\n")
+    result = runner.invoke(app, ["ingest", str(tmp_path)], env={"COLUMNS": "200"})
+    assert result.exit_code == 2
+    assert "Ingestion stopped" in result.output
+    assert "verity db upgrade" in result.output
+
+
 def test_missing_key_message_contains_actionable_hints() -> None:
     """Directly assert on the guard message constant — the source of truth.
 

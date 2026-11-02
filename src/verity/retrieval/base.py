@@ -16,6 +16,14 @@ from typing import Protocol, runtime_checkable
 from verity.types import Chunk, EmbeddedChunk, RetrievalHit
 
 
+class StoreSchemaError(RuntimeError):
+    """The store's schema cannot hold what is being written (configuration bug).
+
+    Retrying the next document cannot succeed, so ingestion stops on it instead of
+    recording one failure per document.
+    """
+
+
 @runtime_checkable
 class VectorStore(Protocol):
     """Persistence for embedded chunks + dense/sparse search. Backed by pgvector.

@@ -20,6 +20,7 @@ import psycopg
 from psycopg.rows import dict_row, tuple_row
 
 from verity.config import get_settings
+from verity.retrieval.base import StoreSchemaError
 from verity.types import Chunk, EmbeddedChunk, RetrievalHit, RetrieverKind
 
 
@@ -62,11 +63,11 @@ async def _check_embedding_dim(
         )
 
 
-class EmbeddingDimensionMismatchError(RuntimeError):
+class EmbeddingDimensionMismatchError(StoreSchemaError):
     """The configured embedding dimension does not fit the ``chunks.embedding`` column."""
 
 
-class SchemaNotMigratedError(RuntimeError):
+class SchemaNotMigratedError(StoreSchemaError):
     """The ``chunks`` table does not exist yet."""
 
 
@@ -79,8 +80,8 @@ class PgVectorStore:
     :class:`EmbeddingDimensionMismatchError` if they differ, so a changed embedding
     model fails on the first connection with an actionable message instead of a
     driver error on insert. The check is retried on each connection until it
-    passes; ``IngestionPipeline`` catches it per document, so ``verity ingest``
-    reports it once per document and exits 1.
+    passes; ``IngestionPipeline`` lets it propagate, so ``verity ingest`` stops at
+    the first document.
     """
 
     def __init__(
