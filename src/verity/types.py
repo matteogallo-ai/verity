@@ -142,6 +142,9 @@ class RefusalReason(StrEnum):
     BELOW_THRESHOLD = "below_threshold"
     SCORER_UNPARSEABLE = "scorer_unparseable"
     NO_CITATION = "no_citation"
+    LOW_CITATION_COVERAGE = "low_citation_coverage"
+    IRRELEVANT_CITATION = "irrelevant_citation"
+    SUSPECTED_INJECTION = "suspected_injection"
 
 
 class Confidence(BaseModel, frozen=True):
