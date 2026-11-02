@@ -2,6 +2,8 @@
 
 **Status:** accepted · 2026-09
 
+> 2026-11-02: superseded by measurement, see README.
+
 ## Context
 Most RAG systems always answer. The dangerous failure mode is a fluent, ungrounded answer
 presented with no reliability signal. Verity's thesis is that *calibrated refusal* is
