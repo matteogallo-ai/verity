@@ -55,6 +55,7 @@ CI job `claims` runs those tests.
 - Evaluation harness: retrieval, refusal and LLM-judged answer-quality metrics, one audit record per question (C11).
 - Live run artefacts protected from being overwritten by stub runs (C12).
 - README results generated from the scorecard and checked in CI (C13); CLI labels match scorecard keys (C14).
+- 95 questions over 21 documents (≥ 25 unanswerable, ≥ 5 adversarial) with a frozen, seeded dev/test split; per-question and per-claim aggregates (C28).
 - SDK call signatures (C15) and LLM output parsers (C16) tested against the shapes real models produce.
 - Per-stage tracing behind `/metrics`, `/metrics/prom` and `/dashboard` (C17); optional OTLP export, bounded in-memory spans (C29).
 - HTTP API with `/status`, `/ask` and content-addressed `/ingest` (C18), and a Next.js UI with citation highlighting and a provenance badge (C19).
@@ -143,7 +144,6 @@ Not implemented, or implemented without a test. Each item is a `roadmap` row in
 - Web-page ingestion: the trafilatura parser exists but no test exercises it (C30).
 - Calibrated refusal: measure calibration (ECE, reliability diagram) before claiming it (C21).
 - A judge validated against human labels, from a different model family (C27).
-- ≥ 80 questions with a frozen dev/test split; micro and macro aggregates (C28).
 
 ## Architecture
 
