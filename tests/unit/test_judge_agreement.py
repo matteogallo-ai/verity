@@ -1,7 +1,9 @@
-"""scripts/judge_agreement.py: blind export of real + perturbed claims."""
+"""scripts/judge_agreement.py: blind export of real + perturbed claims, the judge's
+sensitivity on the perturbed ones, κ on the mixed set."""
 
 from __future__ import annotations
 
+import asyncio
 import csv
 import importlib.util
 import json
@@ -15,10 +17,12 @@ import pytest
 
 from verity.eval.run_store import FileRunStore
 from verity.types import (
+    Answer,
     AnswerMetrics,
     Chunk,
     Citation,
     ClaimVerdict,
+    EvalExample,
     EvalRun,
     LatencyMetrics,
     PerExampleAudit,
@@ -26,6 +30,7 @@ from verity.types import (
     RetrievalMetrics,
     RetrieverKind,
     Scorecard,
+    UsageStats,
 )
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "judge_agreement.py"
@@ -59,7 +64,8 @@ def _module(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     monkeypatch.setattr(
         module, "CSV_FILES", (tmp_path / "out" / "m1.csv", tmp_path / "out" / "m2.csv")
     )
-    monkeypatch.setattr(module, "KEY", tmp_path / "out" / "key.json")
+    for name in ("KEY", "REJUDGED", "FINAL_CSV", "RESULT"):
+        monkeypatch.setattr(module, name, tmp_path / "out" / f"{name.lower()}.json")
     entities = tmp_path / "entities.json"
     entities.write_text(json.dumps({"_doc": "x", "company": ["Acme", "Northwind"]}))
     monkeypatch.setattr(module, "ENTITIES", entities)
@@ -144,6 +150,17 @@ def _rows(mod: ModuleType) -> list[dict[str, str]]:
     return rows
 
 
+def test_kappa_by_hand(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    mod = _module(tmp_path, monkeypatch)
+    # 10 pairs: agree 7 (6 s/s, 1 u/u), judge s / human u 2, judge u / human s 1.
+    pairs = [(S, S)] * 6 + [(U, U)] + [(S, U)] * 2 + [(U, S)]
+    p_o = 0.7
+    p_e = (8 / 10) * (7 / 10) + (2 / 10) * (3 / 10)
+    assert mod.cohen_kappa(pairs) == pytest.approx((p_o - p_e) / (1 - p_e))
+    assert mod.cohen_kappa([(S, S)] * 5) is None
+    assert mod.cohen_kappa([]) is None
+
+
 def test_cited_passage_is_the_citation_closest_to_the_claim(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -205,6 +222,98 @@ def test_export_writes_two_blind_files_cited_passage_first(
         assert "Extract" in r["extracts"] and r["human_verdict"] == ""
         if item["origin"] == "perturbed":
             assert r["claim"] != item["original"] and item["judge_verdict"] is None
+
+
+class _FakeJudge:
+    """Says "unsupported" when the claim holds a word from ``catch``; costs $0.01."""
+
+    model = "fake-judge"
+
+    def __init__(self, catch: tuple[str, ...], malformed: tuple[str, ...] = ()) -> None:
+        self.catch, self.malformed = catch, malformed
+        self.calls = 0
+        self.last_usage: UsageStats | None = None
+        self.last_claims: tuple[ClaimVerdict, ...] | None = None
+
+    async def judge(self, example: EvalExample, answer: Answer) -> AnswerMetrics:
+        self.calls += 1
+        self.last_usage = UsageStats(cost_usd=0.01, llm_calls=1)
+        if any(m in answer.text for m in self.malformed):
+            self.last_claims = ()
+        else:
+            caught = any(w in answer.text for w in self.catch)
+            self.last_claims = (
+                ClaimVerdict(claim=answer.text, supported=not caught, citation_ok=True),
+            )
+        return _metrics()
+
+
+def test_judge_perturbed_detects_counts_malformed_and_stops_at_budget(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mod = _module(tmp_path, monkeypatch)
+    assert mod.main(["export", str(_save_run(tmp_path))]) == 0
+    judge = _FakeJudge(catch=("not",), malformed=("Acme",))
+    result = asyncio.run(mod.judge_perturbed(judge, budget_usd=1.0))
+    # Item ids are opaque: check the verdicts by claim text.
+    by_text = {
+        json.loads(mod.KEY.read_text())["items"][i]["claim"]: v["verdict"]
+        for i, v in result["verdicts"].items()
+    }
+    assert len(by_text) == 4 and result["cost_usd"] == pytest.approx(0.04)
+    for text, verdict in by_text.items():
+        if "Acme" in text:
+            assert verdict is None  # malformed output: no verdict, not a miss
+        elif " not " in text:
+            assert verdict == U
+        else:
+            assert verdict == S
+
+    capped = _FakeJudge(catch=())
+    result = asyncio.run(mod.judge_perturbed(capped, budget_usd=0.015))
+    assert capped.calls == 2 and len(result["verdicts"]) == 2
+
+
+def test_kappa_reports_sensitivity_and_mixed_agreement(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mod = _module(tmp_path, monkeypatch)
+    assert mod.main(["export", str(_save_run(tmp_path))]) == 0
+    assert mod.main(["kappa"]) == 1  # perturbed claims not judged yet
+    key = json.loads(mod.KEY.read_text())["items"]
+    perturbed = sorted(i for i, v in key.items() if v["origin"] == "perturbed")
+    # The judge catches 3 of the 4 perturbed claims.
+    mod.REJUDGED.write_text(
+        json.dumps({"verdicts": {i: {"verdict": U if n else S} for n, i in enumerate(perturbed)}})
+    )
+    assert mod.main(["kappa"]) == 1  # not annotated yet
+    # The human marks every perturbed claim unsupported and every real one supported.
+    for path in mod.CSV_FILES:
+        with path.open(newline="", encoding="utf-8") as fh:
+            rows = list(csv.DictReader(fh))
+        for r in rows:
+            r["human_verdict"] = U if key[r["item_id"]]["origin"] == "perturbed" else S
+        with path.open("w", newline="", encoding="utf-8") as fh:
+            writer = csv.DictWriter(fh, fieldnames=list(rows[0]))
+            writer.writeheader()
+            writer.writerows(rows)
+    assert mod.main(["kappa"]) == 0
+    result = json.loads(mod.RESULT.read_text())
+    sens = result["sensitivity"]
+    assert (sens["judge_detected"]["k"], sens["judge_detected"]["n"]) == (3, 4)
+    assert (
+        sens["judge_detected"]["ci95_wilson"][0] < 0.75 < sens["judge_detected"]["ci95_wilson"][1]
+    )
+    assert sens["human_unsupported"]["k"] == 4
+    mixed = result["agreement_mixed"]
+    # 8 pairs: the real unsupported claim disagrees (judge u, human s), one perturbed
+    # claim is missed (judge s, human u); 6 agree.
+    assert mixed["n_claims"] == 8 and mixed["observed"]["k"] == 6
+    assert mixed["confusion"]["judge_supported/human_unsupported"] == 1
+    assert mixed["cohen_kappa"] is not None
+    with mod.FINAL_CSV.open(newline="", encoding="utf-8") as fh:
+        final = list(csv.DictReader(fh))
+    assert {r["origin"] for r in final} == {"real", "perturbed"}
 
 
 def test_plan_never_perturbs_an_answer_with_an_unsupported_claim(
