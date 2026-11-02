@@ -8,8 +8,7 @@ We do **not** trust the LLM to invent citations. Every citation is:
 1. mapped to the ``N``-th chunk in the evidence list we handed to the model (indexes
    into the ``hits`` argument, not into any global chunk table);
 2. rejected if its ``quote`` is not a verbatim substring of the referenced
-   ``chunk.text`` (the load-bearing S1 invariant that citations point at real
-   passages);
+   ``chunk.text`` (the invariant that citations point at real passages);
 3. re-anchored so ``char_start`` / ``char_end`` are offsets into
    ``document.text`` (chunk.char_start + quote position), which is what the UI
    highlights against.
@@ -21,11 +20,11 @@ the draft ships or is replaced by a refusal.
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 
-from verity.config import get_settings
+from verity.agent.evidence import render_evidence
 from verity.llm.base import RoutingClient
+from verity.llm.json_output import parse_json_object
 from verity.llm.prompt import load_prompt
 from verity.types import Citation, Provider, RetrievalHit, UsageStats
 
@@ -42,10 +41,10 @@ class SynthesisResult:
     to re-query the router. This is the load-bearing signal for per-request
     provenance in the UI.
 
-    ``provider`` and ``model`` may be ``None`` when a future degraded synthesis
-    path (e.g. graceful mid-flight refusal on a transient LLM error) short-
-    circuits before it can consult the router. In that case the RagAgent's
-    ``preferred_*`` fallback stamps the honest routing decision — the invariant
+    ``provider`` and ``model`` may be ``None`` when a synthesizer returns
+    without consulting the router (the test double in
+    ``tests/unit/test_refusal_provenance.py`` does). In that case the RagAgent's
+    ``preferred_*`` fallback stamps the routing decision — the invariant
     covered by ``tests/unit/test_refusal_provenance.py``.
     """
 
@@ -72,8 +71,7 @@ class CitedSynthesizer:
         self.last_usage: UsageStats | None = None
 
     async def synthesize(self, question: str, hits: list[RetrievalHit]) -> SynthesisResult:
-        settings = get_settings()  # noqa: F841 — reserved for future max-hit trimming knobs
-        evidence = _render_evidence(hits)
+        evidence = render_evidence(hits, with_scores=False)
         messages = self._prompt.render(question=question, evidence=evidence)
         completion = await self._client.complete(
             messages, max_tokens=self._max_tokens, temperature=0.0
@@ -90,32 +88,17 @@ class CitedSynthesizer:
         )
 
 
-def _render_evidence(hits: list[RetrievalHit]) -> str:
-    lines: list[str] = []
-    for i, hit in enumerate(hits):
-        section = hit.chunk.section or "-"
-        # Strip trailing whitespace so the LLM sees a clean block per chunk.
-        body = hit.chunk.text.strip()
-        lines.append(f"[{i}] (section: {section})\n{body}")
-    return "\n\n".join(lines) if lines else "(no evidence available)"
-
-
 def _parse_synth_output(text: str) -> tuple[str, list[tuple[str, int]]]:
     """Extract ``(answer, [(quote, chunk_index), ...])`` from the LLM's JSON output.
 
     Robust to prose wrapping, markdown code fences, and single-element array
     wrappers (all real-model drifts observed with Sonnet-class outputs). On
-    total parse failure return ``(text.strip(), [])`` so the citation validator
-    drops the citations and the scorer refuses — safe path.
+    total parse failure return ``(text.strip(), [])``: the raw text becomes the
+    draft answer with no citations, and the scorer judges it like any other draft.
+    Nothing forces a refusal here; see the module docstring of ``agent.py``.
     """
-    candidate = _first_json_object(text) or text
-    try:
-        parsed = json.loads(candidate)
-    except json.JSONDecodeError:
-        return text.strip(), []
-    if isinstance(parsed, list):
-        parsed = next((item for item in parsed if isinstance(item, dict)), None)
-    if not isinstance(parsed, dict):
+    parsed = parse_json_object(text)
+    if parsed is None:
         return text.strip(), []
     answer = str(parsed.get("answer", "")).strip()
     citations_raw = parsed.get("citations", []) or []
@@ -133,28 +116,14 @@ def _parse_synth_output(text: str) -> tuple[str, list[tuple[str, int]]]:
     return answer, citations
 
 
-def _first_json_object(text: str) -> str:
-    """Return the largest ``{...}`` slice, or the first ``[...]`` slice as a
-    fallback for models that wrap the response in a single-element array."""
-    start = text.find("{")
-    end = text.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        return text[start : end + 1]
-    array_start = text.find("[")
-    array_end = text.rfind("]")
-    if array_start != -1 and array_end != -1 and array_end > array_start:
-        return text[array_start : array_end + 1]
-    return ""
-
-
 def _validate_citations(
     raw_citations: list[tuple[str, int]],
     hits: list[RetrievalHit],
 ) -> tuple[Citation, ...]:
     """Keep only citations whose quote is a verbatim substring of the referenced chunk.
 
-    ``char_start``/``char_end`` are re-anchored to ``document.text`` offsets — the S1
-    contract is that ``document.text[chunk.char_start:chunk.char_end] == chunk.text``,
+    ``char_start``/``char_end`` are re-anchored to ``document.text`` offsets — the
+    chunker guarantees ``document.text[chunk.char_start:chunk.char_end] == chunk.text``,
     so the absolute span is ``chunk.char_start + position_of_quote_in_chunk``.
     """
     out: list[Citation] = []

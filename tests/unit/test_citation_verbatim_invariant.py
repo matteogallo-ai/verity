@@ -7,7 +7,7 @@ Two guarantees are stacked:
    ``quote`` is not present in the referenced chunk (``chunk.text.find(quote)``
    returns -1 → skip). No paraphrased citation ever ships.
 2. The offsets are re-anchored to ``document.text`` via
-   ``chunk.char_start + position_of_quote_in_chunk`` — the S1 offset invariant
+   ``chunk.char_start + position_of_quote_in_chunk`` — the chunker's offset invariant
    guarantees ``document.text[chunk.char_start:chunk.char_end] == chunk.text``,
    so the absolute span is verbatim into the document too.
 

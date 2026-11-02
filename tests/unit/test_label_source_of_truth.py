@@ -1,6 +1,6 @@
 """Console-vs-JSON label consistency contract.
 
-The S7 pre-tag audit exposed this gap: the JSON scorecard was renamed to
+A pre-release audit exposed this gap: the JSON scorecard was renamed to
 ``hallucination_rate_answerable`` + ``out_of_scope_answered`` (schema v2),
 but the Rich console table in :func:`verity.cli._print_scorecard` still
 printed the pre-v2 name ``hallucination_rate`` with no companion row. A
@@ -21,6 +21,7 @@ import json
 import re
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from verity.cli import app
@@ -63,6 +64,7 @@ def _run_stub_and_capture(tmp_path: Path) -> tuple[str, dict]:
 # --------------------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 class TestConsoleJsonLabelInvariant:
     """Every user-visible metric name + denominator is defined ONCE.
     Console and JSON agree on vocabulary AND on scope/n_denominator."""
@@ -70,7 +72,7 @@ class TestConsoleJsonLabelInvariant:
     def test_json_is_v3_with_scoped_metrics(self, tmp_path: Path) -> None:
         """Baseline: the JSON we generate today is schema v3 — no drift back
         to a v2/v1 shape under any refactor. Each judge-track metric is a
-        ``{value, scope, n_denominator}`` triple so no chiffre can be
+        ``{value, scope, n_denominator}`` triple so no number can be
         quoted without its denominator."""
         _, payload = _run_stub_and_capture(tmp_path)
         assert payload["schema"] == "verity.scorecard.headline/v3"
@@ -95,7 +97,7 @@ class TestConsoleJsonLabelInvariant:
     def test_console_uses_the_v3_scoped_hallucination_label(self, tmp_path: Path) -> None:
         """The console must display the v3-scoped name with the denominator,
         never the bare v1 name and never the v2 ``(answerable only)`` label
-        (which doesn't say ``n=…``). Load-bearing: no chiffre-without-denominator
+        (which doesn't say ``n=…``). Load-bearing: no number-without-denominator
         can leak into a demo screenshot."""
         console, _ = _run_stub_and_capture(tmp_path)
         assert "hallucination_rate (answerable_and_answered, n=" in console, (
@@ -154,6 +156,7 @@ class TestConsoleJsonLabelInvariant:
 # --------------------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 def test_cli_verdict_labels_do_not_claim_hallucination_without_evidence(
     tmp_path: Path,
 ) -> None:

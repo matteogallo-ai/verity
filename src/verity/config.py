@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from verity.types import Provider
@@ -36,12 +36,18 @@ class Settings(BaseSettings):
     # --- Retrieval --------------------------------------------------------------------
     retrieval_k: int = 20  # candidates per retriever before fusion
     rerank_k: int = 8  # kept after reranking → fed to the agent
-    rrf_k: int = 60  # reciprocal rank fusion constant
+    rrf_k: int = Field(
+        default=60,
+        gt=0,
+        description="Reciprocal rank fusion constant; ranks are 0-based (see retrieval.fusion).",
+    )
 
     # --- LLM runtime ------------------------------------------------------------------
     provider_order: tuple[Provider, ...] = (Provider.ANTHROPIC, Provider.OPENAI)
-    anthropic_api_key: str | None = None
-    openai_api_key: str | None = None
+    # SecretStr keeps keys out of repr()/str()/model_dump() output, so a logged or
+    # printed Settings object cannot leak them. Unwrap only at the SDK boundary.
+    anthropic_api_key: SecretStr | None = None
+    openai_api_key: SecretStr | None = None
     anthropic_model: str = "claude-sonnet-4-6"
     openai_model: str = "gpt-4.1-mini"
     judge_model: str = "claude-sonnet-4-6"  # LLM-as-judge for faithfulness eval
@@ -51,13 +57,25 @@ class Settings(BaseSettings):
         default=0.55,
         ge=0.0,
         le=1.0,
-        description="Below this calibrated confidence the agent refuses to answer.",
+        description="Below this scorer-reported confidence the agent refuses to answer.",
     )
     max_agent_steps: int = 4  # cap on multi-step retrieval decomposition
 
     # --- Observability ----------------------------------------------------------------
-    otel_endpoint: str | None = None  # None → console exporter
+    # None → spans stay in the in-process exporter only (backs /metrics).
+    otel_endpoint: str | None = None
     log_level: str = "INFO"
+
+    @property
+    def has_llm_api_key(self) -> bool:
+        """True when at least one provider key is set to a non-empty value.
+
+        An empty ``VERITY_*_API_KEY=`` line (as in ``.env.example``) counts as unset.
+        """
+        return any(
+            key is not None and key.get_secret_value()
+            for key in (self.anthropic_api_key, self.openai_api_key)
+        )
 
 
 @lru_cache(maxsize=1)

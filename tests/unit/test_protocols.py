@@ -1,7 +1,7 @@
 """Smoke tests that the stage contracts import cleanly and are structurally checkable.
 
-These do not test behaviour (there is none yet at S0) — they lock the *shape* of the
-interfaces so later stages implement against a stable surface.
+These do not test behaviour — they lock the *shape* of the interfaces so every
+stage implements against a stable surface.
 """
 
 from __future__ import annotations

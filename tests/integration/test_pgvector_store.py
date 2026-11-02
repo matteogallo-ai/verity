@@ -97,3 +97,20 @@ async def test_upsert_dense_sparse_roundtrip(migrated_db: str, tmp_path) -> None
     assert result2.failures == []
     after = await store.count_chunks()
     assert before == after
+
+
+@pytest.mark.asyncio
+async def test_store_refuses_an_embedding_dim_the_schema_cannot_hold(migrated_db: str) -> None:
+    """migrations/001_initial.sql declares VECTOR(384). A store configured for another
+    dimension must fail on first use with an actionable error, not mid-ingestion."""
+    from verity.retrieval.pgvector_store import EmbeddingDimensionMismatchError
+
+    store = PgVectorStore(database_url=migrated_db, embedding_dim=768)
+    with pytest.raises(EmbeddingDimensionMismatchError, match=r"768.*384"):
+        await store.count_chunks()
+
+
+@pytest.mark.asyncio
+async def test_store_accepts_the_schema_dimension(migrated_db: str) -> None:
+    store = PgVectorStore(database_url=migrated_db, embedding_dim=384)
+    assert await store.count_chunks() >= 0

@@ -6,11 +6,11 @@ then scores its own confidence and **refuses** rather than fabricating when the 
 is weak. Each of those is a named, individually testable protocol so the eval harness
 can attribute a regression to decomposition, synthesis, or calibration.
 
-The prompts driving decomposition, the faithfulness judge, and confidence scoring are
-authored in PromptLang (see ``prompts/``) and consumed through the runtime — Verity
-dogfoods PromptLang rather than embedding f-strings.
-
-Implementations land in S3.
+The prompts driving decomposition, synthesis, the faithfulness judge and confidence
+scoring live in ``prompts/*.prompt`` and are loaded by :mod:`verity.llm.prompt`, so
+they are versioned files rather than f-strings in code. Implementations:
+:mod:`verity.agent.agent`, :mod:`verity.agent.decomposer`,
+:mod:`verity.agent.synthesizer`, :mod:`verity.agent.scorer`.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ class QuestionDecomposer(Protocol):
 
 @runtime_checkable
 class ConfidenceScorer(Protocol):
-    """Produces a calibrated :class:`Confidence` from the question, drafted answer, and
+    """Produces a :class:`Confidence` from the question, drafted answer, and
     the evidence actually used. Owns the refusal decision against the configured
     threshold."""
 
@@ -46,7 +46,7 @@ class Agent(Protocol):
     Guarantees on the returned Answer:
       * every non-refusal answer carries ≥1 citation mapped to an exact passage;
       * ``confidence.refused`` is True whenever confidence < threshold, and the text is
-        an honest "I don't know" rather than a hallucinated answer;
+        an "I don't know" rather than a hallucinated answer;
       * ``usage`` and ``trace_id`` are always populated for observability and eval.
     """
 

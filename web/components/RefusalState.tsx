@@ -35,8 +35,8 @@ export function RefusalState({
         <span>llm calls <b>{answer.usage.llm_calls}</b></span>
       </div>
       <p className="note">
-        Calibrated refusal is a headline feature — the agent honoured its
-        threshold rather than fabricating an answer. The hits used to make
+        Threshold-gated refusal: the confidence score fell below the
+        threshold, so the agent declined rather than ship the draft answer. The hits used to make
         this decision are still shown on the right panel for auditability.
       </p>
       <style jsx>{`

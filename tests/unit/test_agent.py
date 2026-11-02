@@ -1,6 +1,6 @@
 """End-to-end agent with stubbed LLM + in-memory retriever.
 
-Proves the two feature-defining behaviours of S3:
+Proves the two feature-defining behaviours of the agent:
 
 - an answerable question yields a text + ≥1 citation whose ``quote`` is a substring
   of the referenced chunk;

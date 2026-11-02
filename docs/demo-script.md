@@ -1,56 +1,52 @@
-# 90-second demo script — v1.0.0
+# 90-second demo script
 
-Beat-for-beat script matching the v1.0.0 thesis :
-**upload → cited answer → calibrated refusal → measured**.
+Shows what runs offline with `make demo`: the API and the UI in **stub mode** (a
+scripted agent, no API key, no LLM call). Every caption below matches what that mode
+displays. The live-model numbers come from the committed scorecard, not from the
+demo session.
 
-No voiceover. Silent-captioned. Recorded from a real session or omitted — no fake
-GIF, no re-shoot to nudge a chiffre.
-
-## Frame
+## Setup
 
 ```bash
-make demo          # FastAPI (stub) on :8000 + Next dev on :3000, both offline
+make demo          # FastAPI (stub agent, in-memory store) on :8000 + Next.js on :3000
 ```
+
+The UI shows the stub-mode banner and a yellow `stub-agent` provenance badge on every
+answer.
 
 ## Beats
 
 ### 0:00–0:10 — the claim
-Open on the README's headline table.
-Highlight `refusal_recall 0.800`, `refusal_precision 1.000`,
-`hallucination_rate (answerable only) 0.000`.
-Overlay caption : *"RAG that refuses when the evidence is weak — and proves it. Every number below comes from one live run, committed as an audit artefact."*
+Open the README results table. Caption: *"Refuses when the evidence is weak.
+Numbers from one live run (n = 16), committed as an artefact."*
 
-### 0:10–0:35 — upload → cited answer
-Drop `sample-msa.pdf` on the UI.
-Ingestion progress bar → chunk count → embedding done.
-Type : *"What is the notice period for terminating the master services agreement?"*
-Answer appears with inline citation. Click the citation → source pane
-highlights the exact clause. Confidence panel shows `1.000` + which chunks
-were used + rerank scores. Provenance badge reads `claude-sonnet-4-6`.
+### 0:10–0:35 — cited answer
+Click the demo chip *"What is the notice period for terminating the master services
+agreement?"*. The answer renders with an inline `[1]` citation; clicking it highlights
+the clause in the source panel. The confidence readout shows `0.88`, labelled
+"agent-reported (stub-agent)": the stub's canned value for on-topic questions.
 
-### 0:35–0:55 — calibrated refusal (the differentiator)
-Same corpus, ask an out-of-scope question :
-*"What is the company's parental leave policy?"*
-System refuses with a concrete rationale : *"The Employee Handbook and all
-other evidence documents contain no mention of parental leave policy…"*
-No fabricated answer, no null citation, no fluent hallucination. This is
-the money shot.
+Optional: upload one of the `datasets/corpus/*.md` files to show the upload path and
+the chunk count.
 
-### 0:55–1:25 — the eval track
-Terminal :
+### 0:35–0:55 — refusal
+Click *"What is the CEO's home address?"*. The answer card becomes the refusal panel:
+"I don't know based on the provided documents", confidence `0.15`, below the 0.55
+threshold, with the stub's rationale and the hits it refused against.
+
+### 0:55–1:25 — the evaluation artefacts
+Terminal:
 
 ```bash
-uv run verity eval run --ci                  # deterministic stub, seconds
-uv run verity eval compare                   # regression diff across commits
-cat scorecards/live-v1.0.0.json | jq         # committed audit of the live run of record
+uv run verity eval run --ci                  # pipeline smoke test on stubs, ~10 s
+uv run verity eval compare                   # diff across runs with matching provenance
+jq '.refusal_calibration, .provenance' scorecards/live-v1.0.0.json
 ```
 
-Show :
-- The scorecard's per-example `per_refusal` (4 TP refusals, 1 FN — q-015 documented in Constats).
-- The `per_audit` array — for every answer, the raw text, citations, judge's per-claim verdict.
-- The `provenance` block — `agent=claude-sonnet-4-6 (16/16)`, `judge=claude-sonnet-4-6 (12/12)`, commit sha, dataset sha256.
+Show `per_refusal` (4 correct refusals, 1 out-of-scope question answered: q-015, see
+the README's open issues) and `per_audit` (answer text, citations and per-claim judge
+verdicts for each question). Caption: *"The stub run checks the plumbing. The README
+numbers come from the live artefact."*
 
 ### 1:25–1:30 — close
-Architecture diagram (Mermaid in the README) → repo link.
-Overlay caption : *"Every chiffre in the README derives from `scorecards/live-v1.0.0.json`
-+ `datasets/eval/runs/live/…` — no hand-typed numbers, no averaged runs."*
+Architecture diagram in the README, then the repo link.

@@ -52,7 +52,7 @@ def _corpus_summary(runtime: AppRuntime) -> CorpusSummary:
 
 @router.get("/status", response_model=StatusResponse)
 async def status_endpoint(request: Request) -> StatusResponse:
-    """Honest status: real corpus counts, real provenance triple, real
+    """Status: real corpus counts, real provenance triple, real
     otel endpoint config. No hard-coded ``"ok"``."""
     runtime = _runtime(request)
     settings = get_settings()
@@ -73,9 +73,10 @@ async def ingest_endpoint(
 ) -> IngestResponse:
     """Ingest one uploaded file into the in-memory store.
 
-    The document id is derived from ``uuid5(NAMESPACE_URL, "upload://<sha256>/<name>")``
-    so the same bytes always yield the same id, regardless of the machine or
-    original filename path.
+    The document id is ``uuid5(NAMESPACE_URL, "upload://<sha256><ext>")``: the same
+    bytes with the same extension always yield the same id, whatever the file name
+    or machine. The extension is kept because it selects the parser. No size, type
+    or count limit is enforced (see SECURITY.md).
     """
     runtime = _runtime(request)
     await runtime.preload_corpus()
@@ -103,7 +104,7 @@ async def ask_endpoint(request: Request, body: AskRequest) -> AskResponse:
     :class:`Provenance` **derived per-request** from the synthesizer's actual
     :class:`Completion` via :meth:`AppRuntime.provenance_for`. Provenance is
     never separated from the answer on the wire so the UI can't lift a
-    chiffre without its badge, and it correctly reflects a routing fallback
+    number without its badge, and it correctly reflects a routing fallback
     in live mode (Anthropic → OpenAI) rather than a static boot-time value.
     """
     runtime = _runtime(request)

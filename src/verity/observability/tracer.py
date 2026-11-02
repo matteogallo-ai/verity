@@ -109,7 +109,6 @@ class OTelTracer:
     ) -> None:
         # Local imports keep the observability layer optional at import time —
         # a NoOpTracer user does not need OpenTelemetry to be installed.
-        from opentelemetry import trace as otel_trace
         from opentelemetry.sdk.resources import Resource
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -133,7 +132,6 @@ class OTelTracer:
             except ImportError:  # pragma: no cover — optional extras
                 pass
 
-        self._otel_trace = otel_trace
         self._tracer = self._provider.get_tracer("verity.observability")
 
     @asynccontextmanager

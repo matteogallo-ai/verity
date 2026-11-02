@@ -10,18 +10,21 @@ Pipeline for one ``answer(question)`` call:
 4. **Score** confidence and refuse below-threshold rather than shipping a
    fabricated answer.
 
-Guarantees on the returned :class:`Answer`:
-- non-refusal answers carry ≥1 citation whose ``quote`` is a verbatim substring of
-  the referenced chunk (enforced upstream in :class:`CitedSynthesizer`);
-- ``confidence.refused = True`` iff calibrated confidence < threshold — the text
-  becomes an honest "I don't know" with a rationale;
+What holds on the returned :class:`Answer`:
+- every citation's ``quote`` is a verbatim substring of the referenced chunk
+  (citations that are not are dropped in :class:`CitedSynthesizer`). A non-refused
+  answer is NOT guaranteed to carry a citation: if the synthesizer's citations are
+  all dropped and the scorer does not refuse, the answer ships with none;
+- ``confidence.refused`` is True when the scorer model asked to refuse OR its
+  self-reported score is below ``confidence_threshold`` (threshold-gated refusal;
+  the score is not calibrated). A refused answer's text is a fixed "I don't know"
+  with the scorer's rationale;
 - ``hits_used`` and ``usage`` are always populated for observability and eval.
 """
 
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
 
 import structlog
 
@@ -31,6 +34,7 @@ from verity.agent.scorer import LLMConfidenceScorer
 from verity.agent.synthesizer import CitedSynthesizer
 from verity.config import get_settings
 from verity.llm.base import RoutingClient
+from verity.llm.routing import primary_client_identity
 from verity.observability.base import Tracer
 from verity.observability.logging import request_trace
 from verity.observability.tracer import NoOpTracer
@@ -42,19 +46,8 @@ log = structlog.get_logger(__name__)
 _REFUSAL_TEXT = "I don't know based on the provided documents."
 
 
-@dataclass(frozen=True)
-class AgentDeps:
-    """The four components the agent composes. Injectable — the CLI wires the real
-    ones; tests substitute a stub LLM + in-memory retriever."""
-
-    retriever: Retriever
-    decomposer: QuestionDecomposer
-    synthesizer: CitedSynthesizer
-    scorer: ConfidenceScorer
-
-
 class RagAgent(Agent):
-    """The public entry point the CLI (and future API) calls."""
+    """The public entry point the CLI and the API call."""
 
     def __init__(
         self,
@@ -79,8 +72,7 @@ class RagAgent(Agent):
         # the CLI/API wiring in an ``OTelTracer``.
         self._tracer: Tracer = tracer or NoOpTracer()
         # Routing-decision fallback stamped on every Answer this agent emits.
-        # Prevents a future short-circuit (e.g. mid-flight refusal on a
-        # transient LLM error) from producing an Answer with
+        # Prevents a synthesizer that skips the router from producing an Answer with
         # ``provider_used = None`` and letting downstream provenance fall back
         # to a boot-time default that lies about who would have served.
         self._preferred_provider = preferred_provider
@@ -135,8 +127,7 @@ class RagAgent(Agent):
             # reflects the fallback, not the primary. Load-bearing for the
             # provenance badge in the UI.
             #
-            # If synthesis is ever short-circuited by a future code path
-            # (e.g. graceful mid-flight refusal on a transient LLM error),
+            # If a synthesizer returns without consulting the router,
             # ``synthesis.provider`` / ``synthesis.model`` may be missing;
             # we fall through to the routing-decision fallback stamped at
             # construction time so the Answer NEVER carries a None provider.
@@ -176,10 +167,10 @@ class RagAgent(Agent):
     async def _collect_hits(self, sub_questions: list[str]) -> list[RetrievalHit]:
         """Retrieve per sub-question and deduplicate by chunk id, keeping the best score.
 
-        We iterate serially rather than gather() so log lines interleave predictably
-        with the per-stage HybridRetriever spans — helpful for demo transcripts. This
-        can move to gather() once observability lands (S5) and we don't rely on log
-        ordering for the demo.
+        Sub-questions are retrieved serially rather than with gather() so log lines
+        and per-stage spans interleave in question order, which keeps a trace
+        readable. Typical questions decompose into one or two sub-questions, so the
+        latency cost is small.
         """
         seen: dict[str, RetrievalHit] = {}
         for sub in sub_questions:
@@ -204,7 +195,7 @@ def _bind_component_usage(span, component: object) -> None:  # type: ignore[no-u
 def _last_usage_of(component: object) -> UsageStats | None:
     """Best-effort accessor for the ``last_usage`` attribute the concrete LLM-backed
     decomposer / scorer expose. Protocol implementations without it contribute nothing
-    to the aggregate — which is the honest fallback (better than fabricating a count)."""
+    to the aggregate rather than a fabricated count."""
     usage = getattr(component, "last_usage", None)
     return usage if isinstance(usage, UsageStats) else None
 
@@ -240,12 +231,12 @@ def create_default_agent(
     """Wire the default agent: LLM-based decomposer + synthesizer + scorer.
 
     The routing client's first configured provider + model is stamped on the
-    agent as the ``preferred_*`` fallback so any Answer (including one from a
-    future graceful mid-flight refusal that skips synthesis) carries the real
+    agent as the ``preferred_*`` fallback so any Answer (including one whose
+    synthesizer skipped the router) carries the real
     routing decision — not a None that would leak up to the API's boot-time
     default and lie about who would have served.
     """
-    preferred_provider, preferred_model = _resolve_preferred(client)
+    preferred_provider, preferred_model = primary_client_identity(client)
     return RagAgent(
         retriever=retriever,
         decomposer=LLMQuestionDecomposer(client),
@@ -257,22 +248,4 @@ def create_default_agent(
     )
 
 
-def _resolve_preferred(client: RoutingClient) -> tuple[Provider | None, str | None]:
-    """Peek at the routing client and return the first configured client's
-    ``(provider, model)``. Best-effort — unknown routers return ``(None, None)``
-    and the agent transparently ships an Answer with no provenance stamp, which
-    is what the API layer surfaces as ``agent_model="unknown"``."""
-    clients = getattr(client, "clients", None)
-    if not clients:
-        return None, None
-    first = clients[0]
-    provider = getattr(first, "provider", None)
-    model = getattr(first, "model", None)
-    if not isinstance(provider, Provider):
-        provider = None
-    if not isinstance(model, str):
-        model = None
-    return provider, model
-
-
-__all__ = ["AgentDeps", "RagAgent", "create_default_agent"]
+__all__ = ["RagAgent", "create_default_agent"]

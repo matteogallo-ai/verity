@@ -4,7 +4,9 @@ The pipeline is deliberately staged and each stage is a swappable protocol so th
 harness can score them independently (retrieval precision/recall is measured on the
 fused+reranked set, but a regression can be localised to a single stage).
 
-Implementations land in S2.
+Implementations: :mod:`verity.retrieval.pgvector_store`,
+:mod:`verity.retrieval.memory_store`, :mod:`verity.retrieval.fusion`,
+:mod:`verity.retrieval.reranker`, :mod:`verity.retrieval.hybrid`.
 """
 
 from __future__ import annotations

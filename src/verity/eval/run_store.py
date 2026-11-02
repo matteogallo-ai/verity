@@ -1,8 +1,8 @@
 """Persist and diff :class:`EvalRun` records for regression tracking.
 
-One JSON file per (git_sha, dataset) under ``datasets/eval/runs/`` — see the S2
-retrieval scorecards for the sibling format. The naming convention lets both eval
-tracks (retrieval-only S2 and full S4) coexist without collision.
+One JSON file per (git_sha, dataset) under ``datasets/eval/runs/``
+(``eval_<sha>_<dataset>.json``). Retrieval-only scorecards use
+``retrieval_<sha>.json`` in the same directory; the prefixes keep them apart.
 """
 
 from __future__ import annotations
@@ -27,8 +27,8 @@ class StubOverwritesLiveError(RuntimeError):
     """Raised when a stub-provenance run would clobber an on-disk live run
     at the same ``(git_sha, dataset)`` path.
 
-    Guards the audit trail: the S7 pre-tag audit exposed that the same file
-    is used for both stub verification runs and live runs of record, so a
+    Guards the audit trail: the same file name is used for stub verification
+    runs and live runs of record at a given SHA, so before this guard a
     routine ``verity eval run --ci`` after a $0.30 live run silently
     destroyed the audit data. This error stops that class of accident;
     callers who genuinely want to overwrite pass ``allow_overwrite=True``.
@@ -48,7 +48,7 @@ class FileRunStore(RunStore):
 
     def save(self, run: EvalRun, *, allow_overwrite: bool = False) -> None:
         self._runs_dir.mkdir(parents=True, exist_ok=True)
-        path = self._path_for(run.scorecard.git_sha, run.scorecard.dataset)
+        path = self.path_for(run.scorecard.git_sha, run.scorecard.dataset)
         if path.is_file() and not allow_overwrite and _is_stub_run(run):
             try:
                 existing = json.loads(path.read_text(encoding="utf-8"))
@@ -86,9 +86,10 @@ class FileRunStore(RunStore):
         h = self.history(dataset, limit=1)
         return h[0] if h else None
 
-    def _path_for(self, git_sha: str, dataset: str) -> Path:
-        # Dataset in the filename lets multiple datasets coexist per SHA — cheap
-        # future-proofing for when the harness gains a second labeled set.
+    def path_for(self, git_sha: str, dataset: str) -> Path:
+        """Where :meth:`save` writes the run for ``(git_sha, dataset)``."""
+        # Dataset in the filename keeps runs on different datasets at the same SHA
+        # from overwriting each other (`--dataset` accepts any JSONL file).
         safe = "".join(c for c in dataset if c.isalnum() or c in {"-", "_"}) or "default"
         return self._runs_dir / f"eval_{git_sha}_{safe}.json"
 
@@ -215,9 +216,9 @@ def are_compatible(a: EvalRun, b: EvalRun) -> bool:
     Comparing a run measured on ``agent=stub-agent`` against one measured on
     ``agent=claude-sonnet-4-6`` is apples-to-oranges: any refusal or latency
     delta reflects the change of agent, not a real regression. Same reasoning
-    for ``judge_model`` (a stub-judge chiffre vs a real-judge chiffre for
+    for ``judge_model`` (a stub-judge number vs a real-judge number for
     faithfulness). ``embedding_model`` isn't checked because it is stable across
-    the whole S1-S4 codebase; if it ever becomes tunable, add it here.
+    every run so far; if it ever becomes tunable, add it here.
     """
     return (
         a.scorecard.dataset == b.scorecard.dataset

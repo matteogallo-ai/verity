@@ -1,7 +1,7 @@
 # Verity UI
 
 Next.js 15 (App Router) + TypeScript strict. The web surface for the Verity
-demo: upload a document, ask a question, get a cited answer (or a calibrated
+demo: upload a document, ask a question, get a cited answer (or a threshold-gated
 refusal), see the exact retrieved chunks and their rerank scores, and — the
 point of the whole project — know at a glance **which agent produced the
 answer** you're looking at.
@@ -34,7 +34,7 @@ NEXT_PUBLIC_API_BASE=http://localhost:8000 corepack pnpm dev
 Then walk the demo:
 
 1. **Stub-mode banner** at the top: reads "Stub mode — no LLM key configured".
-   This is the surface honesty guarantee — the UI never presents stub output as
+   The UI never presents stub output as
    if it were a real model.
 2. **Ask a demo question** from the chips: e.g. "What is the notice period for
    terminating the master services agreement?" — the answer text renders with
@@ -45,7 +45,8 @@ Then walk the demo:
    the hits the agent chose to refuse against.
 4. **Upload a document** (`.md` / `.txt` / `.pdf` / `.docx`) — it becomes part
    of the queryable corpus immediately. The document id is content-addressed:
-   the same bytes always produce the same id, regardless of filename.
+   the same bytes with the same extension always produce the same id, whatever
+   the filename. The API enforces no size, type or count limit (see SECURITY.md).
 
 ## Provenance is always visible
 
@@ -53,7 +54,7 @@ Every answer renders a **provenance badge** sourced verbatim from
 `AskResponse.provenance.agent_model`. The API derives that value per-request
 from the synthesizer's `Completion` (`Answer.provider_used` / `model_used`),
 so a live-mode routing fallback (Anthropic → OpenAI on
-`ProviderUnavailableError`) is reflected honestly. The client never infers
+`ProviderUnavailableError`) shows the provider that actually answered. The client never infers
 provenance and never defaults from Settings.
 
 - `stub-agent` (yellow chip) — the scripted, deterministic stub. Demo default.
@@ -88,21 +89,22 @@ Every `citations[i].quote` returned by the API is a **verbatim substring** of
 the source document at `[char_start:char_end]`. This is stacked-enforced:
 (1) the synthesizer drops any citation whose quote isn't a substring of the
 referenced chunk (`chunk.text.find(quote) >= 0`);
-(2) offsets are re-anchored to `document.text` via the S1 chunker's own
+(2) offsets are re-anchored to `document.text` via the chunker's
 invariant. The stub agent by construction only cites literal anchor phrases
 present in the retrieved evidence. `tests/unit/test_citation_verbatim_invariant.py`
 walks the whole answerable set and asserts `document.text[cs:ce] == quote` on
 every emitted citation.
 
-## Live mode (S7)
+## Live mode
 
 Setting `VERITY_ANTHROPIC_API_KEY` (or `VERITY_OPENAI_API_KEY`) and
 restarting `verity serve` switches the API into live mode. The UI picks it up
 automatically on the next `/status` poll: the banner disappears, the badge
 turns green and reads the actual model id.
 
-The published live scorecard — real faithfulness / hallucination / refusal
-numbers on a real LLM agent — lands at S7.
+The published live scorecard (faithfulness, hallucination and refusal numbers
+from one run with a real model) is `scorecards/live-v1.0.0.json`; the UI does
+not display it.
 
 ## Development
 
@@ -130,9 +132,10 @@ web/
 ├── components/
 │   ├── AnswerCard.tsx           # cited answer + inline citation markers
 │   ├── AskBox.tsx               # question box + demo chips
+│   ├── ConfidenceReadout.tsx    # agent-reported score + the signals behind it
 │   ├── ProvenanceBadge.tsx      # stub-agent / live-<model>
 │   ├── RefusalState.tsx         # first-class refusal panel
-│   ├── SourcePanel.tsx          # honest chunk list: score + cited flag
+│   ├── SourcePanel.tsx          # chunk list: score + cited flag
 │   ├── StubModeBanner.tsx       # persistent iff provenance.is_stub
 │   └── UploadPanel.tsx
 ├── lib/
@@ -141,6 +144,7 @@ web/
 │   └── types.ts                 # 1:1 mirror of verity/api/models.py
 ├── tests/
 │   ├── AnswerCard.test.tsx      # cited + refusal renders, provenance badge, click marker
+│   ├── ConfidenceReadout.test.tsx
 │   ├── HighlightInteraction.test.tsx  # citation ↔ chunk bidirectional highlight
 │   ├── SourcePanel.test.tsx     # cited/not-cited, score display, empty state
 │   ├── StubModeBanner.test.tsx  # iff provenance.is_stub
@@ -154,9 +158,9 @@ web/
 └── vitest.config.ts             # jsdom, coverage v8
 ```
 
-## Non-goals in S6
+## Not covered
 
-- No Playwright/E2E — flake budget stays low for now. Candidate for S7 once
-  the live-agent demo path exists.
+- No Playwright/E2E tests; the vitest suite covers components and the highlight
+  logic only.
 - No auth, no multi-tenant, no deployment config beyond local dev.
 - No fabricated confidence numbers, no invented composite scores. Ever.

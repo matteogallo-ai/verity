@@ -1,6 +1,6 @@
 """SDK-signature smoke tests for the 4 real LLM call sites.
 
-Motivation — the S7 hotfix incident: ``anthropic`` 1.x removed ``temperature``
+Motivation — an incident on the first live run: ``anthropic`` 1.x removed ``temperature``
 from the typed ``AsyncMessages.create`` signature. Every unit test in the
 suite drives the pipeline through :class:`StubLLMClient`, so the real Anthropic
 call shape (kwargs actually delivered to the SDK) was never exercised until
@@ -31,6 +31,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from pydantic import SecretStr
 
 from verity.llm.clients import AnthropicClient, OpenAIClient
 from verity.types import Message, Role
@@ -121,7 +122,7 @@ async def test_anthropic_complete_kwargs_bind_to_the_pinned_sdk_signature(
     the real SDK signature. Regression guard for the SDK 1.x ``temperature``
     removal — a future rename / drop will fail here rather than at first spend."""
     create_mock = _install_anthropic_mock(monkeypatch)
-    client = AnthropicClient(api_key="k", model="claude-sonnet-4-6")
+    client = AnthropicClient(api_key=SecretStr("k"), model="claude-sonnet-4-6")
     await client.complete(
         [
             Message(role=Role.SYSTEM, content="you are a test"),
@@ -157,7 +158,7 @@ async def test_anthropic_reachable_from_agent_decomposer(
     from verity.llm.routing import MultiProviderRoutingClient
 
     create_mock = _install_anthropic_mock(monkeypatch)
-    router = MultiProviderRoutingClient([AnthropicClient(api_key="k")])
+    router = MultiProviderRoutingClient([AnthropicClient(api_key=SecretStr("k"))])
     decomposer = LLMQuestionDecomposer(router)
     await decomposer.decompose("what is the notice period?")
     create_mock.assert_awaited_once()
@@ -173,7 +174,7 @@ async def test_anthropic_reachable_from_agent_synthesizer(
     from verity.llm.routing import MultiProviderRoutingClient
 
     create_mock = _install_anthropic_mock(monkeypatch)
-    router = MultiProviderRoutingClient([AnthropicClient(api_key="k")])
+    router = MultiProviderRoutingClient([AnthropicClient(api_key=SecretStr("k"))])
     synth = CitedSynthesizer(router)
     await synth.synthesize("q", hits=[])
     create_mock.assert_awaited_once()
@@ -188,7 +189,7 @@ async def test_anthropic_reachable_from_confidence_scorer(
     from verity.llm.routing import MultiProviderRoutingClient
 
     create_mock = _install_anthropic_mock(monkeypatch)
-    router = MultiProviderRoutingClient([AnthropicClient(api_key="k")])
+    router = MultiProviderRoutingClient([AnthropicClient(api_key=SecretStr("k"))])
     scorer = LLMConfidenceScorer(router)
     await scorer.score("q", draft_answer="a", hits=[])
     create_mock.assert_awaited_once()
@@ -224,7 +225,7 @@ async def test_anthropic_reachable_from_llm_judge(monkeypatch: pytest.MonkeyPatc
 
     from uuid import uuid4
 
-    router = MultiProviderRoutingClient([AnthropicClient(api_key="k")])
+    router = MultiProviderRoutingClient([AnthropicClient(api_key=SecretStr("k"))])
     judge = LLMFaithfulnessJudge(router)
     example = EvalExample(
         id="q-001",
@@ -265,7 +266,7 @@ async def test_openai_complete_kwargs_bind_to_the_pinned_sdk_signature(
     """Same guarantee for the OpenAI fallback path — its kwargs must bind
     cleanly to the pinned ``chat.completions.create`` signature."""
     create_mock = _install_openai_mock(monkeypatch)
-    client = OpenAIClient(api_key="k", model="gpt-4.1-mini")
+    client = OpenAIClient(api_key=SecretStr("k"), model="gpt-4.1-mini")
     await client.complete(
         [
             Message(role=Role.SYSTEM, content="sys"),

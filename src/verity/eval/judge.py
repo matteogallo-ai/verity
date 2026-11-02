@@ -19,7 +19,7 @@ Two implementations behind the ``FaithfulnessJudge`` protocol:
     contains a phrase that is verbatim present in the retrieved context (the
     substring check is deliberately strict so a hallucination cannot pass).
   * Every citation's ``quote`` is already a substring of its chunk by construction
-    (S3 synthesizer invariant), so ``citation_accuracy`` is 1.0 by definition —
+    (synthesizer invariant), so ``citation_accuracy`` is 1.0 by definition —
     we re-verify it here and would flag any drift.
 
   The per-example ``refusal_*`` fields are placeholders (0.0); the aggregator
@@ -33,14 +33,14 @@ real LLM-judge measurement.
 
 from __future__ import annotations
 
-import json
 import re
 from dataclasses import dataclass
-from typing import Any
 
 from verity.eval.base import FaithfulnessJudge
 from verity.llm.base import RoutingClient
+from verity.llm.json_output import first_matching, parse_json_object
 from verity.llm.prompt import load_prompt
+from verity.llm.routing import primary_client_identity
 from verity.types import (
     Answer,
     AnswerMetrics,
@@ -175,7 +175,7 @@ class StubFaithfulnessJudge(FaithfulnessJudge):
         faithfulness = supported / len(claims)
 
         # Citation accuracy: every quote must be a verbatim substring of the
-        # retrieved context (S3 synthesizer already enforces this against the
+        # retrieved context (the synthesizer already enforces this against the
         # citation's chunk, so this is a floor sanity check).
         if answer.citations:
             valid_citations = sum(1 for q in quotes if q in context)
@@ -235,7 +235,7 @@ class LLMFaithfulnessJudge(FaithfulnessJudge):
     ) -> None:
         self._client = client
         self._prompt = load_prompt(prompt_name)
-        self.model = model_label or _first_client_model(client) or "llm-judge"
+        self.model = model_label or primary_client_identity(client)[1] or "llm-judge"
         self.last_usage: UsageStats | None = None
         # Per-call provenance stamps sourced from the ``Completion`` the router
         # returns — i.e. the provider/model that actually served the request,
@@ -276,8 +276,8 @@ class LLMFaithfulnessJudge(FaithfulnessJudge):
         self.last_model = completion.model
         parsed = _parse_judge_output(completion.text)
         if parsed is None:
-            # Refuse to fabricate a chiffre on malformed output — flag as
-            # unsupported so the scorecard reflects the failure honestly.
+            # Refuse to fabricate a number on malformed output — flag as
+            # unsupported so the scorecard counts the failure.
             self.last_claims = ()
             return AnswerMetrics(
                 faithfulness=0.0,
@@ -300,15 +300,6 @@ class LLMFaithfulnessJudge(FaithfulnessJudge):
         )
 
 
-def _first_client_model(client: RoutingClient) -> str | None:
-    clients = getattr(client, "clients", None)
-    if clients and len(clients) > 0:
-        model = getattr(clients[0], "model", None)
-        if isinstance(model, str):
-            return model
-    return None
-
-
 _JUDGE_CLAIMS_KEYS = ("claims", "atomic_claims", "assessments", "verdicts")
 _JUDGE_SUPPORTED_KEYS = ("supported", "is_supported", "grounded")
 _JUDGE_CITATION_OK_KEYS = ("citation_ok", "citation_supports", "citation_valid")
@@ -327,20 +318,10 @@ def _parse_judge_output(text: str) -> tuple[tuple[ClaimVerdict, ...], int, int, 
     example in the audit trail. Aggregate counts are returned alongside for
     the aggregate ``AnswerMetrics`` computation.
     """
-    stripped = text.strip()
-    if not stripped:
+    parsed = parse_json_object(text)
+    if parsed is None:
         return None
-    candidate = _first_json_object(stripped) or stripped
-    try:
-        parsed = json.loads(candidate)
-    except json.JSONDecodeError:
-        return None
-    # Model wraps the object in ``[{...}]``.
-    if isinstance(parsed, list):
-        parsed = next((item for item in parsed if isinstance(item, dict)), None)
-    if not isinstance(parsed, dict):
-        return None
-    claims = _first_matching(parsed, _JUDGE_CLAIMS_KEYS)
+    claims = first_matching(parsed, _JUDGE_CLAIMS_KEYS)
     if not isinstance(claims, list) or not claims:
         return None
     verdicts: list[ClaimVerdict] = []
@@ -349,10 +330,10 @@ def _parse_judge_output(text: str) -> tuple[tuple[ClaimVerdict, ...], int, int, 
     for entry in claims:
         if not isinstance(entry, dict):
             return None
-        claim_text_raw = _first_matching(entry, _JUDGE_CLAIM_TEXT_KEYS)
+        claim_text_raw = first_matching(entry, _JUDGE_CLAIM_TEXT_KEYS)
         claim_text = str(claim_text_raw).strip() if claim_text_raw is not None else ""
-        is_supported = bool(_first_matching(entry, _JUDGE_SUPPORTED_KEYS))
-        is_citation_ok = bool(_first_matching(entry, _JUDGE_CITATION_OK_KEYS))
+        is_supported = bool(first_matching(entry, _JUDGE_SUPPORTED_KEYS))
+        is_citation_ok = bool(first_matching(entry, _JUDGE_CITATION_OK_KEYS))
         verdicts.append(
             ClaimVerdict(claim=claim_text, supported=is_supported, citation_ok=is_citation_ok)
         )
@@ -361,27 +342,6 @@ def _parse_judge_output(text: str) -> tuple[tuple[ClaimVerdict, ...], int, int, 
         if is_citation_ok:
             citation_ok += 1
     return tuple(verdicts), supported, citation_ok, len(claims)
-
-
-def _first_matching(mapping: dict[str, Any], keys: tuple[str, ...]) -> Any:
-    for key in keys:
-        if key in mapping:
-            return mapping[key]
-    return None
-
-
-def _first_json_object(text: str) -> str:
-    """Return the largest ``{...}`` slice, or the first ``[...]`` slice as a
-    fallback for models that wrap the response in a single-element array."""
-    start = text.find("{")
-    end = text.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        return text[start : end + 1]
-    array_start = text.find("[")
-    array_end = text.rfind("]")
-    if array_start != -1 and array_end != -1 and array_end > array_start:
-        return text[array_start : array_end + 1]
-    return ""
 
 
 __all__ = [

@@ -1,11 +1,11 @@
 """Hybrid retrieval — embed → dense ∥ sparse → RRF → cross-encoder rerank.
 
-The single entry point the agent (S3) depends on. Every stage speaks the
+The single retrieval entry point the agent depends on. Every stage speaks the
 :class:`RetrievalHit` type from ``verity.types`` and is exposed as its own protocol,
 so swapping any stage — a different vector store, a different fusion, no reranker —
 is one constructor argument away and doesn't ripple.
 
-Observability (S5): each stage is bracketed by a span from the injected
+Observability: each stage is bracketed by a span from the injected
 :class:`Tracer`. The default :class:`NoOpTracer` makes the instrumentation free
 for callers that don't want it (existing unit tests, one-off scripts). Passing
 an :class:`OTelTracer` in from the CLI / API surfaces the per-stage latency +
@@ -127,9 +127,10 @@ class HybridRetriever(Retriever):
     ) -> list[RetrievalHit]:
         """Run one retrieval stage, log its outcome, and degrade to [] on failure.
 
-        Robustness rule from S2: sparse returning nothing (word absent from FTS)
-        or a stage error must not crash the whole retrieve() — the other stage
-        can still produce hits. The error is logged loudly, never swallowed.
+        Sparse returning nothing (word absent from FTS) or a stage error must not
+        crash the whole retrieve(): the other stage can still produce hits. A stage
+        error is logged at error level and the stage contributes []; the caller
+        cannot tell an empty stage from a failed one.
         """
         async with self._tracer.stage(name, trace_id) as span:
             try:

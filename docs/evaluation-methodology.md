@@ -1,90 +1,107 @@
 # Evaluation methodology
 
-This page is the reason Verity exists. Anyone can wire up RAG; the discipline is in
-measuring it honestly, gating it in CI, and tracking it over time. This document states
-exactly what is measured, how, and what would make a number untrustworthy.
+What Verity measures, how each number is computed in the code, and what the numbers
+do not show. Where this page and the code disagree, the code is right and this page
+is a bug.
 
 ## Principles
 
-1. **No fabricated numbers.** Every figure in the README comes from `verity eval run`
-   tied to a git SHA. Placeholders are labeled as such until the harness lands (S4).
-2. **CI eval is free and deterministic.** Retrieval and refusal metrics run with local
-   embeddings and a stubbed judge — no API keys, reproducible bit-for-bit, gate-able on
-   every PR. The published headline scorecard is a separate, real run (real judge model).
-3. **Refusal is measured, not assumed.** The dataset contains questions with no answer in
-   the corpus; the system is scored on getting those *right by refusing*.
+1. **Every published number comes from an artefact.** The README results table is
+   generated from `scorecards/live-v1.0.0.json` by
+   `scripts/generate_headline_results.py`; CI runs it with `--check`.
+2. **CI eval runs on stubs and is a pipeline smoke test.** With `--judge stub` (the
+   `--ci` alias) the agent and the judge are scripted stubs. Retrieval metrics are
+   real (local models, deterministic); refusal, faithfulness and citation numbers
+   describe the stubs, not the system, and are never published as quality metrics.
+3. **Refusal is measured, not assumed.** The dataset contains questions the corpus
+   cannot answer; the system is scored on refusing them.
 
 ## The dataset
 
-Labeled examples (`datasets/eval/`), each with:
+`datasets/eval/questions.jsonl`, 16 examples over the 5 documents in
+`datasets/corpus/`: 11 answerable, 5 out-of-scope. Each example has:
 
 | Field | Meaning |
 |---|---|
 | `question` | the query |
-| `answerable` | whether the corpus actually contains the answer |
+| `answerable` | whether the corpus contains the answer |
 | `reference_answer` | gold answer, or `null` when `answerable = false` |
-| `relevant_chunk_ids` | gold set of chunks that should be retrieved |
-| `tags` | slices for per-category analysis (e.g. `multi-hop`, `numeric`, `out-of-scope`) |
+| `relevant_chunk_ids` | gold chunk ids (filled for all 11 answerable examples) |
+| `tags` | `single-hop`, `multi-hop`, `numeric`, `near-miss`, `out-of-scope` |
 
-The dataset deliberately mixes: single-hop answerable, **multi-hop** (needs decomposition),
-**numeric/table** questions, and **unanswerable / out-of-scope** questions. A system that
-scores well on answerable questions but can't refuse the out-of-scope ones fails Verity's
-bar regardless of its faithfulness number.
+16 examples support a method check, not a benchmark: one example moves refusal
+recall by 0.2.
 
-## Metrics
+## Metrics as computed
 
-### Retrieval (deterministic)
-- **precision@k / recall@k** against `relevant_chunk_ids`, measured on the final
-  fused+reranked set.
-- **nDCG@k** to credit ranking quality, not just presence.
-- Reported per stage in traces (dense-only, sparse-only, fused, reranked) so a retrieval
-  regression can be localised.
+### Retrieval (deterministic, no LLM)
+Computed by `verity.eval.retrieval_metric` on the final fused + reranked list, over
+answerable examples only (`relevant_chunk_ids` is empty for out-of-scope ones):
+- **precision@k** = |retrieved ∩ gold| / min(k, |retrieved|) (0 when nothing is retrieved);
+- **recall@k** = |retrieved ∩ gold| / |gold|;
+- **nDCG@k** with binary gain and a log2(rank + 2) discount on 0-based ranks.
 
-### Answer quality (LLM-as-judge)
-- **Faithfulness** — the drafted answer is decomposed into atomic claims; each claim is
-  checked for support in the *retrieved context*. Faithfulness = supported claims / total
-  claims. This measures grounding, independent of whether the answer matches the reference.
-- **Citation accuracy** — each inline citation is verified to actually support the claim it
-  is attached to (a citation that points to an irrelevant passage is a failure even if the
-  claim happens to be true).
-- **Hallucination rate** — fraction of answerable answers containing ≥1 unsupported claim.
+Each example has 1-2 gold chunks, so precision@8 cannot exceed 0.25; read it with
+recall. Per-stage results (dense, sparse, fused, reranked) are not scored; the
+traces record each stage's latency and hit count only.
 
-### Refusal calibration (headline)
-Framed as a classification problem over `answerable`:
-- **Refusal recall** — of the unanswerable questions, the fraction correctly refused.
-  Low recall = the system hallucinates on out-of-scope questions.
-- **Refusal precision** — of the questions the system refused, the fraction that were
-  genuinely unanswerable. Low precision = the system is uselessly timid on answerable ones.
-- The `confidence_threshold` is the operating point on this precision/recall trade-off; the
-  methodology reports the point used and, where feasible, the curve.
+### Answer quality (LLM judge)
+The judge (`prompts/judge_faithfulness.prompt`) splits each non-refused answer into
+atomic claims and marks each claim `supported` (by the retrieved context) and
+`citation_ok` (its citation supports it). Refused answers are not judged.
+
+Per example: faithfulness = supported claims / claims; citation accuracy =
+citation_ok claims / claims; hallucination = 1 if the example is answerable and at
+least one claim is unsupported, else 0.
+
+Published aggregate (`verity.eval.headline`, schema v3):
+- **faithfulness** and **citation accuracy**: mean of the per-example values over
+  judged answers (scope `answered`). This is a **macro** (per-question) average: a
+  question with 1 claim weighs as much as one with 6. The per-claim (**micro**)
+  aggregate is not published yet; it differs (see the README's open issues).
+- **hallucination rate**: mean over answerable examples that were answered (scope
+  `answerable_and_answered`).
+
+Each metric is stored with its `scope` and `n_denominator`.
+
+### Refusal (deterministic over the agent's decisions)
+A confusion matrix over `answerable` vs `refused`, computed in `verity.eval.refusal`:
+- **refusal recall** = refused out-of-scope / out-of-scope;
+- **refusal precision** = refused out-of-scope / refused.
+
+The agent refuses when the scorer model asks to, or when its self-reported
+confidence is below `confidence_threshold` (default 0.55, the value at the v1.0.0
+run's commit; the artefact does not record it). The threshold was set by hand,
+not tuned on a dev split, and the confidence score's calibration has not been
+measured. The scorecard JSON names this block `refusal_calibration`; the name
+predates that measurement and does not claim it.
 
 ### Operational
-- **Latency** p50 / p95 / p99, end-to-end and per stage (from traces).
-- **Cost/query** in USD, aggregated from token usage across all LLM calls in a query.
+- **Latency** p50 / p95 / p99 of the end-to-end `agent.answer` wall clock. With
+  `--no-warmup` (the v1.0.0 run) the first question's model loading is included and
+  `cold_start` is `null`; with warmup, cold start is measured separately.
+- **Cost / query** in USD from token counts × the per-1k prices set in
+  `verity.llm.clients`.
 
 ## Judge reliability
 
-The faithfulness/citation judge is an LLM and is itself a source of error. Mitigations:
-- The judge prompt is authored in PromptLang, versioned, and its own agreement with human
-  labels is spot-checked on a held-out slice; the agreement figure is reported next to the
-  scorecard so the judge's trust level is explicit.
-- Claim-level judging (not whole-answer) reduces variance and makes disagreements
-  inspectable.
-- In CI the judge is a deterministic stub, so CI never depends on judge variance; only the
-  out-of-band headline run uses the real judge.
+The judge is an LLM and a source of error. In the v1.0.0 run the judge and the agent
+are the same model (`claude-sonnet-4-6`), and judge–human agreement has not been
+measured, so the answer-quality metrics are **unvalidated**. Claim-level verdicts are
+stored per example in the run artefact so disagreements can be inspected.
 
 ## Regression tracking
 
-Each run is persisted as an `EvalRun` (scorecard + git SHA + embedding/judge model ids).
-`verity eval compare` surfaces deltas across recent runs so a quality regression shows up
-as a diff, the same way a production AI team catches model regressions before shipping.
+Each run is saved as an `EvalRun` JSON (scorecard + git SHA + agent, judge and
+embedding model ids) under `datasets/eval/runs/` (live runs under `runs/live/`).
+`verity eval compare` diffs recent runs whose provenance matches.
 
 ## What would make a number untrustworthy
 
-Stated plainly, because reviewers will ask:
 - a scorecard without a git SHA;
-- a headline run using the stubbed judge (that's CI mode, not a real result);
-- faithfulness reported without the judge's human-agreement figure;
-- a refusal recall near 1.0 with refusal precision unreported (trivially achieved by
-  refusing often);
-- eval examples that leak into any tuning of the retriever or prompts.
+- a headline number computed on stub output (CI mode);
+- answer-quality numbers without a judge–human agreement figure (true of v1.0.0);
+- refusal recall reported without refusal precision;
+- a threshold tuned and reported on the same examples (true of v1.0.0: there is no
+  dev/test split);
+- eval examples leaking into retriever or prompt tuning.

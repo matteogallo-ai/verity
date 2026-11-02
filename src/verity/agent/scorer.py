@@ -1,4 +1,4 @@
-"""Calibrated confidence + refusal decision.
+"""Confidence score + threshold-gated refusal decision.
 
 Wraps ``confidence.prompt`` and owns the single comparison against
 ``config.confidence_threshold`` that decides whether the agent ships an answer or a
@@ -6,18 +6,19 @@ refusal. The scorer *never* decides silently: below-threshold outcomes carry a
 concrete rationale (evidence weak / contradictory / out of scope) so the eval
 harness can inspect and the UI can display *why*.
 
-Fail-open on parsing: a malformed JSON response from the model is treated as
-"unable to verify grounding" → refused with a rationale that says so. This keeps
-the agent honest even when the scorer LLM misbehaves.
+Fail-closed on parsing: a malformed JSON response from the model is treated as
+"unable to verify grounding" and refused, with a rationale that says so. The score
+is the model's self-report, not a calibrated probability; calibration has not been
+measured.
 """
 
 from __future__ import annotations
 
-import json
-
 from verity.agent.base import ConfidenceScorer
+from verity.agent.evidence import render_evidence
 from verity.config import get_settings
 from verity.llm.base import RoutingClient
+from verity.llm.json_output import first_matching, parse_json_object
 from verity.llm.prompt import load_prompt
 from verity.types import Confidence, RetrievalHit, UsageStats
 
@@ -52,7 +53,7 @@ class LLMConfidenceScorer(ConfidenceScorer):
         messages = self._prompt.render(
             question=question,
             answer=draft_answer,
-            evidence=_render_evidence(hits),
+            evidence=render_evidence(hits, with_scores=True),
         )
         completion = await self._client.complete(messages, max_tokens=256, temperature=0.0)
         self.last_usage = completion.usage
@@ -74,15 +75,6 @@ class LLMConfidenceScorer(ConfidenceScorer):
         return Confidence(score=score, refused=refused, rationale=rationale)
 
 
-def _render_evidence(hits: list[RetrievalHit]) -> str:
-    lines: list[str] = []
-    for i, hit in enumerate(hits):
-        section = hit.chunk.section or "-"
-        body = hit.chunk.text.strip()
-        lines.append(f"[{i}] score={hit.score:.3f} section={section}\n{body}")
-    return "\n\n".join(lines) if lines else "(no evidence available)"
-
-
 # Key aliases the scorer accepts as a defence-in-depth against real-model
 # drift. The prompt now shows the exact schema (score/refused/rationale) so
 # Sonnet-class models generally comply, but weaker/older/rewritten variants
@@ -95,13 +87,6 @@ _REFUSED_KEYS = ("refused", "should_refuse", "refuse", "decline")
 _RATIONALE_KEYS = ("rationale", "reasoning", "reason", "explanation", "justification")
 
 
-def _first_matching(mapping: dict[str, object], keys: tuple[str, ...]) -> object | None:
-    for key in keys:
-        if key in mapping:
-            return mapping[key]
-    return None
-
-
 def _parse_confidence(text: str) -> tuple[float, str, bool] | None:
     """Extract ``(score, rationale, refused)`` from a scorer LLM completion.
 
@@ -110,44 +95,18 @@ def _parse_confidence(text: str) -> tuple[float, str, bool] | None:
     ``None`` only when the payload truly does not carry a numeric score — the
     only shape the caller cannot recover meaning from.
     """
-    stripped = text.strip()
-    if not stripped:
+    parsed = parse_json_object(text)
+    if parsed is None:
         return None
-    candidate = _first_json_object(stripped) or stripped
-    try:
-        parsed = json.loads(candidate)
-    except json.JSONDecodeError:
-        return None
-    # Unwrap ``[{...}]`` — models sometimes wrap the object in a single-element
-    # array. Take the first dict; ignore the rest (the prompt asks for one).
-    if isinstance(parsed, list):
-        parsed = next((item for item in parsed if isinstance(item, dict)), None)
-    if not isinstance(parsed, dict):
-        return None
-    raw_score = _first_matching(parsed, _SCORE_KEYS)
+    raw_score = first_matching(parsed, _SCORE_KEYS)
     if isinstance(raw_score, bool) or not isinstance(raw_score, (int, float)):
         return None
     score = max(0.0, min(1.0, float(raw_score)))
-    rationale_raw = _first_matching(parsed, _RATIONALE_KEYS)
+    rationale_raw = first_matching(parsed, _RATIONALE_KEYS)
     rationale = str(rationale_raw).strip() if rationale_raw is not None else ""
-    refused_raw = _first_matching(parsed, _REFUSED_KEYS)
+    refused_raw = first_matching(parsed, _REFUSED_KEYS)
     refused = bool(refused_raw) if refused_raw is not None else False
     return score, rationale, refused
-
-
-def _first_json_object(text: str) -> str:
-    """Return the largest ``{...}`` slice in ``text``, or the first ``[...]``
-    slice if no braced object is present. The array path handles the case where
-    the model wraps the response in ``[{...}]``."""
-    start = text.find("{")
-    end = text.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        return text[start : end + 1]
-    array_start = text.find("[")
-    array_end = text.rfind("]")
-    if array_start != -1 and array_end != -1 and array_end > array_start:
-        return text[array_start : array_end + 1]
-    return ""
 
 
 __all__ = ["LLMConfidenceScorer"]

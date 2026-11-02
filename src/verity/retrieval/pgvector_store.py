@@ -1,13 +1,12 @@
 """Postgres + pgvector implementation of the :class:`VectorStore` protocol.
 
 Only the primitives live here: upsert, dense_search, sparse_search, get_chunks.
-Fusion, rerank, and the hybrid retriever land in S2 — this module deliberately does
-none of that.
+Fusion and rerank live in :mod:`verity.retrieval.hybrid`.
 
-Concurrency model: one shared :class:`psycopg.AsyncConnection` per store instance is
-fine at the throughput of an ingestion CLI + an evaluation loop; if that stops being
-true, swap in :class:`psycopg_pool.AsyncConnectionPool` behind the same interface
-without touching callers.
+Connection model: every operation opens its own :class:`psycopg.AsyncConnection` and
+closes it on return. That is enough for the ingestion CLI and the retrieval
+scorecard; under concurrent load, a :class:`psycopg_pool.AsyncConnectionPool` behind
+``_connect`` would avoid one connection setup per call without touching callers.
 """
 
 from __future__ import annotations
@@ -18,7 +17,7 @@ from typing import Any, cast
 from uuid import UUID
 
 import psycopg
-from psycopg.rows import dict_row
+from psycopg.rows import dict_row, tuple_row
 
 from verity.config import get_settings
 from verity.types import Chunk, EmbeddedChunk, RetrievalHit, RetrieverKind
@@ -29,15 +28,84 @@ def _vector_literal(embedding: Sequence[float]) -> str:
     return "[" + ",".join(f"{x:.7f}" for x in embedding) + "]"
 
 
-class PgVectorStore:
-    """Async pgvector-backed store. Instantiate with the DB URL from settings."""
+async def _check_embedding_dim(
+    conn: psycopg.AsyncConnection[dict[str, Any]], expected: int
+) -> None:
+    """Compare ``expected`` with the declared dimension of ``chunks.embedding``.
 
-    def __init__(self, database_url: str | None = None) -> None:
-        self._url = database_url or get_settings().database_url
+    For a pgvector ``VECTOR(n)`` column, ``pg_attribute.atttypmod`` holds ``n``.
+    The query runs in its own transaction block: a bare SELECT would open an
+    implicit transaction, turning the caller's ``conn.transaction()`` into a
+    savepoint that is rolled back when the connection closes.
+    """
+    async with conn.transaction(), conn.cursor(row_factory=tuple_row) as cur:
+        await cur.execute(
+            """
+            SELECT a.atttypmod
+              FROM pg_attribute a
+             WHERE a.attrelid = to_regclass('chunks')
+               AND a.attname = 'embedding'
+               AND NOT a.attisdropped
+            """
+        )
+        row = await cur.fetchone()
+    if row is None:
+        raise SchemaNotMigratedError(
+            "table chunks (or its embedding column) not found; run `verity db upgrade`"
+        )
+    declared = int(row[0])
+    if declared != expected:
+        raise EmbeddingDimensionMismatchError(
+            f"configured embedding_dim={expected} but chunks.embedding is VECTOR({declared}). "
+            "Change VERITY_EMBEDDING_DIM / the embedding model, or add a migration that "
+            "alters the column and re-embeds the corpus."
+        )
+
+
+class EmbeddingDimensionMismatchError(RuntimeError):
+    """The configured embedding dimension does not fit the ``chunks.embedding`` column."""
+
+
+class SchemaNotMigratedError(RuntimeError):
+    """The ``chunks`` table does not exist yet."""
+
+
+class PgVectorStore:
+    """Async pgvector-backed store. Instantiate with the DB URL from settings.
+
+    The ``chunks.embedding`` column has a fixed dimension in the migration
+    (``VECTOR(384)``), while ``embedding_dim`` is configurable. The first operation
+    on a store reads the column's declared dimension and raises
+    :class:`EmbeddingDimensionMismatchError` if they differ, so a changed embedding
+    model fails on the first connection with an actionable message instead of a
+    driver error on insert. The check is retried on each connection until it
+    passes; ``IngestionPipeline`` catches it per document, so ``verity ingest``
+    reports it once per document and exits 1.
+    """
+
+    def __init__(
+        self, database_url: str | None = None, *, embedding_dim: int | None = None
+    ) -> None:
+        settings = get_settings()
+        self._url = database_url or settings.database_url
+        self._embedding_dim = embedding_dim if embedding_dim is not None else settings.embedding_dim
+        self._schema_checked = False
 
     async def _connect(self) -> psycopg.AsyncConnection[dict[str, Any]]:
-        conn = await psycopg.AsyncConnection.connect(self._url)
-        return cast(psycopg.AsyncConnection[dict[str, Any]], conn)
+        conn = cast(
+            psycopg.AsyncConnection[dict[str, Any]],
+            await psycopg.AsyncConnection.connect(self._url),
+        )
+        if not self._schema_checked:
+            try:
+                await _check_embedding_dim(conn, self._embedding_dim)
+            # BaseException so cancellation also closes the connection before
+            # propagating; nothing is swallowed.
+            except BaseException:
+                await conn.close()
+                raise
+            self._schema_checked = True
+        return conn
 
     async def upsert(self, chunks: list[EmbeddedChunk]) -> None:
         """Insert or update chunks + parent documents in a single transaction.
@@ -253,4 +321,8 @@ def _row_to_chunk(row: dict[str, Any]) -> Chunk:
     )
 
 
-__all__ = ["PgVectorStore"]
+__all__ = [
+    "EmbeddingDimensionMismatchError",
+    "PgVectorStore",
+    "SchemaNotMigratedError",
+]

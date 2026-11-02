@@ -9,7 +9,7 @@ export interface SourcePanelProps {
 }
 
 /**
- * Right-hand panel — the honesty panel. Renders EVERY retrieved chunk the
+ * Right-hand panel — the evidence panel. Renders EVERY retrieved chunk the
  * agent reasoned over, marked cited vs not-cited, with the reranker score
  * as it came back from the API. Never a synthetic composite; never rounded
  * to hide a value.

@@ -7,16 +7,17 @@ triggers fallback). Any other exception propagates unchanged.
 
 ``StubLLMClient`` is what makes the eval harness and CI free: it takes a
 ``responder`` callable, deterministically maps a message list to a completion, and
-never touches a network. Every S3+ test constructs the agent with a stub — no keys
-required to prove the pipeline works.
+never touches a network. Every agent test constructs the agent with a stub, so no
+key is needed to prove the pipeline is wired correctly (not that the model behaves).
 """
 
 from __future__ import annotations
 
-import asyncio
 import time
 from collections.abc import Callable
 from typing import Any
+
+from pydantic import SecretStr
 
 from verity.config import get_settings
 from verity.llm.base import AuthenticationError, LLMClient, LLMError, ProviderUnavailableError
@@ -102,7 +103,7 @@ class AnthropicClient(LLMClient):
     def __init__(
         self,
         *,
-        api_key: str | None = None,
+        api_key: SecretStr | None = None,
         model: str | None = None,
         cost_per_input_1k: float = 0.003,
         cost_per_output_1k: float = 0.015,
@@ -126,7 +127,7 @@ class AnthropicClient(LLMClient):
         if self._client is None:
             anthropic = _lazy_anthropic()
             try:
-                self._client = anthropic.AsyncAnthropic(api_key=self._api_key)
+                self._client = anthropic.AsyncAnthropic(api_key=_unwrap(self._api_key))
             except Exception as exc:
                 raise ProviderUnavailableError(f"anthropic init failed: {exc}") from exc
         return self._client
@@ -204,7 +205,7 @@ class OpenAIClient(LLMClient):
     def __init__(
         self,
         *,
-        api_key: str | None = None,
+        api_key: SecretStr | None = None,
         model: str | None = None,
         cost_per_input_1k: float = 0.005,
         cost_per_output_1k: float = 0.015,
@@ -228,7 +229,7 @@ class OpenAIClient(LLMClient):
         if self._client is None:
             openai = _lazy_openai()
             try:
-                self._client = openai.AsyncOpenAI(api_key=self._api_key)
+                self._client = openai.AsyncOpenAI(api_key=_unwrap(self._api_key))
             except Exception as exc:
                 raise ProviderUnavailableError(f"openai init failed: {exc}") from exc
         return self._client
@@ -289,6 +290,12 @@ def _split_system(messages: list[Message]) -> tuple[str, list[Message]]:
     return ("\n\n".join(system_parts), chat)
 
 
+def _unwrap(key: SecretStr | None) -> str | None:
+    """Expose the raw key only at the SDK constructor; ``None`` lets the SDK fall
+    back to its own environment lookup, as before."""
+    return key.get_secret_value() if key is not None else None
+
+
 def _raise_translated(exc: BaseException, *, provider: str) -> None:
     """Translate a vendor-specific error into a Verity LLMError. Never returns."""
     name = type(exc).__name__.lower()
@@ -305,11 +312,6 @@ def _raise_translated(exc: BaseException, *, provider: str) -> None:
     ):
         raise ProviderUnavailableError(f"{provider}: {exc}") from exc
     raise LLMError(f"{provider}: {exc}") from exc
-
-
-# tests use this to prove routing calls happen concurrently or serially as configured
-async def _sleep(seconds: float) -> None:  # pragma: no cover — trivial
-    await asyncio.sleep(seconds)
 
 
 __all__ = [

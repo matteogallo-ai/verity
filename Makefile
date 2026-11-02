@@ -1,7 +1,7 @@
 # Verity — dev shortcuts. Every target runs offline with no keys.
-.PHONY: demo demo-web demo-api ui-install ui-test test all
+.PHONY: demo demo-web demo-api ui-install ui-test test test-fast test-slow all
 
-# One-command demo path (S6):
+# One-command demo path:
 #   1. FastAPI (stub agent, in-memory store, corpus preloaded) on :8000
 #   2. Next.js dev server on :3000
 # Ctrl-C stops both cleanly (trap on the API child).
@@ -25,7 +25,12 @@ ui-install:
 ui-test:
 	cd web && corepack pnpm lint && corepack pnpm typecheck && corepack pnpm test && corepack pnpm build
 
-test:
-	uv run pytest -m "not integration"
+test: test-fast test-slow
+
+test-fast:
+	uv run pytest -m "not integration and not slow"
+
+test-slow:
+	uv run pytest -m "slow and not integration"
 
 all: test ui-test

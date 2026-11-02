@@ -1,9 +1,8 @@
 """FastAPI app that exposes ``/metrics`` (JSON) + ``/metrics/prom`` (text) +
 ``/dashboard`` (server-rendered HTML).
 
-The dashboard is intentionally hand-rendered HTML (no build system, no
-framework) — a full Next.js UI is scheduled for S6. This keeps S5 focused on
-"the data is real, the endpoints work, a reviewer can *see* something".
+The dashboard is hand-rendered HTML (no build system, no framework) so the
+operational view works without the Next.js UI in ``web/``.
 
 Two data sources feed the endpoints:
 

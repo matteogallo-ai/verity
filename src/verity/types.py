@@ -130,11 +130,12 @@ class Citation(BaseModel, frozen=True):
 
 
 class Confidence(BaseModel, frozen=True):
-    """Calibrated confidence in the answer.
+    """The scorer's confidence in the answer and the refusal decision.
 
-    ``refused`` is the headline behaviour of Verity: when ``score`` falls below the
-    configured threshold the agent returns an "I don't know" answer instead of a
-    fabricated one. ``rationale`` explains *why* — weak retrieval, contradictory
+    ``score`` is the scorer model's self-reported confidence in [0, 1]; it is not
+    calibrated. ``refused`` is True when the scorer asked to refuse or ``score`` is
+    below the configured threshold; the agent then returns an "I don't know" answer
+    instead of the draft. ``rationale`` explains *why* — weak retrieval, contradictory
     evidence, question out of corpus scope.
     """
 
@@ -154,7 +155,7 @@ class UsageStats(BaseModel, frozen=True):
 
 
 class Answer(BaseModel, frozen=True):
-    """The complete result of a query: text, citations, calibrated confidence,
+    """The complete result of a query: text, citations, confidence,
     the evidence actually used, and full accounting — everything the UI and the
     eval harness need, nothing they have to reconstruct.
 
@@ -163,8 +164,8 @@ class Answer(BaseModel, frozen=True):
     the answer text. This is what makes the UI's provenance badge reflect what
     served the request, not the boot-time default. When live routing falls back
     (e.g. Anthropic unavailable → OpenAI), these fields reflect the fallback,
-    not the primary. Optional (``None``) for backwards compatibility with
-    pre-S6.1 callers that build ``Answer`` without a routed synthesis step.
+    not the primary. Optional (``None``) so code that builds an ``Answer``
+    without a routed synthesis step (tests, persisted runs) stays valid.
     """
 
     query: str
@@ -293,9 +294,8 @@ class PerExampleAudit(BaseModel, frozen=True):
     RE-READ later without re-spending on the judge.
 
     The published headline scorecard remains aggregated; this record is the
-    audit trail that stands behind every chiffre. Persisted verbatim under
-    :attr:`EvalRun.per_audit` so ``verity eval compare`` (or a future audit UI)
-    can walk from an aggregate metric back to the exact answer, citations, hits
+    audit trail that stands behind every number. Persisted verbatim under
+    :attr:`EvalRun.per_audit` so ``verity eval compare`` can walk from an aggregate metric back to the exact answer, citations, hits
     and per-claim judge verdict that produced it.
 
     Design guarantee — see ``tests/unit/test_audit_persistence.py``:
@@ -329,7 +329,7 @@ class EvalRun(BaseModel, frozen=True):
     - ``embedding_model`` — the vector encoder used for retrieval (real component
       even in ``--judge stub`` mode).
     - ``agent_model`` — the LLM the *agent* used to decompose, synthesize, and
-      self-score. When set to ``"stub-agent"`` the Scorecard's refusal chiffres
+      self-score. When set to ``"stub-agent"`` the Scorecard's refusal numbers
       (though mechanically deterministic) reflect the *stub*'s calibration, not
       the real agent's — the CLI and README carry this nuance explicitly.
     - ``judge_model`` — the faithfulness/citation LLM judge. ``"stub-judge-v1"``

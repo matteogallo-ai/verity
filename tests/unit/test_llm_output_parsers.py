@@ -1,6 +1,6 @@
 """Realistic-shape parser tests for the 3 LLM output parsers.
 
-Motivation — the S7 live run showed the confidence scorer refusing 16/16
+Motivation — the first live run showed the confidence scorer refusing 16/16
 questions because its parser was strict about key names (``score`` /
 ``refused`` / ``rationale``) while the prompt did not actually specify a
 schema in the rendered user block (the schema was in a ``#`` comment that

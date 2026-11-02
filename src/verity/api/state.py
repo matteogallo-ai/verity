@@ -7,7 +7,7 @@ adds on top.
 
 Why a singleton: the demo lives inside one FastAPI process. Rebuilding the
 embedder + reranker on every request would waste seconds of model loading
-each time and defeat the S5 cold-start work.
+each time; one process-wide instance pays the model load once.
 """
 
 from __future__ import annotations
@@ -15,7 +15,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import re
-import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -53,7 +52,6 @@ class IngestedSource:
     title: str | None
     document_id: str
     n_chunks: int
-    ingested_at_ms: float
 
 
 class AppRuntime:
@@ -117,7 +115,6 @@ class AppRuntime:
                     title=doc.title,
                     document_id=str(doc.id),
                     n_chunks=sum(1 for c in result.chunks if c.document_id == doc.id),
-                    ingested_at_ms=time.time() * 1000,
                 )
             self._preloaded = True
 
@@ -149,7 +146,6 @@ class AppRuntime:
             title=safe_name,
             document_id=str(doc.id),
             n_chunks=len(result.chunks),
-            ingested_at_ms=time.time() * 1000,
         )
         self._sources[str(doc.id)] = record
         return record
@@ -166,7 +162,7 @@ class AppRuntime:
         Used only by ``/status`` (and by any call path that hasn't produced
         an :class:`Answer` yet). Never a substitute for
         :meth:`provenance_for` — call sites that HAVE an Answer must use that
-        one so a live-mode routing fallback is reported honestly per request.
+        one so a live-mode routing fallback is reported per request.
         """
         settings = get_settings()
         return Provenance(
@@ -184,14 +180,14 @@ class AppRuntime:
         populated by :class:`RagAgent` from the synthesizer's ``Completion``,
         with the router's first-configured provider stamped as a fallback so
         even a graceful short-circuit refusal (e.g. mid-flight LLM error)
-        still carries the honest routing decision.
+        still carries the routing decision.
 
         When ``provider_used`` is genuinely ``None`` — the caller built an
         Answer manually, no routing decision available — we surface
         ``agent_model="unknown"`` explicitly. We deliberately do **not**
         silently fall back to the boot-time :meth:`provenance` here: a live
         deployment with a stub-side fallback that misreports as "live" is
-        exactly the class of dishonest label this fix closes.
+        exactly the class of wrong label this prevents.
         """
         from verity.types import Provider
 
@@ -234,7 +230,7 @@ def _extension_for(name: str) -> str:
 def default_agent_mode() -> AgentMode:
     """Stub by default when no LLM key is configured — matches the CLI guard."""
     settings = get_settings()
-    if settings.anthropic_api_key or settings.openai_api_key:
+    if settings.has_llm_api_key:
         return "live"
     return "stub"
 

@@ -14,8 +14,6 @@ Rule of iron: no computed field, no fabricated score, no invented composite
 
 from __future__ import annotations
 
-from typing import Any
-
 from pydantic import BaseModel, Field
 
 from verity.types import Answer, RetrievalHit
@@ -49,8 +47,8 @@ class CitationView(BaseModel, frozen=True):
 
 
 class ConfidenceView(BaseModel, frozen=True):
-    """Verbatim from :class:`verity.types.Confidence`. ``score`` is the calibrated
-    confidence produced by the scorer for this request (real value, not fabricated).
+    """Verbatim from :class:`verity.types.Confidence`. ``score`` is the confidence
+    the scorer reported for this request (not calibrated, not computed by the API).
     ``refused`` is the load-bearing headline behaviour: True → the agent honoured
     its refusal threshold rather than fabricate."""
 
@@ -187,11 +185,6 @@ def _hit_to_view(hit: RetrievalHit, cited_ids: set[str]) -> RetrievedChunkView:
         kind=hit.kind.value,
         cited=str(hit.chunk.id) in cited_ids,
     )
-
-
-def _model_dump(m: BaseModel) -> dict[str, Any]:
-    """Shim to avoid mypy noise across pydantic versions."""
-    return m.model_dump()
 
 
 __all__ = [

@@ -1,10 +1,5 @@
-"""Verity command-line interface.
-
-The command surface is defined now so it is stable across the build-out; the bodies
-are filled stage by stage. Commands that are not yet implemented say so honestly and
-exit 0 (they are scaffold gates, not failures) — this keeps CI green without faking
-results.
-"""
+"""Verity command-line interface: version, ingest, db upgrade, ask, retrieve, serve, and the
+eval commands (retrieval, run, compare). Every command is implemented."""
 
 from __future__ import annotations
 
@@ -147,7 +142,7 @@ def ask(
         ),
     ] = False,
 ) -> None:
-    """Answer a question with citations. Refuses honestly when the evidence is weak."""
+    """Answer a question with citations. Refuses when the evidence is weak."""
     from verity.agent import create_default_agent
     from verity.agent.scripted_stub import build_stub_router
     from verity.llm import create_default_routing_client
@@ -183,7 +178,7 @@ def resolve_runs_dir(runs_dir: Path, *, judge_mode: str, agent_stub: bool) -> Pa
     ``"live"``    ``False``     both            ``runs_dir/live/``
     ============  ============  ==============  =========================
 
-    The rule is defined once here so the CLI, the CLI tests, and any future
+    The rule is defined once here so the CLI, the CLI tests, and any other
     caller share the same source of truth — no drift between the runtime
     behaviour and its regression assertions.
     """
@@ -200,14 +195,14 @@ MISSING_KEY_MESSAGE = (
 def _require_llm_api_key() -> None:
     """Fail fast with an actionable message when no provider key is configured.
 
-    Refusing to fall back to the stub silently is the honest behaviour: the caller
+    Refusing to fall back to the stub silently is deliberate: the caller
     asked for a real answer, so we surface the misconfiguration instead of quietly
     serving them a scripted response. The message text is exposed as
     :data:`MISSING_KEY_MESSAGE` so tests can assert on it directly without depending
     on Rich's terminal-width-driven panel wrapping.
     """
     settings = get_settings()
-    if settings.anthropic_api_key or settings.openai_api_key:
+    if settings.has_llm_api_key:
         return
     raise typer.BadParameter(MISSING_KEY_MESSAGE)
 
@@ -224,8 +219,8 @@ def retrieve(
         bool,
         typer.Option(
             help=(
-                "Use an in-memory store populated from --corpus instead of hitting "
-                "pgvector. Default: True when no DB is available."
+                "Use an in-memory store populated from --corpus instead of pgvector. "
+                "Default: True; pass --no-in-memory to query pgvector."
             )
         ),
     ] = True,
@@ -467,15 +462,6 @@ def _print_answer(answer: Answer) -> None:
     console.print(usage)
 
 
-def _first_client_model(client: object) -> str | None:
-    """Return the first registered client's ``.model`` on a RoutingClient, or None."""
-    clients = getattr(client, "clients", None)
-    if not clients:
-        return None
-    model = getattr(clients[0], "model", None)
-    return model if isinstance(model, str) else None
-
-
 @app.command()
 def serve(
     host: Annotated[str, typer.Option(help="Bind host.")] = "0.0.0.0",
@@ -491,8 +477,8 @@ def serve(
 
     The dashboard is server-rendered HTML with two panels: live session metrics
     (in-memory spans from this process's tracer) and persisted eval-run
-    history. The full Next.js UI is scheduled for S6 — this is the minimal
-    demo-ready surface.
+    history. The full UI is the Next.js app in ``web/``, which talks to the same
+    process through /status, /ask and /ingest.
     """
     import uvicorn
 
@@ -544,7 +530,7 @@ def eval_run(
     ci: Annotated[
         bool,
         typer.Option(
-            help="Legacy alias for --judge stub — kept for backwards compat with S0 CI.",
+            help="Alias for --judge stub (offline, deterministic). Used by CI and the quickstart.",
         ),
     ] = False,
     warmup: Annotated[
@@ -594,7 +580,7 @@ def eval_run(
         bool,
         typer.Option(
             help=(
-                "Print 'below floor' constats but exit 0 anyway. Intended for "
+                "Print 'below floor' findings but exit 0 anyway. Intended for "
                 "the one-shot LIVE run: a floor breach on a run of record must "
                 "NOT be presented as 'failure' that invites a re-run (=re-spend). "
                 "Stub / CI runs keep hard floors (do NOT set this in CI)."
@@ -624,6 +610,7 @@ def eval_run(
         load_full_dataset,
     )
     from verity.llm import create_default_routing_client
+    from verity.llm.routing import primary_client_identity
 
     judge_mode = "stub" if ci else judge.lower()
     if judge_mode not in {"stub", "live"}:
@@ -646,10 +633,12 @@ def eval_run(
     if not agent_stub:
         _require_llm_api_key()
     agent = create_default_agent(retriever=retriever, client=agent_client)
-    # Traceability: the refusal chiffres in the Scorecard are meaningless without
+    # Traceability: the refusal numbers in the Scorecard are meaningless without
     # knowing WHICH agent produced the answers they aggregate over. "stub-agent"
     # is the sentinel picked up by the CLI and README as a prudence flag.
-    agent_model = "stub-agent" if agent_stub else _first_client_model(agent_client) or "llm-agent"
+    agent_model = (
+        "stub-agent" if agent_stub else primary_client_identity(agent_client)[1] or "llm-agent"
+    )
 
     # Judge: mechanical stub by default; real LLM only in --judge live.
     if judge_mode == "stub":
@@ -694,14 +683,14 @@ def eval_run(
     except StubOverwritesLiveError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=5) from exc
-    path = store._path_for(run.scorecard.git_sha, run.scorecard.dataset)
+    path = store.path_for(run.scorecard.git_sha, run.scorecard.dataset)
     console.print(f"[green]Persisted[/green] {path}")
 
     # JSON write is deliberately UNCONDITIONAL and happens BEFORE any floor
     # evaluation: a floor breached on the one-shot measurement must never
-    # prevent the artefact from being written to disk. See the S7 micro-patch
-    # rationale — a "failed run" that also loses its scorecard invites a
-    # re-spend, which contradicts the "one run of record" invariant.
+    # prevent the artefact from being written to disk. A paid run that fails a
+    # floor and loses its scorecard invites a re-spend, which contradicts the
+    # "one run of record" invariant.
     if scorecard_json is not None:
         from verity.eval import write_headline_scorecard
         from verity.eval.headline import StubOverwritesLiveScorecardError
@@ -740,7 +729,7 @@ def eval_run(
         )
     if failed:
         if report_only_floors:
-            # Report-only: log the constat honestly (so the operator sees the
+            # Report-only: log the finding (so the operator sees the
             # breach in the run of record) but exit 0. Semantics for the LIVE
             # one-shot: the JSON is committed above, the below-floor observation
             # is recorded in the console log, no re-run is invited.
@@ -834,12 +823,12 @@ def eval_compare(
 def _print_scorecard(result) -> None:  # type: ignore[no-untyped-def]
     """Render a full Scorecard with an explicit stub-vs-real annotation.
 
-    The refusal chiffres are *mechanically* deterministic (a confusion matrix
-    with zero LLM calls), but they measure the calibration of whichever agent
+    The refusal numbers are mechanically deterministic (a confusion matrix with
+    zero LLM calls), but they measure the refusal behaviour of whichever agent
     produced the Answers. When the agent is the scripted stub, the numbers
-    reflect the stub's calibration, not Verity's real behaviour in production.
-    The header + the refusal rows carry that agent-provenance so no reader can
-    lift a chiffre without seeing the caveat.
+    describe the stub, not Verity's behaviour with a real model. The header and
+    the refusal rows carry that agent provenance so no reader can quote a number
+    without seeing the caveat.
     """
     from verity.eval import STUB_JUDGE_MODEL
 
@@ -893,14 +882,14 @@ def _print_scorecard(result) -> None:  # type: ignore[no-untyped-def]
     stub_note = "STUB" if judge_is_stub else "REAL"
     # Refusal maths is deterministic, but the *observed* refuses come from the agent
     # → tag the agent explicitly on each refusal row so no reader can quote a
-    # refusal chiffre without knowing which agent produced it.
+    # refusal number without knowing which agent produced it.
     refusal_tag = (
         "REAL calc / agent=stub-agent"
         if agent_is_stub
         else f"REAL calc / agent={result.agent_model}"
     )
-    # v3 scoped metrics computed from per_audit — every judge-track chiffre
-    # displayed with its honest denominator so a reader cannot quote it
+    # v3 scoped metrics computed from per_audit — every judge-track number
+    # displayed with its denominator so a reader cannot quote it
     # without knowing what was averaged. See
     # ``verity.eval.headline.build_headline_dict`` for the same rules on the
     # JSON side.

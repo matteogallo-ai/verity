@@ -1,4 +1,4 @@
-# PromptLang source — calibrated confidence + refusal
+# Confidence + refusal scorer (comment lines are stripped by verity.llm.prompt)
 # inputs:
 #   question: string
 #   answer: string

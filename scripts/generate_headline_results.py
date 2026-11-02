@@ -89,18 +89,18 @@ def render_block(data: dict[str, Any]) -> str:
         f"| **Refusal precision** | **{_fmt(refu['refusal_precision'])}** | of the refusals, fraction that were genuinely unanswerable |"
     )
     # v3: each judge-track metric is a {value, scope, n_denominator} triple.
-    # Render the value alongside the scope so no chiffre can be quoted
+    # Render the value alongside the scope so no number can be quoted
     # without its denominator visible.
     faith = ans["faithfulness"]
     ca = ans["citation_accuracy"]
     hall = ans["hallucination_rate"]
     lines.append(
         f"| Faithfulness ({faith['scope']}, n={faith['n_denominator']}) | "
-        f"{_fmt(faith['value'])} | claim-level, judge ran on {faith['n_denominator']} answered questions |"
+        f"{_fmt(faith['value'])} | per-question mean of claim-level judge verdicts over {faith['n_denominator']} answered questions · judge unvalidated |"
     )
     lines.append(
         f"| Citation accuracy ({ca['scope']}, n={ca['n_denominator']}) | "
-        f"{_fmt(ca['value'])} | judge ran on {ca['n_denominator']} answered questions (refusals bypass the judge) |"
+        f"{_fmt(ca['value'])} | per-question mean over {ca['n_denominator']} answered questions (refusals bypass the judge) · judge unvalidated |"
     )
     lines.append(
         f"| Hallucination rate ({hall['scope']}, n={hall['n_denominator']}) | "
@@ -118,8 +118,14 @@ def render_block(data: dict[str, Any]) -> str:
     lines.append(
         f"| Retrieval precision@{retr['k']} | {_fmt(retr['precision_at_k'])} | k>gold ceiling; interpret with recall |"
     )
+    cold_start = lat.get("cold_start")
+    latency_note = (
+        "no warmup: includes the first question's model loading"
+        if cold_start is None
+        else f"warm; cold start `{_fmt_ms(cold_start)}` measured separately"
+    )
     lines.append(
-        f"| Latency p50 / p95 / p99 | {_fmt_ms(lat['p50'])} / {_fmt_ms(lat['p95'])} / {_fmt_ms(lat['p99'])} | warm; cold_start `{_fmt_ms(lat.get('cold_start'))}` (isolated) |"
+        f"| Latency p50 / p95 / p99 | {_fmt_ms(lat['p50'])} / {_fmt_ms(lat['p95'])} / {_fmt_ms(lat['p99'])} | {latency_note} |"
     )
     lines.append(
         f"| Cost / query | ${cost['per_query_usd']:.4f} | total ${cost['total_usd']:.4f} = agent ${cost['agent_usd']:.4f} + judge ${cost['judge_usd']:.4f} |"
