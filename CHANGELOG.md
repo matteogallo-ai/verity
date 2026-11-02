@@ -6,6 +6,17 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- Dependencies with known advisories upgraded: Python (pillow 13.0.0, urllib3 2.8.0,
+  docling 2.145.0, filelock, certifi, opentelemetry, setuptools) and web (next
+  15.5.28, vitest 4.1.12, vite 6.4.5, eslint 9.39.5, postcss 8.5.32 via override).
+  v1.0.1 ships the vulnerable versions; until a release contains these upgrades,
+  build from `main`.
+- CI: actions pinned by commit SHA, read-only workflow tokens, Dependabot, CodeQL,
+  an OSV-Scanner job with two dated exceptions (`osv-scanner.toml`) and an OpenSSF
+  Scorecard workflow. See `docs/security/README.md`.
+
 ## [1.0.1] — 2026-09-08
 
 ### Fixed — headline scorecard denominators (schema v2 → v3)

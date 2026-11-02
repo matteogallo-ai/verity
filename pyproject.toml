@@ -157,7 +157,8 @@ url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
 [build-system]
-requires = ["hatchling"]
+# 1.27 is the first hatchling that reads `license` as an SPDX expression (PEP 639).
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]

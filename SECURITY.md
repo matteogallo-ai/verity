@@ -7,6 +7,11 @@
 | 1.0.x | yes |
 | < 1.0 | no |
 
+Security fixes, including dependency upgrades, go to `main` and ship in the next 1.0.x
+patch release. v1.0.1 resolves dependencies with known advisories that `main` has
+upgraded (see `CHANGELOG.md`, Unreleased); until a release contains them, build from
+`main`.
+
 ## Reporting a vulnerability
 
 Use GitHub's private reporting:
@@ -69,7 +74,7 @@ rejected alternatives are in [ADR 0006](docs/adr/0006-api-security-baseline.md).
 | Secret leakage | **Mitigated** | Provider keys and API keys are read from the environment only and held as `SecretStr`, so `repr()` / `str()` / `model_dump()` of the settings do not show them (`tests/unit/test_config.py::test_api_keys_never_appear_in_settings_repr`); API keys are never logged. The raw provider key is passed to the provider SDK client. |
 | Fabricated citations | **Mitigated** | A citation is kept only if its quote is a verbatim substring of the cited chunk (`tests/unit/test_citation_verbatim_invariant.py`, claim C01); an answer left without a citation is refused (`no_citation`). This does not prove the answer text is faithful. |
 | Third-party model download | **Partial** | The Docker image embeds the embedding and reranker models. Outside it, the first run downloads them from Hugging Face, and the first PDF ingestion makes docling download its layout and OCR models (~500 MB, including from ModelScope); the image does not embed those, so a PDF upload in the container fails with a generic `422`. |
-| Dependency vulnerabilities | **Partial** | Dependencies are pinned in `uv.lock` and `web/pnpm-lock.yaml`, and GitHub Actions by commit SHA. Dependabot opens one grouped update PR per week for uv, the `web/` npm packages and the actions. The `osv-scanner` CI job fails any PR or push whose lockfiles resolve a package with a known vulnerability in the OSV database; the accepted exceptions, each with its reason and an expiry date, are in `osv-scanner.toml` (an unfixed `accelerate` advisory whose vulnerable functions nothing calls, and a dev-only `minimatch` advisory). CodeQL analyses the Python and TypeScript source. **Not covered:** a vulnerability not yet in the OSV database, the `python:3.12-slim` base image, and the models downloaded at run time (see the row above). Details in [`docs/security/README.md`](docs/security/README.md). |
+| Dependency vulnerabilities | **Partial** | Dependencies are pinned in `uv.lock` and `web/pnpm-lock.yaml`, and GitHub Actions by commit SHA. Dependabot opens one grouped update PR per week for uv, the `web/` npm packages and the actions. The `osv-scanner` CI job fails on PRs to `main` and pushes to `main` when the lockfiles resolve a package with a known vulnerability in the OSV database; the accepted exceptions, each with its reason and an expiry date, are in `osv-scanner.toml` (an unfixed `accelerate` advisory whose vulnerable functions nothing calls, and a dev-only `minimatch` advisory). CodeQL analyses the Python and TypeScript source. **Not covered:** a vulnerability not yet in the OSV database, the `python:3.12-slim` base image, and the models downloaded at run time (see the row above). Details in [`docs/security/README.md`](docs/security/README.md). |
 
 This document is updated in the same pull request as any change to the posture
 above.
