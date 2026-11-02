@@ -95,6 +95,9 @@ per-claim judge verdict) is
 [`datasets/eval/runs/live/eval_d0ca1d5_questions.json`](datasets/eval/runs/live/eval_d0ca1d5_questions.json).
 Retrieval numbers come from the in-memory store (BM25 sparse arm), which that run
 used; `verity eval run` now defaults to pgvector (`--store memory` reproduces it). Definitions: [`docs/evaluation-methodology.md`](docs/evaluation-methodology.md).
+Each proportion with its k/n and Wilson 95 % interval, the proposed SLOs, the intended
+use and the known limits: [`docs/SYSTEM_CARD.md`](docs/SYSTEM_CARD.md), generated from
+the same scorecard.
 
 ## Open issues: what the numbers do not say
 
@@ -174,7 +177,8 @@ flowchart LR
     scorecard --> readme["README results table<br/>(generated)"]
 ```
 
-Stage-by-stage description: [`docs/architecture.md`](docs/architecture.md).
+Stage-by-stage description, and what I'd do differently:
+[`docs/architecture.md`](docs/architecture.md#what-id-do-differently).
 
 ## Quickstart
 
@@ -276,5 +280,6 @@ uv run python scripts/generate_headline_results.py --check   # README ≡ scorec
 ```
 
 [`CLAUDE.md`](CLAUDE.md) is the working guide for coding agents. See
-[CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). Licensed under
+[CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), the
+[threat model](docs/THREAT_MODEL.md) and the [runbook](docs/RUNBOOK.md). Licensed under
 [MIT](LICENSE).
