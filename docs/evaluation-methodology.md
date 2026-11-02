@@ -15,6 +15,11 @@ is a bug.
    describe the stubs, not the system, and are never published as quality metrics.
 3. **Refusal is measured, not assumed.** The dataset contains questions the corpus
    cannot answer; the system is scored on refusing them.
+4. **Reproducibility rests on the recorded artefact, not on `temperature=0`.** No LLM
+   call sends a sampling parameter (Anthropic API `2026-10-21` rejects them). A live
+   run is stored once with every answer, citation, judge verdict and token count;
+   published numbers come from that artefact, and a rerun is a new sample
+   ([ADR 0007](adr/0007-reproducibility-from-artefacts.md)).
 
 ## The dataset
 
