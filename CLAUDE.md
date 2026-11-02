@@ -60,6 +60,8 @@ uv run python scripts/generate_headline_results.py --check # README results bloc
 uv run python scripts/build_corpus_documents.py --check    # PDF/DOCX corpus ≡ sources
 uv run python scripts/split_dataset.py --check             # dev/test split ≡ seed
 uv run python scripts/recompute_live_aggregates.py --check # live runs: *.recomputed.json current
+uv run python scripts/refusal_analysis.py --check --dev datasets/eval/runs/live/eval_6ec544d_dev.json \
+  --test datasets/eval/runs/live/eval_969e1d5_test.json --out-json scorecards/refusal-analysis.json
 uv run python -m tests.docling_fixture                     # refresh the parsed PDF/DOCX fixture of the fast lane
 VERITY_STORE=memory uv run verity eval run --ci            # pipeline smoke test on stubs (no keys, no db)
 VERITY_API_AUTH_DISABLED=true uv run verity serve --port 8000  # API on pgvector, dev: no auth, stub without LLM key

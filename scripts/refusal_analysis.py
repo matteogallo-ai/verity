@@ -10,12 +10,16 @@ No model is called: everything is recomputed from the artefacts.
 
     uv run python scripts/refusal_analysis.py --dev RUN_DEV.json [--test RUN_TEST.json] \\
         --out-json scorecards/refusal-analysis.json --out-png docs/figures/reliability.png
+
+``--check`` recomputes the JSON and exits 1 if the committed file differs; it writes
+nothing. The PNG is not compared: matplotlib output is not byte-stable across versions.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
@@ -166,10 +170,20 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dev", type=Path, required=True)
     parser.add_argument("--test", type=Path)
     parser.add_argument("--out-json", type=Path, required=True)
-    parser.add_argument("--out-png", type=Path, required=True)
+    parser.add_argument("--out-png", type=Path)
+    parser.add_argument("--check", action="store_true", help="fail if --out-json is stale")
     args = parser.parse_args(argv)
     report = analyse(_load(args.dev), _load(args.test) if args.test else None)
-    args.out_json.write_text(json.dumps(report, indent=2) + "\n")
+    text = json.dumps(report, indent=2) + "\n"
+    if args.check:
+        if not args.out_json.is_file() or args.out_json.read_text(encoding="utf-8") != text:
+            print(f"{args.out_json} is stale: run without --check", file=sys.stderr)
+            return 1
+        print(f"{args.out_json} matches the artefacts")
+        return 0
+    if args.out_png is None:
+        parser.error("--out-png is required unless --check")
+    args.out_json.write_text(text, encoding="utf-8")
     plot(report, args.out_png)
     print(f"threshold {report['dev']['chosen']['threshold']} -> {args.out_json}, {args.out_png}")
     return 0

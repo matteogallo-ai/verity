@@ -54,6 +54,13 @@ jobs:
       - name: Recomputed aggregates of the live runs are current
         run: uv run python scripts/recompute_live_aggregates.py --check
 
+      - name: Refusal analysis is what the live dev and test runs give
+        run: >-
+          uv run python scripts/refusal_analysis.py --check
+          --dev datasets/eval/runs/live/eval_6ec544d_dev.json
+          --test datasets/eval/runs/live/eval_969e1d5_test.json
+          --out-json scorecards/refusal-analysis.json
+
       - name: Pytest — fast lane (no models, no network, must stay < 60 s)
         # tests/conftest.py disables inet sockets for this lane; HF_HUB_OFFLINE makes
         # a hidden model download fail fast instead of retrying.

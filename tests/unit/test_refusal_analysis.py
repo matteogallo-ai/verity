@@ -78,3 +78,28 @@ def test_a_run_without_scored_examples_still_plots(tmp_path: Path) -> None:
     assert report["dev"]["calibration"]["ece"] is None
     _module().plot(report, tmp_path / "r.png")
     assert (tmp_path / "r.png").is_file()
+
+
+_REPO = SCRIPT.parents[1]
+_LIVE = _REPO / "datasets" / "eval" / "runs" / "live"
+_ARGS = [
+    "--dev",
+    str(_LIVE / "eval_6ec544d_dev.json"),
+    "--test",
+    str(_LIVE / "eval_969e1d5_test.json"),
+    "--out-json",
+    str(_REPO / "scorecards" / "refusal-analysis.json"),
+]
+
+
+def test_committed_analysis_is_what_the_live_artefacts_give() -> None:
+    assert _module().main([*_ARGS, "--check"]) == 0
+
+
+def test_check_fails_on_a_hand_edited_analysis_and_writes_nothing(tmp_path: Path) -> None:
+    edited = tmp_path / "analysis.json"
+    text = (_REPO / "scorecards" / "refusal-analysis.json").read_text(encoding="utf-8")
+    edited.write_text(text.replace('"threshold": 0.0', '"threshold": 0.55', 1), encoding="utf-8")
+    before = edited.read_text(encoding="utf-8")
+    assert _module().main([*_ARGS[:-1], str(edited), "--check"]) == 1
+    assert edited.read_text(encoding="utf-8") == before
