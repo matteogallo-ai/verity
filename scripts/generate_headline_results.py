@@ -58,6 +58,13 @@ def _repo_path(path: Path) -> str:
     return (resolved.relative_to(REPO_ROOT) if inside else resolved).as_posix()
 
 
+def _ci(k: int, n: int, ci: list[float] | None) -> str:
+    """``k/n · 95 % CI [low, high]`` (Wilson), or ``k/n`` when n is 0."""
+    if ci is None:
+        return f"{k}/{n}"
+    return f"{k}/{n} · 95 % CI [{ci[0]:.3f}, {ci[1]:.3f}]"
+
+
 def _usd(value: float | None) -> str:
     return "not recorded" if value is None else f"${value:.4f}"
 
@@ -81,6 +88,7 @@ def render_block(data: dict[str, Any], *, scorecard_path: Path = DEFAULT_SCORECA
     )
     date = _short_date(str(data["generated_at"]))
     without_claims = sizes["n_judged_without_claims"]
+    recall, precision = refu["refusal_recall"], refu["refusal_precision"]
     thr = refu.get("confidence_threshold")
     threshold = "threshold not recorded" if thr is None else f"threshold {thr:g}"
     lines = [
@@ -95,11 +103,12 @@ def render_block(data: dict[str, Any], *, scorecard_path: Path = DEFAULT_SCORECA
         "",
         "| Metric | Value | Notes |",
         "|---|---:|---|",
-        f"| **Refusal recall** | **{_fmt(refu['refusal_recall'])}** | "
-        f"unanswerable questions refused / unanswerable ({ds['n_unanswerable']}) · "
-        f"{threshold} |",
-        f"| **Refusal precision** | **{_fmt(refu['refusal_precision'])}** | "
-        f"refusals that were unanswerable / refusals ({sizes['n_refused']}) |",
+        f"| **Refusal recall** | **{_fmt(recall['value'])}** | "
+        f"unanswerable questions refused / unanswerable: "
+        f"{_ci(recall['k'], recall['n'], recall['ci95_wilson'])} · {threshold} |",
+        f"| **Refusal precision** | **{_fmt(precision['value'])}** | "
+        f"refusals that were unanswerable / refusals: "
+        f"{_ci(precision['k'], precision['n'], precision['ci95_wilson'])} |",
     ]
     for label, key in (
         ("Faithfulness", "faithfulness"),
@@ -111,18 +120,20 @@ def render_block(data: dict[str, Any], *, scorecard_path: Path = DEFAULT_SCORECA
             f"mean over {macro['n_questions']} judged answers · judge unvalidated |"
         )
         lines.append(
-            f"| {label}, per claim | {_fmt(micro['value'])} | "
-            f"pooled over {micro['n_claims']} claims · judge unvalidated |"
+            f"| {label}, per claim | {_fmt(micro['value'])} | pooled over claims: "
+            f"{_ci(micro['k'], micro['n_claims'], micro['ci95_wilson'])} · judge unvalidated |"
         )
     hall = ans["hallucination_rate"]
     lines.append(
         f"| Hallucination rate | {_fmt(hall['value'])} | ↓ better · answers with an "
-        f"unsupported claim, over {hall['n_questions']} answered answerable questions |"
+        f"unsupported claim / answered answerable questions: "
+        f"{_ci(hall['k'], hall['n_questions'], hall['ci95_wilson'])} |"
     )
     ooa = refu["out_of_scope_answered"]
     lines.append(
         f"| Unanswerable answered | {ooa['count']}/{ooa['total']} | ↓ better · "
-        "an answer shipped where the corpus has none |"
+        f"an answer shipped where the corpus has none: "
+        f"{_ci(ooa['count'], ooa['total'], ooa['ci95_wilson'])} |"
     )
     lines.append(
         f"| Retrieval nDCG@{retr['k']} | {_fmt(retr['ndcg_at_k'])} | deterministic (no LLM) |"

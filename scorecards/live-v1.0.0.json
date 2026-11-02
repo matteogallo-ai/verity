@@ -6,6 +6,11 @@
         "value": 0.722222
       },
       "micro": {
+        "ci95_wilson": [
+          0.45041,
+          0.760998
+        ],
+        "k": 21,
         "n_claims": 34,
         "value": 0.617647
       },
@@ -17,12 +22,22 @@
         "value": 1.0
       },
       "micro": {
+        "ci95_wilson": [
+          0.898485,
+          1.0
+        ],
+        "k": 34,
         "n_claims": 34,
         "value": 1.0
       },
       "scope": "answered"
     },
     "hallucination_rate": {
+      "ci95_wilson": [
+        0.0,
+        0.258833
+      ],
+      "k": 0,
       "n_questions": 11,
       "scope": "answerable_and_answered",
       "value": 0.0
@@ -146,11 +161,31 @@
     },
     "confidence_threshold": null,
     "out_of_scope_answered": {
+      "ci95_wilson": [
+        0.036224,
+        0.624465
+      ],
       "count": 1,
       "total": 5
     },
-    "refusal_precision": 1.0,
-    "refusal_recall": 0.8
+    "refusal_precision": {
+      "ci95_wilson": [
+        0.510109,
+        1.0
+      ],
+      "k": 4,
+      "n": 4,
+      "value": 1.0
+    },
+    "refusal_recall": {
+      "ci95_wilson": [
+        0.375535,
+        0.963776
+      ],
+      "k": 4,
+      "n": 5,
+      "value": 0.8
+    }
   },
   "retrieval": {
     "k": 8,
@@ -176,6 +211,6 @@
     "n_judged_without_claims": 0,
     "n_refused": 4
   },
-  "schema": "verity.scorecard.headline/v4",
+  "schema": "verity.scorecard.headline/v5",
   "source_artefact": "datasets/eval/runs/live/eval_d0ca1d5_questions.json"
 }

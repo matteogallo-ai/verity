@@ -74,14 +74,14 @@ CI job `claims` runs those tests.
 
 | Metric | Value | Notes |
 |---|---:|---|
-| **Refusal recall** | **0.850** | unanswerable questions refused / unanswerable (20) · threshold 0 |
-| **Refusal precision** | **0.773** | refusals that were unanswerable / refusals (22) |
+| **Refusal recall** | **0.850** | unanswerable questions refused / unanswerable: 17/20 · 95 % CI [0.640, 0.948] · threshold 0 |
+| **Refusal precision** | **0.773** | refusals that were unanswerable / refusals: 17/22 · 95 % CI [0.566, 0.899] |
 | Faithfulness, per question | 0.990 | mean over 34 judged answers · judge unvalidated |
-| Faithfulness, per claim | 0.991 | pooled over 109 claims · judge unvalidated |
+| Faithfulness, per claim | 0.991 | pooled over claims: 108/109 · 95 % CI [0.950, 0.998] · judge unvalidated |
 | Citation accuracy, per question | 0.968 | mean over 34 judged answers · judge unvalidated |
-| Citation accuracy, per claim | 0.963 | pooled over 109 claims · judge unvalidated |
-| Hallucination rate | 0.000 | ↓ better · answers with an unsupported claim, over 31 answered answerable questions |
-| Unanswerable answered | 3/20 | ↓ better · an answer shipped where the corpus has none |
+| Citation accuracy, per claim | 0.963 | pooled over claims: 105/109 · 95 % CI [0.909, 0.986] · judge unvalidated |
+| Hallucination rate | 0.000 | ↓ better · answers with an unsupported claim / answered answerable questions: 0/31 · 95 % CI [0.000, 0.110] |
+| Unanswerable answered | 3/20 | ↓ better · an answer shipped where the corpus has none: 3/20 · 95 % CI [0.052, 0.360] |
 | Retrieval nDCG@8 | 0.929 | deterministic (no LLM) |
 | Retrieval recall@8 | 0.986 | deterministic |
 | Retrieval precision@8 | 0.146 | k>gold ceiling; interpret with recall |
@@ -125,9 +125,10 @@ pgvector (`--store memory` reproduces it). Definitions:
   and the rule gave 0.00. Sweep and figure:
   [`scorecards/refusal-analysis.json`](scorecards/refusal-analysis.json),
   [`docs/figures/reliability.png`](docs/figures/reliability.png).
-- **Refusal precision is a known limit: 0.773.** 5 of the 22 refusals hit
-  answerable questions, all from the citation checks (4 `irrelevant_citation`,
-  1 `low_citation_coverage`). Dev shows the same cause (6 of 18). Tuning those checks
+- **Refusal precision is a known limit** (row above, with its interval). Every
+  refusal of an answerable question comes from the citation checks
+  (`irrelevant_citation`, `low_citation_coverage`: counts under "Refusals by cause");
+  dev shows the same cause (`scorecards/refusal-analysis.json`). Tuning those checks
   is done on dev only; a new test run belongs to a new version.
 - **The confidence score is not calibrated.** On test, 35 of the 36 scored answers
   score 0.9 or more and 31 of them are answerable: ECE 0.116 over n = 36, with almost
@@ -136,12 +137,16 @@ pgvector (`--store memory` reproduces it). Definitions:
   scorer model's self-report.
 - **The judge is not yet validated against humans.** It is `claude-opus-5-5`, a
   different Claude model from the agent (`claude-sonnet-4-6`), not a different
-  family. Cohen's κ against human labels on 60 sampled claims is pending.
-- **n = 56 is small.** One question moves refusal recall by 0.05 and refusal
-  precision by about 0.04. The corpus is 21 fictional documents in three domains,
-  with no scanned PDFs or tables.
-- **3 of 20 unanswerable questions were answered** (q-074, q-085, q-089), with
-  scores 0.72, 0.92 and 0.90.
+  family. Its sensitivity on deliberately falsified claims and Cohen's κ against
+  blind human labels on 60 claims (`scripts/judge_agreement.py`) are pending.
+- **n = 56 is small.** The 95 % Wilson intervals in the table show how little it
+  pins down: no hallucination in the sample does not rule out a rate up to the
+  interval's upper bound.
+  Per-claim intervals assume independent claims; claims of one answer are not, so
+  those intervals are too narrow. The corpus is 21 fictional documents in three
+  domains, with no scanned PDFs or tables.
+- **Unanswerable questions were answered** (row "Unanswerable answered"): q-074,
+  q-085 and q-089, with scores 0.72, 0.92 and 0.90.
 
 ## Roadmap
 

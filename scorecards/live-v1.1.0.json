@@ -6,6 +6,11 @@
         "value": 0.968137
       },
       "micro": {
+        "ci95_wilson": [
+          0.909423,
+          0.985638
+        ],
+        "k": 105,
         "n_claims": 109,
         "value": 0.963303
       },
@@ -17,12 +22,22 @@
         "value": 0.990196
       },
       "micro": {
+        "ci95_wilson": [
+          0.949854,
+          0.998379
+        ],
+        "k": 108,
         "n_claims": 109,
         "value": 0.990826
       },
       "scope": "answered"
     },
     "hallucination_rate": {
+      "ci95_wilson": [
+        0.0,
+        0.110255
+      ],
+      "k": 0,
       "n_questions": 31,
       "scope": "answerable_and_answered",
       "value": 0.0
@@ -367,11 +382,31 @@
     },
     "confidence_threshold": 0.0,
     "out_of_scope_answered": {
+      "ci95_wilson": [
+        0.052369,
+        0.360419
+      ],
       "count": 3,
       "total": 20
     },
-    "refusal_precision": 0.7727272727272727,
-    "refusal_recall": 0.85
+    "refusal_precision": {
+      "ci95_wilson": [
+        0.5656,
+        0.89877
+      ],
+      "k": 17,
+      "n": 22,
+      "value": 0.772727
+    },
+    "refusal_recall": {
+      "ci95_wilson": [
+        0.639581,
+        0.947631
+      ],
+      "k": 17,
+      "n": 20,
+      "value": 0.85
+    }
   },
   "retrieval": {
     "k": 8,
@@ -400,6 +435,6 @@
     "n_judged_without_claims": 0,
     "n_refused": 22
   },
-  "schema": "verity.scorecard.headline/v4",
+  "schema": "verity.scorecard.headline/v5",
   "source_artefact": "datasets/eval/runs/live/eval_969e1d5_test.json"
 }

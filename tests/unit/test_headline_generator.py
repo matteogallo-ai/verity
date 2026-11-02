@@ -136,7 +136,8 @@ def _fixture_result() -> HarnessResult:
                     # aggregates. Refusals: judge convention (1.0/1.0/0.0).
                     faithfulness=0.94 if i < 11 else 1.0,
                     citation_accuracy=0.90 if i < 11 else 1.0,
-                    hallucination_rate=0.06 if i < 11 else 0.0,
+                    # 0 or 1 per answer, as both judges give it: one of 11 answers.
+                    hallucination_rate=1.0 if i == 0 else 0.0,
                     refusal_precision=0.0,
                     refusal_recall=0.0,
                 ),
@@ -153,7 +154,7 @@ def _fixture_result() -> HarnessResult:
 def test_build_headline_dict_carries_full_provenance_and_totals() -> None:
     result = _fixture_result()
     payload = build_headline_dict(result)
-    assert payload["schema"] == "verity.scorecard.headline/v4"
+    assert payload["schema"] == "verity.scorecard.headline/v5"
     prov = payload["provenance"]
     # Agent summary: all 16 answers stamped claude-sonnet-4-6 → "(16/16)"
     assert prov["agent_model"] == "claude-sonnet-4-6 (16/16)"
@@ -190,20 +191,25 @@ def test_build_headline_dict_carries_full_provenance_and_totals() -> None:
 
     aq = payload["answer_quality"]
     assert aq["faithfulness"]["macro"] == {"value": pytest.approx(0.94), "n_questions": 11}
-    assert aq["faithfulness"]["micro"] == {"value": pytest.approx(0.94), "n_claims": 550}
+    assert aq["faithfulness"]["micro"]["value"] == pytest.approx(0.94)
+    assert aq["faithfulness"]["micro"]["n_claims"] == 550
     assert aq["citation_accuracy"]["macro"]["value"] == pytest.approx(0.90)
     assert aq["citation_accuracy"]["micro"]["value"] == pytest.approx(0.90)
-    assert aq["hallucination_rate"]["value"] == pytest.approx(0.06)
+    assert aq["hallucination_rate"]["value"] == pytest.approx(1 / 11, abs=1e-6)
     assert aq["hallucination_rate"]["n_questions"] == 11
 
     # Refusal calibration: precision/recall derived from per_refusal.
     # 5 refusals, all on OOS (i>=11) → TP=5, FN=0 → precision=1.0, recall=1.0.
-    assert payload["refusal"]["refusal_precision"] == pytest.approx(1.0)
-    assert payload["refusal"]["refusal_recall"] == pytest.approx(1.0)
+    assert payload["refusal"]["refusal_precision"]["value"] == pytest.approx(1.0)
+    assert payload["refusal"]["refusal_recall"]["value"] == pytest.approx(1.0)
     # Companion field (v2): in this fixture per_refusal has i>=11 all refused,
     # so 0 out-of-scope answers were shipped (out of 5).
     ooa = payload["refusal"]["out_of_scope_answered"]
-    assert ooa == {"count": 0, "total": 5}
+    assert ooa == {
+        "count": 0,
+        "total": 5,
+        "ci95_wilson": [0.0, pytest.approx(0.434482)],
+    }
     # dataset.sha256 is None when no dataset_path is passed — surfaces honestly.
     assert payload["dataset"]["sha256"] is None
 
@@ -262,8 +268,8 @@ def test_render_block_shows_verbatim_headline_numbers() -> None:
     assert "$1.4000" in block  # total cost (4-decimal precision)
     # Every judge-track row names its denominator.
     assert "mean over 11 judged answers" in block
-    assert "pooled over 550 claims" in block
-    assert "over 11 answered answerable questions" in block
+    assert "pooled over claims: 517/550" in block
+    assert "answered answerable questions: 1/11" in block
     assert "refusals bypass the judge" in block  # judge summary honesty
 
 
@@ -271,7 +277,7 @@ def test_write_headline_scorecard_round_trips(tmp_path: Path) -> None:
     result = _fixture_result()
     out = write_headline_scorecard(result.as_eval_run(), tmp_path / "live.json")
     parsed = json.loads(out.read_text(encoding="utf-8"))
-    assert parsed["schema"] == "verity.scorecard.headline/v4"
+    assert parsed["schema"] == "verity.scorecard.headline/v5"
     assert parsed["cost"]["total_usd"] == pytest.approx(1.4)
 
 
@@ -436,3 +442,33 @@ def test_block_says_when_the_threshold_decided_no_refusal() -> None:
     result = HarnessResult(**{**base.__dict__, "per_audit": audits})  # type: ignore[arg-type]
     block = _load_generator().render_block(build_headline_dict(result))
     assert "the confidence threshold decided none of them" in block
+
+
+def test_every_proportion_carries_its_count_and_wilson_interval() -> None:
+    payload = build_headline_dict(_fixture_result())
+    aq, refu = payload["answer_quality"], payload["refusal"]
+    hall = aq["hallucination_rate"]
+    assert (hall["k"], hall["n_questions"]) == (1, 11)
+    assert hall["ci95_wilson"] == pytest.approx([0.0162, 0.3774], abs=1e-4)
+    micro = aq["faithfulness"]["micro"]
+    assert (micro["k"], micro["n_claims"]) == (517, 550)
+    assert micro["ci95_wilson"][0] < micro["value"] < micro["ci95_wilson"][1]
+    # A mean of per-answer ratios is not a proportion: no Wilson interval.
+    assert "ci95_wilson" not in aq["faithfulness"]["macro"]
+    precision = refu["refusal_precision"]
+    assert (precision["k"], precision["n"], precision["value"]) == (5, 5, 1.0)
+    assert precision["ci95_wilson"] == pytest.approx([0.5655, 1.0], abs=1e-4)
+    assert refu["refusal_recall"]["n"] == 5
+    assert refu["out_of_scope_answered"]["ci95_wilson"] == pytest.approx([0.0, 0.4345], abs=1e-4)
+
+
+def test_block_prints_the_interval_and_n_next_to_each_proportion() -> None:
+    block = _load_generator().render_block(build_headline_dict(_fixture_result()))
+    rows = {
+        line.split("|")[1].strip(" *"): line for line in block.splitlines() if line.startswith("|")
+    }
+    assert "5/5 · 95 % CI [0.566, 1.000]" in rows["Refusal precision"]
+    assert "1/11 · 95 % CI [0.016, 0.377]" in rows["Hallucination rate"]
+    assert "517/550 · 95 % CI [" in rows["Faithfulness, per claim"]
+    assert "CI" not in rows["Faithfulness, per question"]
+    assert "0/5 · 95 % CI [0.000, 0.434]" in rows["Unanswerable answered"]

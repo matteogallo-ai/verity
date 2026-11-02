@@ -5,7 +5,7 @@ It is computed from one :class:`~verity.types.EvalRun` artefact and nothing else
 --check`` can rebuild it from the artefact and fail on any difference. A fresh run
 goes through the same function via :meth:`HarnessResult.as_eval_run`.
 
-Schema v4:
+Schema v5:
 
 - answer-quality metrics come from :mod:`verity.eval.answer_quality` (the one
   definition): faithfulness and citation accuracy carry a ``macro`` (per question)
@@ -15,6 +15,10 @@ Schema v4:
 - model summaries come from the per-example models recorded in the artefact, so a
   routing fallback shows up as a split, e.g. ``"claude-sonnet-4-6 (15/16),
   gpt-4.1-mini (1/16)"``; the judge summary names the refusals that bypassed it;
+- every proportion (per-claim ratios, hallucination rate, refusal precision and
+  recall, unanswerable answered) carries its count ``k``, its denominator and its
+  95 % Wilson interval ``ci95_wilson``; a per-question mean of ratios is not a
+  proportion and has none;
 - a figure the artefact does not hold is ``null``: refusal precision with no
   refusal, the judge cost of a run recorded before judge usage was stored.
 """
@@ -30,6 +34,7 @@ from typing import Any
 
 from verity.eval.answer_quality import Ratio, answer_quality
 from verity.eval.harness import HarnessResult
+from verity.eval.intervals import wilson
 from verity.eval.refusal import RefusalOutcome, build_confusion
 from verity.types import EvalRun, PerExampleAudit, UsageStats
 
@@ -62,13 +67,38 @@ def _hash_dataset_path(dataset_path: Path | None) -> str | None:
     return h.hexdigest()
 
 
-SCHEMA = "verity.scorecard.headline/v4"
+SCHEMA = "verity.scorecard.headline/v5"
 
 
-def _ratio_dict(ratio: Ratio, *, unit: str) -> dict[str, Any]:
-    return {
+def _interval(k: int, n: int) -> list[float] | None:
+    ci = wilson(k, n)
+    return None if ci is None else [round(ci[0], 6), round(ci[1], 6)]
+
+
+def _count(numerator: float) -> int:
+    if not float(numerator).is_integer():
+        raise ValueError(f"a proportion needs a whole count, got {numerator}")
+    return int(numerator)
+
+
+def _ratio_dict(ratio: Ratio, *, unit: str, proportion: bool) -> dict[str, Any]:
+    out: dict[str, Any] = {
         "value": None if ratio.value is None else round(ratio.value, 6),
         f"n_{unit}": ratio.denominator,
+    }
+    if proportion:
+        k = _count(ratio.numerator)
+        out["k"] = k
+        out["ci95_wilson"] = _interval(k, ratio.denominator)
+    return out
+
+
+def _proportion(k: int, n: int) -> dict[str, Any]:
+    return {
+        "value": round(k / n, 6) if n else None,
+        "k": k,
+        "n": n,
+        "ci95_wilson": _interval(k, n),
     }
 
 
@@ -182,24 +212,34 @@ def build_headline_dict_from_eval_run(
         "answer_quality": {
             "faithfulness": {
                 "scope": "answered",
-                "macro": _ratio_dict(quality.faithfulness_macro, unit="questions"),
-                "micro": _ratio_dict(quality.faithfulness_micro, unit="claims"),
+                "macro": _ratio_dict(
+                    quality.faithfulness_macro, unit="questions", proportion=False
+                ),
+                "micro": _ratio_dict(quality.faithfulness_micro, unit="claims", proportion=True),
             },
             "citation_accuracy": {
                 "scope": "answered",
-                "macro": _ratio_dict(quality.citation_accuracy_macro, unit="questions"),
-                "micro": _ratio_dict(quality.citation_accuracy_micro, unit="claims"),
+                "macro": _ratio_dict(
+                    quality.citation_accuracy_macro, unit="questions", proportion=False
+                ),
+                "micro": _ratio_dict(
+                    quality.citation_accuracy_micro, unit="claims", proportion=True
+                ),
             },
             "hallucination_rate": {
                 "scope": "answerable_and_answered",
-                **_ratio_dict(quality.hallucination_rate, unit="questions"),
+                **_ratio_dict(quality.hallucination_rate, unit="questions", proportion=True),
             },
         },
         "refusal": {
             "confidence_threshold": run.confidence_threshold,
-            "refusal_precision": tp / (tp + fp) if tp + fp else None,
-            "refusal_recall": tp / (tp + fn) if tp + fn else None,
-            "out_of_scope_answered": {"count": fn, "total": n_unanswerable},
+            "refusal_precision": _proportion(tp, tp + fp),
+            "refusal_recall": _proportion(tp, tp + fn),
+            "out_of_scope_answered": {
+                "count": fn,
+                "total": n_unanswerable,
+                "ci95_wilson": _interval(fn, n_unanswerable),
+            },
             "by_reason": _refusals_by_reason(audits),
         },
         "latency_ms": {
