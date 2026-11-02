@@ -15,11 +15,11 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import Any, NoReturn
 
 from pydantic import SecretStr
 
-from verity.config import get_settings
+from verity.config import Settings, get_settings
 from verity.llm.base import AuthenticationError, LLMClient, LLMError, ProviderUnavailableError
 from verity.types import Completion, Message, Provider, UsageStats
 
@@ -105,14 +105,12 @@ class AnthropicClient(LLMClient):
         *,
         api_key: SecretStr | None = None,
         model: str | None = None,
-        cost_per_input_1k: float = 0.003,
-        cost_per_output_1k: float = 0.015,
+        settings: Settings | None = None,
     ) -> None:
-        settings = get_settings()
+        self._settings = settings or get_settings()
         self._api_key = api_key
-        self._model = model or settings.anthropic_model
-        self._cost_in = cost_per_input_1k
-        self._cost_out = cost_per_output_1k
+        self._model = model or self._settings.anthropic_model
+        self._price = self._settings.price_for(self._model)
         self._client: Any = None
 
     @property
@@ -123,11 +121,23 @@ class AnthropicClient(LLMClient):
     def model(self) -> str:
         return self._model
 
+    def cost_usd(self, *, input_tokens: int, output_tokens: int) -> float:
+        return (
+            input_tokens * self._price.input_usd_per_mtok
+            + output_tokens * self._price.output_usd_per_mtok
+        ) / 1_000_000
+
     def _get_client(self) -> Any:
         if self._client is None:
             anthropic = _lazy_anthropic()
             try:
-                self._client = anthropic.AsyncAnthropic(api_key=_unwrap(self._api_key))
+                self._client = anthropic.AsyncAnthropic(
+                    api_key=_unwrap(self._api_key),
+                    timeout=self._settings.llm_timeout_s,
+                    max_retries=self._settings.llm_max_retries,
+                )
+            # Any constructor failure (missing key, bad option) means this provider
+            # cannot serve; typed as unavailable so the router tries the next one.
             except Exception as exc:
                 raise ProviderUnavailableError(f"anthropic init failed: {exc}") from exc
         return self._client
@@ -156,8 +166,9 @@ class AnthropicClient(LLMClient):
                 messages=[{"role": m.role.value, "content": m.content} for m in chat],
                 extra_body={"temperature": temperature},
             )
-        except Exception as exc:  # translate vendor errors
-            _raise_translated(exc, provider="anthropic")
+        # Every vendor failure is translated to a typed Verity error and re-raised.
+        except Exception as exc:
+            _raise_translated(exc, sdk=_lazy_anthropic(), provider="anthropic")
         elapsed_ms = (time.perf_counter() - started) * 1000
         text = _anthropic_text(resp)
         usage = getattr(resp, "usage", None)
@@ -171,8 +182,7 @@ class AnthropicClient(LLMClient):
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
                 llm_calls=1,
-                cost_usd=(input_tokens / 1000.0) * self._cost_in
-                + (output_tokens / 1000.0) * self._cost_out,
+                cost_usd=self.cost_usd(input_tokens=input_tokens, output_tokens=output_tokens),
                 latency_ms=round(elapsed_ms, 2),
             ),
         )
@@ -207,14 +217,12 @@ class OpenAIClient(LLMClient):
         *,
         api_key: SecretStr | None = None,
         model: str | None = None,
-        cost_per_input_1k: float = 0.005,
-        cost_per_output_1k: float = 0.015,
+        settings: Settings | None = None,
     ) -> None:
-        settings = get_settings()
+        self._settings = settings or get_settings()
         self._api_key = api_key
-        self._model = model or settings.openai_model
-        self._cost_in = cost_per_input_1k
-        self._cost_out = cost_per_output_1k
+        self._model = model or self._settings.openai_model
+        self._price = self._settings.price_for(self._model)
         self._client: Any = None
 
     @property
@@ -225,11 +233,23 @@ class OpenAIClient(LLMClient):
     def model(self) -> str:
         return self._model
 
+    def cost_usd(self, *, input_tokens: int, output_tokens: int) -> float:
+        return (
+            input_tokens * self._price.input_usd_per_mtok
+            + output_tokens * self._price.output_usd_per_mtok
+        ) / 1_000_000
+
     def _get_client(self) -> Any:
         if self._client is None:
             openai = _lazy_openai()
             try:
-                self._client = openai.AsyncOpenAI(api_key=_unwrap(self._api_key))
+                self._client = openai.AsyncOpenAI(
+                    api_key=_unwrap(self._api_key),
+                    timeout=self._settings.llm_timeout_s,
+                    max_retries=self._settings.llm_max_retries,
+                )
+            # Any constructor failure (missing key, bad option) means this provider
+            # cannot serve; typed as unavailable so the router tries the next one.
             except Exception as exc:
                 raise ProviderUnavailableError(f"openai init failed: {exc}") from exc
         return self._client
@@ -250,8 +270,9 @@ class OpenAIClient(LLMClient):
                 temperature=temperature,
                 messages=[{"role": m.role.value, "content": m.content} for m in messages],
             )
+        # Every vendor failure is translated to a typed Verity error and re-raised.
         except Exception as exc:
-            _raise_translated(exc, provider="openai")
+            _raise_translated(exc, sdk=_lazy_openai(), provider="openai")
         elapsed_ms = (time.perf_counter() - started) * 1000
         choice = resp.choices[0]
         text = choice.message.content or ""
@@ -266,8 +287,7 @@ class OpenAIClient(LLMClient):
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
                 llm_calls=1,
-                cost_usd=(input_tokens / 1000.0) * self._cost_in
-                + (output_tokens / 1000.0) * self._cost_out,
+                cost_usd=self.cost_usd(input_tokens=input_tokens, output_tokens=output_tokens),
                 latency_ms=round(elapsed_ms, 2),
             ),
         )
@@ -296,20 +316,19 @@ def _unwrap(key: SecretStr | None) -> str | None:
     return key.get_secret_value() if key is not None else None
 
 
-def _raise_translated(exc: BaseException, *, provider: str) -> None:
-    """Translate a vendor-specific error into a Verity LLMError. Never returns."""
-    name = type(exc).__name__.lower()
-    if "authentication" in name or "permission" in name or "unauthorized" in name:
+def _raise_translated(exc: BaseException, *, sdk: Any, provider: str) -> NoReturn:
+    """Raise the Verity error for an SDK exception. Never returns.
+
+    Mapping by class, most specific first (both SDKs expose the same hierarchy):
+    401/403 → AuthenticationError (no fallback: a bad key is a configuration bug);
+    timeout, connection, 429 and 5xx → ProviderUnavailableError (fallback);
+    anything else, including other 4xx → LLMError (a request bug, not retried).
+    """
+    if isinstance(exc, (sdk.AuthenticationError, sdk.PermissionDeniedError)):
         raise AuthenticationError(f"{provider}: {exc}") from exc
-    if (
-        "ratelimit" in name
-        or "rate_limit" in name
-        or "timeout" in name
-        or "connection" in name
-        or "unavailable" in name
-        or "apistatus" in name
-        or "internalserver" in name
-    ):
+    if isinstance(exc, (sdk.APITimeoutError, sdk.APIConnectionError, sdk.RateLimitError)):
+        raise ProviderUnavailableError(f"{provider}: {exc}") from exc
+    if isinstance(exc, sdk.APIStatusError) and exc.status_code >= 500:
         raise ProviderUnavailableError(f"{provider}: {exc}") from exc
     raise LLMError(f"{provider}: {exc}") from exc
 

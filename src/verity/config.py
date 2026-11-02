@@ -9,10 +9,26 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import Field, SecretStr
+from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from verity.types import Provider
+
+
+class ModelPrice(BaseModel, frozen=True):
+    """List price of one model, in USD per million tokens."""
+
+    input_usd_per_mtok: float = Field(ge=0.0)
+    output_usd_per_mtok: float = Field(ge=0.0)
+
+
+# Anthropic list prices from the Anthropic model table; OpenAI's from its gpt-4.1-mini
+# model page. Override with VERITY_MODEL_PRICES='{"<model>": {...}}' when a contract
+# or a model change makes them wrong: cost figures are only as good as this table.
+DEFAULT_MODEL_PRICES: dict[str, ModelPrice] = {
+    "claude-sonnet-4-6": ModelPrice(input_usd_per_mtok=3.0, output_usd_per_mtok=15.0),
+    "gpt-4.1-mini": ModelPrice(input_usd_per_mtok=0.40, output_usd_per_mtok=1.60),
+}
 
 
 class Settings(BaseSettings):
@@ -51,6 +67,12 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-sonnet-4-6"
     openai_model: str = "gpt-4.1-mini"
     judge_model: str = "claude-sonnet-4-6"  # LLM-as-judge for faithfulness eval
+    # A hung provider must surface as ProviderUnavailableError in bounded time, so the
+    # router can fall back; the SDK default (10 min) would hold a request that long.
+    # Worst case per provider: llm_timeout_s * (llm_max_retries + 1).
+    llm_timeout_s: float = Field(default=30.0, gt=0.0)
+    llm_max_retries: int = Field(default=2, ge=0)
+    model_prices: dict[str, ModelPrice] = Field(default_factory=lambda: dict(DEFAULT_MODEL_PRICES))
 
     # --- Refusal (headline feature) ---------------------------------------------------
     confidence_threshold: float = Field(
@@ -65,6 +87,15 @@ class Settings(BaseSettings):
     # None → spans stay in the in-process exporter only (backs /metrics).
     otel_endpoint: str | None = None
     log_level: str = "INFO"
+
+    def price_for(self, model: str) -> ModelPrice:
+        """The configured price of ``model``; an unpriced model is a configuration error."""
+        try:
+            return self.model_prices[model]
+        except KeyError:
+            raise ValueError(
+                f"no price configured for model {model!r}; add it to VERITY_MODEL_PRICES"
+            ) from None
 
     @property
     def has_llm_api_key(self) -> bool:
