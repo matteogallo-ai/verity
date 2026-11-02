@@ -942,29 +942,28 @@ def _print_scorecard(result) -> None:  # type: ignore[no-untyped-def]
         if agent_is_stub
         else f"REAL calc / agent={result.agent_model}"
     )
-    # v3 scoped metrics computed from per_audit — every judge-track number
-    # displayed with its denominator so a reader cannot quote it
-    # without knowing what was averaged. See
-    # ``verity.eval.headline.build_headline_dict`` for the same rules on the
-    # JSON side.
-    judged = [a for a in result.per_audit if a.judge_claims is not None]
-    at_risk = [a for a in result.per_audit if a.expected_answerable and not a.refused]
-    n_judged = len(judged)
-    n_at_risk = len(at_risk)
-    faith_v3 = sum(a.answer_metrics.faithfulness for a in judged) / n_judged if n_judged else 0.0
-    ca_v3 = sum(a.answer_metrics.citation_accuracy for a in judged) / n_judged if n_judged else 0.0
-    hall_v3 = (
-        sum(a.answer_metrics.hallucination_rate for a in at_risk) / n_at_risk if n_at_risk else 0.0
-    )
-    answer.add_row(f"faithfulness (answered, n={n_judged})", f"{faith_v3:.3f}", stub_note)
-    answer.add_row(f"citation_accuracy (answered, n={n_judged})", f"{ca_v3:.3f}", stub_note)
+    # One definition with the published headline: verity.eval.answer_quality.
+    from verity.eval.answer_quality import Ratio, answer_quality
+
+    def _value(ratio: Ratio) -> str:
+        return "n/a" if ratio.value is None else f"{ratio.value:.3f}"
+
+    q = answer_quality(result.per_audit)
+    for name, macro, micro in (
+        ("faithfulness", q.faithfulness_macro, q.faithfulness_micro),
+        ("citation_accuracy", q.citation_accuracy_macro, q.citation_accuracy_micro),
+    ):
+        answer.add_row(f"{name} (answered, n={macro.denominator})", _value(macro), stub_note)
+        answer.add_row(f"{name} micro (claims, n={micro.denominator})", _value(micro), stub_note)
     answer.add_row(
-        f"hallucination_rate (answerable_and_answered, n={n_at_risk})",
-        f"{hall_v3:.3f}",
+        f"hallucination_rate (answerable_and_answered, n={q.hallucination_rate.denominator})",
+        _value(q.hallucination_rate),
         stub_note,
     )
-    answer.add_row("refusal_precision", f"{sc.answer.refusal_precision:.3f}", refusal_tag)
+    if q.n_judge_unparseable:
+        answer.add_row("judge output unparseable", str(q.n_judge_unparseable), stub_note)
     answer.add_row("refusal_recall", f"{sc.answer.refusal_recall:.3f}", refusal_tag)
+    answer.add_row("refusal_precision", f"{sc.answer.refusal_precision:.3f}", refusal_tag)
     # Companion to hallucination_rate — the count of out-of-scope examples
     # the agent DID NOT refuse. Computed from per_refusal for parity with the
     # JSON export.

@@ -78,15 +78,24 @@ Per example: faithfulness = supported claims / claims; citation accuracy =
 citation_ok claims / claims; hallucination = 1 if the example is answerable and at
 least one claim is unsupported, else 0.
 
-Published aggregate (`verity.eval.headline`, schema v3):
-- **faithfulness** and **citation accuracy**: mean of the per-example values over
-  judged answers (scope `answered`). This is a **macro** (per-question) average: a
-  question with 1 claim weighs as much as one with 6. The per-claim (**micro**)
-  aggregate is not published yet; it differs (see the README's open issues).
-- **hallucination rate**: mean over answerable examples that were answered (scope
-  `answerable_and_answered`).
+Aggregates are defined once, in `verity.eval.answer_quality`, and used by both the
+run's scorecard and the published headline:
+- **judged** answers are those the judge saw; refusals are in no denominator. An
+  answer whose judge output cannot be parsed is scored 0 by the judge; it is counted
+  as `n_judge_unparseable`.
+- **macro** (per question): mean of the per-answer faithfulness (or citation
+  accuracy) over judged answers. A question with 1 claim weighs as much as one with 6.
+- **micro** (per claim): supported (or `citation_ok`) claims over all claims, pooled
+  across answers whose judge output parsed.
+- **hallucination rate**: mean of the per-example value over answerable examples that
+  were answered.
 
-Each metric is stored with its `scope` and `n_denominator`.
+Both macro and micro are published with their numerator and denominator (questions
+or claims). A ratio over an empty set is `null`, never 0 or 1.
+
+Before this definition was shared, the v1.0.0 artefact's scorecard averaged refusals
+in at 1.0 (citation accuracy 0.7917 over 16 questions) while the headline excluded
+them (0.722 over 12 judged answers).
 
 ### Refusal (deterministic over the agent's decisions)
 A confusion matrix over `answerable` vs `refused`, computed in `verity.eval.refusal`:

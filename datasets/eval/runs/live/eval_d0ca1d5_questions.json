@@ -2951,7 +2951,7 @@
   ],
   "scorecard": {
     "answer": {
-      "citation_accuracy": 0.7916666666666666,
+      "citation_accuracy": 0.7222222222222222,
       "faithfulness": 1.0,
       "hallucination_rate": 0.0,
       "refusal_precision": 1.0,

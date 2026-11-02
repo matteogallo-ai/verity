@@ -30,6 +30,7 @@ import structlog
 
 from verity.agent.base import Agent
 from verity.config import get_settings
+from verity.eval.answer_quality import answer_quality
 from verity.eval.base import Evaluator, FaithfulnessJudge
 from verity.eval.refusal import RefusalOutcome, build_confusion
 from verity.eval.retrieval_metric import (
@@ -312,7 +313,7 @@ class AgentEvaluator(Evaluator):
             )
 
         retrieval_agg = _aggregate_retrieval(per_retrieval, k=self._k)
-        answer_agg = _aggregate_answer(per_answer, per_refusal)
+        answer_agg = _aggregate_answer(per_audit, per_refusal)
         latency = _latency_percentiles(answers)
         cost_per_query = _mean_cost(answers, errored_cost_usd, n_errored=len(errored))
 
@@ -349,17 +350,15 @@ def _aggregate_retrieval(per_example: list[PerExampleScore], *, k: int) -> Retri
 
 
 def _aggregate_answer(
-    per_answer: list[PerExampleAnswerMetrics],
+    per_audit: list[PerExampleAudit],
     per_refusal: list[PerExampleRefusal],
 ) -> AnswerMetrics:
-    """Mean faithfulness / citation_accuracy / hallucination_rate + real refusal metrics."""
-    if per_answer:
-        n = float(len(per_answer))
-        faithfulness = sum(p.metrics.faithfulness for p in per_answer) / n
-        citation_accuracy = sum(p.metrics.citation_accuracy for p in per_answer) / n
-        hallucination_rate = sum(p.metrics.hallucination_rate for p in per_answer) / n
-    else:
-        faithfulness = citation_accuracy = hallucination_rate = 0.0
+    """Macro answer quality as defined in :mod:`verity.eval.answer_quality` (0.0 when
+    nothing was judged, since the scorecard field is a float) + refusal metrics."""
+    quality = answer_quality(per_audit)
+    faithfulness = quality.faithfulness_macro.value or 0.0
+    citation_accuracy = quality.citation_accuracy_macro.value or 0.0
+    hallucination_rate = quality.hallucination_rate.value or 0.0
 
     outcomes = [
         RefusalOutcome(

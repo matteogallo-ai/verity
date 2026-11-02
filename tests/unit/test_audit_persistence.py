@@ -323,3 +323,15 @@ def test_pre_v1_persisted_runs_load_without_per_audit(tmp_path: Path) -> None:
     store.save(loaded)
     payload = json.loads((tmp_path / "eval_legacy0_questions.json").read_text(encoding="utf-8"))
     assert "per_audit" not in payload
+
+
+@pytest.mark.asyncio
+async def test_scorecard_answer_quality_is_the_mean_over_judged_answers_only() -> None:
+    """The harness scorecard and the published headline use one definition: refusals
+    bypass the judge and are not averaged in at a conventional 1.0 (the v1.0.0
+    artefact said citation_accuracy 0.7917 where the headline said 0.722)."""
+    result, _ = await _run_stub_harness()
+    judged = [a for a in result.per_audit if a.judge_claims is not None]
+    assert len(judged) < len(result.per_audit), "the stub run must contain refusals"
+    expected = sum(a.answer_metrics.faithfulness for a in judged) / len(judged)
+    assert result.scorecard.answer.faithfulness == pytest.approx(expected)
