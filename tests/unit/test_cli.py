@@ -39,6 +39,7 @@ def test_version_command() -> None:
     assert __version__ in result.stdout
 
 
+@pytest.mark.slow
 def test_eval_run_ci_exits_clean(tmp_path: Path) -> None:
     """Hermetic on ``--runs-dir tmp_path`` so the test never writes to the real
     ``datasets/eval/runs/`` tree. The S7 pre-tag audit exposed that the two
@@ -49,6 +50,7 @@ def test_eval_run_ci_exits_clean(tmp_path: Path) -> None:
     assert result.exit_code == 0
 
 
+@pytest.mark.slow
 def test_eval_run_report_only_floors_writes_json_and_exits_zero(tmp_path: Path) -> None:
     """One-shot LIVE-run invariant, exercised on the stub:
 
@@ -87,6 +89,7 @@ def test_eval_run_report_only_floors_writes_json_and_exits_zero(tmp_path: Path) 
     )
 
 
+@pytest.mark.slow
 def test_eval_run_fatal_floors_exit_two_on_stub(tmp_path: Path) -> None:
     """Same impossible floor WITHOUT --report-only-floors → exit 2 (CI behaviour).
 

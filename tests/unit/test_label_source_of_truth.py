@@ -21,6 +21,7 @@ import json
 import re
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from verity.cli import app
@@ -63,6 +64,7 @@ def _run_stub_and_capture(tmp_path: Path) -> tuple[str, dict]:
 # --------------------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 class TestConsoleJsonLabelInvariant:
     """Every user-visible metric name + denominator is defined ONCE.
     Console and JSON agree on vocabulary AND on scope/n_denominator."""
@@ -154,6 +156,7 @@ class TestConsoleJsonLabelInvariant:
 # --------------------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 def test_cli_verdict_labels_do_not_claim_hallucination_without_evidence(
     tmp_path: Path,
 ) -> None:

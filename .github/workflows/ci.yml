@@ -36,8 +36,11 @@ jobs:
       - name: Mypy (strict)
         run: uv run mypy
 
-      - name: Pytest (unit + coverage)
-        run: uv run pytest -m "not integration"
+      - name: Pytest — fast lane (no local models, must stay < 60 s)
+        run: uv run pytest -m "not integration and not slow"
+
+      - name: Pytest — slow lane (loads the local embedding / reranker models)
+        run: uv run pytest -m "slow and not integration" --cov-append
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4

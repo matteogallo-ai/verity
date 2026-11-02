@@ -167,6 +167,7 @@ def test_no_paid_combo_is_ever_routed_to_the_plain_path() -> None:
 # --------------------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 def test_stub_run_writes_at_plain_runs_dir_never_under_live_subtree(tmp_path: Path) -> None:
     """``verity eval run --ci`` writes to ``<runs_dir>/eval_<sha>_questions.json``
     and never creates or touches anything under ``<runs_dir>/live/``. This is
@@ -292,6 +293,7 @@ def test_explicit_allow_overwrite_bypasses_the_safeguard(tmp_path: Path) -> None
 # --------------------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 def test_cli_exit_code_five_when_stub_run_hits_live_artefact(tmp_path: Path) -> None:
     """End-to-end: a stub CLI run targeting a path that already contains a
     live artefact exits 5 with an actionable message pointing at

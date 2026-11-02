@@ -91,7 +91,7 @@ addopts = "-q --cov=verity --cov-report=term-missing --cov-report=xml"
 testpaths = ["tests"]
 markers = [
   "integration: requires external services (postgres, network)",
-  "eval: part of the evaluation harness, slower",
+  "slow: loads the local embedding / reranker models; excluded from the fast lane",
 ]
 
 [tool.coverage.run]
