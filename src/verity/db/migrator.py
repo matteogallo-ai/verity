@@ -14,8 +14,9 @@ from pathlib import Path
 
 import psycopg
 
-# Resolve migrations/ relative to the *repo root* (two parents up from this file).
-MIGRATIONS_DIR = (Path(__file__).resolve().parents[3] / "migrations").resolve()
+from verity.resources import resource_dir
+
+MIGRATIONS_DIR = resource_dir("migrations")
 
 # Postgres advisory-lock key — 63 bits, arbitrary but stable across restarts.
 _ADVISORY_LOCK = 0x7E82BD5F51000001

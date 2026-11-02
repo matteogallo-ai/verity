@@ -160,3 +160,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/verity"]
+
+# Prompts and SQL migrations are read at run time; the wheel carries them so an
+# installed package does not depend on a checkout (see verity.resources).
+[tool.hatch.build.targets.wheel.force-include]
+"prompts" = "verity/_resources/prompts"
+"migrations" = "verity/_resources/migrations"
