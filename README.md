@@ -4,7 +4,7 @@
 
 **A RAG agent over enterprise documents that refuses when its evidence is weak, and
 publishes how often it gets that right.**
-Cited answers with verbatim quotes. Threshold-gated refusal on out-of-scope questions.
+Cited answers with verbatim quotes. Refusal when the citations do not support the answer.
 Every published number traceable to the run artefact that produced it.
 
 [![ci](https://github.com/matteogallo-ai/verity/actions/workflows/ci.yml/badge.svg)](https://github.com/matteogallo-ai/verity/actions/workflows/ci.yml)
@@ -19,8 +19,9 @@ Enterprise RAG demos answer confidently and are wrong just often enough to be
 dangerous: a fluent, cited-looking answer with no real grounding is the failure that
 matters for contracts, filings and policies.
 
-Verity drafts an answer, asks a scorer model how well the evidence supports it, and
-refuses below a threshold. It publishes faithfulness, citation accuracy,
+Verity drafts an answer, checks deterministically that its citations cover and
+match it, asks a scorer model how well the evidence supports it, and refuses when a
+check fails, the scorer refuses, or the score is below a threshold. It publishes faithfulness, citation accuracy,
 hallucination rate and refusal precision / recall from one live run whose
 per-question audit trail is committed next to the code.
 
@@ -46,7 +47,7 @@ Each feature maps to its implementation and tests in [`docs/CLAIMS.md`](docs/CLA
 CI job `claims` runs those tests.
 
 - Verbatim citations: every quote is a substring of its source document; others are dropped (C01).
-- Threshold-gated refusal with a rationale (C02); unparseable scorer output is refused (C03).
+- Refusal with a rationale when a citation check fails, the scorer refuses or its score is below a threshold (C02); unparseable scorer output is refused (C03).
 - Hybrid retrieval: dense + sparse, reciprocal rank fusion, cross-encoder rerank (C04).
 - Two vector stores: in-memory with cosine and BM25 (C05); Postgres + pgvector with full-text search (C06), the default for the API, the demo and the eval (C22).
 - Markdown and plain-text ingestion with structure-aware chunking and machine-independent ids (C07); PDF and DOCX through docling (C08).
@@ -54,6 +55,7 @@ CI job `claims` runs those tests.
 - Per-request provenance: each answer records the model that actually served it (C10).
 - Evaluation harness: retrieval, refusal and LLM-judged answer-quality metrics, one audit record per question (C11).
 - Live run artefacts protected from being overwritten by stub runs (C12).
+- 95 questions over 21 documents (≥ 25 unanswerable, ≥ 5 adversarial) with a frozen, seeded dev/test split; per-question and per-claim aggregates (C28).
 - README results generated from the scorecard and checked in CI (C13); CLI labels match scorecard keys (C14).
 - 95 questions over 21 documents (≥ 25 unanswerable, ≥ 5 adversarial) with a frozen, seeded dev/test split; per-question and per-claim aggregates (C28).
 - SDK call signatures (C15) and LLM output parsers (C16) tested against the shapes real models produce.
@@ -106,35 +108,40 @@ Every value in the table is copied from the committed scorecard JSON by
 [`scripts/generate_headline_results.py`](scripts/generate_headline_results.py);
 `--check` fails CI if the README drifts. Each answer-quality metric carries its
 `scope` and `n_denominator`. The full audit trail (per-question answer, citations,
-per-claim judge verdict) is
-[`datasets/eval/runs/live/eval_d0ca1d5_questions.json`](datasets/eval/runs/live/eval_d0ca1d5_questions.json).
-Retrieval numbers come from the in-memory store (BM25 sparse arm), which that run
-used; `verity eval run` now defaults to pgvector (`--store memory` reproduces it). Definitions: [`docs/evaluation-methodology.md`](docs/evaluation-methodology.md).
+refusal cause, confidence score, per-claim judge verdict) is
+[`datasets/eval/runs/live/eval_969e1d5_test.json`](datasets/eval/runs/live/eval_969e1d5_test.json).
+The run used the in-memory store (BM25 sparse arm); `verity eval run` defaults to
+pgvector (`--store memory` reproduces it). Definitions:
+[`docs/evaluation-methodology.md`](docs/evaluation-methodology.md).
 
 ## Open issues: what the numbers do not say
 
-- **n = 16 is a method check, not a benchmark.** 16 questions over 5 documents; one
-  question moves refusal recall by 0.2. There is no dev/test split: the 0.55
-  threshold was set by hand and is reported on the same examples.
-- **The judge is unvalidated.** It is the same model as the agent
-  (`claude-sonnet-4-6`) and its agreement with human labels has not been measured.
-- **Citation accuracy is a per-question mean.** Aggregated per claim instead, the
-  same artefact gives 21 of 34 claims with `citation_ok` (0.618), against 0.722 per
-  question. All 13 failing claims are `supported = true`: the judge found the
-  attached citation too coarse (a paragraph-level quote for several facts), not the
-  claim unsupported. An earlier v1.0.0 headline published 0.792, which averaged over
-  all 16 questions with refusals counted as 1.0; v1.0.1 restricted it to the 12
-  answered questions.
-- **The confidence score is not calibrated.** It is the scorer model's
-  self-report; refusal is "threshold-gated", and calibration has not been measured.
-- **q-015 is a labelling ambiguity.** *"Which specific cloud provider hosts the
-  production infrastructure?"* is labelled out-of-scope (the corpus names no
-  provider). The agent answered that the evidence does not name one, with one
-  citation (the artefact does not record its confidence score). The label only
-  checks `refused`, so this counts as an out-of-scope question answered, and
-  refusal recall is reported as 0.800.
-- **Latency includes cold start.** The run used `--no-warmup`, so p95/p99 include
-  the first question's model loading; percentiles come from 16 calls in one run.
+- **The threshold decides nothing on this data.** Every refusal above has a
+  deterministic cause (no citation, low citation coverage, irrelevant citation,
+  suspected injection) or is the scorer's own refusal; none is `below_threshold`.
+  The threshold was chosen on the dev split by a rule fixed before the run (highest
+  refusal recall at precision ≥ 0.9, else highest F1): no threshold reached 0.9,
+  refusal precision and recall are identical for every threshold from 0.00 to 0.95,
+  and the rule gave 0.00. Sweep and figure:
+  [`scorecards/refusal-analysis.json`](scorecards/refusal-analysis.json),
+  [`docs/figures/reliability.png`](docs/figures/reliability.png).
+- **Refusal precision is a known limit: 0.773.** 5 of the 22 refusals hit
+  answerable questions, all from the citation checks (4 `irrelevant_citation`,
+  1 `low_citation_coverage`). Dev shows the same cause (6 of 18). Tuning those checks
+  is done on dev only; a new test run belongs to a new version.
+- **The confidence score is not calibrated.** On test, 35 of the 36 scored answers
+  score 0.9 or more and 31 of them are answerable: ECE 0.116 over n = 36, with almost
+  every answer in one bin. Isotonic and Platt maps fitted on dev hold one
+  unanswerable example and do not fix it (ECE 0.097 and 0.091). The score is the
+  scorer model's self-report.
+- **The judge is not yet validated against humans.** It is `claude-opus-5-5`, a
+  different Claude model from the agent (`claude-sonnet-4-6`), not a different
+  family. Cohen's κ against human labels on 60 sampled claims is pending.
+- **n = 56 is small.** One question moves refusal recall by 0.05 and refusal
+  precision by about 0.04. The corpus is 21 fictional documents in three domains,
+  with no scanned PDFs or tables.
+- **3 of 20 unanswerable questions were answered** (q-074, q-085, q-089), with
+  scores 0.72, 0.92 and 0.90.
 
 ## Roadmap
 
@@ -142,7 +149,7 @@ Not implemented, or implemented without a test. Each item is a `roadmap` row in
 [`docs/CLAIMS.md`](docs/CLAIMS.md).
 
 - Web-page ingestion: the trafilatura parser exists but no test exercises it (C30).
-- Calibrated refusal: measure calibration (ECE, reliability diagram) before claiming it (C21).
+- Calibrated refusal: the measured test ECE (0.116) does not support it (C21).
 - A judge validated against human labels, from a different model family (C27).
 
 ## Architecture
@@ -181,7 +188,7 @@ flowchart LR
     subgraph Eval["Evaluation"]
         ship --> judge[LLM judge<br/>supported · citation_ok]
         refuse --> refusal[refusal metrics<br/>TP/FP/FN/TN]
-        judge --> scorecard["scorecards/live-v1.0.0.json<br/>+ per-question audit"]
+        judge --> scorecard["scorecards/live-v1.1.0.json<br/>+ per-question audit"]
         refusal --> scorecard
     end
 
@@ -233,7 +240,8 @@ uv run python scripts/generate_headline_results.py --check   # scorecard and REA
 ```
 
 A new live evaluation calls paid models (agent and judge): estimate its cost first.
-The threshold is chosen on the dev split and the test split is run once at it
+The threshold is chosen on the dev split and the test split is run once at it, with
+no change to the system in between
 ([methodology](docs/evaluation-methodology.md#refusal-deterministic-over-the-agents-decisions)):
 
 ```bash
@@ -243,13 +251,18 @@ uv run verity eval run --judge live --no-agent-stub \
 uv run python scripts/refusal_analysis.py --dev datasets/eval/runs/live/eval_<sha>_dev.json \
   --out-json scorecards/refusal-analysis.json --out-png docs/figures/reliability.png
 VERITY_CONFIDENCE_THRESHOLD=<chosen> uv run verity eval run --judge live --no-agent-stub \
-  --dataset datasets/eval/test.jsonl --budget-usd 2.8 --report-only-floors
+  --dataset datasets/eval/test.jsonl --budget-usd 1.6 --report-only-floors
+uv run python scripts/refusal_analysis.py --dev datasets/eval/runs/live/eval_<sha>_dev.json \
+  --test datasets/eval/runs/live/eval_<sha>_test.json \
+  --out-json scorecards/refusal-analysis.json --out-png docs/figures/reliability.png
 uv run python scripts/generate_headline_results.py \
   --artefact datasets/eval/runs/live/eval_<sha>_test.json --scorecard scorecards/<name>.json
 ```
 
-The v1.0.0 run (`scorecards/live-v1.0.0.json`) used 16 questions that predate the
-dev/test split; its artefact stays in `datasets/eval/runs/live/`.
+Run artefacts in `datasets/eval/runs/live/` are pinned in its `SHA256SUMS` and never
+edited; v1.1.0 used the dev run `eval_6ec544d_dev.json` and the test run
+`eval_969e1d5_test.json`. The v1.0.0 run (`scorecards/live-v1.0.0.json`) used 16
+questions that predate the dev/test split.
 
 ## How this was built
 

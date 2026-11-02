@@ -1,4 +1,4 @@
-"""Confidence score + threshold-gated refusal decision.
+"""Confidence score and its refusal decision (model refusal, or score below the threshold).
 
 Wraps ``confidence.prompt`` and owns the single comparison against
 ``config.confidence_threshold`` that decides whether the agent ships an answer or a

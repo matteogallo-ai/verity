@@ -35,9 +35,10 @@ export function RefusalState({
         <span>llm calls <b>{answer.usage.llm_calls}</b></span>
       </div>
       <p className="note">
-        Threshold-gated refusal: the confidence score fell below the
-        threshold, so the agent declined rather than ship the draft answer. The hits used to make
-        this decision are still shown on the right panel for auditability.
+        The agent declined rather than ship the draft answer: a citation check failed, the
+        scorer refused, or its score fell below the threshold. The rationale above names the
+        cause; the hits used to make this decision are still shown on the right panel for
+        auditability.
       </p>
       <style jsx>{`
         .refusal {

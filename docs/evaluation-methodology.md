@@ -7,7 +7,7 @@ is a bug.
 ## Principles
 
 1. **Every published number comes from an artefact.** The README results table is
-   generated from `scorecards/live-v1.0.0.json` by
+   generated from `scorecards/live-v1.1.0.json` by
    `scripts/generate_headline_results.py`; CI runs it with `--check`.
 2. **CI eval runs on stubs and is a pipeline smoke test.** With `--judge stub` (the
    `--ci` alias) the agent and the judge are scripted stubs. Retrieval metrics are
@@ -129,6 +129,22 @@ fraction(B)|. Isotonic and Platt maps are fitted on dev and their ECE measured o
 test; they are reported, not used by the agent. The reliability diagram plots the
 bins with their sizes. "Calibrated" is claimed only if the test ECE supports it.
 
+**What v1.1.0 measured** (`scorecards/refusal-analysis.json`,
+`docs/figures/reliability.png`; the system did not change between the dev run at
+`6ec544d` and the test run at `969e1d5`, which only add artefacts):
+- On dev (n = 39), refusal precision 0.667 and recall 0.923 at every threshold from
+  0.00 to 0.95: every refusal had a deterministic cause or was the scorer's own, and
+  every scored answer scored ≥ 0.9. No threshold reached precision 0.9, so the
+  fallback rule applied and gave 0.00.
+- On test (n = 56) at 0.00: precision 0.773 (17 / 22), recall 0.850 (17 / 20).
+  No refusal has the cause `below_threshold`; the 5 refusals of answerable questions
+  are 4 `irrelevant_citation` and 1 `low_citation_coverage`.
+- Test ECE 0.116 over the 36 scored answers, 35 of them in the top bin. Isotonic and
+  Platt maps fitted on dev, whose scored answers hold a single unanswerable question,
+  give 0.097 and 0.091. The score is not calibrated and the README does not claim it.
+- Improving refusal precision means changing the citation checks, not the threshold.
+  That tuning uses dev only; a new test run belongs to a new version.
+
 ### Operational
 - **Latency** p50 / p95 / p99 of the end-to-end `agent.answer` wall clock. With
   `--no-warmup` (the v1.0.0 run) the first question's model loading is included and
@@ -151,7 +167,9 @@ model different from the agent's (`VERITY_JUDGE_ANTHROPIC_MODEL`, default
 `claude-opus-5-5`). It has a single client and no fallback, so the model named in the
 scorecard is the one that judged; a judge equal to the agent's model stops the run.
 Whatever the judge, Cohen's κ against human labels is required before its numbers are
-published. Claim-level verdicts are
+published as validated; until then the README marks them "judge unvalidated". v1.1.0
+was judged by `claude-opus-5-5` (no OpenAI key was available), a different Claude
+model from the agent, not a different family. Claim-level verdicts are
 stored per example in the run artefact so disagreements can be inspected.
 
 ## Regression tracking
@@ -164,7 +182,8 @@ embedding model ids) under `datasets/eval/runs/` (live runs under `runs/live/`).
 
 - a scorecard without a git SHA;
 - a headline number computed on stub output (CI mode);
-- answer-quality numbers without a judge–human agreement figure (true of v1.0.0);
+- answer-quality numbers without a judge–human agreement figure (true of v1.0.0, and
+  of v1.1.0 until κ is published);
 - refusal recall reported without refusal precision;
 - a threshold tuned and reported on the same examples (true of v1.0.0, which predates
   the dev/test split);

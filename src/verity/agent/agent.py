@@ -21,8 +21,8 @@ What holds on the returned :class:`Answer`:
   of it or the reranker judged them irrelevant (:mod:`verity.agent.support`), so a
   document that steers the scorer cannot ship an answer on its own;
 - ``confidence.refused`` is also True when the scorer model asked to refuse OR its
-  self-reported score is below ``confidence_threshold`` (threshold-gated refusal;
-  the score is not calibrated). A refused answer's text is a fixed "I don't know"
+  self-reported score is below ``confidence_threshold`` (the score is the model's
+  self-report and is not calibrated). A refused answer's text is a fixed "I don't know"
   with the rationale;
 - ``hits_used`` and ``usage`` are populated for observability and eval.
 """
