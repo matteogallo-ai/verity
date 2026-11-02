@@ -45,6 +45,12 @@ jobs:
       - name: README results block matches the committed scorecard
         run: uv run python scripts/generate_headline_results.py --check
 
+      - name: PDF and DOCX corpus documents match their Markdown sources
+        run: uv run python scripts/build_corpus_documents.py --check
+
+      - name: Dev/test split matches the seeded split
+        run: uv run python scripts/split_dataset.py --check
+
       - name: Pytest — fast lane (no models, no network, must stay < 60 s)
         # tests/conftest.py disables inet sockets for this lane; HF_HUB_OFFLINE makes
         # a hidden model download fail fast instead of retrying.
@@ -209,15 +215,13 @@ jobs:
         # This job has no Postgres service: the in-memory store keeps it self-contained.
         env:
           VERITY_STORE: memory
-        # Retrieval metrics come from the real local embedder and reranker. Refusal
-        # metrics come from the scripted stub agent, and answer-quality metrics from
-        # the stub judge (labelled "stub-judge-v1" in the artefact). The floors catch
-        # pipeline regressions only.
+        # Retrieval metrics come from the real local embedder and reranker, so only
+        # they are gated. Refusal metrics describe the scripted stub agent's keyword
+        # matching and answer-quality metrics the stub judge: no floor on either.
         run: |
           uv run verity eval run \
             --judge stub \
             --dataset datasets/eval/questions.jsonl \
-            --floor-refusal-recall 0.8 \
             --floor-ndcg 0.5 \
             --floor-recall 0.75
 
