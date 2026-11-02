@@ -15,7 +15,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import re
-import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -53,7 +52,6 @@ class IngestedSource:
     title: str | None
     document_id: str
     n_chunks: int
-    ingested_at_ms: float
 
 
 class AppRuntime:
@@ -117,7 +115,6 @@ class AppRuntime:
                     title=doc.title,
                     document_id=str(doc.id),
                     n_chunks=sum(1 for c in result.chunks if c.document_id == doc.id),
-                    ingested_at_ms=time.time() * 1000,
                 )
             self._preloaded = True
 
@@ -149,7 +146,6 @@ class AppRuntime:
             title=safe_name,
             document_id=str(doc.id),
             n_chunks=len(result.chunks),
-            ingested_at_ms=time.time() * 1000,
         )
         self._sources[str(doc.id)] = record
         return record

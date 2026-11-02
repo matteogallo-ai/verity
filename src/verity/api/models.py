@@ -14,8 +14,6 @@ Rule of iron: no computed field, no fabricated score, no invented composite
 
 from __future__ import annotations
 
-from typing import Any
-
 from pydantic import BaseModel, Field
 
 from verity.types import Answer, RetrievalHit
@@ -187,11 +185,6 @@ def _hit_to_view(hit: RetrievalHit, cited_ids: set[str]) -> RetrievedChunkView:
         kind=hit.kind.value,
         cited=str(hit.chunk.id) in cited_ids,
     )
-
-
-def _model_dump(m: BaseModel) -> dict[str, Any]:
-    """Shim to avoid mypy noise across pydantic versions."""
-    return m.model_dump()
 
 
 __all__ = [

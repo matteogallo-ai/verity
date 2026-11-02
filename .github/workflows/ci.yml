@@ -36,6 +36,12 @@ jobs:
       - name: Mypy (strict)
         run: uv run mypy
 
+      - name: Vulture (dead code)
+        run: uv run vulture
+
+      - name: Deptry (unused / missing / transitive dependencies)
+        run: uv run deptry src
+
       - name: Pytest — fast lane (no local models, must stay < 60 s)
         run: uv run pytest -m "not integration and not slow"
 

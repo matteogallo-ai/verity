@@ -15,7 +15,6 @@ dependencies = [
   "pydantic>=2.9",
   "pydantic-settings>=2.6",
   "psycopg[binary]>=3.2",
-  "pgvector>=0.3",
   "typer>=0.12",
   "rich>=13.9",
   "structlog>=24.4",
@@ -32,6 +31,7 @@ dependencies = [
   # asserted by the SDK-schema smoke test.
   "openai>=3.0,<4.0",
   "rank-bm25>=0.2.2",
+  "numpy>=1.26",  # imported by retrieval.memory_store
   "sentence-transformers>=3.2",
   "docling>=2.0",
   "trafilatura>=2.0",
@@ -56,6 +56,8 @@ dev = [
   "pytest-cov>=6.0",
   "ruff>=0.7",
   "mypy>=1.13",
+  "vulture>=2.16",
+  "deptry>=0.25.1",
 ]
 
 [tool.ruff]
@@ -69,6 +71,31 @@ ignore = ["E501"]  # line length handled by formatter
 
 [tool.ruff.lint.isort]
 known-first-party = ["verity"]
+
+[tool.vulture]
+paths = ["src"]
+min_confidence = 60
+# Called by a framework, not by our code: Typer commands and FastAPI routes.
+ignore_decorators = ["@app.*", "@router.*", "@*_app.command"]
+ignore_names = [
+  # pydantic / pydantic-settings fields read by the framework or serialized to JSON.
+  "model_config", "cited", "version", "reference_answer", "tags", "answer_text",
+  "refusal_rationale",
+  # Parameters of Protocol method signatures that mirror third-party APIs
+  # (sentence-transformers encode / predict).
+  "sentences", "normalize_embeddings", "show_progress_bar", "convert_to_numpy",
+  # psycopg connection attribute, set for its side effect.
+  "autocommit",
+  # Public protocol surface (verity.*.base), conformance checked in
+  # tests/unit/test_protocols.py; implementations must keep these members.
+  "RetrievalMetric", "evaluate", "latest", "dim", "get_chunks", "count_chunks",
+]
+
+[tool.deptry.per_rule_ignores]
+# python-multipart: imported by FastAPI at runtime for UploadFile / Form parsing.
+# torch, torchvision: declared only to route them to the CPU index (see
+#   [tool.uv.sources]); imported by sentence-transformers and docling.
+DEP002 = ["python-multipart", "torch", "torchvision"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -84,7 +111,6 @@ module = [
   "rank_bm25.*",
   "sentence_transformers.*",
   "docling.*",
-  "pgvector.*",
   "trafilatura.*",
   "opentelemetry.exporter.*",
 ]
