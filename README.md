@@ -89,6 +89,15 @@ Generated from [`scorecards/live-v1.0.0.json`](scorecards/live-v1.0.0.json), its
 
 <!-- RESULTS:END -->
 
+The v1.0.0 artefact
+[`eval_d0ca1d5_questions.json`](datasets/eval/runs/live/eval_d0ca1d5_questions.json)
+is immutable and still stores citation accuracy **0.7917**, under the earlier
+definition that averaged its 4 refusals in at 1.0. Under the single definition used
+above (refusals excluded) it is **0.7222**, per question over 12 judged answers; the
+recomputation is in
+[`eval_d0ca1d5_questions.recomputed.json`](datasets/eval/runs/live/eval_d0ca1d5_questions.recomputed.json)
+(`scripts/recompute_live_aggregates.py`).
+
 Every value in the table is copied from the committed scorecard JSON by
 [`scripts/generate_headline_results.py`](scripts/generate_headline_results.py);
 `--check` fails CI if the README drifts. Each answer-quality metric carries its

@@ -59,6 +59,7 @@ uv run python scripts/check_commit_messages.py main..HEAD  # Conventional Commit
 uv run python scripts/generate_headline_results.py --check # README results block ≡ scorecard
 uv run python scripts/build_corpus_documents.py --check    # PDF/DOCX corpus ≡ sources
 uv run python scripts/split_dataset.py --check             # dev/test split ≡ seed
+uv run python scripts/recompute_live_aggregates.py --check # live runs: *.recomputed.json current
 uv run python -m tests.docling_fixture                     # refresh the parsed PDF/DOCX fixture of the fast lane
 VERITY_STORE=memory uv run verity eval run --ci            # pipeline smoke test on stubs (no keys, no db)
 VERITY_API_AUTH_DISABLED=true uv run verity serve --port 8000  # API on pgvector, dev: no auth, stub without LLM key
@@ -74,7 +75,8 @@ cd web && corepack pnpm lint && corepack pnpm typecheck && corepack pnpm test
   `--no-agent-stub`, `verity ask` without `--stub`) needs a cost estimate and approval.
 - The README results block is generated; edit `scorecards/` or the generator, never the block.
 - Changing a non-comment line of a `prompts/*.prompt` file changes model behaviour.
-- `datasets/eval/runs/live/` holds runs of record; never overwrite them.
+- `datasets/eval/runs/live/` holds runs of record, pinned in its `SHA256SUMS`; never
+  modify them, even a derived aggregate. Recomputations go in `*.recomputed.json`.
 - A new README feature needs a `docs/CLAIMS.md` row with passing tests in the same PR.
 
 ## Appendix A — How coding agents must work in my repos

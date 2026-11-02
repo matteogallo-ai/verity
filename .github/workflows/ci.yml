@@ -51,6 +51,9 @@ jobs:
       - name: Dev/test split matches the seeded split
         run: uv run python scripts/split_dataset.py --check
 
+      - name: Recomputed aggregates of the live runs are current
+        run: uv run python scripts/recompute_live_aggregates.py --check
+
       - name: Pytest — fast lane (no models, no network, must stay < 60 s)
         # tests/conftest.py disables inet sockets for this lane; HF_HUB_OFFLINE makes
         # a hidden model download fail fast instead of retrying.

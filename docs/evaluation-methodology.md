@@ -95,7 +95,9 @@ or claims). A ratio over an empty set is `null`, never 0 or 1.
 
 Before this definition was shared, the v1.0.0 artefact's scorecard averaged refusals
 in at 1.0 (citation accuracy 0.7917 over 16 questions) while the headline excluded
-them (0.722 over 12 judged answers).
+them (0.722 over 12 judged answers). Run artefacts in `datasets/eval/runs/live/` are
+immutable (pinned in `SHA256SUMS`); figures recomputed under the current definition
+are in `<artefact>.recomputed.json`, written by `scripts/recompute_live_aggregates.py`.
 
 ### Refusal (deterministic over the agent's decisions)
 A confusion matrix over `answerable` vs `refused`, computed in `verity.eval.refusal`:
