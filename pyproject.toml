@@ -76,8 +76,8 @@ known-first-party = ["verity"]
 [tool.vulture]
 paths = ["src"]
 min_confidence = 60
-# Called by a framework, not by our code: Typer commands and FastAPI routes.
-ignore_decorators = ["@app.*", "@router.*", "@*_app.command"]
+# Called by a framework, not by our code: Typer commands, FastAPI routes, pydantic validators.
+ignore_decorators = ["@app.*", "@router.*", "@*_app.command", "@model_validator"]
 ignore_names = [
   # pydantic / pydantic-settings fields read by the framework or serialized to JSON.
   "model_config", "cited", "version", "reference_answer", "tags", "answer_text",
