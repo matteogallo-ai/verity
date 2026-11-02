@@ -9,6 +9,7 @@ import importlib.util
 import json
 import sys
 import uuid
+from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 from types import ModuleType
@@ -16,6 +17,7 @@ from types import ModuleType
 import pytest
 
 from verity.eval.run_store import FileRunStore
+from verity.llm.base import ProviderUnavailableError
 from verity.types import (
     Answer,
     AnswerMetrics,
@@ -37,18 +39,15 @@ SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "judge_agreement.py"
 S, U = "supported", "unsupported"
 DOC = uuid.UUID(int=999)
 
-# One claim per answer, each open to one kind of perturbation (and the first two to
-# several), plus answers whose claims stay real.
-CLAIMS = [
-    ("Notice is 30 days.", True),
-    ("The policy took effect in March 2024.", True),
-    ("Backups are encrypted.", True),
-    ("Northwind signs the order form.", True),
-    ("Fees are due in 45 days.", True),
-    ("The audit took place in June 2023.", True),
-    ("Support is staffed around the clock.", True),
-    ("Notice is by fax.", False),
-    ("Acme hosts the data.", True),
+# Two claims per answer, open to the four kinds of perturbation between them, and
+# answers whose claims stay real (one holds an unsupported claim).
+ANSWERS = [
+    [("Notice is 30 days.", True), ("The policy took effect in March 2024.", True)],
+    [("Backups are encrypted.", True), ("Northwind signs the order form.", True)],
+    [("Fees are due in 45 days.", True), ("The audit took place in June 2023.", True)],
+    [("Support is staffed around the clock.", True), ("Acme hosts the data.", True)],
+    [("Notice is by fax.", False), ("Payments are made monthly.", True)],
+    [("Reports are filed weekly.", True), ("Invoices are sent by email.", True)],
 ]
 
 
@@ -84,7 +83,7 @@ def _metrics() -> AnswerMetrics:
     )
 
 
-def _audit(i: int, claim: str, supported: bool) -> PerExampleAudit:
+def _audit(i: int, claim: str, supported: bool, *more: tuple[str, bool]) -> PerExampleAudit:
     chunk = Chunk(
         id=uuid.UUID(int=i + 1),
         document_id=DOC,
@@ -116,7 +115,10 @@ def _audit(i: int, claim: str, supported: bool) -> PerExampleAudit:
             ),
         ),
         hits_used=(RetrievalHit(chunk=chunk, score=0.9, kind=RetrieverKind.RERANKED, rank=0),),
-        judge_claims=(ClaimVerdict(claim=claim, supported=supported, citation_ok=True),),
+        judge_claims=tuple(
+            ClaimVerdict(claim=c, supported=s, citation_ok=True)
+            for c, s in ((claim, supported), *more)
+        ),
         answer_metrics=_metrics(),
     )
 
@@ -127,7 +129,7 @@ def _save_run(tmp_path: Path) -> Path:
             git_sha="abc1234",
             created_at=datetime(2026, 11, 2, tzinfo=UTC),
             dataset="dev",
-            n_examples=len(CLAIMS),
+            n_examples=len(ANSWERS),
             retrieval=RetrievalMetrics(precision_at_k=0, recall_at_k=0, ndcg_at_k=0, k=8),
             answer=_metrics(),
             latency=LatencyMetrics(p50_ms=0, p95_ms=0, p99_ms=0),
@@ -135,7 +137,7 @@ def _save_run(tmp_path: Path) -> Path:
         ),
         embedding_model="e",
         judge_model="j",
-        per_audit=tuple(_audit(i, c, s) for i, (c, s) in enumerate(CLAIMS)),
+        per_audit=tuple(_audit(i, *pairs[0], *pairs[1:]) for i, pairs in enumerate(ANSWERS)),
     )
     store = FileRunStore(tmp_path / "runs")
     store.save(run)
@@ -178,7 +180,7 @@ def test_plan_keeps_perturbed_answers_out_of_the_real_sample(
     perturbed, real = mod.plan(claims, mod.load_entities())
     assert sorted(str(p.kind) for _, p in perturbed) == ["date", "entity", "negation", "number"]
     sources = {c.answer_id for c, _ in perturbed}
-    assert len(sources) == 4  # one perturbation per answer
+    assert len(sources) == 2  # two perturbations per answer
     assert not sources & {c.answer_id for c in real}
     assert len(real) == 4 and any(c.judge_verdict == U for c in real)  # unsupported kept
     assert mod.plan(claims, mod.load_entities()) == (perturbed, real)  # seeded
@@ -269,6 +271,7 @@ def test_judge_perturbed_detects_counts_malformed_and_stops_at_budget(
         else:
             assert verdict == S
 
+    mod.REJUDGED.unlink()  # a fresh run, not a resume
     capped = _FakeJudge(catch=())
     result = asyncio.run(mod.judge_perturbed(capped, budget_usd=0.015))
     assert capped.calls == 2 and len(result["verdicts"]) == 2
@@ -311,6 +314,10 @@ def test_kappa_reports_sensitivity_and_mixed_agreement(
     assert mixed["n_claims"] == 8 and mixed["observed"]["k"] == 6
     assert mixed["confusion"]["judge_supported/human_unsupported"] == 1
     assert mixed["cohen_kappa"] is not None
+    # Real items only: the judge's single "unsupported" is the human's "supported".
+    assert result["agreement_real_only"]["n_claims"] == 4
+    spec = result["specificity_real"]
+    assert (spec["k"], spec["n"]) == (3, 4)
     with mod.FINAL_CSV.open(newline="", encoding="utf-8") as fh:
         final = list(csv.DictReader(fh))
     assert {r["origin"] for r in final} == {"real", "perturbed"}
@@ -343,3 +350,78 @@ def test_plan_never_perturbs_an_answer_with_an_unsupported_claim(
     for seed in range(30):
         _, real = mod.plan(claims, mod.load_entities(), seed=seed)
         assert sum(1 for c in real if c.judge_verdict == U) == 2, seed
+
+
+def test_how_often_extracts_repeat_does_not_reveal_origin(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Items of one answer share their extracts: if only real items repeated them, a
+    # repeat would mark an item real. Every answer gives exactly two items.
+    mod = _module(tmp_path, monkeypatch)
+    perturbed, real = mod.plan(mod.collect([_save_run(tmp_path)]), mod.load_entities())
+    for items in ([c for c, _ in perturbed], real):
+        counts = Counter(c.answer_id for c in items)
+        assert set(counts.values()) == {2}
+    assert not {c.answer_id for c, _ in perturbed} & {c.answer_id for c in real}
+
+
+class _FailingJudge(_FakeJudge):
+    """Answers the first ``ok`` calls, then the provider fails."""
+
+    def __init__(self, ok: int) -> None:
+        super().__init__(catch=())
+        self.ok = ok
+
+    async def judge(self, example: EvalExample, answer: Answer) -> AnswerMetrics:
+        if self.calls >= self.ok:
+            raise ProviderUnavailableError("provider down")
+        return await super().judge(example, answer)
+
+
+def test_a_provider_error_keeps_the_paid_verdicts_and_a_rerun_resumes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mod = _module(tmp_path, monkeypatch)
+    assert mod.main(["export", str(_save_run(tmp_path))]) == 0
+    asyncio.run(mod.judge_perturbed(_FailingJudge(ok=2), budget_usd=1.0))
+    saved = json.loads(mod.REJUDGED.read_text())
+    assert len(saved["verdicts"]) == 2 and saved["cost_usd"] == pytest.approx(0.02)
+    rerun = _FakeJudge(catch=())
+    result = asyncio.run(mod.judge_perturbed(rerun, budget_usd=1.0))
+    assert rerun.calls == 2  # only the two not yet judged
+    assert len(result["verdicts"]) == 4 and result["cost_usd"] == pytest.approx(0.04)
+
+
+def test_estimate_fails_cleanly_without_recorded_judge_calls(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    mod = _module(tmp_path, monkeypatch)
+    assert mod.main(["export", str(_save_run(tmp_path))]) == 0
+    assert mod.main(["estimate"]) == 1
+    assert "no judge call" in capsys.readouterr().err
+
+
+def test_kappa_rejects_a_duplicated_row(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    mod = _module(tmp_path, monkeypatch)
+    assert mod.main(["export", str(_save_run(tmp_path))]) == 0
+    key = json.loads(mod.KEY.read_text())["items"]
+    mod.REJUDGED.write_text(json.dumps({"verdicts": {i: {"verdict": U} for i in key}}))
+    path = mod.CSV_FILES[0]
+    with path.open(newline="", encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+    rows[1] = dict(rows[0])  # one row copied over another: same count, one id twice
+    for r in rows:
+        r["human_verdict"] = S
+    with path.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+    with mod.CSV_FILES[1].open(newline="", encoding="utf-8") as fh:
+        other = list(csv.DictReader(fh))
+    for r in other:
+        r["human_verdict"] = S
+    with mod.CSV_FILES[1].open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=list(other[0]))
+        writer.writeheader()
+        writer.writerows(other)
+    assert mod.main(["kappa"]) == 1

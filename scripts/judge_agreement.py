@@ -12,8 +12,9 @@ sensitivity on the perturbed ones, and Cohen's κ on the mixed set.
     # 5. sensitivity on the perturbed claims, κ on all 60, the final CSV
     uv run python scripts/judge_agreement.py kappa
 
-Why perturbed claims: the judge marked 161 of the 164 live claims supported, so on
-real claims alone κ is undefined or 0 whatever the judge does. A perturbed claim is
+Why perturbed claims: the judge marked 161 of the 164 live claims supported, so on a
+sample of real claims its labels are almost all "supported" and κ is undefined or
+rests on one or two items. A perturbed claim is
 the original with one span changed (figure, date, negation, entity of the same type).
 
 Blindness: the CSVs hold an opaque item id, the claim, the passage its answer cited
@@ -21,7 +22,8 @@ Blindness: the CSVs hold an opaque item id, the claim, the passage its answer ci
 do not say which claims are perturbed, nor any verdict; ``judge_key.json`` holds
 both and must stay closed until the annotation is done. A perturbed claim and real
 claims from the same answer are never both in the sample: side by side, the
-disagreement would give the perturbation away.
+disagreement would give the perturbation away. Every answer gives exactly two items,
+so a repeated block of extracts says nothing about origin either.
 """
 
 from __future__ import annotations
@@ -65,6 +67,7 @@ RESULT = OUT_DIR / "agreement.json"
 SEED = 20261102
 N_REAL = 40
 N_PER_KIND = 5
+PER_ANSWER = 2
 LABELS = ("supported", "unsupported")
 COLUMNS = ["item_id", "claim", "cited_passage", "extracts", "human_verdict"]
 
@@ -128,38 +131,71 @@ def load_entities(path: Path = ENTITIES) -> dict[str, list[str]]:
     return {k: v for k, v in data.items() if not k.startswith("_")}
 
 
+def _perturb_pair(
+    answer: Sequence[Claim], quota: dict[Kind, int], entities: dict[str, list[str]]
+) -> list[tuple[Claim, Perturbation]] | None:
+    """Two claims of one answer, each with a perturbation of a kind still needed."""
+    evidence = extracts(answer[0].audit)
+    for i, first in enumerate(answer):
+        for k1 in sorted((k for k in Kind if quota[k]), key=lambda k: -quota[k]):
+            p1 = perturb(first.claim, k1, evidence, entities)
+            if p1 is None:
+                continue
+            left = {**quota, k1: quota[k1] - 1}
+            for second in answer[i + 1 :]:
+                for k2 in sorted((k for k in Kind if left[k]), key=lambda k: -left[k]):
+                    p2 = perturb(second.claim, k2, evidence, entities)
+                    if p2 is not None:
+                        return [(first, p1), (second, p2)]
+    return None
+
+
 def plan(
     claims: Sequence[Claim], entities: dict[str, list[str]], seed: int = SEED
 ) -> tuple[list[tuple[Claim, Perturbation]], list[Claim]]:
-    """``N_PER_KIND`` perturbations per kind from distinct answers with no unsupported
-    claim, then ``N_REAL`` real claims from the other answers, every claim the judge
-    marked unsupported among them."""
+    """``N_PER_KIND`` perturbations per kind and ``N_REAL`` real claims, exactly
+    ``PER_ANSWER`` items per answer, each answer all real or all perturbed.
+
+    Items of one answer share their extracts, so how often an extract repeats must
+    not depend on origin: with every answer giving two items, it never does. Answers
+    holding an unsupported claim are real, so every unsupported claim is sampled."""
     rng = random.Random(seed)
-    supported = [c for c in claims if c.judge_verdict == LABELS[0]]
-    rng.shuffle(supported)
+    by_answer: dict[str, list[Claim]] = {}
+    for c in claims:
+        by_answer.setdefault(c.answer_id, []).append(c)
+    flagged = sorted({c.answer_id for c in claims if c.judge_verdict == LABELS[1]})
+    if any(len(by_answer[a]) < PER_ANSWER for a in flagged):
+        raise ValueError("an answer with an unsupported claim has a single claim")
+    answers = sorted(a for a, cs in by_answer.items() if len(cs) >= PER_ANSWER)
+    rng.shuffle(answers)
+    quota = dict.fromkeys(Kind, N_PER_KIND)
     perturbed: list[tuple[Claim, Perturbation]] = []
-    # Answers holding an unsupported claim are never perturbed: their unsupported
-    # claims all go into the real sample, which a perturbation would push out.
-    used: set[str] = {c.answer_id for c in claims if c.judge_verdict == LABELS[1]}
-    for kind in Kind:
-        picked = 0
-        for c in supported:
-            if picked == N_PER_KIND:
-                break
-            if c.answer_id in used:
-                continue
-            p = perturb(c.claim, kind, extracts(c.audit), entities)
-            if p is not None:
-                perturbed.append((c, p))
-                used.add(c.answer_id)
-                picked += 1
-        if picked < N_PER_KIND:
-            raise ValueError(f"only {picked} claims can take a {kind} perturbation")
-    perturbed_answers = {c.answer_id for c, _ in perturbed}
-    pool = [c for c in claims if c.answer_id not in perturbed_answers]
-    unsupported = [c for c in pool if c.judge_verdict == LABELS[1]]
-    rest = [c for c in pool if c.judge_verdict == LABELS[0]]
-    real = unsupported + rng.sample(rest, N_REAL - len(unsupported))
+    for answer_id in answers:
+        if not any(quota.values()):
+            break
+        if answer_id in flagged:
+            continue
+        pair = _perturb_pair(by_answer[answer_id], quota, entities)
+        if pair is not None:
+            perturbed += pair
+            for _, p in pair:
+                quota[p.kind] -= 1
+    short = [str(k) for k, n in quota.items() if n]
+    if short:
+        raise ValueError(f"not enough answers for a perturbation pair of kind {', '.join(short)}")
+    real: list[Claim] = []
+    for answer_id in flagged:
+        bad = [c for c in by_answer[answer_id] if c.judge_verdict == LABELS[1]]
+        good = [c for c in by_answer[answer_id] if c.judge_verdict == LABELS[0]]
+        real += (bad + rng.sample(good, max(0, PER_ANSWER - len(bad))))[:PER_ANSWER]
+    used = {c.answer_id for c, _ in perturbed} | set(flagged)
+    for answer_id in answers:
+        if len(real) >= N_REAL:
+            break
+        if answer_id not in used:
+            real += rng.sample(by_answer[answer_id], PER_ANSWER)
+    if len(real) != N_REAL:
+        raise ValueError(f"{len(real)} real claims sampled, {N_REAL} needed")
     return perturbed, real
 
 
@@ -229,6 +265,9 @@ def estimate() -> int:
         for a in load_run(REPO_ROOT / run).per_audit
         if a.judge_usage is not None and a.judge_usage.llm_calls
     ]
+    if not calls:
+        print("the runs recorded no judge call: nothing to estimate from", file=sys.stderr)
+        return 1
     costs = sorted(u.cost_usd for u in calls)
     result = {
         "perturbed_claims": n,
@@ -259,14 +298,31 @@ class Judge(Protocol):
     async def judge(self, example: EvalExample, answer: Answer) -> AnswerMetrics: ...
 
 
+def _save(judge: Judge, spent: float, verdicts: dict[str, Any]) -> dict[str, Any]:
+    result = {"judge_model": judge.model, "cost_usd": round(spent, 6), "verdicts": verdicts}
+    REJUDGED.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return result
+
+
 async def judge_perturbed(judge: Judge, budget_usd: float) -> dict[str, Any]:
     """Judge each perturbed claim as a one-claim answer, with its answer's citations
     and extracts. A claim the judge finds unsupported is detected. Stops before a call
-    once ``budget_usd`` is spent; malformed judge output counts as no verdict."""
+    once ``budget_usd`` is spent; malformed judge output counts as no verdict.
+
+    Each verdict is written as soon as it is paid for, and a rerun skips the items
+    already in the file: a provider error stops the loop without losing them, and
+    ``budget_usd`` bounds this invocation's spend."""
+    from verity.llm.base import LLMError
+
     key = json.loads(KEY.read_text(encoding="utf-8"))
-    verdicts: dict[str, Any] = {}
+    previous = json.loads(REJUDGED.read_text(encoding="utf-8")) if REJUDGED.is_file() else {}
+    verdicts: dict[str, Any] = dict(previous.get("verdicts", {}))
+    total = float(previous.get("cost_usd", 0.0))
     spent = 0.0
+    result = {"judge_model": judge.model, "cost_usd": total, "verdicts": verdicts}
     for item_id, item in sorted(_perturbed_items(key).items()):
+        if item_id in verdicts:
+            continue
         if spent >= budget_usd:
             print(
                 f"budget ${budget_usd:.2f} spent: {item_id} and later not judged", file=sys.stderr
@@ -288,9 +344,15 @@ async def judge_perturbed(judge: Judge, budget_usd: float) -> dict[str, Any]:
                 rationale="perturbed claim for judge validation",
             ),
         )
-        await judge.judge(example, answer)
+        try:
+            await judge.judge(example, answer)
+        except LLMError as exc:
+            # Typed provider failure: keep what is paid for, stop, let a rerun resume.
+            print(f"{item_id}: {type(exc).__name__}: {exc}; rerun to resume", file=sys.stderr)
+            break
         cost = judge.last_usage.cost_usd if judge.last_usage else 0.0
         spent += cost
+        total += cost
         claims = judge.last_claims or ()
         detected = any(not v.supported for v in claims)
         verdicts[item_id] = {
@@ -298,7 +360,8 @@ async def judge_perturbed(judge: Judge, budget_usd: float) -> dict[str, Any]:
             "claims": [{"claim": v.claim, "supported": v.supported} for v in claims],
             "cost_usd": cost,
         }
-    return {"judge_model": judge.model, "cost_usd": round(spent, 6), "verdicts": verdicts}
+        result = _save(judge, total, verdicts)
+    return result
 
 
 def rejudge(budget_usd: float) -> int:
@@ -310,7 +373,6 @@ def rejudge(budget_usd: float) -> int:
     # the agent's own model; it makes no call.
     judge = LLMFaithfulnessJudge(create_judge_client(agent_client=create_default_routing_client()))
     result = asyncio.run(judge_perturbed(judge, budget_usd))
-    REJUDGED.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(f"{len(result['verdicts'])} perturbed claims judged, ${result['cost_usd']:.4f}")
     return 0
 
@@ -349,6 +411,25 @@ def _read_annotations() -> list[dict[str, str]]:
     return rows
 
 
+def _pairs_by_id(
+    judge: dict[str, str | None], human: dict[str, str], key: dict[str, Any]
+) -> list[tuple[str, str] | None]:
+    return [(j, human[i]) if (j := judge[i]) is not None else None for i in sorted(key)]
+
+
+def _agreement(pairs: Sequence[tuple[str, str]]) -> dict[str, Any]:
+    return {
+        "n_claims": len(pairs),
+        "observed": _proportion(sum(1 for a, b in pairs if a == b), len(pairs)),
+        "cohen_kappa": cohen_kappa(pairs),
+        "confusion": {
+            f"judge_{a}/human_{b}": sum(1 for p in pairs if p == (a, b))
+            for a in LABELS
+            for b in LABELS
+        },
+    }
+
+
 def kappa() -> int:
     key = json.loads(KEY.read_text(encoding="utf-8"))["items"]
     if not REJUDGED.is_file():
@@ -357,9 +438,10 @@ def kappa() -> int:
     rejudged = json.loads(REJUDGED.read_text(encoding="utf-8"))["verdicts"]
     rows = _read_annotations()
     unknown = [r["item_id"] for r in rows if r["item_id"] not in key]
-    if unknown or len(rows) != len(key):
+    ids = [r["item_id"] for r in rows]
+    if unknown or len(ids) != len(set(ids)) or set(ids) != set(key):
         print(
-            f"the CSVs and {_rel(KEY)} do not match: {', '.join(unknown) or 'count'}",
+            f"the CSVs and {_rel(KEY)} do not match: {', '.join(unknown) or 'duplicate or missing ids'}",
             file=sys.stderr,
         )
         return 1
@@ -378,6 +460,11 @@ def kappa() -> int:
     }
     missing = sorted(i for i, v in judge.items() if v is None)
     pairs = [(j, human[i]) for i in sorted(key) if (j := judge[i]) is not None]
+    real_pairs = [
+        p
+        for i, p in zip(sorted(key), _pairs_by_id(judge, human, key), strict=True)
+        if p is not None and key[i]["origin"] == "real"
+    ]
     perturbed = sorted(i for i, item in key.items() if item["origin"] == "perturbed")
     judged = [i for i in perturbed if judge[i] is not None]
     by_kind: dict[str, Any] = {}
@@ -400,17 +487,22 @@ def kappa() -> int:
             ),
             "by_kind": by_kind,
         },
-        # (2) agreement on the mixed set, the human blind to origin and verdict.
-        "agreement_mixed": {
-            "n_claims": len(pairs),
-            "observed": _proportion(sum(1 for a, b in pairs if a == b), len(pairs)),
-            "cohen_kappa": cohen_kappa(pairs),
-            "confusion": {
-                f"judge_{a}/human_{b}": sum(1 for p in pairs if p == (a, b))
-                for a in LABELS
-                for b in LABELS
-            },
-        },
+        # (2) agreement on the mixed set, the human blind to origin and verdict. Real
+        # items carry the live verdict (the judge split the whole answer), perturbed
+        # ones the one-claim verdict: two protocols, so the real-only figures follow.
+        "agreement_mixed": _agreement(pairs),
+        "agreement_real_only": _agreement(real_pairs),
+        "specificity_real": _proportion(
+            sum(1 for j, h in real_pairs if h == LABELS[0] and j == LABELS[0]),
+            sum(1 for _, h in real_pairs if h == LABELS[0]),
+        ),
+        "notes": [
+            "kappa has no Wilson interval: it is not a proportion; with 60 items it is "
+            "uncertain by itself",
+            "a perturbed claim counts as detected if any sub-claim the judge made of it is "
+            "unsupported, even outside the changed span: sensitivity is an upper bound "
+            "(per-claim detail in perturbed_verdicts.json)",
+        ],
         "judge_without_verdict": missing,
     }
     with FINAL_CSV.open("w", newline="", encoding="utf-8") as fh:
