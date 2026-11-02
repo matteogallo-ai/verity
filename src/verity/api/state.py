@@ -88,6 +88,7 @@ class AppRuntime:
         self._corpus_dir = corpus_dir
         self._tracer: Tracer = tracer or NoOpTracer()
         self._lock = asyncio.Lock()
+        self._ingest_lock = asyncio.Lock()
         self._preloaded = False
 
         self.store: CorpusStore
@@ -145,15 +146,19 @@ class AppRuntime:
         safe_name = _sanitise_filename(filename)
         digest = hashlib.sha256(content).hexdigest()
         access_uri = f"{_UPLOAD_URI_PREFIX}{digest}{extension}"
-        held = {d.document_id for d in await self.store.list_documents()}
-        if str(document_id_for_uri(access_uri)) not in held and len(held) >= max_documents:
-            raise CorpusFullError(max_documents)
-        result = await ingest_uri(
-            uri=access_uri,
-            store=self.store,
-            embedder=self.embedder,
-            raw=content,
-        )
+        # Check and write under one lock: both await I/O, so concurrent uploads would
+        # otherwise all pass the check before any of them is stored. One process per
+        # tenant (SECURITY.md) makes an in-process lock sufficient.
+        async with self._ingest_lock:
+            held = {d.document_id for d in await self.store.list_documents()}
+            if str(document_id_for_uri(access_uri)) not in held and len(held) >= max_documents:
+                raise CorpusFullError(max_documents)
+            result = await ingest_uri(
+                uri=access_uri,
+                store=self.store,
+                embedder=self.embedder,
+                raw=content,
+            )
         assert result.documents, "ingest_uri produced no document"
         doc = result.documents[0]
         return IngestedSource(
