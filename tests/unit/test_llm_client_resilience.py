@@ -18,6 +18,7 @@ from pydantic import SecretStr
 from verity.config import ModelPrice, Settings
 from verity.llm.base import AuthenticationError, LLMError, ProviderUnavailableError
 from verity.llm.clients import AnthropicClient, OpenAIClient, _raise_translated
+from verity.types import Message, Role
 
 _REQUEST = httpx2.Request("POST", "https://provider.invalid/v1/messages")
 
@@ -94,3 +95,42 @@ def test_default_prices_cover_the_default_models() -> None:
 def test_unpriced_model_is_refused_at_construction() -> None:
     with pytest.raises(ValueError, match="no price configured for model 'mystery'"):
         AnthropicClient(api_key=SecretStr("k"), model="mystery", settings=Settings())
+
+
+class _RaisingCreate:
+    def __init__(self, error: Exception) -> None:
+        self._error = error
+
+    async def create(self, **_: object) -> object:
+        raise self._error
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("client_cls", [AnthropicClient, OpenAIClient])
+async def test_a_failing_sdk_call_raises_the_typed_error(client_cls: type[Any]) -> None:
+    sdk = anthropic if client_cls is AnthropicClient else openai
+    client = client_cls(api_key=SecretStr("k"), settings=Settings())
+    failing = _RaisingCreate(_status_error(sdk, "AuthenticationError", 401))
+    client._client = (
+        type("SDK", (), {"messages": failing})()
+        if client_cls is AnthropicClient
+        else type("SDK", (), {"chat": type("Chat", (), {"completions": failing})()})()
+    )
+    with pytest.raises(AuthenticationError):
+        await client.complete([Message(role=Role.USER, content="hi")])
+
+
+@pytest.mark.parametrize(
+    ("client_cls", "target"),
+    [(AnthropicClient, "anthropic.AsyncAnthropic"), (OpenAIClient, "openai.AsyncOpenAI")],
+)
+def test_a_client_that_cannot_be_built_is_unavailable(
+    client_cls: type[Any], target: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def _broken(**_: object) -> None:
+        raise ValueError("bad option")
+
+    module, name = target.split(".")
+    monkeypatch.setattr(anthropic if module == "anthropic" else openai, name, _broken)
+    with pytest.raises(ProviderUnavailableError, match="init failed"):
+        client_cls(api_key=SecretStr("k"), settings=Settings())._get_client()
