@@ -54,8 +54,10 @@ With `VERITY_OTEL_ENDPOINT` set and the `otlp` extra installed (`uv sync --extra
 spans are also sent to that collector through a batching processor; with the endpoint set
 and the extra missing, startup logs the warning `otlp_export_disabled`. Logs are structured
 (structlog) and carry `trace_id` on every line; under the API also `request_id` and the
-authenticated principal. Each request ends with one `answer_done` or `answer_failed` line:
-decision, refusal reason or error kind, per-stage latency, tokens and cost.
+authenticated principal. Each request ends with one line: `answer_done` carries the
+decision (answered or refused), the refusal reason, per-stage latency, tokens and cost;
+`answer_failed` carries `decision=error`, the error kind and the latency of the stages
+reached. Tokens spent before a failure are not reported.
 
 ### 6. Evaluation (`verity.eval`)
 Runs the whole agent over the labeled dataset and emits a `Scorecard` saved as JSON with
