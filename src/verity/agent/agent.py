@@ -21,7 +21,6 @@ Guarantees on the returned :class:`Answer`:
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
 
 import structlog
 
@@ -41,17 +40,6 @@ from verity.types import Answer, Provider, RetrievalHit, UsageStats, new_id
 log = structlog.get_logger(__name__)
 
 _REFUSAL_TEXT = "I don't know based on the provided documents."
-
-
-@dataclass(frozen=True)
-class AgentDeps:
-    """The four components the agent composes. Injectable — the CLI wires the real
-    ones; tests substitute a stub LLM + in-memory retriever."""
-
-    retriever: Retriever
-    decomposer: QuestionDecomposer
-    synthesizer: CitedSynthesizer
-    scorer: ConfidenceScorer
 
 
 class RagAgent(Agent):
@@ -258,4 +246,4 @@ def create_default_agent(
     )
 
 
-__all__ = ["AgentDeps", "RagAgent", "create_default_agent"]
+__all__ = ["RagAgent", "create_default_agent"]

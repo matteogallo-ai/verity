@@ -13,7 +13,6 @@ required to prove the pipeline works.
 
 from __future__ import annotations
 
-import asyncio
 import time
 from collections.abc import Callable
 from typing import Any
@@ -313,11 +312,6 @@ def _raise_translated(exc: BaseException, *, provider: str) -> None:
     ):
         raise ProviderUnavailableError(f"{provider}: {exc}") from exc
     raise LLMError(f"{provider}: {exc}") from exc
-
-
-# tests use this to prove routing calls happen concurrently or serially as configured
-async def _sleep(seconds: float) -> None:  # pragma: no cover — trivial
-    await asyncio.sleep(seconds)
 
 
 __all__ = [

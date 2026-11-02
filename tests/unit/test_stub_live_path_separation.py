@@ -236,7 +236,7 @@ def test_stub_cannot_overwrite_live_artefact_at_the_same_path(tmp_path: Path) ->
         git_sha="livesha",
     )
     store.save(live_run)
-    live_path = store._path_for(live_run.scorecard.git_sha, live_run.scorecard.dataset)
+    live_path = store.path_for(live_run.scorecard.git_sha, live_run.scorecard.dataset)
     original_bytes = live_path.read_bytes()
 
     stub_run = _make_run(
@@ -283,7 +283,7 @@ def test_explicit_allow_overwrite_bypasses_the_safeguard(tmp_path: Path) -> None
     store.save(live_run)
     stub_run = _make_run(agent_model="stub-agent", judge_model="stub-judge-v1", git_sha="livesha")
     store.save(stub_run, allow_overwrite=True)  # must NOT raise
-    on_disk = json.loads(store._path_for("livesha", "questions").read_text(encoding="utf-8"))
+    on_disk = json.loads(store.path_for("livesha", "questions").read_text(encoding="utf-8"))
     assert on_disk["agent_model"] == "stub-agent"
 
 

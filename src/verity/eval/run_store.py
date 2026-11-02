@@ -48,7 +48,7 @@ class FileRunStore(RunStore):
 
     def save(self, run: EvalRun, *, allow_overwrite: bool = False) -> None:
         self._runs_dir.mkdir(parents=True, exist_ok=True)
-        path = self._path_for(run.scorecard.git_sha, run.scorecard.dataset)
+        path = self.path_for(run.scorecard.git_sha, run.scorecard.dataset)
         if path.is_file() and not allow_overwrite and _is_stub_run(run):
             try:
                 existing = json.loads(path.read_text(encoding="utf-8"))
@@ -86,7 +86,8 @@ class FileRunStore(RunStore):
         h = self.history(dataset, limit=1)
         return h[0] if h else None
 
-    def _path_for(self, git_sha: str, dataset: str) -> Path:
+    def path_for(self, git_sha: str, dataset: str) -> Path:
+        """Where :meth:`save` writes the run for ``(git_sha, dataset)``."""
         # Dataset in the filename lets multiple datasets coexist per SHA — cheap
         # future-proofing for when the harness gains a second labeled set.
         safe = "".join(c for c in dataset if c.isalnum() or c in {"-", "_"}) or "default"

@@ -688,7 +688,7 @@ def eval_run(
     except StubOverwritesLiveError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=5) from exc
-    path = store._path_for(run.scorecard.git_sha, run.scorecard.dataset)
+    path = store.path_for(run.scorecard.git_sha, run.scorecard.dataset)
     console.print(f"[green]Persisted[/green] {path}")
 
     # JSON write is deliberately UNCONDITIONAL and happens BEFORE any floor
