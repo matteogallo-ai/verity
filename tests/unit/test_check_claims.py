@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+import pytest
+
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "check_claims.py"
 
 
@@ -76,6 +78,20 @@ def test_readme_feature_without_claim_id_fails() -> None:
     readme = README.replace("- It works (C01).", "- It works (C01).\n- Unbacked promise.")
     problems = cc.check_readme(readme, claims)
     assert any("bullet without a claim id: - Unbacked promise." in p for p in problems)
+
+
+@pytest.mark.parametrize("bullet", ["* Unbacked promise.", "+ Unbacked promise."])
+def test_readme_star_or_plus_bullet_without_claim_id_fails(bullet: str) -> None:
+    claims, _ = cc.parse_claims(TABLE)
+    readme = README.replace("- It works (C01).", f"- It works (C01).\n{bullet}")
+    problems = cc.check_readme(readme, claims)
+    assert any(f"bullet without a claim id: {bullet}" in p for p in problems)
+
+
+def test_three_digit_claim_ids_are_matched_in_the_readme() -> None:
+    claims, _ = cc.parse_claims(TABLE + "| C100 | more | x | `tests/test_x.py` | shipped |\n")
+    readme = README.replace("- It works (C01).", "- It works (C01).\n- More (C100).")
+    assert cc.check_readme(readme, claims) == []
 
 
 def test_readme_missing_shipped_claim_fails() -> None:

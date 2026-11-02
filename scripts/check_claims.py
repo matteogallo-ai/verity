@@ -42,7 +42,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 STATUSES = frozenset({"shipped", "roadmap"})
 _ROW_RE = re.compile(r"^\|\s*(C\d+)\s*\|")
 _TICKED_RE = re.compile(r"`([^`]+)`")
-_CLAIM_ID_RE = re.compile(r"\bC\d{2}\b")
+_CLAIM_ID_RE = re.compile(r"\bC\d+\b")
+_BULLET_RE = re.compile(r"^\s*[-*+]\s")
 
 
 @dataclass
@@ -112,7 +113,7 @@ def check_readme(readme: str, claims: list[Claim]) -> list[str]:
             problems.append(f"README.md: missing '## {section}' section")
             continue
         for line in lines:
-            if not line.lstrip().startswith("- "):
+            if not _BULLET_RE.match(line):
                 continue
             ids = _CLAIM_ID_RE.findall(line)
             if not ids:
