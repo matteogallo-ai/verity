@@ -11,14 +11,24 @@ Implementations: :mod:`verity.retrieval.pgvector_store`,
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
-from verity.types import Chunk, EmbeddedChunk, RetrievalHit
+from verity.types import Chunk, Document, EmbeddedChunk, RetrievalHit
 
 
 class RetrievalUnavailableError(RuntimeError):
     """A retrieval stage failed (store down, query error). Not the same as finding
     nothing: an empty result is a valid answer, a failure is not."""
+
+
+class StoreUnavailableError(RetrievalUnavailableError):
+    """The store cannot be reached (database down, connection refused).
+
+    Like :class:`StoreSchemaError`, the next document cannot succeed either, so
+    ingestion stops on it.
+    """
 
 
 class StoreSchemaError(RuntimeError):
@@ -46,6 +56,24 @@ class VectorStore(Protocol):
     async def sparse_search(self, query: str, k: int) -> list[RetrievalHit]: ...
 
     async def get_chunks(self, chunk_ids: list[str]) -> list[Chunk]: ...
+
+
+@dataclass(frozen=True)
+class DocumentSummary:
+    document_id: str
+    uri: str
+    title: str | None
+    n_chunks: int
+
+
+@runtime_checkable
+class CorpusStore(VectorStore, Protocol):
+    """A :class:`VectorStore` that also keeps documents: what ingestion writes to and
+    what ``/status`` lists, for both backends."""
+
+    async def upsert_documents(self, documents: Sequence[Document]) -> None: ...
+
+    async def list_documents(self) -> list[DocumentSummary]: ...
 
 
 @runtime_checkable

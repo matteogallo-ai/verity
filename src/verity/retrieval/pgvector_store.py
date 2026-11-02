@@ -20,7 +20,7 @@ import psycopg
 from psycopg.rows import dict_row, tuple_row
 
 from verity.config import get_settings
-from verity.retrieval.base import StoreSchemaError
+from verity.retrieval.base import DocumentSummary, StoreSchemaError, StoreUnavailableError
 from verity.types import Chunk, EmbeddedChunk, RetrievalHit, RetrieverKind
 
 
@@ -93,10 +93,14 @@ class PgVectorStore:
         self._schema_checked = False
 
     async def _connect(self) -> psycopg.AsyncConnection[dict[str, Any]]:
-        conn = cast(
-            psycopg.AsyncConnection[dict[str, Any]],
-            await psycopg.AsyncConnection.connect(self._url),
-        )
+        try:
+            conn = cast(
+                psycopg.AsyncConnection[dict[str, Any]],
+                await psycopg.AsyncConnection.connect(self._url),
+            )
+        except psycopg.OperationalError as exc:
+            # The message names host and port, never the password.
+            raise StoreUnavailableError(f"cannot connect to Postgres: {exc}") from exc
         if not self._schema_checked:
             try:
                 await _check_embedding_dim(conn, self._embedding_dim)
@@ -163,6 +167,31 @@ class PgVectorStore:
                     )
         finally:
             await conn.close()
+
+    async def list_documents(self) -> list[DocumentSummary]:
+        conn = await self._connect()
+        try:
+            async with conn.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    """
+                    SELECT d.id, d.uri, d.title, COUNT(c.id) AS n_chunks
+                      FROM documents d LEFT JOIN chunks c ON c.document_id = d.id
+                     GROUP BY d.id
+                     ORDER BY d.uri
+                    """
+                )
+                rows = await cur.fetchall()
+        finally:
+            await conn.close()
+        return [
+            DocumentSummary(
+                document_id=str(row["id"]),
+                uri=row["uri"],
+                title=row["title"],
+                n_chunks=int(row["n_chunks"]),
+            )
+            for row in rows
+        ]
 
     async def upsert_documents(self, documents: Sequence[Any]) -> None:
         """Upsert ``Document`` rows. Kept off the ``VectorStore`` protocol on purpose

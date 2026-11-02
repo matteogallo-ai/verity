@@ -21,13 +21,12 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
-from typing import Any
 
 import numpy as np
 from rank_bm25 import BM25Okapi
 
-from verity.retrieval.base import VectorStore
-from verity.types import Chunk, EmbeddedChunk, RetrievalHit, RetrieverKind
+from verity.retrieval.base import CorpusStore, DocumentSummary
+from verity.types import Chunk, Document, EmbeddedChunk, RetrievalHit, RetrieverKind
 
 _TOKEN_RE = re.compile(r"\w+")
 
@@ -36,11 +35,12 @@ def _tokenize(text: str) -> list[str]:
     return _TOKEN_RE.findall(text.lower())
 
 
-class InMemoryVectorStore(VectorStore):
+class InMemoryVectorStore(CorpusStore):
     """Dict-backed store with cosine + BM25 primitives. Not thread-safe."""
 
     def __init__(self) -> None:
         self._chunks: dict[str, Chunk] = {}
+        self._documents: dict[str, Document] = {}
         self._embeddings: dict[str, np.ndarray] = {}
         self._bm25: BM25Okapi | None = None
         self._bm25_order: list[str] = []
@@ -53,10 +53,21 @@ class InMemoryVectorStore(VectorStore):
             self._embeddings[cid] = np.asarray(embedded.embedding, dtype=np.float32)
         self._bm25_dirty = True
 
-    async def upsert_documents(self, documents: Sequence[Any]) -> None:
-        # No document table in the in-memory backend — chunks carry everything the
-        # retrieval side needs. Kept for signature compatibility with PgVectorStore.
-        return None
+    async def upsert_documents(self, documents: Sequence[Document]) -> None:
+        for document in documents:
+            self._documents[str(document.id)] = document
+
+    async def list_documents(self) -> list[DocumentSummary]:
+        counts: dict[str, int] = {}
+        for chunk in self._chunks.values():
+            key = str(chunk.document_id)
+            counts[key] = counts.get(key, 0) + 1
+        return [
+            DocumentSummary(
+                document_id=key, uri=doc.uri, title=doc.title, n_chunks=counts.get(key, 0)
+            )
+            for key, doc in sorted(self._documents.items(), key=lambda kv: kv[1].uri)
+        ]
 
     async def dense_search(self, query_embedding: tuple[float, ...], k: int) -> list[RetrievalHit]:
         if k <= 0 or not self._chunks:

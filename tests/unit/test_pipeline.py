@@ -13,6 +13,7 @@ from verity.ingestion.pipeline import (
     IngestionPipeline,
     discover_sources,
 )
+from verity.retrieval.base import StoreUnavailableError
 from verity.retrieval.pgvector_store import EmbeddingDimensionMismatchError, SchemaNotMigratedError
 from verity.types import Chunk, EmbeddedChunk
 
@@ -145,6 +146,7 @@ class _MisconfiguredSink(_RecordingSink):
     [
         EmbeddingDimensionMismatchError("schema holds VECTOR(384), configured 768"),
         SchemaNotMigratedError("chunks table missing"),
+        StoreUnavailableError("cannot connect to Postgres"),
     ],
 )
 async def test_schema_error_stops_ingestion_at_the_first_document(error: Exception) -> None:
