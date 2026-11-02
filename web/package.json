@@ -2,6 +2,7 @@
   "name": "verity-web",
   "version": "1.0.1",
   "private": true,
+  "license": "MIT",
   "description": "Verity UI — upload → cited answer → honest source & confidence panel.",
   "packageManager": "pnpm@9.15.0",
   "type": "module",
