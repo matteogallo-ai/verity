@@ -60,6 +60,7 @@ CI job `claims` runs those tests.
 - HTTP API with `/status`, `/ask` and content-addressed `/ingest` (C18), and a Next.js UI with citation highlighting and a provenance badge (C19).
 - Provider API keys held as secrets, absent from any printed settings (C20).
 - API hardening: API keys on `/ask` and `/ingest`, per-key rate limit, bounded inputs, file-type allow-list, generic errors with a request ID (C23).
+- Prompt-injection defence: delimited, untrusted-labelled evidence, and a deterministic support check (citation coverage, cited relevance, injection markers) the model's score cannot override; adversarial eval questions (C24).
 - Provider and store outages reported as errors (HTTP 503), never as refusals (C25).
 
 ## Measured results
@@ -126,7 +127,6 @@ Not implemented, or implemented without a test. Each item is a `roadmap` row in
 
 - Web-page ingestion: the trafilatura parser exists but no test exercises it (C30).
 - Calibrated refusal: measure calibration (ECE, reliability diagram) before claiming it (C21).
-- Prompt-injection defence for ingested documents, with adversarial tests (C24).
 - A Docker image that serves live answers: today it lacks `prompts/` and `migrations/` (C26).
 - A judge validated against human labels, from a different model family (C27).
 - ≥ 80 questions with a frozen dev/test split; micro and macro aggregates (C28).
