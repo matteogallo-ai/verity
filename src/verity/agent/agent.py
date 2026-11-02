@@ -30,6 +30,8 @@ What holds on the returned :class:`Answer`:
 from __future__ import annotations
 
 import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 import structlog
 
@@ -46,7 +48,7 @@ from verity.llm.base import (
     RoutingClient,
 )
 from verity.llm.routing import primary_client_identity
-from verity.observability.base import Tracer
+from verity.observability.base import StageSpan, Tracer
 from verity.observability.logging import request_trace
 from verity.observability.tracer import NoOpTracer
 from verity.retrieval.base import RetrievalUnavailableError, Retriever
@@ -109,42 +111,59 @@ class RagAgent(Agent):
         # it via the observability contextvar).
         with request_trace(trace_id):
             started = time.perf_counter()
+            # Filled as each stage ends, so an error line shows how far the request got.
+            stage_ms: dict[str, float] = {}
+            error: Exception
             # An infrastructure failure is returned as a typed error, never as a
             # refusal: "the provider is down" must not read as "the evidence is weak".
             try:
-                return await self._answer(question, trace_id, started)
+                answer = await self._answer(question, trace_id, started, stage_ms)
             except RetrievalUnavailableError as exc:
-                return _error_answer(
-                    question, trace_id, started, ErrorKind.RETRIEVAL_UNAVAILABLE, exc
-                )
+                kind, error = ErrorKind.RETRIEVAL_UNAVAILABLE, exc
             except AuthenticationError as exc:
-                return _error_answer(question, trace_id, started, ErrorKind.PROVIDER_AUTH, exc)
+                kind, error = ErrorKind.PROVIDER_AUTH, exc
             except ProviderUnavailableError as exc:
-                return _error_answer(
-                    question, trace_id, started, ErrorKind.PROVIDER_UNAVAILABLE, exc
-                )
+                kind, error = ErrorKind.PROVIDER_UNAVAILABLE, exc
             except LLMError as exc:
-                return _error_answer(question, trace_id, started, ErrorKind.PROVIDER_ERROR, exc)
+                kind, error = ErrorKind.PROVIDER_ERROR, exc
+            else:
+                _log_answer(answer, stage_ms)
+                return answer
+            return _error_answer(question, trace_id, started, kind, error, stage_ms)
 
-    async def _answer(self, question: str, trace_id: TraceId, started: float) -> Answer:
-        async with self._tracer.stage("agent.decompose", trace_id) as span:
+    @asynccontextmanager
+    async def _stage(
+        self, name: str, trace_id: TraceId, stage_ms: dict[str, float]
+    ) -> AsyncIterator[StageSpan]:
+        """A tracer span that also records its wall-clock time in ``stage_ms``."""
+        stage_started = time.perf_counter()
+        try:
+            async with self._tracer.stage(name, trace_id) as span:
+                yield span
+        finally:
+            stage_ms[name] = round((time.perf_counter() - stage_started) * 1000, 2)
+
+    async def _answer(
+        self, question: str, trace_id: TraceId, started: float, stage_ms: dict[str, float]
+    ) -> Answer:
+        async with self._stage("agent.decompose", trace_id, stage_ms) as span:
             sub_questions = await self._decomposer.decompose(question)
             span.set_attribute("n_sub_questions", len(sub_questions))
             _bind_component_usage(span, self._decomposer)
             log.info("decomposed", n_sub_questions=len(sub_questions))
 
-        async with self._tracer.stage("agent.retrieve", trace_id) as span:
+        async with self._stage("agent.retrieve", trace_id, stage_ms) as span:
             hits = await self._collect_hits(sub_questions)
             span.record_hits(len(hits), hits[0].score if hits else None)
             log.info("aggregated_hits", n_hits=len(hits))
 
-        async with self._tracer.stage("agent.synthesize", trace_id) as span:
+        async with self._stage("agent.synthesize", trace_id, stage_ms) as span:
             synthesis = await self._synthesizer.synthesize(question, hits)
             span.set_usage(synthesis.usage)
             span.set_attribute("n_citations", len(synthesis.citations))
 
         scorer_usage: UsageStats | None = None
-        async with self._tracer.stage("agent.confidence", trace_id) as span:
+        async with self._stage("agent.confidence", trace_id, stage_ms) as span:
             # Deterministic gates before the scorer: a draft with no verified citation,
             # or whose citations do not cover it or are irrelevant to the question, is
             # refused whatever a model reading the same documents would say about it.
@@ -192,12 +211,6 @@ class RagAgent(Agent):
         model_used = synthesis.model or self._preferred_model
 
         if confidence.refused:
-            log.info(
-                "refused",
-                score=confidence.score,
-                reason=confidence.reason,
-                rationale=confidence.rationale,
-            )
             return Answer(
                 query=question,
                 text=REFUSAL_TEXT,
@@ -243,11 +256,44 @@ class RagAgent(Agent):
         return sorted(seen.values(), key=lambda h: -h.score)
 
 
+def _log_answer(answer: Answer, stage_ms: dict[str, float]) -> None:
+    """The one line per answered or refused request: what operations reads first."""
+    confidence = answer.confidence
+    assert confidence is not None and answer.usage is not None
+    log.info(
+        "answer_done",
+        trace_id=str(answer.trace_id),
+        decision="refused" if confidence.refused else "answered",
+        reason=confidence.reason.value if confidence.reason else None,
+        score=confidence.score,
+        rationale=confidence.rationale if confidence.refused else None,
+        stage_ms=stage_ms,
+        latency_ms=answer.usage.latency_ms,
+        input_tokens=answer.usage.input_tokens,
+        output_tokens=answer.usage.output_tokens,
+        cost_usd=answer.usage.cost_usd,
+        n_citations=len(answer.citations),
+    )
+
+
 def _error_answer(
-    question: str, trace_id: TraceId, started: float, kind: ErrorKind, exc: Exception
+    question: str,
+    trace_id: TraceId,
+    started: float,
+    kind: ErrorKind,
+    exc: Exception,
+    stage_ms: dict[str, float],
 ) -> Answer:
     latency_ms = round((time.perf_counter() - started) * 1000, 2)
-    log.error("answer_failed", error_kind=kind.value, error=str(exc), latency_ms=latency_ms)
+    log.error(
+        "answer_failed",
+        trace_id=str(trace_id),
+        decision="error",
+        error_kind=kind.value,
+        error=str(exc),
+        stage_ms=stage_ms,
+        latency_ms=latency_ms,
+    )
     return Answer(
         query=question,
         text="",

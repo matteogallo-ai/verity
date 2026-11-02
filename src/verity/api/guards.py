@@ -64,11 +64,12 @@ def _principal_for(supplied: str | None, settings: Settings) -> str | None:
     return matched
 
 
-def require_api_key(request: Request) -> str:
+async def require_api_key(request: Request) -> str:
     """FastAPI dependency: authenticate ``X-API-Key`` and apply the rate limit.
 
     Returns the principal (``key-<n>`` or ``anonymous``), bound on the log context.
-    The key itself is never logged.
+    The key itself is never logged. Async on purpose: FastAPI runs a sync dependency
+    in a worker thread, whose context-variable binding the handler would not see.
     """
     settings: Settings = request.app.state.settings
     if settings.api_auth_disabled:
