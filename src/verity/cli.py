@@ -741,7 +741,9 @@ def eval_run(
         from verity.eval.headline import StubOverwritesLiveScorecardError
 
         try:
-            headline_path = write_headline_scorecard(result, scorecard_json, dataset_path=dataset)
+            headline_path = write_headline_scorecard(
+                run, scorecard_json, source_artefact=_display_path(path)
+            )
         except StubOverwritesLiveScorecardError as exc:
             console.print(f"[red]{exc}[/red]")
             raise typer.Exit(code=5) from exc
@@ -879,6 +881,13 @@ def eval_compare(
         raise typer.Exit(code=3)
 
 
+def _display_path(path: Path) -> str:
+    """``path`` relative to the working directory when inside it, else absolute."""
+    resolved = path.resolve()
+    cwd = Path.cwd()
+    return (resolved.relative_to(cwd) if resolved.is_relative_to(cwd) else resolved).as_posix()
+
+
 def _print_scorecard(result) -> None:  # type: ignore[no-untyped-def]
     """Render a full Scorecard with an explicit stub-vs-real annotation.
 
@@ -965,8 +974,8 @@ def _print_scorecard(result) -> None:  # type: ignore[no-untyped-def]
         _value(q.hallucination_rate),
         stub_note,
     )
-    if q.n_judge_unparseable:
-        answer.add_row("judge output unparseable", str(q.n_judge_unparseable), stub_note)
+    if q.n_judged_without_claims:
+        answer.add_row("judged without a usable claim", str(q.n_judged_without_claims), stub_note)
     answer.add_row("refusal_precision", f"{sc.answer.refusal_precision:.3f}", refusal_tag)
     answer.add_row("refusal_recall", f"{sc.answer.refusal_recall:.3f}", refusal_tag)
     # Companion to hallucination_rate — the count of out-of-scope examples

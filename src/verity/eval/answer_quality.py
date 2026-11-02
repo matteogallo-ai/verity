@@ -5,15 +5,16 @@ all use this module, so a number cannot differ between the artefact and the READ
 
 - *Judged* answers are those the judge saw (``judge_claims is not None``); refusals
   bypass the judge and are in no denominator here.
-- *Unparseable*: the judge answered but its output could not be parsed
-  (``judge_claims == ()``). The judge scores such an answer 0, so it counts as 0 in
-  the macro figures and contributes no claim to the micro figures; its count is
-  published so the two can be reconciled.
+- *Without claims*: the judge saw the answer but returned no usable claim
+  (``judge_claims == ()``): its output could not be parsed, or held no claim (the
+  parser treats an empty claim list as malformed). The judge scores such an answer 0,
+  so it counts as 0 in the macro figures and contributes no claim to the micro
+  figures; its count is published so the two can be reconciled.
 - **Macro** (per question): mean of the per-answer ratio, over judged answers.
 - **Micro** (per claim): claims judged supported (or whose citation supports them)
-  over all claims, pooled across parsed answers.
+  over all claims, pooled across judged answers.
 - Hallucination rate: share of answerable questions the agent answered whose
-  answer has at least one unsupported claim (or unparseable judge output).
+  answer has at least one unsupported claim (or no usable claim from the judge).
 
 A ratio over an empty set is ``None``, never a made-up 0 or 1.
 """
@@ -36,7 +37,7 @@ class Ratio:
 @dataclass(frozen=True)
 class AnswerQuality:
     n_judged: int
-    n_judge_unparseable: int
+    n_judged_without_claims: int
     faithfulness_macro: Ratio
     faithfulness_micro: Ratio
     citation_accuracy_macro: Ratio
@@ -54,7 +55,7 @@ def answer_quality(audits: Sequence[PerExampleAudit]) -> AnswerQuality:
     at_risk = [a for a in judged if a.expected_answerable]
     return AnswerQuality(
         n_judged=len(judged),
-        n_judge_unparseable=sum(1 for a in judged if not a.judge_claims),
+        n_judged_without_claims=sum(1 for a in judged if not a.judge_claims),
         faithfulness_macro=_ratio(sum(a.answer_metrics.faithfulness for a in judged), len(judged)),
         faithfulness_micro=_ratio(sum(1 for c in claims if c.supported), len(claims)),
         citation_accuracy_macro=_ratio(

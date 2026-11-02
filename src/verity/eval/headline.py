@@ -11,7 +11,7 @@ Schema v4:
   definition): faithfulness and citation accuracy carry a ``macro`` (per question)
   and a ``micro`` (per claim) value, each with its denominator; refusals bypass the
   judge and are in neither;
-- ``sample_sizes`` counts judged answers, claims and unparseable judge outputs;
+- ``sample_sizes`` counts judged answers, claims, and judged answers without a usable claim;
 - model summaries come from the per-example models recorded in the artefact, so a
   routing fallback shows up as a split, e.g. ``"claude-sonnet-4-6 (15/16),
   gpt-4.1-mini (1/16)"``; the judge summary names the refusals that bypassed it;
@@ -34,54 +34,23 @@ from verity.eval.refusal import RefusalOutcome, build_confusion
 from verity.types import EvalRun, UsageStats
 
 
-def _summarize_stamps(models: Sequence[str | None]) -> str:
-    """Aggregate per-call ``(provider, model)`` stamps into a one-line summary.
-
-    Used for the AGENT side, where every dataset example has a stamp (the
-    agent runs on every question). See :func:`_summarize_judge_stamps` for the
-    judge-side variant that surfaces refusal skips.
-    """
-    counts = Counter(m for m in models if m)
-    total = sum(counts.values())
-    if total == 0:
-        return "unknown"
-    parts = [f"{model} ({n}/{total})" for model, n in counts.most_common()]
-    return ", ".join(parts)
-
-
-def _summarize_judge_stamps(
-    models: Sequence[str | None],
-    *,
-    total_examples: int,
-) -> str:
-    """Aggregate per-call judge stamps — same as :func:`_summarize_stamps`
-    for the "who served" split, but surfaces refusal skips explicitly.
-
-    Format when the judge ran on every example (no refusals):
-        ``"<model> (N/N)"``
-    Format when refusals bypassed the judge on some examples:
-        ``"<model> (K/N answered — <skipped> refusals bypass the judge)"``
-
-    Load-bearing rule: a reader must not be able to confuse the
-    judge call count with the total question count. The v2 output
-    ``"(12/12)"`` was arithmetically true (12 non-None stamps out of 12
-    counted stamps) but misleading — 4 refusals had already been filtered
-    out. v3 puts the total in the denominator and names the skips.
-    """
+def _summarize_stamps(models: Sequence[str | None], *, total_examples: int) -> str:
+    """Per-model counts of the calls that ran, e.g. ``"claude-sonnet-4-6 (15/16),
+    gpt-4.1-mini (1/16)"``; ``None`` entries are examples where no call ran. When
+    some did not (refusals bypass the judge), the count reads
+    ``"<model> (K/N answered — S refusals bypass the judge)"`` so the number of
+    calls is never mistaken for the number of questions."""
     counts = Counter(m for m in models if m)
     counted = sum(counts.values())
     if counted == 0:
         return "unknown"
     skipped = total_examples - counted
     if skipped <= 0:
-        parts = [f"{model} ({n}/{counted})" for model, n in counts.most_common()]
-        return ", ".join(parts)
-    # Skipped calls exist — surface them.
-    parts = [
+        return ", ".join(f"{model} ({n}/{counted})" for model, n in counts.most_common())
+    return ", ".join(
         f"{model} ({n}/{total_examples} answered — {skipped} refusals bypass the judge)"
         for model, n in counts.most_common()
-    ]
-    return ", ".join(parts)
+    )
 
 
 def _hash_dataset_path(dataset_path: Path | None) -> str | None:
@@ -150,8 +119,8 @@ def build_headline_dict_from_eval_run(
         "generated_at": sc.created_at.isoformat(),
         "provenance": {
             "run_sha": sc.git_sha,
-            "agent_model": _summarize_stamps(agent_models),
-            "judge_model": _summarize_judge_stamps(judge_models, total_examples=n_audited),
+            "agent_model": _summarize_stamps(agent_models, total_examples=n_audited),
+            "judge_model": _summarize_stamps(judge_models, total_examples=n_audited),
             "embedding_model": run.embedding_model,
             "prompt_sha256": dict(sorted(run.prompt_sha256.items())),
         },
@@ -169,7 +138,7 @@ def build_headline_dict_from_eval_run(
             "n_errored": sc.n_examples - n_audited,
             "n_answered": n_audited - n_refused,
             "n_judged": quality.n_judged,
-            "n_judge_unparseable": quality.n_judge_unparseable,
+            "n_judged_without_claims": quality.n_judged_without_claims,
             "n_claims": quality.faithfulness_micro.denominator,
             "n_refused": n_refused,
             "n_answerable_answered": quality.hallucination_rate.denominator,
@@ -252,15 +221,16 @@ class StubOverwritesLiveScorecardError(RuntimeError):
 
 
 def write_headline_scorecard(
-    result: HarnessResult,
+    run: EvalRun,
     path: Path,
     *,
-    dataset_path: Path | None = None,
     source_artefact: str | None = None,
     allow_overwrite: bool = False,
 ) -> Path:
-    """Write the enriched JSON to ``path``, creating parent dirs as needed."""
-    if path.is_file() and not allow_overwrite and _is_stub_result(result):
+    """Write the headline of ``run`` to ``path``. Pass the saved :class:`EvalRun` and
+    its file as ``source_artefact`` so the scorecard is the one
+    ``generate_headline_results.py`` rebuilds from that file."""
+    if path.is_file() and not allow_overwrite and _is_stub_result(run):
         try:
             existing = json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
@@ -273,15 +243,13 @@ def write_headline_scorecard(
                 "Pass allow_overwrite=True if this is intentional."
             )
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = build_headline_dict(
-        result, dataset_path=dataset_path, source_artefact=source_artefact
-    )
+    payload = build_headline_dict_from_eval_run(run, source_artefact=source_artefact)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return path
 
 
-def _is_stub_result(result: HarnessResult) -> bool:
-    return "stub" in result.agent_model.lower() or "stub" in result.judge_model.lower()
+def _is_stub_result(run: EvalRun) -> bool:
+    return "stub" in run.agent_model.lower() or "stub" in run.judge_model.lower()
 
 
 def _existing_is_stub(existing: dict[str, Any]) -> bool:

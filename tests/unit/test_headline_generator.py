@@ -180,7 +180,7 @@ def test_build_headline_dict_carries_full_provenance_and_totals() -> None:
         "n_errored": 0,
         "n_answered": 11,
         "n_judged": 11,
-        "n_judge_unparseable": 0,
+        "n_judged_without_claims": 0,
         "n_claims": 550,
         "n_refused": 5,
         "n_answerable_answered": 11,
@@ -269,7 +269,7 @@ def test_render_block_shows_verbatim_headline_numbers() -> None:
 
 def test_write_headline_scorecard_round_trips(tmp_path: Path) -> None:
     result = _fixture_result()
-    out = write_headline_scorecard(result, tmp_path / "live.json")
+    out = write_headline_scorecard(result.as_eval_run(), tmp_path / "live.json")
     parsed = json.loads(out.read_text(encoding="utf-8"))
     assert parsed["schema"] == "verity.scorecard.headline/v4"
     assert parsed["cost"]["total_usd"] == pytest.approx(1.4)
@@ -279,7 +279,7 @@ def test_generator_is_idempotent(tmp_path: Path) -> None:
     """Running the generator twice is a no-op — no silent README drift."""
     result = _fixture_result()
     scorecard_path = tmp_path / "live.json"
-    write_headline_scorecard(result, scorecard_path)
+    write_headline_scorecard(result.as_eval_run(), scorecard_path)
     readme = tmp_path / "README.md"
     readme.write_text(
         "# top\n\n## Measured results\n\n<!-- RESULTS:START -->\n<!-- RESULTS:END -->\n\nend\n",
@@ -296,7 +296,7 @@ def test_generator_is_idempotent(tmp_path: Path) -> None:
 def test_generator_fails_loudly_without_markers(tmp_path: Path) -> None:
     result = _fixture_result()
     scorecard_path = tmp_path / "live.json"
-    write_headline_scorecard(result, scorecard_path)
+    write_headline_scorecard(result.as_eval_run(), scorecard_path)
     readme = tmp_path / "README.md"
     readme.write_text("no markers here\n", encoding="utf-8")
     generator = _load_generator()

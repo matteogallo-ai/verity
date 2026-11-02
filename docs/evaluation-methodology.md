@@ -81,12 +81,12 @@ least one claim is unsupported, else 0.
 Aggregates are defined once, in `verity.eval.answer_quality`, and used by both the
 run's scorecard and the published headline:
 - **judged** answers are those the judge saw; refusals are in no denominator. An
-  answer whose judge output cannot be parsed is scored 0 by the judge; it is counted
-  as `n_judge_unparseable`.
+  answer for which the judge returns no usable claim (unparseable output, or an empty
+  claim list) is scored 0 by the judge; it is counted as `n_judged_without_claims`.
 - **macro** (per question): mean of the per-answer faithfulness (or citation
   accuracy) over judged answers. A question with 1 claim weighs as much as one with 6.
 - **micro** (per claim): supported (or `citation_ok`) claims over all claims, pooled
-  across answers whose judge output parsed.
+  across judged answers.
 - **hallucination rate**: mean of the per-example value over answerable examples that
   were answered.
 

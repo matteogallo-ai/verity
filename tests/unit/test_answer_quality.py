@@ -43,20 +43,20 @@ _BAD_CITATION = ClaimVerdict(claim="c", supported=True, citation_ok=False)
 _AUDITS = [
     _audit(True, (_OK, _OK, _OK, _UNSUPPORTED)),  # 3/4 supported, 3/4 cited
     _audit(True, (_BAD_CITATION,)),  # 1/1 supported, 0/1 cited
-    _audit(True, ()),  # judge output unparseable: 0 in macro, no claims in micro
+    _audit(True, ()),  # no usable claim: 0 in macro, nothing in micro
     _audit(False, None, refused=True),  # refusal: bypasses the judge
 ]
 
 
 def test_macro_is_per_question_and_micro_is_per_claim() -> None:
     q = answer_quality(_AUDITS)
-    assert (q.n_judged, q.n_judge_unparseable) == (3, 1)
+    assert (q.n_judged, q.n_judged_without_claims) == (3, 1)
     assert q.faithfulness_macro.value == pytest.approx((0.75 + 1.0 + 0.0) / 3)
     assert q.faithfulness_micro.value == pytest.approx(4 / 5)
     assert q.faithfulness_micro.denominator == 5
     assert q.citation_accuracy_macro.value == pytest.approx((0.75 + 0.0 + 0.0) / 3)
     assert q.citation_accuracy_micro.value == pytest.approx(3 / 5)
-    # At risk: the three answered answerable questions; the first and the unparseable fail.
+    # At risk: the three answered answerable questions; the first and the claimless one fail.
     assert q.hallucination_rate.value == pytest.approx(2 / 3)
 
 

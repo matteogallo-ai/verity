@@ -88,7 +88,7 @@ class TestConsoleJsonLabelInvariant:
             "n_errored",
             "n_answered",
             "n_judged",
-            "n_judge_unparseable",
+            "n_judged_without_claims",
             "n_claims",
             "n_refused",
             "n_answerable_answered",
@@ -173,3 +173,20 @@ def test_cli_verdict_labels_do_not_claim_hallucination_without_evidence(
         "verdict label must not claim hallucination — that's a judge verdict, "
         "not a confusion-matrix cell"
     )
+
+
+@pytest.mark.slow
+def test_the_cli_scorecard_is_the_one_its_artefact_rebuilds(tmp_path: Path) -> None:
+    """``eval run --scorecard-json`` and ``generate_headline_results.py`` produce the
+    same file: the CLI scorecard names its artefact and the threshold the run used."""
+    _, payload = _run_stub_and_capture(tmp_path)
+    assert payload["source_artefact"] is not None
+    assert payload["refusal"]["confidence_threshold"] is not None
+
+    from verity.eval.headline import build_headline_dict_from_eval_run
+    from verity.eval.run_store import load_run
+
+    rebuilt = build_headline_dict_from_eval_run(
+        load_run(Path(payload["source_artefact"])), source_artefact=payload["source_artefact"]
+    )
+    assert rebuilt == payload

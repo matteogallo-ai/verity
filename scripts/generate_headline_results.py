@@ -22,7 +22,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from verity.eval.headline import SCHEMA, build_headline_dict_from_eval_run
+from verity.eval.headline import build_headline_dict_from_eval_run
 from verity.eval.run_store import load_run
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -51,6 +51,13 @@ def _short_date(iso: str) -> str:
         return iso.split("T", 1)[0]
 
 
+def _repo_path(path: Path) -> str:
+    """``path`` relative to the repository when inside it, else absolute."""
+    resolved = path.resolve()
+    inside = resolved.is_relative_to(REPO_ROOT)
+    return (resolved.relative_to(REPO_ROOT) if inside else resolved).as_posix()
+
+
 def _usd(value: float | None) -> str:
     return "not recorded" if value is None else f"${value:.4f}"
 
@@ -73,7 +80,7 @@ def render_block(data: dict[str, Any], *, scorecard_path: Path = DEFAULT_SCORECA
         else ""
     )
     date = _short_date(str(data["generated_at"]))
-    unparseable = sizes["n_judge_unparseable"]
+    without_claims = sizes["n_judged_without_claims"]
     thr = refu.get("confidence_threshold")
     threshold = "threshold not recorded" if thr is None else f"threshold {thr:g}"
     lines = [
@@ -140,18 +147,14 @@ def render_block(data: dict[str, Any], *, scorecard_path: Path = DEFAULT_SCORECA
         f"agent {_usd(cost['agent_usd'])} + judge {_usd(cost['judge_usd'])} |"
     )
     lines.append("")
-    if unparseable:
+    if without_claims:
         lines.append(
-            f"{unparseable} judge output(s) could not be parsed: scored 0 per question, "
+            f"{without_claims} judged answer(s) got no usable claim from the judge (output "
+            "unparseable, or no claims): scored 0 per question, "
             "no claims counted per claim."
         )
         lines.append("")
-    resolved = scorecard_path.resolve()
-    rel = (
-        resolved.relative_to(REPO_ROOT).as_posix()
-        if resolved.is_relative_to(REPO_ROOT)
-        else resolved.as_posix()
-    )
+    rel = _repo_path(scorecard_path)
     lines.append(
         f"Generated from [`{rel}`]({rel}), itself computed from the run artefact "
         f"`{data['source_artefact']}` (`scripts/generate_headline_results.py --check` "
@@ -209,9 +212,8 @@ def main(argv: list[str] | None = None) -> int:
         artefact = REPO_ROOT / existing["source_artefact"]
     else:
         raise SystemExit(f"no --artefact given and {args.scorecard} names none")
-    source = artefact.resolve().relative_to(REPO_ROOT).as_posix()
+    source = _repo_path(artefact)
     payload = build_headline_dict_from_eval_run(load_run(artefact), source_artefact=source)
-    assert payload["schema"] == SCHEMA
 
     scorecard_text = _dump(payload)
     current = args.readme.read_text(encoding="utf-8")

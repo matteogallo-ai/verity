@@ -166,8 +166,8 @@
     "n_claims": 34,
     "n_errored": 0,
     "n_examples": 16,
-    "n_judge_unparseable": 0,
     "n_judged": 12,
+    "n_judged_without_claims": 0,
     "n_refused": 4
   },
   "schema": "verity.scorecard.headline/v4",
