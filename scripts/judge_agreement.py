@@ -57,7 +57,9 @@ def collect(runs: Sequence[Path]) -> list[Claim]:
             for j, verdict in enumerate(audit.judge_claims or ()):
                 claims.append(
                     Claim(
-                        claim_id=f"{run.scorecard.dataset}/{audit.example_id}/{j}",
+                        # The run file's name, not the dataset's: two runs of one
+                        # dataset must not share ids.
+                        claim_id=f"{path.stem}/{audit.example_id}/{j}",
                         claim=verdict.claim,
                         evidence=evidence,
                         judge_verdict=LABELS[0] if verdict.supported else LABELS[1],
@@ -118,6 +120,13 @@ def kappa() -> int:
     key = json.loads(KEY.read_text(encoding="utf-8"))["verdicts"]
     with BLIND_CSV.open(newline="", encoding="utf-8") as fh:
         rows = list(csv.DictReader(fh))
+    if not rows:
+        print(f"{BLIND_CSV} has no claims", file=sys.stderr)
+        return 1
+    unknown = [r["claim_id"] for r in rows if r["claim_id"] not in key]
+    if unknown:
+        print(f"claim ids not in {KEY}: {', '.join(unknown)}", file=sys.stderr)
+        return 1
     bad = [r["claim_id"] for r in rows if r["human_verdict"].strip().lower() not in LABELS]
     if bad:
         print(f"human_verdict must be one of {LABELS}; fix: {', '.join(bad)}", file=sys.stderr)

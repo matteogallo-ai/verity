@@ -109,11 +109,14 @@ def test_export_is_blind_and_kappa_joins_the_verdicts(
 
     with (tmp_path / "blind.csv").open(newline="", encoding="utf-8") as fh:
         rows = list(csv.DictReader(fh))
-    assert [r["claim_id"] for r in rows] == ["dev/q-001/0", "dev/q-001/1"]
+    assert [r["claim_id"] for r in rows] == ["eval_abc1234_dev/q-001/0", "eval_abc1234_dev/q-001/1"]
     assert "judge_verdict" not in rows[0]
     assert hit.chunk.text in rows[0]["evidence"]
 
     assert mod.main(["kappa"]) == 1  # not annotated yet
+    (tmp_path / "key.json").write_text(json.dumps({"verdicts": {}}))
+    assert mod.main(["kappa"]) == 1  # a claim the key does not know
+    assert mod.main(["export", str(store.path_for("abc1234", "dev"))]) == 0
     rows[0]["human_verdict"], rows[1]["human_verdict"] = "supported", "supported"
     with (tmp_path / "blind.csv").open("w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(fh, fieldnames=list(rows[0]))
