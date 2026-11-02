@@ -349,3 +349,14 @@ def test_answer_quality_rows_state_macro_aggregation() -> None:
     cit = next(line for line in block.splitlines() if line.startswith("| Citation accuracy"))
     assert "per-question mean" in faith and "per-question mean" in cit
     assert "claim-level, judge ran" not in faith
+
+
+def test_committed_readme_matches_committed_scorecard(tmp_path: Path) -> None:
+    """The real README's results block is what the committed scorecard renders.
+
+    Runs on a copy: ``--check`` rewrites the file it checks before exiting 1.
+    """
+    generator = _load_generator()
+    readme = tmp_path / "README.md"
+    readme.write_text((REPO_ROOT / "README.md").read_text(encoding="utf-8"), encoding="utf-8")
+    assert generator.main(["--check", "--readme", str(readme)]) == 0

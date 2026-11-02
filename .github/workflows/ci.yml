@@ -42,6 +42,9 @@ jobs:
       - name: Deptry (unused / missing / transitive dependencies)
         run: uv run deptry src
 
+      - name: README results block matches the committed scorecard
+        run: uv run python scripts/generate_headline_results.py --check
+
       - name: Pytest — fast lane (no local models, must stay < 60 s)
         run: uv run pytest -m "not integration and not slow"
 
@@ -179,10 +182,11 @@ jobs:
             --floor-recall 0.75
 
   evaluation:
-    name: eval harness (deterministic)
+    name: eval pipeline smoke test (stub agent + stub judge)
     runs-on: ubuntu-latest
-    # Runs the eval suite in CI mode: local embeddings + stubbed judge, no API keys.
-    # Real headline scorecard is produced out-of-band from a full run (see docs/evaluation-methodology.md).
+    # Runs the eval pipeline end to end with local embeddings, the scripted stub agent
+    # and the stub judge, no API keys. Its numbers are not quality measures; the
+    # published scorecard comes from a live run (see docs/evaluation-methodology.md).
     steps:
       - uses: actions/checkout@v4
 
@@ -197,12 +201,11 @@ jobs:
       - name: Install
         run: uv sync --dev
 
-      - name: Run eval (deterministic — judge=stub)
-        # Retrieval + refusal + latency + cost are REAL numbers.
-        # faithfulness / citation_accuracy / hallucination_rate come from the
-        # mechanical stub judge and are labelled "stub-judge-v1" in the artefact —
-        # they are never presented as real LLM-judge numbers.
-        # Floors are anti-regression gates on the stub pipeline, not quality measures.
+      - name: Pipeline smoke test (stub agent, stub judge; not a quality measure)
+        # Retrieval metrics come from the real local embedder and reranker. Refusal
+        # metrics come from the scripted stub agent, and answer-quality metrics from
+        # the stub judge (labelled "stub-judge-v1" in the artefact). The floors catch
+        # pipeline regressions only.
         run: |
           uv run verity eval run \
             --judge stub \
