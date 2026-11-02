@@ -25,6 +25,7 @@ from verity.api.models import (
 )
 from verity.api.state import AppRuntime, CorpusFullError
 from verity.config import Settings
+from verity.retrieval.base import RetrievalUnavailableError, StoreSchemaError
 
 router = APIRouter()
 _log = structlog.get_logger("verity.api")
@@ -108,6 +109,9 @@ async def ingest_endpoint(
         )
     except CorpusFullError as exc:
         raise HTTPException(status_code=409, detail="The corpus is full.") from exc
+    except (RetrievalUnavailableError, StoreSchemaError):
+        # The store failed, not the document: the app's 503 handler answers.
+        raise
     except Exception as exc:
         # Parsers (docling, python-docx, decoders) raise many unrelated types; any of
         # them means "this document could not be read". Logged with the traceback,

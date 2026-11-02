@@ -38,7 +38,7 @@ from verity.api.state import AppRuntime, default_agent_mode
 from verity.config import Settings, get_settings
 from verity.eval import FileRunStore
 from verity.observability.tracer import NoOpTracer
-from verity.retrieval.base import RetrievalUnavailableError
+from verity.retrieval.base import RetrievalUnavailableError, StoreSchemaError
 
 _log = structlog.get_logger("verity.api")
 _REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
@@ -176,8 +176,11 @@ def _install_request_context(app: FastAPI, settings: Settings) -> None:
             headers=exc.headers,
         )
 
+    @app.exception_handler(StoreSchemaError)
     @app.exception_handler(RetrievalUnavailableError)
-    async def store_unavailable(request: Request, exc: RetrievalUnavailableError) -> JSONResponse:
+    async def store_unavailable(request: Request, exc: Exception) -> JSONResponse:
+        # A schema mismatch is a server misconfiguration; to the client it is the same
+        # unavailable store, and the detail goes to the log.
         _log.error("store_unavailable", path=request.url.path, exc_info=exc)
         return JSONResponse(
             {

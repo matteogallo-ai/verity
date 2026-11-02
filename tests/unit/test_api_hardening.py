@@ -32,6 +32,12 @@ def client(tmp_path: Path):  # type: ignore[no-untyped-def]
         yield test_client
 
 
+def _upload_with_key(client: TestClient, name: str, content: bytes, mime: str):  # type: ignore[no-untyped-def]
+    return client.post(
+        "/ingest", files={"file": (name, io.BytesIO(content), mime)}, headers={"X-API-Key": _KEY}
+    )
+
+
 def _upload(client: TestClient, name: str, content: bytes, mime: str):  # type: ignore[no-untyped-def]
     return client.post("/ingest", files={"file": (name, io.BytesIO(content), mime)})
 
@@ -219,3 +225,32 @@ def test_unreachable_postgres_is_a_generic_503(
     assert response.json()["detail"]["error"] == "retrieval_unavailable"
     assert "10.0.0.1" not in response.text
     assert response.json()["request_id"]
+
+
+@pytest.mark.parametrize(
+    ("error", "status"),
+    [
+        ("unavailable", 503),
+        ("schema", 503),
+    ],
+)
+def test_a_store_failure_on_ingest_is_not_blamed_on_the_document(
+    tmp_path: Path, error: str, status: int
+) -> None:
+    from verity.retrieval.base import StoreUnavailableError
+    from verity.retrieval.pgvector_store import EmbeddingDimensionMismatchError
+
+    exc = (
+        StoreUnavailableError("cannot connect to Postgres")
+        if error == "unavailable"
+        else EmbeddingDimensionMismatchError("schema holds VECTOR(384), configured 768")
+    )
+    with api_app(tmp_path, _settings()) as client:
+        client.get("/status")
+        runtime = client.app.state.runtime  # type: ignore[attr-defined]
+        with patch.object(runtime.store, "list_documents", side_effect=exc):
+            response = _upload_with_key(client, "note.md", b"# Note\n\nText.\n", "text/markdown")
+
+    assert response.status_code == status
+    assert "parsed" not in response.text
+    assert "VECTOR" not in response.text and "Postgres" not in response.text
