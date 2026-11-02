@@ -8,6 +8,7 @@ Cited answers with verbatim quotes. Threshold-gated refusal on out-of-scope ques
 Every published number traceable to the run artefact that produced it.
 
 [![ci](https://github.com/matteogallo-ai/verity/actions/workflows/ci.yml/badge.svg)](https://github.com/matteogallo-ai/verity/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/matteogallo-ai/verity/badge)](https://scorecard.dev/viewer/?uri=github.com/matteogallo-ai/verity)
 [![license: MIT](https://img.shields.io/badge/license-MIT-black.svg)](LICENSE)
 ![python](https://img.shields.io/badge/python-3.12-blue.svg)
 
