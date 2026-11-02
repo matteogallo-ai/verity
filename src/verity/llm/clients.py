@@ -64,7 +64,6 @@ class StubLLMClient(LLMClient):
         messages: list[Message],
         *,
         max_tokens: int = 1024,
-        temperature: float = 0.0,
     ) -> Completion:
         started = time.perf_counter()
         self.calls.append(list(messages))
@@ -97,8 +96,12 @@ def _lazy_anthropic() -> Any:
 
 
 class AnthropicClient(LLMClient):
-    """Anthropic Messages API. Model + key resolved from config/env; ``0.0`` temperature
-    keeps eval-mode outputs stable."""
+    """Anthropic Messages API. Model + key resolved from config/env.
+
+    No sampling parameter is sent: API version 2026-10-21 rejects ``temperature``,
+    ``top_p`` and ``top_k`` (400), and Claude 4.7+ models accept only the defaults.
+    Eval reproducibility rests on the recorded artefacts, not on sampling (ADR 0007).
+    """
 
     def __init__(
         self,
@@ -147,24 +150,16 @@ class AnthropicClient(LLMClient):
         messages: list[Message],
         *,
         max_tokens: int = 1024,
-        temperature: float = 0.0,
     ) -> Completion:
         client = self._get_client()
         started = time.perf_counter()
         system, chat = _split_system(messages)
-        # ``anthropic`` SDK 1.x removed ``temperature`` from the typed
-        # ``messages.create`` kwargs (the parameter is no longer exposed on
-        # ``AsyncMessages.create``). The Anthropic API still accepts it, so we
-        # pass it through as a raw JSON field via ``extra_body``. Keep this
-        # code path in lock-step with ``pyproject.toml``'s pin
-        # ``anthropic>=1.0,<2.0`` — a 2.x bump would need re-validation.
         try:
             resp = await client.messages.create(
                 model=self._model,
                 max_tokens=max_tokens,
                 system=system,
                 messages=[{"role": m.role.value, "content": m.content} for m in chat],
-                extra_body={"temperature": temperature},
             )
         # Every vendor failure is translated to a typed Verity error and re-raised.
         except Exception as exc:
@@ -259,7 +254,6 @@ class OpenAIClient(LLMClient):
         messages: list[Message],
         *,
         max_tokens: int = 1024,
-        temperature: float = 0.0,
     ) -> Completion:
         client = self._get_client()
         started = time.perf_counter()
@@ -267,7 +261,6 @@ class OpenAIClient(LLMClient):
             resp = await client.chat.completions.create(
                 model=self._model,
                 max_tokens=max_tokens,
-                temperature=temperature,
                 messages=[{"role": m.role.value, "content": m.content} for m in messages],
             )
         # Every vendor failure is translated to a typed Verity error and re-raised.

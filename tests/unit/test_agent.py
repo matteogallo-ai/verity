@@ -162,9 +162,8 @@ class _CountingStubClient(StubLLMClient):
         messages: list[Message],
         *,
         max_tokens: int = 1024,
-        temperature: float = 0.0,
     ) -> Completion:
-        base = await super().complete(messages, max_tokens=max_tokens, temperature=temperature)
+        base = await super().complete(messages, max_tokens=max_tokens)
         system = (messages[0].content if messages else "").lower()
         if "decompose" in system:
             kind = "decompose"

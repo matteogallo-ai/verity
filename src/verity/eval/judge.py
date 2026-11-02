@@ -270,7 +270,7 @@ class LLMFaithfulnessJudge(FaithfulnessJudge):
             answer=answer.text,
             citations=_render_citations(answer),
         )
-        completion = await self._client.complete(messages, max_tokens=512, temperature=0.0)
+        completion = await self._client.complete(messages, max_tokens=512)
         self.last_usage = completion.usage
         self.last_provider = completion.provider
         self.last_model = completion.model

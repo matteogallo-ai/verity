@@ -46,14 +46,11 @@ class MultiProviderRoutingClient(RoutingClient):
         messages: list[Message],
         *,
         max_tokens: int = 1024,
-        temperature: float = 0.0,
     ) -> Completion:
         last_transient: ProviderUnavailableError | None = None
         for client in self._clients:
             try:
-                return await client.complete(
-                    messages, max_tokens=max_tokens, temperature=temperature
-                )
+                return await client.complete(messages, max_tokens=max_tokens)
             except AuthenticationError:
                 # Short-circuit: never silently try the next provider.
                 log.error(

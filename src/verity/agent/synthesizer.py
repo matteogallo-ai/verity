@@ -73,9 +73,7 @@ class CitedSynthesizer:
     async def synthesize(self, question: str, hits: list[RetrievalHit]) -> SynthesisResult:
         evidence = render_evidence(hits, with_scores=False)
         messages = self._prompt.render(question=neutralise(question), evidence=evidence)
-        completion = await self._client.complete(
-            messages, max_tokens=self._max_tokens, temperature=0.0
-        )
+        completion = await self._client.complete(messages, max_tokens=self._max_tokens)
         self.last_usage = completion.usage
         text, raw_citations = _parse_synth_output(completion.text)
         citations = _validate_citations(raw_citations, hits)
