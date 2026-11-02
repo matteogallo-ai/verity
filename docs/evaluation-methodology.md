@@ -106,8 +106,7 @@ The agent refuses when the scorer model asks to, or when its self-reported
 confidence is below `confidence_threshold` (default 0.55, the value at the v1.0.0
 run's commit; the artefact does not record it). The threshold was set by hand,
 not tuned on a dev split, and the confidence score's calibration has not been
-measured. The scorecard JSON names this block `refusal_calibration`; the name
-predates that measurement and does not claim it.
+measured. The scorecard JSON names this block `refusal`.
 
 ### Operational
 - **Latency** p50 / p95 / p99 of the end-to-end `agent.answer` wall clock. With

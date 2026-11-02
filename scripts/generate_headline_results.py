@@ -1,17 +1,15 @@
-"""Render the README's "measured results" section from the committed live
-scorecard JSON — never hand-typed, never transcription-drift-prone.
+"""Write the headline scorecard from a run artefact, and the README results block from
+the scorecard. Nothing in either is typed by hand.
 
-Reads ``scorecards/live-v1.0.0.json`` (produced by
-``verity eval run --judge live --scorecard-json <path>``) and replaces the
-content between two Markdown comment markers in ``README.md``:
+    # reproduce: artefact -> scorecard -> README
+    uv run python scripts/generate_headline_results.py \
+        --artefact datasets/eval/runs/live/<run>.json --scorecard scorecards/<name>.json
+    # CI: scorecard == recomputed from its artefact, README block == rendered scorecard
+    uv run python scripts/generate_headline_results.py --check
 
-    <!-- RESULTS:START -->
-      ... regenerated table + provenance line ...
-    <!-- RESULTS:END -->
-
-Idempotent: running twice yields the same file byte-for-byte (assuming the JSON
-hasn't changed). Fails LOUDLY if the markers are missing or the JSON is
-malformed — the whole point is to prevent a silent stale README.
+The scorecard names its artefact (``source_artefact``), so ``--check`` needs no
+argument. The README block sits between ``<!-- RESULTS:START -->`` and
+``<!-- RESULTS:END -->``; missing markers fail loudly.
 """
 
 from __future__ import annotations
@@ -23,6 +21,9 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from verity.eval.headline import SCHEMA, build_headline_dict_from_eval_run
+from verity.eval.run_store import load_run
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SCORECARD = REPO_ROOT / "scorecards" / "live-v1.0.0.json"
@@ -50,77 +51,76 @@ def _short_date(iso: str) -> str:
         return iso.split("T", 1)[0]
 
 
-def render_block(data: dict[str, Any]) -> str:
+def _usd(value: float | None) -> str:
+    return "not recorded" if value is None else f"${value:.4f}"
+
+
+def render_block(data: dict[str, Any], *, scorecard_path: Path = DEFAULT_SCORECARD) -> str:
     """Return the Markdown block to insert between the RESULTS markers."""
     prov = data["provenance"]
     cost = data["cost"]
     retr = data["retrieval"]
     ans = data["answer_quality"]
-    refu = data["refusal_calibration"]
+    refu = data["refusal"]
     lat = data["latency_ms"]
     ds = data["dataset"]
-    is_stub_agent = prov["agent_model"] == "stub-agent"
-    is_stub_judge = prov["judge_model"] == "stub-judge-v1"
+    sizes = data["sample_sizes"]
+    is_stub = "stub" in prov["agent_model"] or "stub" in prov["judge_model"]
     stub_warning = (
-        "\n> ⚠️ **This scorecard was generated on stubs**. "
-        "The v1.0.0 file will be regenerated from the one-shot live run — "
-        "faithfulness / citation_accuracy / hallucination_rate below come from "
-        "the mechanical stub judge (`stub-judge-v1`) and are placeholders here.\n"
-        if (is_stub_agent or is_stub_judge)
+        "\n> ⚠️ **This scorecard was generated on stubs**: the answer-quality and refusal "
+        "numbers describe the scripted stubs, not Verity.\n"
+        if is_stub
         else ""
     )
     date = _short_date(str(data["generated_at"]))
-    # Scorecards written before errors were tracked have no count; say so, never 0.
-    n_errored = data.get("sample_sizes", {}).get("n_errored")
-    errored = "errored: not recorded" if n_errored is None else f"**{n_errored} errored**"
-    lines: list[str] = []
-    lines.append(
+    unparseable = sizes["n_judge_unparseable"]
+    lines = [
         f"**Measured on**: `agent={prov['agent_model']}` · "
         f"`judge={prov['judge_model']}` · "
         f"`embedding={prov['embedding_model']}` · "
-        f"commit `{prov['run_sha']}` · {date} · "
-        f"n={ds['n_questions']} ({ds['n_answerable']} answerable + {ds['n_unanswerable']} out-of-scope) · "
-        f"{errored} (kept out of every metric) · "
-        f"total cost **${cost['total_usd']:.4f}**"
-    )
-    lines.append("")
-    lines.append("| Metric | Value | Notes |")
-    lines.append("|---|---:|---|")
-    lines.append(
-        f"| **Refusal recall** | **{_fmt(refu['refusal_recall'])}** | headline · fraction of out-of-scope questions correctly refused |"
-    )
-    lines.append(
-        f"| **Refusal precision** | **{_fmt(refu['refusal_precision'])}** | of the refusals, fraction that were genuinely unanswerable |"
-    )
-    # v3: each judge-track metric is a {value, scope, n_denominator} triple.
-    # Render the value alongside the scope so no number can be quoted
-    # without its denominator visible.
-    faith = ans["faithfulness"]
-    ca = ans["citation_accuracy"]
+        f"commit `{prov['run_sha']}` · {date} · dataset `{ds['name']}` · "
+        f"n={ds['n_questions']} ({ds['n_answerable']} answerable + "
+        f"{ds['n_unanswerable']} unanswerable) · "
+        f"**{sizes['n_errored']} errored** (kept out of every metric) · "
+        f"total cost **{_usd(cost['total_usd'])}**",
+        "",
+        "| Metric | Value | Notes |",
+        "|---|---:|---|",
+        f"| **Refusal recall** | **{_fmt(refu['refusal_recall'])}** | "
+        f"unanswerable questions refused / unanswerable ({ds['n_unanswerable']}) |",
+        f"| **Refusal precision** | **{_fmt(refu['refusal_precision'])}** | "
+        f"refusals that were unanswerable / refusals ({sizes['n_refused']}) |",
+    ]
+    for label, key in (
+        ("Faithfulness", "faithfulness"),
+        ("Citation accuracy", "citation_accuracy"),
+    ):
+        macro, micro = ans[key]["macro"], ans[key]["micro"]
+        lines.append(
+            f"| {label}, per question | {_fmt(macro['value'])} | "
+            f"mean over {macro['n_questions']} judged answers · judge unvalidated |"
+        )
+        lines.append(
+            f"| {label}, per claim | {_fmt(micro['value'])} | "
+            f"pooled over {micro['n_claims']} claims · judge unvalidated |"
+        )
     hall = ans["hallucination_rate"]
     lines.append(
-        f"| Faithfulness ({faith['scope']}, n={faith['n_denominator']}) | "
-        f"{_fmt(faith['value'])} | per-question mean of claim-level judge verdicts over {faith['n_denominator']} answered questions · judge unvalidated |"
+        f"| Hallucination rate | {_fmt(hall['value'])} | ↓ better · answers with an "
+        f"unsupported claim, over {hall['n_questions']} answered answerable questions |"
     )
+    ooa = refu["out_of_scope_answered"]
     lines.append(
-        f"| Citation accuracy ({ca['scope']}, n={ca['n_denominator']}) | "
-        f"{_fmt(ca['value'])} | per-question mean over {ca['n_denominator']} answered questions (refusals bypass the judge) · judge unvalidated |"
+        f"| Unanswerable answered | {ooa['count']}/{ooa['total']} | ↓ better · "
+        "an answer shipped where the corpus has none |"
     )
-    lines.append(
-        f"| Hallucination rate ({hall['scope']}, n={hall['n_denominator']}) | "
-        f"{_fmt(hall['value'])} | ↓ better · at-risk set = answerable questions the agent answered |"
-    )
-    ooa = refu.get("out_of_scope_answered", {})
-    if isinstance(ooa, dict) and "count" in ooa and "total" in ooa:
-        lines.append(
-            f"| Out-of-scope answered | {ooa['count']}/{ooa['total']} | ↓ better · questions we shipped an answer for that were unanswerable |"
-        )
     lines.append(
         f"| Retrieval nDCG@{retr['k']} | {_fmt(retr['ndcg_at_k'])} | deterministic (no LLM) |"
     )
     lines.append(f"| Retrieval recall@{retr['k']} | {_fmt(retr['recall_at_k'])} | deterministic |")
     lines.append(
-        f"| Retrieval precision@{retr['k']} | {_fmt(retr['precision_at_k'])} | k>gold ceiling; interpret with recall |"
+        f"| Retrieval precision@{retr['k']} | {_fmt(retr['precision_at_k'])} | "
+        "k>gold ceiling; interpret with recall |"
     )
     cold_start = lat.get("cold_start")
     latency_note = (
@@ -129,17 +129,30 @@ def render_block(data: dict[str, Any]) -> str:
         else f"warm; cold start `{_fmt_ms(cold_start)}` measured separately"
     )
     lines.append(
-        f"| Latency p50 / p95 / p99 | {_fmt_ms(lat['p50'])} / {_fmt_ms(lat['p95'])} / {_fmt_ms(lat['p99'])} | {latency_note} |"
+        f"| Latency p50 / p95 / p99 | {_fmt_ms(lat['p50'])} / {_fmt_ms(lat['p95'])} / "
+        f"{_fmt_ms(lat['p99'])} | {latency_note} |"
     )
     lines.append(
-        f"| Cost / query | ${cost['per_query_usd']:.4f} | total ${cost['total_usd']:.4f} = agent ${cost['agent_usd']:.4f} + judge ${cost['judge_usd']:.4f} |"
+        f"| Cost / query | ${cost['per_query_usd']:.4f} | total {_usd(cost['total_usd'])} = "
+        f"agent {_usd(cost['agent_usd'])} + judge {_usd(cost['judge_usd'])} |"
     )
     lines.append("")
+    if unparseable:
+        lines.append(
+            f"{unparseable} judge output(s) could not be parsed: scored 0 per question, "
+            "no claims counted per claim."
+        )
+        lines.append("")
+    resolved = scorecard_path.resolve()
+    rel = (
+        resolved.relative_to(REPO_ROOT).as_posix()
+        if resolved.is_relative_to(REPO_ROOT)
+        else resolved.as_posix()
+    )
     lines.append(
-        f"Numbers are copied verbatim from [`{DEFAULT_SCORECARD.relative_to(REPO_ROOT)}`]"
-        f"({DEFAULT_SCORECARD.relative_to(REPO_ROOT).as_posix()}) "
-        "(committed artefact of the single live run of record — never averaged, "
-        "never re-run to nudge a number)."
+        f"Generated from [`{rel}`]({rel}), itself computed from the run artefact "
+        f"`{data['source_artefact']}` (`scripts/generate_headline_results.py --check` "
+        "recomputes both)."
     )
     lines.append(stub_warning)
     return "\n".join(lines)
@@ -164,39 +177,58 @@ def render_readme(text: str, block: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", replacement)
 
 
+def _dump(payload: dict[str, Any]) -> str:
+    return json.dumps(payload, indent=2, sort_keys=True) + "\n"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scorecard", type=Path, default=DEFAULT_SCORECARD)
     parser.add_argument("--readme", type=Path, default=DEFAULT_README)
     parser.add_argument(
+        "--artefact",
+        type=Path,
+        help="Run artefact to compute the scorecard from (default: the one it names).",
+    )
+    parser.add_argument(
         "--check",
         action="store_true",
-        help="Exit non-zero if the README would be modified (CI use).",
+        help="Exit 1 if the scorecard or the README would change; write nothing.",
     )
     args = parser.parse_args(argv)
 
-    if not args.scorecard.is_file():
-        raise SystemExit(f"scorecard JSON not found: {args.scorecard}")
-    payload = json.loads(args.scorecard.read_text(encoding="utf-8"))
-    if payload.get("schema") != "verity.scorecard.headline/v3":
-        raise SystemExit(
-            f"scorecard schema is not verity.scorecard.headline/v3 (got {payload.get('schema')!r})"
-        )
-    current = args.readme.read_text(encoding="utf-8")
-    rendered = render_readme(current, render_block(payload))
-    changed = rendered != current
-    # --check only compares: a CI or pre-commit run must never edit the tree.
-    if args.check and changed:
-        print(
-            "README would be modified — run scripts/generate_headline_results.py to regenerate.",
-            file=sys.stderr,
-        )
-        return 1
-    if changed and not args.check:
-        args.readme.write_text(rendered, encoding="utf-8")
-        print(f"Updated {args.readme}")
+    existing = (
+        json.loads(args.scorecard.read_text(encoding="utf-8")) if args.scorecard.is_file() else None
+    )
+    if args.artefact is not None:
+        artefact = args.artefact
+    elif existing is not None and existing.get("source_artefact"):
+        artefact = REPO_ROOT / existing["source_artefact"]
     else:
-        print(f"README already up to date ({args.readme})")
+        raise SystemExit(f"no --artefact given and {args.scorecard} names none")
+    source = artefact.resolve().relative_to(REPO_ROOT).as_posix()
+    payload = build_headline_dict_from_eval_run(load_run(artefact), source_artefact=source)
+    assert payload["schema"] == SCHEMA
+
+    scorecard_text = _dump(payload)
+    current = args.readme.read_text(encoding="utf-8")
+    rendered = render_readme(current, render_block(payload, scorecard_path=args.scorecard))
+    stale = []
+    if existing is None or _dump(existing) != scorecard_text:
+        stale.append(str(args.scorecard))
+    if rendered != current:
+        stale.append(str(args.readme))
+    # --check only compares: a CI or pre-commit run must never edit the tree.
+    if args.check:
+        if stale:
+            print(f"out of date: {', '.join(stale)} — run without --check", file=sys.stderr)
+            return 1
+        print(f"scorecard and README match {source}")
+        return 0
+    args.scorecard.parent.mkdir(parents=True, exist_ok=True)
+    args.scorecard.write_text(scorecard_text, encoding="utf-8")
+    args.readme.write_text(rendered, encoding="utf-8")
+    print(f"wrote {args.scorecard} and {args.readme} from {source}")
     return 0
 
 

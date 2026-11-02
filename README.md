@@ -67,23 +67,25 @@ CI job `claims` runs those tests.
 ## Measured results
 
 <!-- RESULTS:START -->
-**Measured on**: `agent=claude-sonnet-4-6 (16/16)` · `judge=claude-sonnet-4-6 (12/16 answered — 4 refusals bypass the judge)` · `embedding=BAAI/bge-small-en-v1.5` · commit `d0ca1d5` · 2026-09-07 · n=16 (11 answerable + 5 out-of-scope) · errored: not recorded (kept out of every metric) · total cost **$0.2713**
+**Measured on**: `agent=claude-sonnet-4-6 (16/16)` · `judge=claude-sonnet-4-6 (12/16 answered — 4 refusals bypass the judge)` · `embedding=BAAI/bge-small-en-v1.5` · commit `d0ca1d5` · 2026-09-07 · dataset `questions` · n=16 (11 answerable + 5 unanswerable) · **0 errored** (kept out of every metric) · total cost **not recorded**
 
 | Metric | Value | Notes |
 |---|---:|---|
-| **Refusal recall** | **0.800** | headline · fraction of out-of-scope questions correctly refused |
-| **Refusal precision** | **1.000** | of the refusals, fraction that were genuinely unanswerable |
-| Faithfulness (answered, n=12) | 1.000 | per-question mean of claim-level judge verdicts over 12 answered questions · judge unvalidated |
-| Citation accuracy (answered, n=12) | 0.722 | per-question mean over 12 answered questions (refusals bypass the judge) · judge unvalidated |
-| Hallucination rate (answerable_and_answered, n=11) | 0.000 | ↓ better · at-risk set = answerable questions the agent answered |
-| Out-of-scope answered | 1/5 | ↓ better · questions we shipped an answer for that were unanswerable |
+| **Refusal recall** | **0.800** | unanswerable questions refused / unanswerable (5) |
+| **Refusal precision** | **1.000** | refusals that were unanswerable / refusals (4) |
+| Faithfulness, per question | 1.000 | mean over 12 judged answers · judge unvalidated |
+| Faithfulness, per claim | 1.000 | pooled over 34 claims · judge unvalidated |
+| Citation accuracy, per question | 0.722 | mean over 12 judged answers · judge unvalidated |
+| Citation accuracy, per claim | 0.618 | pooled over 34 claims · judge unvalidated |
+| Hallucination rate | 0.000 | ↓ better · answers with an unsupported claim, over 11 answered answerable questions |
+| Unanswerable answered | 1/5 | ↓ better · an answer shipped where the corpus has none |
 | Retrieval nDCG@8 | 0.953 | deterministic (no LLM) |
 | Retrieval recall@8 | 1.000 | deterministic |
 | Retrieval precision@8 | 0.148 | k>gold ceiling; interpret with recall |
 | Latency p50 / p95 / p99 | 9374.7 ms / 32526.5 ms / 36653.1 ms | no warmup: includes the first question's model loading |
-| Cost / query | $0.0122 | total $0.2713 = agent $0.1950 + judge $0.0763 |
+| Cost / query | $0.0122 | total not recorded = agent $0.1950 + judge not recorded |
 
-Numbers are copied verbatim from [`scorecards/live-v1.0.0.json`](scorecards/live-v1.0.0.json) (committed artefact of the single live run of record — never averaged, never re-run to nudge a number).
+Generated from [`scorecards/live-v1.0.0.json`](scorecards/live-v1.0.0.json), itself computed from the run artefact `datasets/eval/runs/live/eval_d0ca1d5_questions.json` (`scripts/generate_headline_results.py --check` recomputes both).
 
 <!-- RESULTS:END -->
 

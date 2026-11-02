@@ -1,4 +1,4 @@
-"""Headline scorecard round-trip: build_headline_dict + write + README render.
+"""Headline scorecard round-trip: artefact -> headline dict -> README render.
 
 The generator script is what the mission requires ("README results table is
 generated from that JSON by a script — never hand-typed"). This test asserts:
@@ -26,6 +26,7 @@ from verity.eval.harness import HarnessResult, JudgeCallStamp, PerExampleRefusal
 from verity.types import (
     Answer,
     AnswerMetrics,
+    ClaimVerdict,
     Confidence,
     LatencyMetrics,
     PerExampleAudit,
@@ -46,6 +47,13 @@ def _load_generator():  # type: ignore[no-untyped-def]
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+_CLAIMS = (
+    (ClaimVerdict(claim="a", supported=True, citation_ok=True),) * 45
+    + (ClaimVerdict(claim="b", supported=True, citation_ok=False),) * 2
+    + (ClaimVerdict(claim="c", supported=False, citation_ok=False),) * 3
+)
 
 
 def _fixture_result() -> HarnessResult:
@@ -120,7 +128,9 @@ def _fixture_result() -> HarnessResult:
                 answer_text="stub" if i < 11 else "I don't know.",
                 refused=(i >= 11),
                 refusal_rationale=("" if i < 11 else "out-of-scope refusal"),
-                judge_claims=None if i >= 11 else (),
+                # 47 of 50 claims supported, 45 of 50 with a supporting citation:
+                # micro equals macro because every answer has the same claims.
+                judge_claims=None if i >= 11 else _CLAIMS,
                 answer_metrics=AnswerMetrics(
                     # Judged: match the aggregate values so v3 = the fixture
                     # aggregates. Refusals: judge convention (1.0/1.0/0.0).
@@ -130,7 +140,10 @@ def _fixture_result() -> HarnessResult:
                     refusal_precision=0.0,
                     refusal_recall=0.0,
                 ),
-                usage=UsageStats(cost_usd=0.05),
+                usage=UsageStats(cost_usd=0.05, input_tokens=100, output_tokens=10),
+                judge_usage=UsageStats(cost_usd=0.0 if i >= 11 else 0.6 / 11, input_tokens=7),
+                agent_model_used="claude-sonnet-4-6",
+                judge_model_used=None if i >= 11 else "claude-sonnet-4-6",
             )
             for i in range(16)
         ],
@@ -140,7 +153,7 @@ def _fixture_result() -> HarnessResult:
 def test_build_headline_dict_carries_full_provenance_and_totals() -> None:
     result = _fixture_result()
     payload = build_headline_dict(result)
-    assert payload["schema"] == "verity.scorecard.headline/v3"
+    assert payload["schema"] == "verity.scorecard.headline/v4"
     prov = payload["provenance"]
     # Agent summary: all 16 answers stamped claude-sonnet-4-6 → "(16/16)"
     assert prov["agent_model"] == "claude-sonnet-4-6 (16/16)"
@@ -167,32 +180,29 @@ def test_build_headline_dict_carries_full_provenance_and_totals() -> None:
         "n_errored": 0,
         "n_answered": 11,
         "n_judged": 11,
+        "n_judge_unparseable": 0,
+        "n_claims": 550,
         "n_refused": 5,
         "n_answerable_answered": 11,
     }
+    assert payload["run"]["agent_tokens"] == {"input": 1600, "output": 160}
+    assert payload["run"]["judge_tokens"] == {"input": 112, "output": 0}
 
-    # v3 answer_quality: each metric is {value, scope, n_denominator}.
     aq = payload["answer_quality"]
-    # Faithfulness: scope=answered, n=11 judged answers, all with per-example 0.94.
-    assert aq["faithfulness"]["value"] == pytest.approx(0.94)
-    assert aq["faithfulness"]["scope"] == "answered"
-    assert aq["faithfulness"]["n_denominator"] == 11
-    # Citation accuracy: same scope, per-example 0.90.
-    assert aq["citation_accuracy"]["value"] == pytest.approx(0.90)
-    assert aq["citation_accuracy"]["scope"] == "answered"
-    assert aq["citation_accuracy"]["n_denominator"] == 11
-    # Hallucination: scope=answerable_and_answered, at-risk set = 11.
+    assert aq["faithfulness"]["macro"] == {"value": pytest.approx(0.94), "n_questions": 11}
+    assert aq["faithfulness"]["micro"] == {"value": pytest.approx(0.94), "n_claims": 550}
+    assert aq["citation_accuracy"]["macro"]["value"] == pytest.approx(0.90)
+    assert aq["citation_accuracy"]["micro"]["value"] == pytest.approx(0.90)
     assert aq["hallucination_rate"]["value"] == pytest.approx(0.06)
-    assert aq["hallucination_rate"]["scope"] == "answerable_and_answered"
-    assert aq["hallucination_rate"]["n_denominator"] == 11
+    assert aq["hallucination_rate"]["n_questions"] == 11
 
     # Refusal calibration: precision/recall derived from per_refusal.
     # 5 refusals, all on OOS (i>=11) → TP=5, FN=0 → precision=1.0, recall=1.0.
-    assert payload["refusal_calibration"]["refusal_precision"] == pytest.approx(1.0)
-    assert payload["refusal_calibration"]["refusal_recall"] == pytest.approx(1.0)
+    assert payload["refusal"]["refusal_precision"] == pytest.approx(1.0)
+    assert payload["refusal"]["refusal_recall"] == pytest.approx(1.0)
     # Companion field (v2): in this fixture per_refusal has i>=11 all refused,
     # so 0 out-of-scope answers were shipped (out of 5).
-    ooa = payload["refusal_calibration"]["out_of_scope_answered"]
+    ooa = payload["refusal"]["out_of_scope_answered"]
     assert ooa == {"count": 0, "total": 5}
     # dataset.sha256 is None when no dataset_path is passed — surfaces honestly.
     assert payload["dataset"]["sha256"] is None
@@ -204,38 +214,17 @@ def test_agent_and_judge_summaries_reflect_a_mixed_provider_split() -> None:
     ``judge_model`` fields honestly split the count — never a boot-time default
     that erases the fallback."""
     base = _fixture_result()
-    # Rebuild answers: 15 anthropic + 1 openai fallback.
-    mixed_answers = [
-        Answer(
-            query=f"q{i}",
-            text="stub",
-            confidence=Confidence(score=0.9, refused=False, rationale=""),
-            hits_used=(),
-            usage=UsageStats(cost_usd=0.05),
-            provider_used=Provider.OPENAI if i == 15 else Provider.ANTHROPIC,
-            model_used="gpt-4.1-mini" if i == 15 else "claude-sonnet-4-6",
+    # The agent fell back to OpenAI on q-015, the judge on q-010.
+    audits = [
+        a.model_copy(
+            update={
+                "agent_model_used": "gpt-4.1-mini" if i == 15 else a.agent_model_used,
+                "judge_model_used": "gpt-4.1-mini" if i == 10 else a.judge_model_used,
+            }
         )
-        for i in range(16)
+        for i, a in enumerate(base.per_audit)
     ]
-    mixed_judge = [
-        JudgeCallStamp(
-            example_id=f"q-{i:03d}",
-            provider=None if i >= 11 else (Provider.OPENAI if i == 10 else Provider.ANTHROPIC),
-            model=None if i >= 11 else ("gpt-4.1-mini" if i == 10 else "claude-sonnet-4-6"),
-        )
-        for i in range(16)
-    ]
-    result = HarnessResult(
-        scorecard=base.scorecard,
-        embedding_model=base.embedding_model,
-        judge_model=base.judge_model,
-        agent_model=base.agent_model,
-        answers=mixed_answers,
-        per_refusal=list(base.per_refusal),
-        judge_cost_usd=base.judge_cost_usd,
-        judge_stamps=mixed_judge,
-        per_audit=list(base.per_audit),
-    )
+    result = HarnessResult(**{**base.__dict__, "per_audit": audits})  # type: ignore[arg-type]
     payload = build_headline_dict(result)
     assert payload["provenance"]["agent_model"] == "claude-sonnet-4-6 (15/16), gpt-4.1-mini (1/16)"
     # v3 judge summary with refusal-skip disclosure: 11 judge calls out of 16
@@ -271,9 +260,10 @@ def test_render_block_shows_verbatim_headline_numbers() -> None:
     assert "claude-sonnet-4-6" in block  # provenance
     assert "abc1234" in block  # commit
     assert "$1.4000" in block  # total cost (4-decimal precision)
-    # v3 scope + denominator visible in every judge-track row.
-    assert "(answered, n=11)" in block
-    assert "(answerable_and_answered, n=11)" in block
+    # Every judge-track row names its denominator.
+    assert "mean over 11 judged answers" in block
+    assert "pooled over 550 claims" in block
+    assert "over 11 answered answerable questions" in block
     assert "refusals bypass the judge" in block  # judge summary honesty
 
 
@@ -281,7 +271,7 @@ def test_write_headline_scorecard_round_trips(tmp_path: Path) -> None:
     result = _fixture_result()
     out = write_headline_scorecard(result, tmp_path / "live.json")
     parsed = json.loads(out.read_text(encoding="utf-8"))
-    assert parsed["schema"] == "verity.scorecard.headline/v3"
+    assert parsed["schema"] == "verity.scorecard.headline/v4"
     assert parsed["cost"]["total_usd"] == pytest.approx(1.4)
 
 
@@ -340,14 +330,13 @@ def test_latency_row_says_whether_cold_start_is_included(
     assert must_not_contain not in latency_row
 
 
-def test_answer_quality_rows_state_macro_aggregation() -> None:
+def test_answer_quality_rows_publish_both_aggregations() -> None:
     generator = _load_generator()
     payload = json.loads(Path("scorecards/live-v1.0.0.json").read_text(encoding="utf-8"))
-    block = generator.render_block(payload)
-    faith = next(line for line in block.splitlines() if line.startswith("| Faithfulness"))
-    cit = next(line for line in block.splitlines() if line.startswith("| Citation accuracy"))
-    assert "per-question mean" in faith and "per-question mean" in cit
-    assert "claim-level, judge ran" not in faith
+    rows = [line for line in generator.render_block(payload).splitlines() if line.startswith("|")]
+    for label in ("Faithfulness", "Citation accuracy"):
+        assert any(r.startswith(f"| {label}, per question |") for r in rows)
+        assert any(r.startswith(f"| {label}, per claim |") for r in rows)
 
 
 def test_committed_readme_matches_committed_scorecard(tmp_path: Path) -> None:
@@ -369,8 +358,11 @@ def test_check_mode_never_writes_the_readme(tmp_path: Path) -> None:
 
 
 def test_errored_examples_are_counted_in_the_scorecard_and_the_readme_block() -> None:
+    """Two of 18 examples errored: they have no audit record."""
     base = _fixture_result()
-    scorecard = base.scorecard.model_copy(update={"errored_example_ids": ("q01", "q07")})
+    scorecard = base.scorecard.model_copy(
+        update={"n_examples": 18, "errored_example_ids": ("q01", "q07")}
+    )
     payload = build_headline_dict(
         HarnessResult(**{**base.__dict__, "scorecard": scorecard})  # type: ignore[arg-type]
     )
@@ -379,7 +371,17 @@ def test_errored_examples_are_counted_in_the_scorecard_and_the_readme_block() ->
     assert "**2 errored**" in block
 
 
-def test_a_scorecard_without_the_errored_count_says_it_was_not_recorded() -> None:
-    payload = build_headline_dict(_fixture_result())
-    del payload["sample_sizes"]["n_errored"]
-    assert "errored: not recorded" in _load_generator().render_block(payload)
+def test_check_fails_when_the_scorecard_differs_from_its_artefact(tmp_path: Path) -> None:
+    """A number edited in the scorecard by hand no longer matches the recomputation."""
+    generator = _load_generator()
+    scorecard = tmp_path / "live.json"
+    payload = json.loads((REPO_ROOT / "scorecards/live-v1.0.0.json").read_text(encoding="utf-8"))
+    readme = tmp_path / "README.md"
+    readme.write_text("<!-- RESULTS:START -->\n<!-- RESULTS:END -->\n", encoding="utf-8")
+    scorecard.write_text(json.dumps(payload), encoding="utf-8")
+    assert generator.main(["--scorecard", str(scorecard), "--readme", str(readme)]) == 0
+    assert generator.main(["--check", "--scorecard", str(scorecard), "--readme", str(readme)]) == 0
+
+    payload["answer_quality"]["citation_accuracy"]["micro"]["value"] = 0.9
+    scorecard.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    assert generator.main(["--check", "--scorecard", str(scorecard), "--readme", str(readme)]) == 1
