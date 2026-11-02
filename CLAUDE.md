@@ -53,7 +53,7 @@ uv run python scripts/check_claims.py                      # CLAIMS.md ≡ passi
 uv run python scripts/check_claims.py --no-run             # structure only, no tests executed
 uv run python scripts/check_stale_narrative.py             # no sprint labels / future tense / bare TODO
 uv run python scripts/check_commit_messages.py main..HEAD  # Conventional Commits on the branch
-uv run python scripts/generate_headline_results.py --check # README results block ≡ scorecard
+uv run python scripts/generate_headline_results.py --check # README + SYSTEM_CARD blocks ≡ scorecard
 VERITY_STORE=memory uv run verity eval run --ci            # pipeline smoke test on stubs (no keys, no db)
 VERITY_API_AUTH_DISABLED=true uv run verity serve --port 8000  # API on pgvector, dev: no auth, stub without LLM key
 make demo                                                  # pgvector + API + web UI, stub mode
@@ -66,7 +66,8 @@ cd web && corepack pnpm lint && corepack pnpm typecheck && corepack pnpm test
 
 - `make demo`, CI and the tests never call a paid model. Any live run (`--judge live`,
   `--no-agent-stub`, `verity ask` without `--stub`) needs a cost estimate and approval.
-- The README results block is generated; edit `scorecards/` or the generator, never the block.
+- The README results block and the docs/SYSTEM_CARD.md block are generated; edit `scorecards/`
+  or the generator, never the blocks.
 - Changing a non-comment line of a `prompts/*.prompt` file changes model behaviour.
 - `datasets/eval/runs/live/` holds runs of record; never overwrite them.
 - A new README feature needs a `docs/CLAIMS.md` row with passing tests in the same PR.

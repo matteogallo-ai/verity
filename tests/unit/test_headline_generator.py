@@ -365,3 +365,105 @@ def test_check_mode_never_writes_the_readme(tmp_path: Path) -> None:
     readme.write_text(stale, encoding="utf-8")
     assert generator.main(["--check", "--readme", str(readme)]) == 1
     assert readme.read_text(encoding="utf-8") == stale
+
+
+# --- system card block ------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("k", "n", "low", "high"),
+    [
+        # Reference values of the Wilson (1927) score interval at z = 1.96.
+        (5, 10, 0.236593, 0.763407),
+        (0, 10, 0.0, 0.277533),
+        (10, 10, 0.722467, 1.0),
+        (17, 22, 0.565600, 0.898770),
+    ],
+)
+def test_wilson_interval_matches_reference_values(k: int, n: int, low: float, high: float) -> None:
+    generator = _load_generator()
+    assert generator.wilson_interval(k, n) == pytest.approx((low, high), abs=1e-6)
+
+
+def test_wilson_interval_is_none_without_observations_and_rejects_impossible_counts() -> None:
+    generator = _load_generator()
+    assert generator.wilson_interval(0, 0) is None
+    for k, n in ((-1, 5), (6, 5)):
+        with pytest.raises(ValueError):
+            generator.wilson_interval(k, n)
+
+
+def _committed_scorecard() -> dict:  # type: ignore[type-arg]
+    return json.loads((REPO_ROOT / "scorecards" / "live-v1.0.0.json").read_text(encoding="utf-8"))
+
+
+def _card_rows(payload: dict) -> dict[str, list[str]]:  # type: ignore[type-arg]
+    """Table rows of the rendered system card block, keyed by their first cell."""
+    generator = _load_generator()
+    block = generator.render_system_card_block(payload, scorecard_path=generator.DEFAULT_SCORECARD)
+    rows: dict[str, list[str]] = {}
+    for line in block.splitlines():
+        if line.startswith("| ") and not line.startswith("|---"):
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            rows[cells[0]] = cells[1:]
+    return rows
+
+
+def _row_starting(rows: dict[str, list[str]], prefix: str) -> list[str]:
+    return next(cells for name, cells in rows.items() if name.startswith(prefix))
+
+
+def test_system_card_recovers_counts_from_the_artefact_and_gives_intervals() -> None:
+    rows = _card_rows(_committed_scorecard())
+    # 5 out-of-scope questions, 4 refused; all 4 refusals were out of scope.
+    assert rows["Refusal recall"] == ["0.800", "4/5", "[0.376, 0.964]"]
+    assert rows["Refusal precision"] == ["1.000", "4/4", "[0.510, 1.000]"]
+    # A per-answer hallucination flag is 0 or 1, so the rate gives k back.
+    assert rows["Hallucination rate ↓ (judge)"] == ["0.000", "0/11", "[0.000, 0.259]"]
+    # A mean of per-question fractions has no k: n is shown, no interval is invented.
+    assert rows["Citation accuracy, per-question mean (judge)"] == ["0.722", "n=12", "no interval"]
+
+
+def test_system_card_slos_are_marked_proposed_and_say_what_was_not_measured() -> None:
+    rows = _card_rows(_committed_scorecard())
+    slos = [_row_starting(rows, prefix) for prefix in ("p95", "Error", "Cost")]
+    assert all("proposed, pending owner approval" in cells[0] for cells in slos)
+    assert slos[0][2] == "over target"  # 32.5 s with model loading vs 15 s
+    assert slos[1][1:] == ["not recorded by this scorecard", "not measured"]
+
+
+def test_system_card_reads_counts_stored_in_a_newer_scorecard() -> None:
+    """A scorecard that stores k/n per metric and an errored count is rendered from
+    those counts, so the card follows whichever scorecard the README renders."""
+    payload = _committed_scorecard()
+    payload["refusal"] = payload.pop("refusal_calibration")
+    payload["refusal"]["refusal_precision"] = {"value": 0.772727, "k": 17, "n": 22}
+    payload["sample_sizes"]["n_errored"] = 1
+    rows = _card_rows(payload)
+    assert rows["Refusal precision"] == ["0.773", "17/22", "[0.566, 0.899]"]
+    assert _row_starting(rows, "Error")[1:] == [
+        "0.062 (1/16, 95 % CI [0.011, 0.283])",
+        "over target",
+    ]
+
+
+def test_a_refusal_value_that_disagrees_with_its_records_fails_loudly() -> None:
+    payload = _committed_scorecard()
+    payload["refusal_calibration"]["refusal_recall"] = 0.9
+    with pytest.raises(SystemExit):
+        _card_rows(payload)
+
+
+def test_check_covers_the_system_card_and_never_writes_it(tmp_path: Path) -> None:
+    generator = _load_generator()
+    readme = tmp_path / "README.md"
+    readme.write_text((REPO_ROOT / "README.md").read_text(encoding="utf-8"), encoding="utf-8")
+    card = tmp_path / "SYSTEM_CARD.md"
+    committed = (REPO_ROOT / "docs" / "SYSTEM_CARD.md").read_text(encoding="utf-8")
+    args = ["--check", "--readme", str(readme), "--system-card", str(card)]
+    card.write_text(committed, encoding="utf-8")
+    assert generator.main(args) == 0
+    stale = committed.replace("| 4/5 |", "| 5/5 |")
+    card.write_text(stale, encoding="utf-8")
+    assert generator.main(args) == 1
+    assert card.read_text(encoding="utf-8") == stale
