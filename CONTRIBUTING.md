@@ -19,13 +19,19 @@ observability. Contributions are held to that bar.
 
 ## Workflow
 
+The standard is [`docs/ENGINEERING_STANDARDS.md`](docs/ENGINEERING_STANDARDS.md);
+[`CLAUDE.md`](CLAUDE.md) lists every command.
+
 ```bash
 uv sync --dev
 uv run ruff check . && uv run ruff format --check .
-uv run mypy
-uv run pytest -m "not integration"
+uv run mypy && uv run vulture && uv run deptry src
+uv run pytest -m "not integration and not slow"
+uv run pytest -m "slow and not integration"
+uv run python scripts/check_stale_narrative.py
+uv run python scripts/check_claims.py --no-run
 ```
 
 Commits follow Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`,
-`chore:`). Open a PR against `main`; describe the change and, if it touches the pipeline,
-paste the before/after scorecard.
+`build:`, `ci:`, `chore:`), checked in CI. Open a PR against `main` with the template
+filled in; if it touches the pipeline, paste the before/after scorecard.
