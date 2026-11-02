@@ -77,7 +77,7 @@ async def ingest_endpoint(
 ) -> IngestResponse:
     """Ingest one uploaded file into the configured store.
 
-    The document id is ``uuid5(NAMESPACE_URL, "upload://<sha256><ext>")``: the same
+    The document id is ``uuid5(NAMESPACE_URL, "upload:/<sha256><ext>")``: the same
     bytes with the same extension always yield the same id, whatever the file name
     or machine. The extension is kept because it selects the parser.
 

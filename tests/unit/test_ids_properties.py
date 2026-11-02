@@ -18,7 +18,6 @@ from verity.ingestion.ids import _find_repo_root, chunk_id_for, document_id_for_
 
 _SEGMENT = st.text(alphabet="abcdefghijklmnopqrstuvwxyz0123456789_-", min_size=1, max_size=10)
 _REL_PATH = st.lists(_SEGMENT, min_size=1, max_size=4).map(lambda parts: "/".join(parts) + ".md")
-_SPAN = st.tuples(st.integers(0, 10_000), st.integers(0, 10_000), st.integers(0, 10_000))
 
 
 @given(_REL_PATH)
@@ -40,34 +39,29 @@ def test_a_web_url_is_its_own_identity(path: str) -> None:
 def test_an_upload_id_does_not_depend_on_the_working_directory(
     tmp_path: Path, content: bytes, extension: str
 ) -> None:
-    uri = f"upload://{hashlib.sha256(content).hexdigest()}{extension}"
-    here = document_id_for_uri(uri)
+    name = f"{hashlib.sha256(content).hexdigest()}{extension}"
+    here = document_id_for_uri(f"upload://{name}")
     with contextlib.chdir(tmp_path):
-        elsewhere = document_id_for_uri(uri)
-    assert here == elsewhere == uuid5(NAMESPACE_URL, uri)
+        elsewhere = document_id_for_uri(f"upload://{name}")
+    assert here == elsewhere == uuid5(NAMESPACE_URL, f"upload:/{name}")
 
 
-@given(st.uuids(), st.integers(0, 1_000), _SPAN)
-def test_chunk_id_is_a_function_of_document_ordinal_and_span(
-    document_id: UUID, ordinal: int, span: tuple[int, int, int]
-) -> None:
-    start, end, _ = span
-    assert chunk_id_for(document_id, ordinal, start, end) == chunk_id_for(
-        document_id, ordinal, start, end
-    )
+def test_an_upload_keeps_the_id_it_was_stored_under() -> None:
+    """The value main derived from the repo root and the container's /app: changing it
+    would make the unique uri column reject every re-upload of a stored document."""
+    assert document_id_for_uri("upload://ab.md") == uuid5(NAMESPACE_URL, "upload:/ab.md")
 
 
-@given(st.uuids(), st.integers(0, 1_000), _SPAN, st.uuids(), st.integers(0, 1_000), _SPAN)
+# Small ranges and a shared document make same-document collisions of the
+# "{document}:{ordinal}:{start}:{end}" payload likely to be drawn.
+_SMALL = st.integers(0, 12)
+_KEY = st.tuples(st.just(UUID(int=7)) | st.uuids(), _SMALL, _SMALL, _SMALL)
+
+
+@given(_KEY, _KEY)
 def test_distinct_chunk_keys_get_distinct_ids(
-    doc_a: UUID,
-    ordinal_a: int,
-    span_a: tuple[int, int, int],
-    doc_b: UUID,
-    ordinal_b: int,
-    span_b: tuple[int, int, int],
+    key_a: tuple[UUID, int, int, int], key_b: tuple[UUID, int, int, int]
 ) -> None:
-    key_a = (doc_a, ordinal_a, span_a[0], span_a[1])
-    key_b = (doc_b, ordinal_b, span_b[0], span_b[1])
     assert (chunk_id_for(*key_a) == chunk_id_for(*key_b)) == (key_a == key_b)
 
 

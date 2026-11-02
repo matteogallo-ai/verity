@@ -97,8 +97,8 @@ def test_an_upload_is_stored_iff_it_fits_the_size_limit(
     )
     if size <= _MAX_UPLOAD:
         assert response.status_code == 200, response.text
-        expected_uri = f"upload://{hashlib.sha256(content).hexdigest()}{extension}"
-        assert response.json()["document_id"] == str(uuid5(NAMESPACE_URL, expected_uri))
+        identity = f"upload:/{hashlib.sha256(content).hexdigest()}{extension}"
+        assert response.json()["document_id"] == str(uuid5(NAMESPACE_URL, identity))
     else:
         assert response.status_code == 413
 
