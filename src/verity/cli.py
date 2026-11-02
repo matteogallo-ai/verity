@@ -219,8 +219,8 @@ def retrieve(
         bool,
         typer.Option(
             help=(
-                "Use an in-memory store populated from --corpus instead of hitting "
-                "pgvector. Default: True when no DB is available."
+                "Use an in-memory store populated from --corpus instead of pgvector. "
+                "Default: True; pass --no-in-memory to query pgvector."
             )
         ),
     ] = True,

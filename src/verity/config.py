@@ -62,7 +62,8 @@ class Settings(BaseSettings):
     max_agent_steps: int = 4  # cap on multi-step retrieval decomposition
 
     # --- Observability ----------------------------------------------------------------
-    otel_endpoint: str | None = None  # None → console exporter
+    # None → spans stay in the in-process exporter only (backs /metrics).
+    otel_endpoint: str | None = None
     log_level: str = "INFO"
 
     @property
