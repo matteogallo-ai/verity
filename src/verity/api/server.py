@@ -38,6 +38,7 @@ from verity.api.state import AppRuntime, default_agent_mode
 from verity.config import Settings, get_settings
 from verity.eval import FileRunStore
 from verity.observability.tracer import NoOpTracer
+from verity.retrieval.base import RetrievalUnavailableError
 
 _log = structlog.get_logger("verity.api")
 _REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
@@ -95,6 +96,7 @@ def create_app(
     runtime = AppRuntime(
         mode="stub" if resolved_mode == "stub" else "live",
         corpus_dir=corpus_dir,
+        store=settings.store,
         tracer=runtime_tracer,
     )
     app.state.runtime = runtime
@@ -172,6 +174,20 @@ def _install_request_context(app: FastAPI, settings: Settings) -> None:
             {"detail": exc.detail, "request_id": _request_id(request)},
             status_code=exc.status_code,
             headers=exc.headers,
+        )
+
+    @app.exception_handler(RetrievalUnavailableError)
+    async def store_unavailable(request: Request, exc: RetrievalUnavailableError) -> JSONResponse:
+        _log.error("store_unavailable", path=request.url.path, exc_info=exc)
+        return JSONResponse(
+            {
+                "detail": {
+                    "error": "retrieval_unavailable",
+                    "message": "The document store is unavailable; retry later.",
+                },
+                "request_id": _request_id(request),
+            },
+            status_code=503,
         )
 
     @app.exception_handler(RequestValidationError)

@@ -17,7 +17,7 @@ from verity.config import Settings
 from verity.observability.tracer import OTelTracer
 from verity.types import UsageStats, new_id
 
-_DEV = Settings(api_auth_disabled=True)
+_DEV = Settings(api_auth_disabled=True, store="memory")
 
 
 def _seed_tracer_with_a_query(tracer: OTelTracer) -> None:

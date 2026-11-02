@@ -357,3 +357,22 @@ def test_serve_refuses_to_start_without_api_keys(monkeypatch: pytest.MonkeyPatch
         get_settings.cache_clear()
     assert result.exit_code == 2
     assert "VERITY_API_KEYS" in result.output
+
+
+def test_store_option_rejects_an_unknown_backend() -> None:
+    result = runner.invoke(app, ["retrieve", "x", "--store", "sqlite"])
+    assert result.exit_code != 0
+    assert "pgvector" in result.output
+
+
+def test_store_defaults_to_the_setting(monkeypatch: pytest.MonkeyPatch) -> None:
+    from verity.cli import _resolve_store
+    from verity.config import get_settings
+
+    get_settings.cache_clear()
+    monkeypatch.setenv("VERITY_STORE", "memory")
+    try:
+        assert _resolve_store(None) == "memory"
+        assert _resolve_store("pgvector") == "pgvector"
+    finally:
+        get_settings.cache_clear()

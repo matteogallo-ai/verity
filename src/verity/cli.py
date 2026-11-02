@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, cast
 
 import typer
 from rich.console import Console
@@ -16,6 +16,7 @@ from verity.config import get_settings
 
 if TYPE_CHECKING:
     from verity.retrieval.base import Retriever
+    from verity.runtime import StoreKind
     from verity.types import Answer, RetrievalHit
 
 app = typer.Typer(
@@ -72,7 +73,7 @@ def ingest(
     )
     from verity.ingestion.pipeline import discover_sources
     from verity.retrieval import PgVectorStore
-    from verity.retrieval.base import StoreSchemaError
+    from verity.retrieval.base import StoreSchemaError, StoreUnavailableError
 
     uris = discover_sources(str(path))
     if not uris:
@@ -93,7 +94,7 @@ def ingest(
     pipeline = IngestionPipeline(parser=parser, chunker=chunker, embedder=embedder, sink=sink)
     try:
         result = asyncio.run(pipeline.ingest(uris))
-    except StoreSchemaError as exc:
+    except (StoreSchemaError, StoreUnavailableError) as exc:
         console.print(f"[red]Ingestion stopped:[/red] {exc}")
         raise typer.Exit(code=2) from exc
 
@@ -133,11 +134,14 @@ def db_upgrade() -> None:
 def ask(
     question: Annotated[str, typer.Argument(help="Question to ask the corpus.")],
     corpus: Annotated[
-        Path, typer.Option(help="Corpus directory to ingest into an in-memory store.")
+        Path, typer.Option(help="Corpus directory to ingest into the store first (idempotent).")
     ] = Path("datasets/corpus"),
-    in_memory: Annotated[
-        bool, typer.Option(help="Use an in-memory store (no Postgres required). Default: True.")
-    ] = True,
+    store: Annotated[
+        str | None,
+        typer.Option(
+            help="Vector store, 'pgvector' or 'memory'. Default: VERITY_STORE (pgvector)."
+        ),
+    ] = None,
     stub: Annotated[
         bool,
         typer.Option(
@@ -156,9 +160,7 @@ def ask(
     if not stub:
         _require_llm_api_key()
 
-    retriever, _ = asyncio.run(
-        _build_retriever(corpus=corpus, in_memory=in_memory, no_rerank=False)
-    )
+    retriever, _ = asyncio.run(_build_retriever(corpus=corpus, store=store, no_rerank=False))
     client = build_stub_router() if stub else create_default_routing_client()
     agent = create_default_agent(retriever=retriever, client=client)
     answer = asyncio.run(agent.answer(question))
@@ -219,17 +221,14 @@ def retrieve(
     k: Annotated[int, typer.Option(help="Number of hits to display.")] = 5,
     corpus: Annotated[
         Path,
-        typer.Option(help="Corpus directory to ingest into an in-memory store."),
+        typer.Option(help="Corpus directory to ingest into the store first (idempotent)."),
     ] = Path("datasets/corpus"),
-    in_memory: Annotated[
-        bool,
+    store: Annotated[
+        str | None,
         typer.Option(
-            help=(
-                "Use an in-memory store populated from --corpus instead of pgvector. "
-                "Default: True; pass --no-in-memory to query pgvector."
-            )
+            help="Vector store, 'pgvector' or 'memory'. Default: VERITY_STORE (pgvector)."
         ),
-    ] = True,
+    ] = None,
     no_rerank: Annotated[
         bool,
         typer.Option(help="Skip the cross-encoder rerank stage (dense + sparse + RRF only)."),
@@ -237,7 +236,7 @@ def retrieve(
 ) -> None:
     """Run one hybrid retrieval and print the top hits."""
     hits = asyncio.run(
-        _run_retrieve(query=query, k=k, corpus=corpus, in_memory=in_memory, no_rerank=no_rerank)
+        _run_retrieve(query=query, k=k, corpus=corpus, store=store, no_rerank=no_rerank)
     )
     if not hits:
         console.print("[yellow]No hits.[/yellow]")
@@ -279,10 +278,12 @@ def eval_retrieval(
         int | None,
         typer.Option(help="k used for precision@k / recall@k / nDCG@k (default: rerank_k)."),
     ] = None,
-    in_memory: Annotated[
-        bool,
-        typer.Option(help="Use an in-memory store (no Postgres required). Default: True."),
-    ] = True,
+    store: Annotated[
+        str | None,
+        typer.Option(
+            help="Vector store, 'pgvector' or 'memory'. Default: VERITY_STORE (pgvector)."
+        ),
+    ] = None,
     no_rerank: Annotated[
         bool, typer.Option(help="Score the fused set without the cross-encoder rerank.")
     ] = False,
@@ -318,7 +319,7 @@ def eval_retrieval(
         raise typer.Exit(code=0)
 
     retriever, backend_name = asyncio.run(
-        _build_retriever(corpus=corpus, in_memory=in_memory, no_rerank=no_rerank)
+        _build_retriever(corpus=corpus, store=store, no_rerank=no_rerank)
     )
 
     scorecard = asyncio.run(
@@ -380,51 +381,38 @@ def eval_retrieval(
 
 
 async def _build_retriever(
-    *, corpus: Path, in_memory: bool, no_rerank: bool
+    *, corpus: Path, store: str | None, no_rerank: bool
 ) -> tuple[Retriever, str]:
-    """Instantiate the retriever + populate the store when in-memory.
+    """Build the retriever on the chosen store, after ingesting ``corpus`` into it.
 
-    Returns ``(retriever, backend_name)`` so the scorecard records where the
-    numbers came from.
+    The upsert is idempotent (content-derived ids), so with pgvector a run re-embeds
+    the corpus but never duplicates it, and its numbers never depend on what an
+    earlier process left in the database. Returns ``(retriever, store_name)`` so
+    the scorecard records where the numbers came from.
     """
-    from verity.ingestion import (
-        IngestionPipeline,
-        LocalEmbedder,
-        StructureAwareChunker,
-        create_default_parser,
+    from verity.runtime import build_local_components, build_retriever, ingest_corpus
+
+    kind = _resolve_store(store)
+    vector_store, embedder, reranker = build_local_components(store=kind, no_rerank=no_rerank)
+    result = await ingest_corpus(corpus_dir=corpus, store=vector_store, embedder=embedder)
+    console.print(
+        f"[dim]{kind} store: ingested {result.n_documents} docs, {result.n_chunks} chunks "
+        f"(elapsed {result.elapsed_s:.2f}s)[/dim]"
     )
-    from verity.ingestion.pipeline import discover_sources
-    from verity.retrieval import (
-        CrossEncoderReranker,
-        HybridRetriever,
-        InMemoryVectorStore,
-        PgVectorStore,
-    )
+    return build_retriever(store=vector_store, embedder=embedder, reranker=reranker), kind
 
-    embedder = LocalEmbedder()
-    reranker = None if no_rerank else CrossEncoderReranker()
 
-    if in_memory:
-        store = InMemoryVectorStore()
-        parser = create_default_parser()
-        chunker = StructureAwareChunker()
-        pipeline = IngestionPipeline(parser=parser, chunker=chunker, embedder=embedder, sink=store)
-        uris = discover_sources(str(corpus))
-        result = await pipeline.ingest(uris)
-        console.print(
-            f"[dim]in-memory store: {result.n_documents} docs, {result.n_chunks} chunks "
-            f"(elapsed {result.elapsed_s:.2f}s)[/dim]"
-        )
-        return HybridRetriever(store=store, embedder=embedder, reranker=reranker), "in-memory"
-
-    pg_store = PgVectorStore()
-    return HybridRetriever(store=pg_store, embedder=embedder, reranker=reranker), "pgvector"
+def _resolve_store(store: str | None) -> StoreKind:
+    resolved = store or get_settings().store
+    if resolved not in ("pgvector", "memory"):
+        raise typer.BadParameter(f"--store must be 'pgvector' or 'memory', got {resolved!r}")
+    return cast("StoreKind", resolved)
 
 
 async def _run_retrieve(
-    *, query: str, k: int, corpus: Path, in_memory: bool, no_rerank: bool
+    *, query: str, k: int, corpus: Path, store: str | None, no_rerank: bool
 ) -> list[RetrievalHit]:
-    retriever, _ = await _build_retriever(corpus=corpus, in_memory=in_memory, no_rerank=no_rerank)
+    retriever, _ = await _build_retriever(corpus=corpus, store=store, no_rerank=no_rerank)
     return await retriever.retrieve(query, k=k)
 
 
@@ -536,9 +524,12 @@ def eval_run(
     judge: Annotated[
         str, typer.Option(help="Faithfulness judge: 'stub' (offline, deterministic) or 'live'.")
     ] = "stub",
-    in_memory: Annotated[
-        bool, typer.Option(help="Use in-memory store instead of pgvector. Default: True.")
-    ] = True,
+    store: Annotated[
+        str | None,
+        typer.Option(
+            help="Vector store, 'pgvector' or 'memory'. Default: VERITY_STORE (pgvector)."
+        ),
+    ] = None,
     agent_stub: Annotated[
         bool,
         typer.Option(
@@ -657,7 +648,7 @@ def eval_run(
         raise typer.Exit(code=0)
 
     retriever, backend_name = asyncio.run(
-        _build_retriever(corpus=corpus, in_memory=in_memory, no_rerank=False)
+        _build_retriever(corpus=corpus, store=store, no_rerank=False)
     )
 
     # Agent LLM: stub by default (offline), real client if the user turned it off.
@@ -708,14 +699,14 @@ def eval_run(
     from verity.eval.run_store import StubOverwritesLiveError
 
     effective_runs_dir = resolve_runs_dir(runs_dir, judge_mode=judge_mode, agent_stub=agent_stub)
-    store = FileRunStore(effective_runs_dir)
+    run_store = FileRunStore(effective_runs_dir)
     run = result.as_eval_run()
     try:
-        store.save(run)
+        run_store.save(run)
     except StubOverwritesLiveError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=5) from exc
-    path = store.path_for(run.scorecard.git_sha, run.scorecard.dataset)
+    path = run_store.path_for(run.scorecard.git_sha, run.scorecard.dataset)
     console.print(f"[green]Persisted[/green] {path}")
 
     # JSON write is deliberately UNCONDITIONAL and happens BEFORE any floor

@@ -57,7 +57,10 @@ class FakeRerankerBackend:
 
 
 @contextmanager
-def api_app(tmp_path: Path, settings: Settings) -> Iterator[TestClient]:
+def api_app(tmp_path: Path, settings: Settings, *, store: str = "memory") -> Iterator[TestClient]:
+    """The app on the in-memory store unless ``store`` says otherwise: the fast lane
+    has no database."""
+    settings = settings.model_copy(update={"store": store})
     with (
         patch(
             "verity.ingestion.embedder._default_backend_factory",

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -193,3 +194,28 @@ def test_every_response_carries_a_request_id(client: TestClient) -> None:
     assert echoed.headers["X-Request-ID"] == "abc-123"
     forged = client.get("/health", headers={"X-Request-ID": "x" * 500 + "\n"})
     assert forged.headers["X-Request-ID"] != "x" * 500
+
+
+# --- store outage ----------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "body"),
+    [("get", "/status", None), ("post", "/ask", {"question": _QUESTION})],
+)
+def test_unreachable_postgres_is_a_generic_503(
+    tmp_path: Path, method: str, path: str, body: dict[str, str] | None
+) -> None:
+    import psycopg
+
+    refused = psycopg.OperationalError("connection to server at 10.0.0.1 port 5432 failed")
+    with (
+        patch("psycopg.AsyncConnection.connect", side_effect=refused),
+        api_app(tmp_path, _settings(), store="pgvector") as down,
+    ):
+        response = down.request(method, path, json=body, headers={"X-API-Key": _KEY})
+
+    assert response.status_code == 503
+    assert response.json()["detail"]["error"] == "retrieval_unavailable"
+    assert "10.0.0.1" not in response.text
+    assert response.json()["request_id"]

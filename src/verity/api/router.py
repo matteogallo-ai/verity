@@ -44,8 +44,8 @@ def _runtime(request: Request) -> AppRuntime:
     return cast(AppRuntime, runtime)
 
 
-def _corpus_summary(runtime: AppRuntime) -> CorpusSummary:
-    sources = runtime.sources()
+async def _corpus_summary(runtime: AppRuntime) -> CorpusSummary:
+    sources = await runtime.sources()
     return CorpusSummary(
         n_documents=len(sources),
         n_chunks=sum(s.n_chunks for s in sources),
@@ -64,7 +64,7 @@ async def status_endpoint(request: Request) -> StatusResponse:
     return StatusResponse(
         version=__version__,
         provenance=runtime.provenance(),
-        corpus=_corpus_summary(runtime),
+        corpus=await _corpus_summary(runtime),
         otel_endpoint=settings.otel_endpoint,
     )
 
@@ -120,7 +120,7 @@ async def ingest_endpoint(
         uri=record.uri,
         title=record.title,
         n_chunks=record.n_chunks,
-        corpus=_corpus_summary(runtime),
+        corpus=await _corpus_summary(runtime),
     )
 
 

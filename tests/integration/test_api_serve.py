@@ -33,7 +33,7 @@ pytestmark = pytest.mark.integration
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CORPUS = REPO_ROOT / "datasets" / "corpus"
 
-_DEV = Settings(api_auth_disabled=True)
+_DEV = Settings(api_auth_disabled=True, store="memory")
 
 
 class _FakeEmbeddingBackend:

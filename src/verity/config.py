@@ -8,6 +8,7 @@ scattered as magic numbers across the codebase.
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -41,6 +42,9 @@ class Settings(BaseSettings):
 
     # --- Database ---------------------------------------------------------------------
     database_url: str = "postgresql://verity:verity@localhost:5432/verity"
+    # pgvector is what the API, the demo and the reference eval run on (ADR 0002).
+    # "memory" runs without a database: unit tests, the CI pipeline smoke test.
+    store: Literal["pgvector", "memory"] = "pgvector"
 
     # --- Embeddings (local by default → CI needs no API keys) -------------------------
     embedding_model: str = "BAAI/bge-small-en-v1.5"

@@ -29,26 +29,36 @@ from verity.retrieval import (
     CrossEncoderReranker,
     HybridRetriever,
     InMemoryVectorStore,
+    PgVectorStore,
 )
+from verity.retrieval.base import CorpusStore
 
 AgentMode = Literal["stub", "live"]
+StoreKind = Literal["pgvector", "memory"]
+
+
+def build_store(kind: StoreKind) -> CorpusStore:
+    """The configured store: pgvector (``VERITY_DATABASE_URL``) or in process memory."""
+    if kind == "pgvector":
+        return PgVectorStore()
+    return InMemoryVectorStore()
 
 
 def build_local_components(
     *,
+    store: StoreKind,
     no_rerank: bool = False,
-) -> tuple[InMemoryVectorStore, LocalEmbedder, CrossEncoderReranker | None]:
-    """Instantiate the local components used by both CLI and API in in-memory mode."""
-    store = InMemoryVectorStore()
+) -> tuple[CorpusStore, LocalEmbedder, CrossEncoderReranker | None]:
+    """Instantiate the store, embedder and reranker shared by the CLI and the API."""
     embedder = LocalEmbedder()
     reranker = None if no_rerank else CrossEncoderReranker()
-    return store, embedder, reranker
+    return build_store(store), embedder, reranker
 
 
 async def ingest_corpus(
     *,
     corpus_dir: Path,
-    store: InMemoryVectorStore,
+    store: CorpusStore,
     embedder: LocalEmbedder,
 ) -> IngestionResult:
     """Run parse → chunk → embed → upsert on every source in ``corpus_dir``."""
@@ -65,7 +75,7 @@ async def ingest_corpus(
 async def ingest_uri(
     *,
     uri: str,
-    store: InMemoryVectorStore,
+    store: CorpusStore,
     embedder: LocalEmbedder,
     raw: bytes | None = None,
 ) -> IngestionResult:
@@ -109,7 +119,7 @@ def build_agent(
 
 def build_retriever(
     *,
-    store: InMemoryVectorStore,
+    store: CorpusStore,
     embedder: LocalEmbedder,
     reranker: CrossEncoderReranker | None,
     tracer: Tracer | None = None,
@@ -124,9 +134,11 @@ def build_retriever(
 
 __all__ = [
     "AgentMode",
+    "StoreKind",
     "build_agent",
     "build_local_components",
     "build_retriever",
+    "build_store",
     "ingest_corpus",
     "ingest_uri",
 ]
