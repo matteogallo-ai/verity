@@ -344,12 +344,13 @@ async def test_the_artefact_records_what_the_run_measured_with(tmp_path: Path) -
     result, _ = await _run_stub_harness()
     assert set(result.prompt_sha256) == {p.stem for p in (REPO_ROOT / "prompts").glob("*.prompt")}
     assert result.duration_s is not None and result.duration_s > 0
-    run = result.as_eval_run(dataset_sha256="d" * 64)
+    run = result.as_eval_run(dataset_sha256="d" * 64, confidence_threshold=0.4)
     store = FileRunStore(tmp_path)
     store.save(run)
     back = load_run(store.path_for(run.scorecard.git_sha, run.scorecard.dataset))
     assert back.dataset_sha256 == "d" * 64
     assert back.prompt_sha256 == result.prompt_sha256
     assert back.duration_s == result.duration_s
+    assert back.confidence_threshold == 0.4
     answered = [a for a in back.per_audit if not a.refused]
     assert answered and all(a.agent_model_used and a.judge_model_used for a in answered)

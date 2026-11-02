@@ -718,7 +718,11 @@ def eval_run(
 
     effective_runs_dir = resolve_runs_dir(runs_dir, judge_mode=judge_mode, agent_stub=agent_stub)
     run_store = FileRunStore(effective_runs_dir)
-    run = result.as_eval_run(dataset_sha256=hashlib.sha256(dataset.read_bytes()).hexdigest())
+    run = result.as_eval_run(
+        dataset_sha256=hashlib.sha256(dataset.read_bytes()).hexdigest(),
+        # create_default_agent above builds its scorer from these settings.
+        confidence_threshold=settings.confidence_threshold,
+    )
     try:
         run_store.save(run)
     except StubOverwritesLiveError as exc:

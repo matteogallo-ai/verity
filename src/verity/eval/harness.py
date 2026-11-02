@@ -127,7 +127,11 @@ class HarnessResult:
     duration_s: float | None = None
 
     def as_eval_run(
-        self, *, notes: str | None = None, dataset_sha256: str | None = None
+        self,
+        *,
+        notes: str | None = None,
+        dataset_sha256: str | None = None,
+        confidence_threshold: float | None = None,
     ) -> EvalRun:
         return EvalRun(
             scorecard=self.scorecard,
@@ -140,6 +144,7 @@ class HarnessResult:
             dataset_sha256=dataset_sha256,
             prompt_sha256=self.prompt_sha256,
             duration_s=self.duration_s,
+            confidence_threshold=confidence_threshold,
         )
 
 

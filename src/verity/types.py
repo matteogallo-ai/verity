@@ -447,3 +447,5 @@ class EvalRun(BaseModel, frozen=True):
     dataset_sha256: str | None = None
     prompt_sha256: dict[str, str] = Field(default_factory=dict)
     duration_s: float | None = None
+    # The refusal threshold the agent ran with: refusals are published at this value.
+    confidence_threshold: float | None = None

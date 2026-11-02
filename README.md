@@ -71,7 +71,7 @@ CI job `claims` runs those tests.
 
 | Metric | Value | Notes |
 |---|---:|---|
-| **Refusal recall** | **0.800** | unanswerable questions refused / unanswerable (5) |
+| **Refusal recall** | **0.800** | unanswerable questions refused / unanswerable (5) · threshold not recorded |
 | **Refusal precision** | **1.000** | refusals that were unanswerable / refusals (4) |
 | Faithfulness, per question | 1.000 | mean over 12 judged answers · judge unvalidated |
 | Faithfulness, per claim | 1.000 | pooled over 34 claims · judge unvalidated |

@@ -138,6 +138,7 @@
     "run_sha": "d0ca1d5"
   },
   "refusal": {
+    "confidence_threshold": null,
     "out_of_scope_answered": {
       "count": 1,
       "total": 5

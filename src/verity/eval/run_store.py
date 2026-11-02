@@ -152,6 +152,8 @@ def _run_to_dict(run: EvalRun) -> dict[str, object]:
         payload["prompt_sha256"] = dict(sorted(run.prompt_sha256.items()))
     if run.duration_s is not None:
         payload["duration_s"] = run.duration_s
+    if run.confidence_threshold is not None:
+        payload["confidence_threshold"] = run.confidence_threshold
     return payload
 
 
@@ -194,6 +196,7 @@ def _run_from_dict(data: dict[str, object]) -> EvalRun:
         dataset_sha256=data.get("dataset_sha256"),
         prompt_sha256=data.get("prompt_sha256") or {},
         duration_s=data.get("duration_s"),
+        confidence_threshold=data.get("confidence_threshold"),
     )
 
 

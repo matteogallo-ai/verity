@@ -74,6 +74,8 @@ def render_block(data: dict[str, Any], *, scorecard_path: Path = DEFAULT_SCORECA
     )
     date = _short_date(str(data["generated_at"]))
     unparseable = sizes["n_judge_unparseable"]
+    thr = refu.get("confidence_threshold")
+    threshold = "threshold not recorded" if thr is None else f"threshold {thr:g}"
     lines = [
         f"**Measured on**: `agent={prov['agent_model']}` · "
         f"`judge={prov['judge_model']}` · "
@@ -87,7 +89,8 @@ def render_block(data: dict[str, Any], *, scorecard_path: Path = DEFAULT_SCORECA
         "| Metric | Value | Notes |",
         "|---|---:|---|",
         f"| **Refusal recall** | **{_fmt(refu['refusal_recall'])}** | "
-        f"unanswerable questions refused / unanswerable ({ds['n_unanswerable']}) |",
+        f"unanswerable questions refused / unanswerable ({ds['n_unanswerable']}) · "
+        f"{threshold} |",
         f"| **Refusal precision** | **{_fmt(refu['refusal_precision'])}** | "
         f"refusals that were unanswerable / refusals ({sizes['n_refused']}) |",
     ]

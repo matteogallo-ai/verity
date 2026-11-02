@@ -212,6 +212,7 @@ def build_headline_dict_from_eval_run(
             },
         },
         "refusal": {
+            "confidence_threshold": run.confidence_threshold,
             "refusal_precision": tp / (tp + fp) if tp + fp else None,
             "refusal_recall": tp / (tp + fn) if tp + fn else None,
             "out_of_scope_answered": {"count": fn, "total": n_unanswerable},
