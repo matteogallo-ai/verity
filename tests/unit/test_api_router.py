@@ -227,3 +227,47 @@ def test_ingest_rejects_empty_upload(client) -> None:  # type: ignore[no-untyped
     r = client.post("/ingest", files={"file": ("empty.md", b"", "text/markdown")})
     assert r.status_code == 400
     assert "empty" in r.json()["detail"].lower()
+
+
+def _rewire_agent(client, *, llm=None, store=None) -> None:  # type: ignore[no-untyped-def]
+    from verity.agent.agent import create_default_agent
+    from verity.agent.scripted_stub import build_stub_router
+    from verity.retrieval import HybridRetriever
+
+    runtime = client.app.state.runtime
+    retriever = runtime.retriever
+    if store is not None:
+        retriever = HybridRetriever(store=store, embedder=runtime.embedder, reranker=None)
+    runtime.agent = create_default_agent(retriever=retriever, client=llm or build_stub_router())
+
+
+def test_ask_answers_503_when_every_provider_is_down(client) -> None:  # type: ignore[no-untyped-def]
+    from verity.llm.base import ProviderUnavailableError
+    from verity.llm.clients import StubLLMClient
+    from verity.llm.routing import MultiProviderRoutingClient
+
+    def _down(_messages):  # type: ignore[no-untyped-def]
+        raise ProviderUnavailableError("anthropic: 529 overloaded; openai: timeout")
+
+    _rewire_agent(client, llm=MultiProviderRoutingClient([StubLLMClient(_down)]))
+    r = client.post("/ask", json={"question": "What is the notice period?"})
+    assert r.status_code == 503
+    body = r.json()["detail"]
+    assert body["error"] == "provider_unavailable"
+    assert body["trace_id"]
+    assert "overloaded" not in r.text, "provider detail must stay in the logs"
+
+
+def test_ask_answers_503_when_the_store_is_down(client) -> None:  # type: ignore[no-untyped-def]
+    from verity.retrieval import InMemoryVectorStore
+
+    class _DownStore(InMemoryVectorStore):
+        async def dense_search(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+            raise ConnectionError("could not connect to postgres at db:5432")
+
+    client.get("/status")  # preload before swapping the store
+    _rewire_agent(client, store=_DownStore())
+    r = client.post("/ask", json={"question": "What is the notice period?"})
+    assert r.status_code == 503
+    assert r.json()["detail"]["error"] == "retrieval_unavailable"
+    assert "postgres" not in r.text

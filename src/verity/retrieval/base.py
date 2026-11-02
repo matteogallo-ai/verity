@@ -16,6 +16,11 @@ from typing import Protocol, runtime_checkable
 from verity.types import Chunk, EmbeddedChunk, RetrievalHit
 
 
+class RetrievalUnavailableError(RuntimeError):
+    """A retrieval stage failed (store down, query error). Not the same as finding
+    nothing: an empty result is a valid answer, a failure is not."""
+
+
 class StoreSchemaError(RuntimeError):
     """The store's schema cannot hold what is being written (configuration bug).
 

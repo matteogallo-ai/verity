@@ -11,6 +11,8 @@ Pipeline for one ``answer(question)`` call:
    fabricated answer.
 
 What holds on the returned :class:`Answer`:
+- either ``error`` is set (a provider or the retrieval store failed; no answer,
+  no refusal) or ``confidence`` is;
 - every citation's ``quote`` is a verbatim substring of the referenced chunk
   (citations that are not are dropped in :class:`CitedSynthesizer`), and a
   non-refused answer carries at least one: a draft with none is refused with
@@ -33,17 +35,24 @@ from verity.agent.decomposer import LLMQuestionDecomposer
 from verity.agent.scorer import LLMConfidenceScorer
 from verity.agent.synthesizer import CitedSynthesizer
 from verity.config import get_settings
-from verity.llm.base import RoutingClient
+from verity.llm.base import (
+    AuthenticationError,
+    LLMError,
+    ProviderUnavailableError,
+    RoutingClient,
+)
 from verity.llm.routing import primary_client_identity
 from verity.observability.base import Tracer
 from verity.observability.logging import request_trace
 from verity.observability.tracer import NoOpTracer
-from verity.retrieval.base import Retriever
+from verity.retrieval.base import RetrievalUnavailableError, Retriever
 from verity.types import (
     NO_CITATION_RATIONALE,
     REFUSAL_TEXT,
     Answer,
+    AnswerError,
     Confidence,
+    ErrorKind,
     Provider,
     RefusalReason,
     RetrievalHit,
@@ -94,7 +103,22 @@ class RagAgent(Agent):
         # it via the observability contextvar).
         with request_trace(trace_id):
             started = time.perf_counter()
-            return await self._answer(question, trace_id, started)
+            # An infrastructure failure is returned as a typed error, never as a
+            # refusal: "the provider is down" must not read as "the evidence is weak".
+            try:
+                return await self._answer(question, trace_id, started)
+            except RetrievalUnavailableError as exc:
+                return _error_answer(
+                    question, trace_id, started, ErrorKind.RETRIEVAL_UNAVAILABLE, exc
+                )
+            except AuthenticationError as exc:
+                return _error_answer(question, trace_id, started, ErrorKind.PROVIDER_AUTH, exc)
+            except ProviderUnavailableError as exc:
+                return _error_answer(
+                    question, trace_id, started, ErrorKind.PROVIDER_UNAVAILABLE, exc
+                )
+            except LLMError as exc:
+                return _error_answer(question, trace_id, started, ErrorKind.PROVIDER_ERROR, exc)
 
     async def _answer(self, question: str, trace_id: TraceId, started: float) -> Answer:
         async with self._tracer.stage("agent.decompose", trace_id) as span:
@@ -198,6 +222,20 @@ class RagAgent(Agent):
         # Preserve the best-score-first ordering so the synthesizer sees the strongest
         # evidence at the top of its rendered evidence block.
         return sorted(seen.values(), key=lambda h: -h.score)
+
+
+def _error_answer(
+    question: str, trace_id: TraceId, started: float, kind: ErrorKind, exc: Exception
+) -> Answer:
+    latency_ms = round((time.perf_counter() - started) * 1000, 2)
+    log.error("answer_failed", error_kind=kind.value, error=str(exc), latency_ms=latency_ms)
+    return Answer(
+        query=question,
+        text="",
+        error=AnswerError(kind=kind, detail=f"{type(exc).__name__}: {exc}"),
+        usage=UsageStats(latency_ms=latency_ms),
+        trace_id=trace_id,
+    )
 
 
 def _bind_component_usage(span, component: object) -> None:  # type: ignore[no-untyped-def]

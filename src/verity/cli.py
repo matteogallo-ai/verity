@@ -430,6 +430,14 @@ async def _run_retrieve(
 
 def _print_answer(answer: Answer) -> None:
     """Render an :class:`Answer` for the terminal — refuses visibly when refused."""
+    if answer.confidence is None:
+        kind = answer.error.kind.value if answer.error else "unknown"
+        detail = answer.error.detail if answer.error else ""
+        console.print(
+            f"[bold red]ERROR[/bold red] ({kind}) · trace_id=[dim]{answer.trace_id}[/dim]"
+        )
+        console.print(detail)
+        raise typer.Exit(code=3)
     header = (
         "[bold red]REFUSED[/bold red]"
         if answer.confidence.refused
@@ -960,6 +968,12 @@ def _print_scorecard(result) -> None:  # type: ignore[no-untyped-def]
         ops.add_row("cold start ms", f"{sc.cold_start_ms:.1f}")
     ops.add_row("cost / query USD", f"{sc.cost_per_query_usd:.4f}")
     console.print(ops)
+    if sc.errored_example_ids:
+        console.print(
+            f"[bold red]{len(sc.errored_example_ids)} example(s) errored[/bold red] "
+            "(provider or store failure; excluded from every metric above): "
+            + ", ".join(sc.errored_example_ids)
+        )
 
     # Refusal per-example (headline feature — always shown explicitly).
     refusal_title_tag = (

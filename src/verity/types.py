@@ -170,6 +170,22 @@ class UsageStats(BaseModel, frozen=True):
     latency_ms: float = 0.0
 
 
+class ErrorKind(StrEnum):
+    """An infrastructure failure that prevented an answer. Never a refusal."""
+
+    PROVIDER_UNAVAILABLE = "provider_unavailable"
+    PROVIDER_AUTH = "provider_auth"
+    PROVIDER_ERROR = "provider_error"
+    RETRIEVAL_UNAVAILABLE = "retrieval_unavailable"
+
+
+class AnswerError(BaseModel, frozen=True):
+    """What failed. ``detail`` is for logs and operators, never for API clients."""
+
+    kind: ErrorKind
+    detail: str
+
+
 class Answer(BaseModel, frozen=True):
     """The complete result of a query: text, citations, confidence,
     the evidence actually used, and full accounting — everything the UI and the
@@ -187,7 +203,8 @@ class Answer(BaseModel, frozen=True):
     query: str
     text: str
     citations: tuple[Citation, ...] = ()
-    confidence: Confidence
+    confidence: Confidence | None = None
+    error: AnswerError | None = None
     hits_used: tuple[RetrievalHit, ...] = ()
     usage: UsageStats = Field(default_factory=UsageStats)
     trace_id: TraceId = Field(default_factory=new_id)
@@ -197,8 +214,8 @@ class Answer(BaseModel, frozen=True):
     @model_validator(mode="before")
     @classmethod
     def _uncited_answers_are_refusals(cls, data: Any) -> Any:
-        """An answer that is not refused and carries no citation is converted into
-        a refusal (``no_citation``).
+        """Exactly one of ``confidence`` / ``error``; an answer that is not refused
+        and carries no citation is converted into a refusal (``no_citation``).
 
         The agent already refuses such drafts; this holds the invariant for every
         other way an Answer is built, so no caller can ship uncited text.
@@ -206,7 +223,10 @@ class Answer(BaseModel, frozen=True):
         if not isinstance(data, dict):
             return data
         confidence = data.get("confidence")
-        if confidence is None:
+        error = data.get("error")
+        if (confidence is None) == (error is None):
+            raise ValueError("an Answer carries exactly one of confidence or error")
+        if error is not None:
             return data
         conf = (
             confidence
@@ -321,6 +341,10 @@ class Scorecard(BaseModel, frozen=True):
     # serving latency an operator would see in production. ``None`` when no
     # warmup was performed (measurement is combined into the percentiles then).
     cold_start_ms: float | None = None
+    # Examples where a provider or the store failed. They are excluded from every
+    # quality metric (an outage is neither a correct nor a wrong refusal) and listed
+    # here so a run with failures cannot pass for a clean one.
+    errored_example_ids: tuple[str, ...] = ()
 
 
 class ClaimVerdict(BaseModel, frozen=True):

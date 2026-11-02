@@ -110,6 +110,17 @@ async def ask_endpoint(request: Request, body: AskRequest) -> AskResponse:
     runtime = _runtime(request)
     await runtime.preload_corpus()
     answer = await runtime.ask(body.question)
+    if answer.error is not None:
+        # An outage is a 503, never a refusal and never a 500. The detail stays in
+        # the logs (bound to trace_id by the agent); the client gets the id only.
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": answer.error.kind.value,
+                "message": "The answer could not be produced; retry later.",
+                "trace_id": str(answer.trace_id),
+            },
+        )
     return AskResponse(
         answer=answer_to_view(answer),
         provenance=runtime.provenance_for(answer),

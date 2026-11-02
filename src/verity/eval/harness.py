@@ -189,13 +189,25 @@ class AgentEvaluator(Evaluator):
             cold_start_ms = await agent_warmup(self._agent)
             log.info("harness_warmup_done", cold_start_ms=cold_start_ms)
 
+        errored: list[str] = []
         for example in dataset:
             answer = await self._agent.answer(example.question)
+            if answer.confidence is None:
+                # An infrastructure failure is not a refusal and not an answer: it is
+                # kept out of every quality metric and reported by id instead.
+                errored.append(example.id)
+                log.error(
+                    "harness_example_errored",
+                    example_id=example.id,
+                    error_kind=answer.error.kind.value if answer.error else None,
+                )
+                continue
+            confidence = answer.confidence
             answers.append(answer)
             log.info(
                 "harness_answered",
                 example_id=example.id,
-                refused=answer.confidence.refused,
+                refused=confidence.refused,
                 n_citations=len(answer.citations),
                 elapsed_ms=answer.usage.latency_ms,
             )
@@ -239,7 +251,7 @@ class AgentEvaluator(Evaluator):
                 PerExampleRefusal(
                     example_id=example.id,
                     expected_answerable=example.answerable,
-                    observed_refused=answer.confidence.refused,
+                    observed_refused=confidence.refused,
                 )
             )
 
@@ -253,10 +265,8 @@ class AgentEvaluator(Evaluator):
                     question=example.question,
                     expected_answerable=example.answerable,
                     answer_text=answer.text,
-                    refused=answer.confidence.refused,
-                    refusal_rationale=(
-                        answer.confidence.rationale if answer.confidence.refused else ""
-                    ),
+                    refused=confidence.refused,
+                    refusal_rationale=(confidence.rationale if confidence.refused else ""),
                     citations=answer.citations,
                     hits_used=answer.hits_used,
                     judge_claims=(
@@ -291,6 +301,7 @@ class AgentEvaluator(Evaluator):
             latency=latency,
             cost_per_query_usd=cost_per_query,
             cold_start_ms=cold_start_ms,
+            errored_example_ids=tuple(errored),
         )
         return HarnessResult(
             scorecard=scorecard,

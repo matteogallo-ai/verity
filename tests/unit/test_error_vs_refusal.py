@@ -1,4 +1,5 @@
-"""An uncited draft is always a refusal (reason ``no_citation``), never an answer."""
+"""An infrastructure failure is a typed error, never a refusal; an uncited draft is
+always a refusal (reason ``no_citation``), never an answer."""
 
 from __future__ import annotations
 
@@ -10,13 +11,18 @@ from tests.unit.test_agent import _seed_retriever
 from verity.agent.agent import create_default_agent
 from verity.agent.scorer import LLMConfidenceScorer
 from verity.agent.scripted_stub import scripted_responder
+from verity.llm.base import AuthenticationError, LLMError, ProviderUnavailableError
 from verity.llm.clients import StubLLMClient
 from verity.llm.routing import MultiProviderRoutingClient
+from verity.retrieval import HybridRetriever, InMemoryVectorStore
+from verity.retrieval.base import RetrievalUnavailableError
 from verity.types import (
     NO_CITATION_RATIONALE,
     REFUSAL_TEXT,
     Answer,
+    AnswerError,
     Confidence,
+    ErrorKind,
     Message,
     RefusalReason,
 )
@@ -38,6 +44,18 @@ def test_uncited_unrefused_answer_becomes_a_no_citation_refusal() -> None:
     assert answer.confidence.reason is RefusalReason.NO_CITATION
     assert answer.confidence.rationale == NO_CITATION_RATIONALE
     assert answer.text == REFUSAL_TEXT
+
+
+def test_answer_needs_exactly_one_of_confidence_or_error() -> None:
+    with pytest.raises(ValueError, match="exactly one"):
+        Answer(query="q", text="")
+    with pytest.raises(ValueError, match="exactly one"):
+        Answer(
+            query="q",
+            text="",
+            confidence=Confidence(score=0.0, refused=True, rationale="r"),
+            error=AnswerError(kind=ErrorKind.PROVIDER_UNAVAILABLE, detail="d"),
+        )
 
 
 # --- Agent: no_citation gate ----------------------------------------------------------
@@ -80,6 +98,7 @@ async def test_agent_refuses_an_uncited_draft_without_asking_the_scorer(
 
     answer = await agent.answer(_ANSWERABLE)
 
+    assert answer.error is None
     assert answer.confidence is not None
     assert answer.confidence.refused
     assert answer.confidence.reason is RefusalReason.NO_CITATION
@@ -103,3 +122,59 @@ async def test_scorer_reports_why_it_refused() -> None:
     assert model.reason is RefusalReason.MODEL_REFUSED
     assert broken.reason is RefusalReason.SCORER_UNPARSEABLE
     assert fine.reason is None and not fine.refused
+
+
+# --- Agent: infrastructure failures ---------------------------------------------------
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("exc", "kind"),
+    [
+        (ProviderUnavailableError("all providers down"), ErrorKind.PROVIDER_UNAVAILABLE),
+        (AuthenticationError("bad key"), ErrorKind.PROVIDER_AUTH),
+        (LLMError("400 bad request"), ErrorKind.PROVIDER_ERROR),
+    ],
+)
+async def test_provider_failure_is_an_error_not_a_refusal(exc: Exception, kind: ErrorKind) -> None:
+    def _raise(_messages: list[Message]) -> str:
+        raise exc
+
+    router = MultiProviderRoutingClient([StubLLMClient(_raise)])
+    agent = create_default_agent(retriever=await _seed_retriever(), client=router)
+
+    answer = await agent.answer(_ANSWERABLE)
+
+    assert answer.confidence is None
+    assert answer.error is not None
+    assert answer.error.kind is kind
+    assert answer.text == ""
+    assert answer.citations == ()
+
+
+class _DownStore(InMemoryVectorStore):
+    async def dense_search(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        raise ConnectionError("connection refused (store down)")
+
+
+@pytest.mark.asyncio
+async def test_a_failed_retrieval_stage_raises_instead_of_returning_nothing() -> None:
+    seeded = await _seed_retriever()
+    retriever = HybridRetriever(store=_DownStore(), embedder=seeded._embedder, reranker=None)
+    with pytest.raises(RetrievalUnavailableError, match="store down"):
+        await retriever.retrieve("notice period", k=3)
+
+
+@pytest.mark.asyncio
+async def test_store_down_is_an_error_not_a_refusal() -> None:
+    seeded = await _seed_retriever()
+    retriever = HybridRetriever(store=_DownStore(), embedder=seeded._embedder, reranker=None)
+    router = MultiProviderRoutingClient([StubLLMClient(scripted_responder())])
+    agent = create_default_agent(retriever=retriever, client=router)
+
+    answer = await agent.answer(_ANSWERABLE)
+
+    assert answer.confidence is None
+    assert answer.error is not None
+    assert answer.error.kind is ErrorKind.RETRIEVAL_UNAVAILABLE
+    assert "store down" in answer.error.detail

@@ -157,3 +157,38 @@ async def test_harness_refusal_recall_captures_hallucinations_on_near_miss() -> 
         if not p.expected_answerable:
             assert p.observed_refused, f"stub agent hallucinated on out-of-scope {p.example_id}"
     assert result.scorecard.answer.refusal_recall == 1.0
+
+
+@pytest.mark.asyncio
+async def test_errored_examples_are_counted_apart_from_every_metric() -> None:
+    """One example hits an outage: it is listed, not scored as a refusal or an answer."""
+    from verity.types import Answer, AnswerError, ErrorKind
+
+    retriever = await _seed_retriever()
+    real = create_default_agent(retriever=retriever, client=build_stub_router())
+    examples = load_full_dataset(DATASET)
+    failing_question = examples[0].question
+
+    class _FlakyAgent:
+        async def answer(self, question: str) -> Answer:
+            if question == failing_question:
+                return Answer(
+                    query=question,
+                    text="",
+                    error=AnswerError(kind=ErrorKind.PROVIDER_UNAVAILABLE, detail="down"),
+                )
+            return await real.answer(question)
+
+    evaluator = AgentEvaluator(
+        agent=_FlakyAgent(),  # type: ignore[arg-type]
+        judge=StubFaithfulnessJudge(),
+        embedding_model="fake",
+        judge_model=STUB_JUDGE_MODEL,
+        agent_model="stub-agent",
+        dataset_name="questions",
+    )
+    result = await evaluator.run(examples, git_sha="test0000")
+
+    assert result.scorecard.errored_example_ids == (examples[0].id,)
+    assert len(result.per_refusal) == len(examples) - 1
+    assert examples[0].id not in {r.example_id for r in result.per_refusal}

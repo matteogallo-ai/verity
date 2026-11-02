@@ -25,7 +25,13 @@ from verity.ingestion.base import Embedder
 from verity.observability.base import Tracer
 from verity.observability.logging import current_trace_id
 from verity.observability.tracer import NoOpTracer
-from verity.retrieval.base import Fusion, Reranker, Retriever, VectorStore
+from verity.retrieval.base import (
+    Fusion,
+    Reranker,
+    RetrievalUnavailableError,
+    Retriever,
+    VectorStore,
+)
 from verity.retrieval.fusion import ReciprocalRankFusion
 from verity.types import RetrievalHit, TraceId, new_id
 
@@ -125,20 +131,22 @@ class HybridRetriever(Retriever):
         *,
         trace_id: TraceId,
     ) -> list[RetrievalHit]:
-        """Run one retrieval stage, log its outcome, and degrade to [] on failure.
+        """Run one retrieval stage and log its outcome.
 
-        Sparse returning nothing (word absent from FTS) or a stage error must not
-        crash the whole retrieve(): the other stage can still produce hits. A stage
-        error is logged at error level and the stage contributes []; the caller
-        cannot tell an empty stage from a failed one.
+        An empty stage (no keyword match in full-text search) is a valid result. A
+        stage that raises (store down, query error) is not: degrading it to ``[]``
+        would make an outage look like weak evidence and turn it into a refusal, so
+        it is raised as :class:`RetrievalUnavailableError`.
         """
         async with self._tracer.stage(name, trace_id) as span:
             try:
                 hits = await coro
-            except Exception as exc:  # intentional broad catch: log + degrade to []
+            # Any store or driver exception is re-raised as the typed error the
+            # agent maps to an infrastructure failure.
+            except Exception as exc:
                 log.error("stage_failed", stage=name, error=str(exc))
                 span.set_attribute("error", str(exc))
-                return []
+                raise RetrievalUnavailableError(f"{name} failed: {exc}") from exc
             span.record_hits(len(hits), hits[0].score if hits else None)
             log.info(
                 "stage",
