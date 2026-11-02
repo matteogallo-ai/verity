@@ -14,6 +14,10 @@ import json
 from collections.abc import Mapping
 from typing import Any
 
+# What json.loads raises on model output that is not JSON. RecursionError: the decoder
+# recurses once per nesting level, so a long run of brackets exhausts the stack.
+JSON_PARSE_ERRORS = (json.JSONDecodeError, RecursionError)
+
 
 def first_json_object(text: str) -> str:
     """Return the outermost ``{...}`` slice of ``text``.
@@ -45,7 +49,7 @@ def parse_json_object(text: str) -> dict[str, Any] | None:
     candidate = first_json_object(text) or text
     try:
         parsed = json.loads(candidate)
-    except json.JSONDecodeError:
+    except JSON_PARSE_ERRORS:
         return None
     if isinstance(parsed, list):
         parsed = next((item for item in parsed if isinstance(item, dict)), None)
@@ -64,4 +68,4 @@ def first_matching(mapping: Mapping[str, Any], keys: tuple[str, ...]) -> Any:
     return None
 
 
-__all__ = ["first_json_object", "first_matching", "parse_json_object"]
+__all__ = ["JSON_PARSE_ERRORS", "first_json_object", "first_matching", "parse_json_object"]

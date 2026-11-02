@@ -20,6 +20,7 @@ from verity.agent.base import QuestionDecomposer
 from verity.agent.evidence import neutralise
 from verity.config import get_settings
 from verity.llm.base import RoutingClient
+from verity.llm.json_output import JSON_PARSE_ERRORS
 from verity.llm.prompt import load_prompt
 from verity.types import UsageStats
 
@@ -64,7 +65,7 @@ def _parse_sub_questions(text: str) -> list[str]:
             continue
         try:
             parsed = json.loads(candidate)
-        except json.JSONDecodeError:
+        except JSON_PARSE_ERRORS:
             continue
         if isinstance(parsed, list) and all(isinstance(item, str) for item in parsed):
             return [item.strip() for item in parsed if item.strip()]

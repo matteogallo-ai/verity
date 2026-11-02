@@ -14,6 +14,8 @@ measured.
 
 from __future__ import annotations
 
+import math
+
 from verity.agent.base import ConfidenceScorer
 from verity.agent.evidence import neutralise, render_evidence
 from verity.config import get_settings
@@ -107,7 +109,12 @@ def _parse_confidence(text: str) -> tuple[float, str, bool] | None:
     raw_score = first_matching(parsed, _SCORE_KEYS)
     if isinstance(raw_score, bool) or not isinstance(raw_score, (int, float)):
         return None
-    score = max(0.0, min(1.0, float(raw_score)))
+    # NaN compares false with everything, so clamping would turn it into 1.0 and ship
+    # the draft; an infinite score is no score either. Clamping before float() keeps
+    # a huge integer from overflowing.
+    if isinstance(raw_score, float) and not math.isfinite(raw_score):
+        return None
+    score = float(max(0, min(1, raw_score)))
     rationale_raw = first_matching(parsed, _RATIONALE_KEYS)
     rationale = str(rationale_raw).strip() if rationale_raw is not None else ""
     refused_raw = first_matching(parsed, _REFUSED_KEYS)
