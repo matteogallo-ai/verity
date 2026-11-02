@@ -143,7 +143,14 @@ def _run_to_dict(run: EvalRun) -> dict[str, object]:
     # ``mode="json"`` serialises UUIDs, tuples etc. into JSON-friendly primitives.
     if run.per_audit:
         payload["per_audit"] = [audit.model_dump(mode="json") for audit in run.per_audit]
+    if run.errored_cost_usd:
+        payload["errored_cost_usd"] = run.errored_cost_usd
     return payload
+
+
+def load_run(path: Path) -> EvalRun:
+    """The run stored at ``path`` (a file written by :meth:`FileRunStore.save`)."""
+    return _run_from_dict(json.loads(path.read_text()))
 
 
 def _run_from_dict(data: dict[str, object]) -> EvalRun:
@@ -172,6 +179,7 @@ def _run_from_dict(data: dict[str, object]) -> EvalRun:
     return EvalRun(
         scorecard=scorecard,
         embedding_model=str(data.get("embedding_model", "")),
+        errored_cost_usd=float(data.get("errored_cost_usd", 0.0)),  # type: ignore[arg-type]
         judge_model=str(data.get("judge_model", "")),
         agent_model=str(data.get("agent_model", "unknown")),
         notes=(str(data["notes"]) if data.get("notes") else None),

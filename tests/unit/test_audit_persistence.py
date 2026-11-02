@@ -42,6 +42,7 @@ from verity.eval import (
     StubFaithfulnessJudge,
     load_full_dataset,
 )
+from verity.eval.run_store import load_run
 from verity.ingestion.chunker import StructureAwareChunker
 from verity.ingestion.embedder import LocalEmbedder
 from verity.ingestion.parsers import create_default_parser
@@ -197,6 +198,18 @@ async def test_judge_claims_bypassed_on_refusals_populated_otherwise() -> None:
 
 
 @pytest.mark.asyncio
+async def test_every_audit_record_carries_the_confidence_score_and_refusal_reason() -> None:
+    """The threshold sweep and calibration (ECE) are computed from the artefact, so
+    the scorer's score and the reason of each refusal must be stored, not only the
+    refused flag."""
+    result, _ = await _run_stub_harness()
+    for audit, answer in zip(result.per_audit, result.answers, strict=True):
+        assert answer.confidence is not None
+        assert audit.confidence_score == answer.confidence.score
+        assert audit.refusal_reason == answer.confidence.reason
+
+
+@pytest.mark.asyncio
 async def test_hits_used_persisted_for_every_example() -> None:
     """The retrieved chunks the agent had at its disposal are part of the
     audit record — a reader can inspect what evidence the agent saw without
@@ -240,6 +253,28 @@ async def test_run_store_round_trip_preserves_every_audit_field(tmp_path: Path) 
         assert back.judge_claims == original.judge_claims
         assert back.answer_metrics == original.answer_metrics
         assert back.usage == original.usage
+        assert back == original  # every field, including the ones added later
+    path = store.path_for(run.scorecard.git_sha, "questions")
+    assert load_run(path).per_audit == reloaded.per_audit
+
+
+@pytest.mark.asyncio
+async def test_the_artefact_holds_every_cost_the_scorecard_publishes(tmp_path: Path) -> None:
+    """The published total (agent + judge + errored examples) must be recomputable
+    from the saved run alone."""
+    result, _ = await _run_stub_harness()
+    run = result.as_eval_run()
+    assert all(a.judge_usage is not None for a in run.per_audit)
+    assert run.errored_cost_usd == result.errored_cost_usd
+
+    store = FileRunStore(tmp_path)
+    store.save(run)
+    reloaded = store.latest("questions")
+    assert reloaded is not None
+    assert reloaded.errored_cost_usd == run.errored_cost_usd
+    assert sum(a.judge_usage.cost_usd for a in reloaded.per_audit if a.judge_usage) == (
+        pytest.approx(result.judge_cost_usd)
+    )
 
 
 def test_pre_v1_persisted_runs_load_without_per_audit(tmp_path: Path) -> None:

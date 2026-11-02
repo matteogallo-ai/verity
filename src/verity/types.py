@@ -389,11 +389,19 @@ class PerExampleAudit(BaseModel, frozen=True):
     answer_text: str
     refused: bool
     refusal_rationale: str = ""
+    # The scorer's score (0.0 when a deterministic check refused before the scorer
+    # ran) and the refusal reason: the threshold sweep and the calibration metrics
+    # are recomputed from these. None in runs recorded before they were stored.
+    confidence_score: float | None = None
+    refusal_reason: RefusalReason | None = None
     citations: tuple[Citation, ...] = ()
     hits_used: tuple[RetrievalHit, ...] = ()
     judge_claims: tuple[ClaimVerdict, ...] | None = None
     answer_metrics: AnswerMetrics
     usage: UsageStats = Field(default_factory=UsageStats)
+    # The judge call for this example (zero usage when a refusal bypassed the judge);
+    # None in runs recorded before it was stored.
+    judge_usage: UsageStats | None = None
 
 
 class EvalRun(BaseModel, frozen=True):
@@ -426,3 +434,6 @@ class EvalRun(BaseModel, frozen=True):
     agent_model: str = "unknown"
     notes: str | None = None
     per_audit: tuple[PerExampleAudit, ...] = ()
+    # Agent cost of examples that ended in an infrastructure error: they have no
+    # audit record, but their calls were billed.
+    errored_cost_usd: float = 0.0

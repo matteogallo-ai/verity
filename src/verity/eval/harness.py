@@ -129,6 +129,7 @@ class HarnessResult:
             agent_model=self.agent_model,
             notes=notes,
             per_audit=tuple(self.per_audit),
+            errored_cost_usd=self.errored_cost_usd,
         )
 
 
@@ -293,6 +294,8 @@ class AgentEvaluator(Evaluator):
                     answer_text=answer.text,
                     refused=confidence.refused,
                     refusal_rationale=(confidence.rationale if confidence.refused else ""),
+                    confidence_score=confidence.score,
+                    refusal_reason=confidence.reason,
                     citations=answer.citations,
                     hits_used=answer.hits_used,
                     judge_claims=(
@@ -300,6 +303,7 @@ class AgentEvaluator(Evaluator):
                     ),
                     answer_metrics=answer_metrics,
                     usage=answer.usage,
+                    judge_usage=judge_last_usage,
                 )
             )
 
