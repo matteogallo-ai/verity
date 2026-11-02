@@ -2,45 +2,63 @@
 
 # Verity
 
-**Evaluated, observable RAG that refuses instead of hallucinating — and proves it.**
-Cited answers on enterprise documents. Calibrated refusal on out-of-scope questions.
-Every published metric traceable to the exact answer + judge verdict that produced it.
+**A RAG agent over enterprise documents that refuses when its evidence is weak, and
+publishes how often it gets that right.**
+Cited answers with verbatim quotes. Threshold-gated refusal on out-of-scope questions.
+Every published number traceable to the run artefact that produced it.
 
 [![ci](https://github.com/matteogallo-ai/verity/actions/workflows/ci.yml/badge.svg)](https://github.com/matteogallo-ai/verity/actions/workflows/ci.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-black.svg)](LICENSE)
-![python](https://img.shields.io/badge/python-3.12+-blue.svg)
-![version](https://img.shields.io/badge/version-1.0.1-brightgreen.svg)
+![python](https://img.shields.io/badge/python-3.12-blue.svg)
 
 </div>
 
 ## The problem
 
 Enterprise RAG demos answer confidently and are wrong just often enough to be
-dangerous — a fluent, cited-looking answer with no real grounding is the failure
-that matters for contracts, filings, and policies.
+dangerous: a fluent, cited-looking answer with no real grounding is the failure that
+matters for contracts, filings and policies.
 
-**Verity refuses when the evidence is weak** and publishes a real scorecard —
-faithfulness, citation accuracy, hallucination rate, refusal precision + recall
-— from a single live run of record whose per-example audit trail is committed
-alongside the code.
+Verity drafts an answer, asks a scorer model how well the evidence supports it, and
+refuses below a threshold. It publishes faithfulness, citation accuracy,
+hallucination rate and refusal precision / recall from one live run whose
+per-question audit trail is committed next to the code.
 
 ## What it looks like
 
-**Cited answer** — click any citation, the source pane highlights the exact
-clause. Confidence + rerank scores + evidence hits visible. Provenance badge
-on every answer.
+**Cited answer**: click a citation and the source pane highlights the exact clause.
+The confidence readout shows the scorer's self-reported score, the rerank scores and
+the evidence hits. A provenance badge names the model that answered.
 
 ![Cited answer with source panel + confidence readout](docs/assets/screenshot-answer.png)
 
-**Calibrated refusal** — for questions the corpus does not cover, the agent
-returns an honest *"I don't know based on the provided documents"* with a
-concrete rationale. This is the differentiator, measured by
-`refusal_precision` / `refusal_recall` below.
+**Refusal**: for questions the corpus does not cover, the agent returns *"I don't
+know based on the provided documents"* with the scorer's rationale.
 
-![Calibrated refusal on an out-of-scope question](docs/assets/screenshot-refusal.png)
+![Refusal on an out-of-scope question](docs/assets/screenshot-refusal.png)
 
-*(Both screenshots are real captures of the running app — offline stub mode,
-no fabrication. `make demo` reproduces them locally in ~30 s.)*
+*Both screenshots are captures of `make demo`, which runs the scripted stub agent
+offline: the badge reads `stub-agent` and the scores are the stub's canned values.*
+
+## Features
+
+Each feature maps to its implementation and tests in [`docs/CLAIMS.md`](docs/CLAIMS.md);
+CI job `claims` runs those tests.
+
+- Verbatim citations: every quote is a substring of its source document; others are dropped (C01).
+- Threshold-gated refusal with a rationale (C02); unparseable scorer output is refused (C03).
+- Hybrid retrieval: dense + sparse, reciprocal rank fusion, cross-encoder rerank (C04).
+- Two vector stores: in-memory with BM25, the default for `ask`, `eval run` and the API (C05); Postgres + pgvector with full-text search (C06).
+- Markdown and plain-text ingestion with structure-aware chunking and machine-independent ids (C07).
+- Multi-provider LLM routing with fallback, stopping on authentication errors (C09).
+- Per-request provenance: each answer records the model that actually served it (C10).
+- Evaluation harness: retrieval, refusal and LLM-judged answer-quality metrics, one audit record per question (C11).
+- Live run artefacts protected from being overwritten by stub runs (C12).
+- README results generated from the scorecard and checked in CI (C13); CLI labels match scorecard keys (C14).
+- SDK call signatures (C15) and LLM output parsers (C16) tested against the shapes real models produce.
+- Per-stage tracing behind `/metrics`, `/metrics/prom` and `/dashboard` (C17).
+- HTTP API with `/status`, `/ask` and content-addressed `/ingest` (C18), and a Next.js UI with citation highlighting and a provenance badge (C19).
+- Provider API keys held as secrets, absent from any printed settings (C20).
 
 ## Measured results
 
@@ -65,74 +83,124 @@ Numbers are copied verbatim from [`scorecards/live-v1.0.0.json`](scorecards/live
 
 <!-- RESULTS:END -->
 
-Every value in the table is copied verbatim from the committed scorecard JSON by
-[`scripts/generate_headline_results.py`](scripts/generate_headline_results.py) —
-hand-typed numbers are impossible, `--check` mode fails CI if the README would
-drift. Schema `verity.scorecard.headline/v3` : every judge-track metric carries
-its explicit `scope` + `n_denominator` so no chiffre can be quoted without
-knowing what was averaged. Full audit trail (per-question answer, citations,
-per-claim judge verdict) at
+Every value in the table is copied from the committed scorecard JSON by
+[`scripts/generate_headline_results.py`](scripts/generate_headline_results.py);
+`--check` fails CI if the README drifts. Each answer-quality metric carries its
+`scope` and `n_denominator`. The full audit trail (per-question answer, citations,
+per-claim judge verdict) is
 [`datasets/eval/runs/live/eval_d0ca1d5_questions.json`](datasets/eval/runs/live/eval_d0ca1d5_questions.json).
-Methodology at [`docs/evaluation-methodology.md`](docs/evaluation-methodology.md).
+Retrieval numbers come from the in-memory store (BM25 sparse arm), the default of
+`verity eval run`. Definitions: [`docs/evaluation-methodology.md`](docs/evaluation-methodology.md).
+
+## Open issues: what the numbers do not say
+
+- **n = 16 is a method check, not a benchmark.** 16 questions over 5 documents; one
+  question moves refusal recall by 0.2. There is no dev/test split: the 0.55
+  threshold was set by hand and is reported on the same examples.
+- **The judge is unvalidated.** It is the same model as the agent
+  (`claude-sonnet-4-6`) and its agreement with human labels has not been measured.
+- **Citation accuracy is a per-question mean.** Aggregated per claim instead, the
+  same artefact gives 21 of 34 claims with `citation_ok` (0.618), against 0.722 per
+  question. All 13 failing claims are `supported = true`: the judge found the
+  attached citation too coarse (a paragraph-level quote for several facts), not the
+  claim unsupported. An earlier v1.0.0 headline published 0.792, which averaged over
+  all 16 questions with refusals counted as 1.0; v1.0.1 restricted it to the 12
+  answered questions.
+- **The confidence score is not calibrated.** It is the scorer model's
+  self-report; refusal is "threshold-gated", and calibration has not been measured.
+- **q-015 is a labelling ambiguity.** *"Which specific cloud provider hosts the
+  production infrastructure?"* is labelled out-of-scope (the corpus names no
+  provider). The agent answered that the evidence does not name one, with one
+  citation (the artefact does not record its confidence score). The label only
+  checks `refused`, so this counts as an out-of-scope question answered, and
+  refusal recall is reported as 0.800.
+- **Latency includes cold start.** The run used `--no-warmup`, so p95/p99 include
+  the first question's model loading; percentiles come from 16 calls in one run.
+
+## Roadmap
+
+Not implemented, or implemented without a test. Each item is a `roadmap` row in
+[`docs/CLAIMS.md`](docs/CLAIMS.md).
+
+- PDF, DOCX and web-page ingestion: the docling and trafilatura parsers exist but no test exercises them (C08).
+- Calibrated refusal: measure calibration (ECE, reliability diagram) before claiming it (C21).
+- pgvector as the default store for the API, the demo and the reference eval (C22).
+- API hardening: authentication, rate limits, bounded inputs, file-type allow-list, generic errors (C23).
+- Prompt-injection defence for ingested documents, with adversarial tests (C24).
+- Provider and database outages reported as errors, not refusals (C25).
+- A Docker image that serves live answers: today it lacks `prompts/` and `migrations/` (C26).
+- A judge validated against human labels, from a different model family (C27).
+- ≥ 80 questions with a frozen dev/test split; micro and macro aggregates (C28).
+- OTLP trace export: the exporter is not a dependency and a configured endpoint is ignored (C29).
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    subgraph Ingest["Ingestion (S1)"]
-        docs[/"docs<br/>PDF · DOCX · MD · web"/] --> parser[docling parser<br/>structure-aware]
-        parser --> chunker[semantic chunker]
+    subgraph Ingest["Ingestion"]
+        docs[/"documents<br/>MD · TXT (PDF · DOCX · web untested)"/] --> parser[parser<br/>structure-aware]
+        parser --> chunker[chunker]
         chunker --> embedder[BAAI/bge-small-en-v1.5]
     end
 
-    embedder --> store[(pgvector<br/>+ FTS index)]
+    embedder --> mem[(in-memory store<br/>cosine + BM25)]
+    embedder --> pg[(pgvector<br/>HNSW + FTS)]
 
-    subgraph Retrieve["Hybrid retrieval (S2)"]
-        query[/"query"/] --> dense[dense search<br/>pgvector]
-        query --> sparse[sparse search<br/>BM25 / FTS]
+    subgraph Retrieve["Hybrid retrieval"]
+        query[/"query"/] --> dense[dense search]
+        query --> sparse[sparse search]
         dense --> rrf[RRF fusion]
         sparse --> rrf
         rrf --> rerank[cross-encoder<br/>ms-marco-MiniLM]
     end
 
-    store --> dense
-    store --> sparse
+    mem --> dense
+    mem --> sparse
+    pg -.->|verity retrieve / eval retrieval --no-in-memory| dense
 
-    subgraph Agent["Agentic RAG (S3)"]
+    subgraph Agent["Agent"]
         rerank --> decompose[decompose]
         decompose --> synthesize[synthesize<br/>+ verbatim citations]
         synthesize --> score[confidence scorer]
-        score -->|below threshold| refuse[REFUSE<br/>with rationale]
-        score -->|above| ship[Answer + citations]
+        score -->|below threshold or refused| refuse[REFUSE<br/>with rationale]
+        score -->|otherwise| ship[Answer + citations]
     end
 
-    subgraph Eval["Eval harness (S4-S7)"]
-        ship --> judge[LLM judge<br/>faithfulness · citation_ok]
-        refuse --> refusal[refusal calibration<br/>TP/FP/FN/TN]
-        judge --> scorecard["scorecards/live-v1.0.0.json<br/>+ per_audit trail"]
+    subgraph Eval["Evaluation"]
+        ship --> judge[LLM judge<br/>supported · citation_ok]
+        refuse --> refusal[refusal metrics<br/>TP/FP/FN/TN]
+        judge --> scorecard["scorecards/live-v1.0.0.json<br/>+ per-question audit"]
         refusal --> scorecard
     end
 
-    scorecard --> readme["README results table<br/>(generated, verbatim)"]
+    scorecard --> readme["README results table<br/>(generated)"]
 ```
+
+Stage-by-stage description: [`docs/architecture.md`](docs/architecture.md).
 
 ## Quickstart
 
 ```bash
 git clone https://github.com/matteogallo-ai/verity && cd verity
-cp .env.example .env                       # keys optional — retrieval + eval run offline
-docker compose up -d db                    # pgvector
-uv sync --dev                              # ~2 GB (torch + docling) on first sync
-uv run verity db upgrade                   # apply migrations
-uv run verity ingest datasets/corpus       # parse → chunk → embed → upsert
-uv run verity eval run --ci                # deterministic stub eval — writes datasets/eval/runs/
-make demo                                  # FastAPI :8000 + Next.js :3000, both offline
+uv sync --dev                              # Python 3.12; CPU-only torch on Linux
+uv run verity eval run --ci                # pipeline smoke test on stubs, offline, ~10 s
+make demo                                  # API :8000 + Next.js :3000, stub agent, offline
 ```
 
-First ingestion downloads the embedding model (`BAAI/bge-small-en-v1.5`, ~130 MB)
-into the Hugging Face cache — subsequent runs are fully offline.
+The first run downloads the embedding and reranker models (~200 MB) into the
+Hugging Face cache. `make demo` needs Node 22 and corepack.
 
-To reproduce the v1.0.0 headline (spends ~$0.27) :
+pgvector path (the integration tests and `verity retrieve --no-in-memory` use it):
+
+```bash
+docker compose up -d db                    # pgvector on :5432
+uv run verity db upgrade                   # apply migrations
+uv run verity ingest datasets/corpus       # parse → chunk → embed → upsert into pgvector
+uv run verity eval retrieval --no-in-memory
+```
+
+Reproducing the v1.0.0 headline calls Anthropic models (the original run cost
+$0.27):
 
 ```bash
 export VERITY_ANTHROPIC_API_KEY=sk-ant-...
@@ -144,135 +212,60 @@ uv run verity eval run \
   --floor-refusal-recall 0.6 --floor-ndcg 0.5 --floor-recall 0.75
 ```
 
-Persists to `datasets/eval/runs/live/eval_<sha>_questions.json` (write-protected
-audit tree) + refreshes the scorecard. `python scripts/generate_headline_results.py`
-regenerates the README block from the JSON.
+It writes `datasets/eval/runs/live/eval_<sha>_questions.json` and the scorecard;
+`uv run python scripts/generate_headline_results.py` regenerates the README block.
 
-## Constats ouverts — what the numbers do not say
+## How this was built
 
-Honest limitations of this v1.0.0 run of record. Each one is empirical, not
-speculative, and points at the specific artefact that backs it.
+Verity was implemented with Claude Code as the implementation engine. The process:
+a written spec with acceptance criteria, an agent implementing on a branch, a review
+of the diff by a second agent without the builder's context, a human audit of the
+claims and critical paths, then CI. The coding agent writes most first drafts; the
+author is accountable for what merges. Standards:
+[`docs/ENGINEERING_STANDARDS.md`](docs/ENGINEERING_STANDARDS.md).
 
-- **`citation_accuracy = 0.722` (answered, n=12) — granularity, not
-  hallucination.** The 13 claims with `citation_ok=false` (across q-001,
-  q-002, q-003, q-007, q-013) are all `supported=true` : the LLM judge
-  marked them as insufficiently cited because Sonnet compresses several
-  facts into a paragraph and cites the top-level sentence, so sub-claims
-  inherit a paragraph-level citation. The synthesizer's verbatim-quote
-  invariant holds ; the judge is applying a stricter
-  claim-atomic-↔-quote correspondence. **Measured granularity gap, not
-  fabrication.** Per-question breakdown in
-  [`datasets/eval/runs/live/…json[per_audit]`](datasets/eval/runs/live/eval_d0ca1d5_questions.json).
-  Note: v1's pre-tag headline briefly published `0.792` — that was the
-  same denominator=16 average with the 4 refusals contributing 1.0 by
-  judge convention, which inflates the aggregate. v3 scopes each
-  judge-track metric to its meaningful denominator so refusals no longer
-  boost the number gratuitously.
-- **q-015 exposes a dataset labelling ambiguity.** The question *"Which
-  specific cloud provider hosts the production infrastructure?"* is
-  labelled out-of-scope (the corpus does not name a provider), but admits
-  a sourced non-answer : the DPA states *"Provider engages a cloud
-  infrastructure provider and a transactional email provider as
-  sub-processors"* without naming them. The agent shipped a cited *"the
-  evidence does not specify which particular cloud provider…"* answer
-  with `confidence=0.99`, grounded in one citation and judged 3/3
-  supported. Under strict confusion-matrix convention this counts as
-  **FN (didn't refuse out-of-scope)** — the label only checks the boolean
-  `refused`, not the content. **`refusal_recall = 0.800` is reported
-  as-is.** The dataset label is preserved so the metric stays reproducible
-  run-to-run.
-- **16 questions / 5 documents = a method proof, not a scale benchmark.**
-  The sparse arm (BM25) is weak on this corpus ; hybrid retrieval is
-  carried by dense + cross-encoder rerank. `precision@k = 0.148` is capped
-  by construction (each question has 1–2 gold chunks, `k=8` → theoretical
-  maximum ≈ 0.25). Interpret alongside `recall@8 = 1.000` and
-  `nDCG@8 = 0.953`. A v1.1 with a wider corpus is the next step, not a fix.
-- **One measured run, no averaging, no warmup.** Latency percentiles
-  (`p50 = 9.4 s`, `p95 = 32.5 s`, `p99 = 36.7 s`) include the first-question
-  cold-start bias (`--no-warmup` was chosen to avoid paying for a
-  throwaway agent call). LLM latency dominates the local-model cold-start ;
-  the p99 is a real observation from one run, not a p99 over 100 runs.
+Human audits caught what the agents and CI did not:
 
-## Engineering discipline
-
-The v1.0.0 numbers are not a snapshot ; they are the output of a pipeline
-that enforces its own invariants. Concrete guarantees, each backed by a test :
-
-- **Live artefacts are write-protected.** The `resolve_runs_dir` rule
-  routes any run whose agent OR judge is a real LLM into a dedicated
-  `live/` subdirectory. Stub runs (CI, `verity eval run --ci`, generator
-  `--check`) physically cannot touch that subtree — the 4-combo truth
-  table is pinned by `test_stub_live_path_separation.py`. Belt-and-braces
-  on top : `StubOverwritesLiveError` /
-  `StubOverwritesLiveScorecardError` raise exit 5 if any code path tries
-  to overwrite a live artefact from a stub-provenance run. Bypass
-  requires explicit `allow_overwrite=True` — no accidental clobber.
-- **Every published metric is traceable.** `PerExampleAudit` (16 records
-  per run, one per dataset example) preserves the question, answer text,
-  citations, hits used, and per-claim judge verdict. The published
-  `citation_accuracy = 0.722` reconciles bit-exact with a fresh recompute
-  from `per_audit` — no fabricated numbers, no soft rollups. Contract
-  locked by `test_audit_persistence.py`.
-- **Prompt schemas are shown, not implied.** Every LLM-JSON prompt
-  renders its output schema explicitly in the user message. A regression
-  to schema-in-a-`#`-comment cannot happen : parser tolerance in
-  `verity.agent.scorer` / `verity.eval.judge` accepts documented aliases,
-  and 23 real-Sonnet-shape tests in `test_llm_output_parsers.py`
-  exercise every drift class observed in the wild.
-- **SDK signatures are verified per-call-site.** For every LLM call
-  point (decompose, synthesize, confidence scorer, judge), a smoke test
-  (`test_llm_sdk_schema.py`) binds the kwargs to the real pinned SDK
-  signature — a future dependency bump that renames or drops a kwarg
-  fails CI, not the next live spend.
-- **README vocabulary has one source.** Every metric label in the CLI
-  console output must match a key in the v3 JSON scorecard. Locked by
-  `test_label_source_of_truth.py` : no console-only vocabulary, no
-  JSON-only vocabulary.
-- **Per-request provenance, not boot config.** `Answer.provider_used`
-  reflects the LLM that actually served the request, including any
-  router fallback. The headline scorecard's `agent_model` /
-  `judge_model` strings are aggregated from per-answer stamps
-  (e.g. `"claude-sonnet-4-6 (16/16)"` or a split when a fallback fires).
+1. **Machine-specific ids.** Document ids were derived from absolute file paths, so
+   the gold chunk ids in the eval dataset only matched on the machine that built
+   them. Ids now hash the repo-relative path, and
+   `tests/integration/test_eval_labels_integrity.py` checks every gold id resolves.
+2. **Scorecard denominators.** The first v1.0.0 headline averaged citation accuracy
+   over all 16 questions, counting the 4 refusals as 1.0: 0.792. Restricted to the
+   12 answered questions it is 0.722 (v1.0.1). Every answer-quality metric now
+   carries its scope and denominator.
+3. **An external audit (2026-11-02)** found public claims ahead of the code:
+   "calibrated" refusal that was never measured, a methodology defining per-claim
+   aggregation while the code averaged per question, a Docker image that cannot
+   serve live answers, an API with no input limits or prompt-injection defence,
+   pgvector described as the default store, docstrings contradicting the code, and
+   sprint-era narrative in shipped files. This README, `docs/CLAIMS.md` and the
+   `claims` / `stale-narrative` CI jobs are the first part of the response; the
+   Roadmap lists what remains.
 
 ## Stack
 
-Python 3.13 · FastAPI · pgvector (single stateful service : vectors + FTS + eval
-history) · local embeddings + cross-encoder reranker (offline, no keys) ·
-multi-provider LLM runtime (`anthropic>=1.0,<2.0` / `openai>=3.0,<4.0` / local)
-with authentication-aware fallback and per-request provenance stamping ·
-OpenTelemetry + structlog · Next.js 15 UI. Tooling : uv · ruff · mypy strict ·
-pytest · GitHub Actions.
-
-## Demo
-
-Silent-captioned, ~90 seconds, script at
-[`docs/demo-script.md`](docs/demo-script.md) : upload a PDF → cited answer
-(click a citation, source pane highlights the exact clause) → out-of-scope
-question → calibrated refusal with a concrete rationale → terminal shows the
-audit trail. No GIF is committed unless it was recorded from a real session —
-no re-shoot to nudge a chiffre.
-
-## UI
-
-Next.js 15 + TypeScript strict, in [`web/`](web/). Zero-key demo path :
-
-```bash
-make demo          # FastAPI (stub) on :8000 + Next dev on :3000, both offline
-```
-
-Upload → cited answer with inline citations that highlight the source chunk on
-click, honest source panel (rerank score + cited/not-cited flag per chunk),
-first-class refusal state, and a persistent provenance badge on every answer
-(`stub-agent` for the demo, `<model>` in live mode). See
-[`web/README.md`](web/README.md) for the honesty guarantees.
+Python 3.12 · FastAPI · Postgres + pgvector, or an in-memory store · local
+embeddings and cross-encoder reranker (offline, no keys) · Anthropic and OpenAI
+clients behind an ordered fallback router · OpenTelemetry spans (in-process) +
+structlog · Next.js 15 UI. Tooling: uv · ruff · mypy strict · vulture · deptry ·
+pytest · GitHub Actions. Eval history is kept as versioned JSON files.
 
 ## Development
 
 ```bash
 uv run ruff check . && uv run ruff format --check .
 uv run mypy
-uv run pytest -m "not integration"
+uv run vulture && uv run deptry src
+uv run pytest -m "not integration and not slow"    # fast lane, < 60 s
+uv run pytest -m "slow and not integration"        # loads the local models
+VERITY_DATABASE_URL=postgresql://verity:verity@localhost:5432/verity \
+  uv run pytest -m integration                     # needs pgvector
+uv run python scripts/check_claims.py              # docs/CLAIMS.md ≡ tests ≡ README
+uv run python scripts/check_stale_narrative.py
 uv run python scripts/generate_headline_results.py --check   # README ≡ scorecard
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Licensed under [MIT](LICENSE).
+[`CLAUDE.md`](CLAUDE.md) is the working guide for coding agents. See
+[CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). Licensed under
+[MIT](LICENSE).

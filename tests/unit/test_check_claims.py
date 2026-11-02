@@ -123,3 +123,7 @@ def test_check_tests_reports_missing_files(tmp_path: Path) -> None:
         "C01: test file not found: web/tests/A.test.tsx",
     ]
 
+
+def test_repository_claims_are_structurally_consistent() -> None:
+    root = SCRIPT.parents[1]
+    assert cc.main(["--root", str(root), "--no-run"]) == 0

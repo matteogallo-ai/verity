@@ -1,0 +1,43 @@
+# Claims
+
+Every capability the README states, the code that implements it, and the tests that
+prove it. `scripts/check_claims.py` (CI job `claims`) parses the table below and fails
+when a `shipped` claim has no test, a listed test does not exist or does not pass, or
+the README's Features / Roadmap sections disagree with a claim's status.
+
+A claim is `shipped` only if every listed test passes. `roadmap` means not
+implemented or not tested; the README lists it under Roadmap, never under Features.
+Tests under `web/` are vitest files: `check_claims` checks that they exist, and the
+CI `web` job runs them.
+
+| ID | Claim | Implementation | Tests | Status |
+|---|---|---|---|---|
+| C01 | Every citation quote is a verbatim substring of its source document; citations that are not are dropped. | `src/verity/agent/synthesizer.py` | `tests/unit/test_synthesizer.py::test_synthesizer_validates_quote_and_reanchors_offsets`<br>`tests/unit/test_synthesizer.py::test_synthesizer_drops_hallucinated_citations`<br>`tests/unit/test_synthesizer.py::test_synthesizer_drops_out_of_range_index`<br>`tests/unit/test_citation_verbatim_invariant.py::test_every_citation_quote_is_a_verbatim_substring_of_source_document` | shipped |
+| C02 | Threshold-gated refusal: the agent answers "I don't know" with a rationale when the scorer refuses or its score is below `confidence_threshold`. | `src/verity/agent/scorer.py`, `src/verity/agent/agent.py` | `tests/unit/test_scorer.py::test_below_threshold_refused_regardless_of_model_flag`<br>`tests/unit/test_scorer.py::test_model_refusal_honoured_above_threshold`<br>`tests/unit/test_scorer.py::test_above_threshold_not_refused`<br>`tests/unit/test_agent.py::test_agent_refuses_out_of_scope_question` | shipped |
+| C03 | Unparseable scorer output is refused (fail-closed). | `src/verity/agent/scorer.py` | `tests/unit/test_scorer.py::test_malformed_output_forces_refusal` | shipped |
+| C04 | Hybrid retrieval: dense + sparse search, reciprocal rank fusion, cross-encoder rerank. | `src/verity/retrieval/hybrid.py`, `fusion.py`, `reranker.py` | `tests/unit/test_hybrid_retriever.py::test_hybrid_retriever_returns_relevant_chunk_first`<br>`tests/unit/test_hybrid_retriever.py::test_hybrid_retriever_degrades_when_sparse_empty`<br>`tests/unit/test_fusion.py::test_rrf_score_formula`<br>`tests/unit/test_fusion.py::test_rrf_rank_is_zero_based`<br>`tests/unit/test_reranker.py::test_rerank_reorders_and_truncates` | shipped |
+| C05 | In-memory vector store (cosine + BM25), used by default by `ask`, `eval run` and the API. | `src/verity/retrieval/memory_store.py`, `src/verity/runtime.py` | `tests/unit/test_memory_store.py::test_dense_search_ranks_by_cosine`<br>`tests/unit/test_memory_store.py::test_sparse_search_matches_keyword` | shipped |
+| C06 | Postgres + pgvector store (HNSW dense + full-text search), with a schema-dimension check. | `src/verity/retrieval/pgvector_store.py`, `migrations/001_initial.sql` | `tests/integration/test_pgvector_store.py::test_upsert_dense_sparse_roundtrip`<br>`tests/integration/test_pgvector_store.py::test_store_refuses_an_embedding_dim_the_schema_cannot_hold`<br>`tests/integration/test_hybrid_retrieval.py::test_gold_chunk_in_top_rerank_k` | shipped |
+| C07 | Ingestion of Markdown and plain text with structure-aware chunking and machine-independent ids. | `src/verity/ingestion/` | `tests/unit/test_parsers.py::test_markdown_preserves_heading_hierarchy`<br>`tests/unit/test_parsers.py::test_text_parser_roundtrip`<br>`tests/unit/test_chunker.py::test_chunker_invariant_holds_on_corpus`<br>`tests/unit/test_ids.py::test_document_id_is_deterministic`<br>`tests/unit/test_ids.py::test_chunk_id_is_deterministic` | shipped |
+| C08 | Ingestion of PDF, DOCX (docling) and web pages (trafilatura). Code exists; no test parses such a file. | `src/verity/ingestion/parsers/docling_parser.py`, `web.py` | — | roadmap |
+| C09 | Multi-provider LLM routing: fallback on unavailability, immediate stop on authentication errors. | `src/verity/llm/routing.py` | `tests/unit/test_routing.py::test_falls_back_on_provider_unavailable`<br>`tests/unit/test_routing.py::test_authentication_error_short_circuits`<br>`tests/unit/test_routing.py::test_exhaustion_raises_last_transient` | shipped |
+| C10 | Per-request provenance: each answer records the provider and model that actually served it, including after a fallback. | `src/verity/agent/agent.py`, `src/verity/api/state.py` | `tests/unit/test_refusal_provenance.py`<br>`tests/unit/test_api_router.py::test_ask_provenance_reflects_the_actual_provider_used` | shipped |
+| C11 | Evaluation harness: retrieval precision/recall/nDCG, refusal precision/recall, LLM-judged faithfulness and citation accuracy, one audit record per example. | `src/verity/eval/` | `tests/unit/test_retrieval_metric.py`<br>`tests/unit/test_refusal.py`<br>`tests/unit/test_harness.py::test_harness_produces_full_scorecard_with_stub_labels`<br>`tests/unit/test_audit_persistence.py::test_harness_produces_one_audit_record_per_dataset_example`<br>`tests/unit/test_audit_persistence.py::test_run_store_round_trip_preserves_every_audit_field` | shipped |
+| C12 | Live run artefacts cannot be overwritten by stub runs. | `src/verity/eval/run_store.py`, `src/verity/eval/headline.py`, `src/verity/cli.py` | `tests/unit/test_stub_live_path_separation.py` | shipped |
+| C13 | The README results table is generated from the committed scorecard; `--check` fails on drift. | `scripts/generate_headline_results.py` | `tests/unit/test_headline_generator.py` | shipped |
+| C14 | Every metric label printed by the CLI matches a key of the JSON scorecard. | `src/verity/cli.py`, `src/verity/eval/headline.py` | `tests/unit/test_label_source_of_truth.py` | shipped |
+| C15 | Every LLM call site's keyword arguments bind to the pinned SDK signatures. | `src/verity/llm/clients.py` | `tests/unit/test_llm_sdk_schema.py` | shipped |
+| C16 | LLM output parsers accept the JSON shapes real models emit (prose wrappers, code fences, key aliases). | `src/verity/llm/json_output.py`, `src/verity/agent/scorer.py`, `src/verity/eval/judge.py` | `tests/unit/test_llm_output_parsers.py`<br>`tests/unit/test_shared_helpers.py` | shipped |
+| C17 | Per-stage tracing (latency, tokens, cost, hits) behind `/metrics`, `/metrics/prom` and `/dashboard`. | `src/verity/observability/`, `src/verity/api/server.py` | `tests/unit/test_tracer.py::test_otel_tracer_records_span_with_latency_and_attributes`<br>`tests/unit/test_api_server.py::test_metrics_json_aggregates_are_populated`<br>`tests/unit/test_api_server.py::test_metrics_prom_returns_prometheus_text`<br>`tests/unit/test_api_server.py::test_dashboard_renders_html` | shipped |
+| C18 | HTTP API: `/status`, `/ask` (answer + provenance), `/ingest` with content-addressed upload ids. | `src/verity/api/router.py`, `src/verity/api/state.py` | `tests/unit/test_api_router.py::test_status_reports_real_provenance_and_corpus`<br>`tests/unit/test_api_router.py::test_ask_returns_full_answer_view_with_provenance`<br>`tests/unit/test_api_router.py::test_ask_refusal_state_is_first_class`<br>`tests/unit/test_api_router.py::test_ingest_upload_uses_content_addressed_id` | shipped |
+| C19 | Web UI: clickable citations that highlight the source chunk, refusal state, provenance badge, stub-mode banner. | `web/` | `web/tests/HighlightInteraction.test.tsx`<br>`web/tests/AnswerCard.test.tsx`<br>`web/tests/StubModeBanner.test.tsx`<br>`web/tests/SourcePanel.test.tsx` | shipped |
+| C20 | Provider API keys never appear in `repr()` / `str()` / `model_dump()` of the settings. | `src/verity/config.py` | `tests/unit/test_config.py::test_api_keys_never_appear_in_settings_repr` | shipped |
+| C21 | Calibrated refusal: the confidence score is a measured, calibrated probability (ECE, reliability diagram). | — | — | roadmap |
+| C22 | The API, the demo and the reference eval run on pgvector by default. | — | — | roadmap |
+| C23 | API hardening: authentication, rate limits, bounded inputs, file-type allow-list, generic error messages. | — | — | roadmap |
+| C24 | Defence against prompt injection from ingested documents, with adversarial tests. | — | — | roadmap |
+| C25 | Provider and database outages are reported as errors, never as refusals. | — | — | roadmap |
+| C26 | `docker compose up` serves live answers (the image lacks `prompts/` and `migrations/`). | — | — | roadmap |
+| C27 | Judge validated against human labels (Cohen's κ), judge from a different model family. | — | — | roadmap |
+| C28 | Evaluation on ≥ 80 questions with a frozen dev/test split; micro and macro aggregates published. | — | — | roadmap |
+| C29 | OTLP trace export (the exporter package is not a dependency; a configured endpoint is ignored). | — | — | roadmap |
