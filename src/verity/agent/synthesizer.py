@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from verity.agent.evidence import render_evidence
+from verity.agent.evidence import neutralise, render_evidence
 from verity.llm.base import RoutingClient
 from verity.llm.json_output import parse_json_object
 from verity.llm.prompt import load_prompt
@@ -72,7 +72,7 @@ class CitedSynthesizer:
 
     async def synthesize(self, question: str, hits: list[RetrievalHit]) -> SynthesisResult:
         evidence = render_evidence(hits, with_scores=False)
-        messages = self._prompt.render(question=question, evidence=evidence)
+        messages = self._prompt.render(question=neutralise(question), evidence=evidence)
         completion = await self._client.complete(
             messages, max_tokens=self._max_tokens, temperature=0.0
         )

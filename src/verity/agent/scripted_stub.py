@@ -170,26 +170,35 @@ def _classify(messages: list[Message]) -> str:
     return "unknown"
 
 
-def _index_containing(evidence: str, needle: str) -> int:
-    idx = 0
-    for line in evidence.splitlines():
-        if line.startswith("[") and "]" in line:
-            try:
-                idx = int(line[1 : line.find("]")])
-            except ValueError:
-                continue
-        elif needle in line:
-            return idx
-    return 0
+_DOCUMENT_RE = re.compile(r'<document index="(\d+)"[^\n]*>\n(.*?)\n</document>', re.DOTALL)
+_QUESTION_RE = re.compile(r"<question>\s*(.*?)\s*</question>", re.DOTALL)
+_SENTENCE_END_RE = re.compile(r"(?<=[.!?])\s+|\n+")
 
 
-_QUESTION_LINE_RE = re.compile(r"^\s*(QUESTION|Question)\s*:\s*(.*?)\s*$", re.MULTILINE)
+def _documents(evidence: str) -> list[tuple[int, str]]:
+    return [(int(index), text) for index, text in _DOCUMENT_RE.findall(evidence)]
+
+
+def _sentence_containing(evidence: str, needle: str) -> tuple[str, int]:
+    """The sentence of the first document containing ``needle``, and that document's
+    index: a real model quotes a whole clause, not a three-word anchor."""
+    for index, text in _documents(evidence):
+        position = text.find(needle)
+        if position < 0:
+            continue
+        start = 0
+        for match in _SENTENCE_END_RE.finditer(text):
+            if match.end() > position:
+                return text[start : match.start()].strip(), index
+            start = match.end()
+        return text[start:].strip(), index
+    return needle, 0
 
 
 def _extract_question(user_content: str) -> str:
     """Recover the original question from the rendered user prompt of any of our prompts."""
-    match = _QUESTION_LINE_RE.search(user_content)
-    return match.group(2).strip() if match else user_content.strip()
+    match = _QUESTION_RE.search(user_content)
+    return match.group(1).strip() if match else user_content.strip()
 
 
 def scripted_responder() -> Responder:
@@ -213,12 +222,11 @@ def scripted_responder() -> Responder:
                     }
                 )
             anchor = next(a for a in theme.evidence_anchors if a in evidence)
+            quote, index = _sentence_containing(evidence, anchor)
             return json.dumps(
                 {
                     "answer": theme.canned_answer,
-                    "citations": [
-                        {"quote": anchor, "chunk_index": _index_containing(evidence, anchor)}
-                    ],
+                    "citations": [{"quote": quote, "chunk_index": index}],
                 }
             )
         if kind == "confidence":

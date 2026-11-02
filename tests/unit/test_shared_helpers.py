@@ -1,7 +1,7 @@
 """Shared helpers extracted from the synthesizer, scorer, judge, agent, CLI and runtime.
 
-The evidence-rendering tests pin the exact bytes both prompts received before the
-extraction: a change here changes what the model sees, so it must be deliberate.
+The evidence-rendering tests pin the exact bytes both prompts receive: a change here
+changes what the model sees, so it must be deliberate.
 """
 
 from __future__ import annotations
@@ -34,16 +34,22 @@ HITS = [
 
 
 class TestRenderEvidence:
-    def test_synthesizer_format_is_unchanged(self) -> None:
+    def test_synthesizer_format(self) -> None:
         assert render_evidence(HITS, with_scores=False) == (
-            "[0] (section: 1. Term)\nEither party may terminate.\n\n"
-            "[1] (section: -)\nFees are due in 30 days."
+            "<evidence>\n"
+            '<document index="0" section="1. Term">\nEither party may terminate.\n</document>\n'
+            '<document index="1" section="-">\nFees are due in 30 days.\n</document>\n'
+            "</evidence>"
         )
 
-    def test_scorer_format_is_unchanged(self) -> None:
+    def test_scorer_format(self) -> None:
         assert render_evidence(HITS, with_scores=True) == (
-            "[0] score=0.823 section=1. Term\nEither party may terminate.\n\n"
-            "[1] score=0.100 section=-\nFees are due in 30 days."
+            "<evidence>\n"
+            '<document index="0" score="0.823" section="1. Term">\n'
+            "Either party may terminate.\n</document>\n"
+            '<document index="1" score="0.100" section="-">\n'
+            "Fees are due in 30 days.\n</document>\n"
+            "</evidence>"
         )
 
     @pytest.mark.parametrize("with_scores", [True, False])

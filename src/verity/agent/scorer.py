@@ -15,7 +15,7 @@ measured.
 from __future__ import annotations
 
 from verity.agent.base import ConfidenceScorer
-from verity.agent.evidence import render_evidence
+from verity.agent.evidence import neutralise, render_evidence
 from verity.config import get_settings
 from verity.llm.base import RoutingClient
 from verity.llm.json_output import first_matching, parse_json_object
@@ -51,8 +51,8 @@ class LLMConfidenceScorer(ConfidenceScorer):
 
     async def score(self, question: str, draft_answer: str, hits: list[RetrievalHit]) -> Confidence:
         messages = self._prompt.render(
-            question=question,
-            answer=draft_answer,
+            question=neutralise(question),
+            answer=neutralise(draft_answer),
             evidence=render_evidence(hits, with_scores=True),
         )
         completion = await self._client.complete(messages, max_tokens=256, temperature=0.0)
