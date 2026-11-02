@@ -102,3 +102,21 @@ def test_supports_pdf_and_docx_only() -> None:
     parser = DoclingParser()
     assert parser.supports(SourceType.PDF) and parser.supports(SourceType.DOCX)
     assert not parser.supports(SourceType.MARKDOWN)
+
+
+def test_one_docling_converter_serves_every_document(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A converter loads docling's models on first use; one per document reloaded them."""
+    import docling.document_converter
+
+    from verity.ingestion.parsers import docling_parser
+
+    built: list[object] = []
+    monkeypatch.setattr(
+        docling.document_converter, "DocumentConverter", lambda: built.append(1) or object()
+    )
+    docling_parser._lazy_converter.cache_clear()
+    try:
+        assert docling_parser._lazy_converter() is docling_parser._lazy_converter()
+        assert len(built) == 1
+    finally:
+        docling_parser._lazy_converter.cache_clear()
