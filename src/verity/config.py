@@ -82,6 +82,13 @@ class Settings(BaseSettings):
         description="Below this scorer-reported confidence the agent refuses to answer.",
     )
     max_agent_steps: int = 4  # cap on multi-step retrieval decomposition
+    # Deterministic checks a cited draft must pass before the scorer runs
+    # (verity.agent.support). On the committed live run (d0ca1d5), the 12 answered
+    # questions had coverage 0.58-1.00 and a best cited reranker logit of 0.94-9.31;
+    # q-015, labelled out of scope and answered, had 0.30 and -0.85. Both values were
+    # chosen on those same 16 examples: they need a held-out split to be validated.
+    min_citation_coverage: float = Field(default=0.5, ge=0.0, le=1.0)
+    min_cited_rerank_score: float = 0.0
 
     # --- HTTP API (see docs/adr/0006-api-security-baseline.md) ------------------------
     # The longest labeled question is 97 characters. 2000 leaves 20x headroom while

@@ -17,6 +17,9 @@ What holds on the returned :class:`Answer`:
   (citations that are not are dropped in :class:`CitedSynthesizer`), and a
   non-refused answer carries at least one: a draft with none is refused with
   reason ``no_citation`` before the scorer runs;
+- a cited draft is also refused before the scorer when its quotes cover too little
+  of it or the reranker judged them irrelevant (:mod:`verity.agent.support`), so a
+  document that steers the scorer cannot ship an answer on its own;
 - ``confidence.refused`` is also True when the scorer model asked to refuse OR its
   self-reported score is below ``confidence_threshold`` (threshold-gated refusal;
   the score is not calibrated). A refused answer's text is a fixed "I don't know"
@@ -33,6 +36,7 @@ import structlog
 from verity.agent.base import Agent, ConfidenceScorer, QuestionDecomposer
 from verity.agent.decomposer import LLMQuestionDecomposer
 from verity.agent.scorer import LLMConfidenceScorer
+from verity.agent.support import check_support
 from verity.agent.synthesizer import CitedSynthesizer
 from verity.config import get_settings
 from verity.llm.base import (
@@ -85,6 +89,8 @@ class RagAgent(Agent):
         self._synthesizer = synthesizer
         self._scorer = scorer
         self._rerank_k = rerank_k if rerank_k is not None else settings.rerank_k
+        self._min_citation_coverage = settings.min_citation_coverage
+        self._min_cited_rerank_score = settings.min_cited_rerank_score
         # NoOp default keeps ~120 existing tests untouched: they instantiate the
         # agent without supplying a tracer. Real observability is enabled by
         # the CLI/API wiring in an ``OTelTracer``.
@@ -139,14 +145,26 @@ class RagAgent(Agent):
 
         scorer_usage: UsageStats | None = None
         async with self._tracer.stage("agent.confidence", trace_id) as span:
+            # Deterministic gates before the scorer: a draft with no verified citation,
+            # or whose citations do not cover it or are irrelevant to the question, is
+            # refused whatever a model reading the same documents would say about it.
+            support = check_support(
+                synthesis.text,
+                synthesis.citations,
+                hits,
+                min_coverage=self._min_citation_coverage,
+                min_rerank_score=self._min_cited_rerank_score,
+            )
             if not synthesis.citations or not synthesis.text.strip():
-                # Deterministic gate before the scorer: a draft with no verified
-                # citation is refused whatever a model would say about it.
                 confidence = Confidence(
                     score=0.0,
                     refused=True,
                     rationale=NO_CITATION_RATIONALE,
                     reason=RefusalReason.NO_CITATION,
+                )
+            elif support.reason is not None:
+                confidence = Confidence(
+                    score=0.0, refused=True, rationale=support.rationale, reason=support.reason
                 )
             else:
                 confidence = await self._scorer.score(question, synthesis.text, hits)
@@ -154,6 +172,7 @@ class RagAgent(Agent):
                 _bind_component_usage(span, self._scorer)
             span.set_attribute("score", float(confidence.score))
             span.set_attribute("refused", bool(confidence.refused))
+            span.set_attribute("citation_coverage", support.coverage)
 
         # Latency is the measured wall-clock, not a sum of per-call latencies:
         # the calls partially overlap, so summing would over-count.

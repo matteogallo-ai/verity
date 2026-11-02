@@ -19,6 +19,7 @@ import json
 import re
 from dataclasses import dataclass
 
+from verity.agent.support import content_words
 from verity.llm.clients import Responder, StubLLMClient
 from verity.llm.routing import MultiProviderRoutingClient
 from verity.types import Message
@@ -48,8 +49,9 @@ _THEMES: tuple[_Theme, ...] = (
         question_keywords=("liable", "liability", "cap", "data-processing", "breach"),
         evidence_anchors=("one million", "$1,000,000"),
         canned_answer=(
-            "Provider's aggregate liability is capped at one million United States "
-            "dollars ($1,000,000) or the fees paid over the preceding 12 months, "
+            "Acme Corporation, as Provider, is liable for breaches of its data-processing "
+            "obligations, subject to an aggregate liability cap of one million United "
+            "States dollars ($1,000,000) or the fees paid over the preceding 12 months, "
             "whichever is greater."
         ),
     ),
@@ -179,20 +181,28 @@ def _documents(evidence: str) -> list[tuple[int, str]]:
     return [(int(index), text) for index, text in _DOCUMENT_RE.findall(evidence)]
 
 
-def _sentence_containing(evidence: str, needle: str) -> tuple[str, int]:
-    """The sentence of the first document containing ``needle``, and that document's
-    index: a real model quotes a whole clause, not a three-word anchor."""
-    for index, text in _documents(evidence):
-        position = text.find(needle)
-        if position < 0:
-            continue
-        start = 0
-        for match in _SENTENCE_END_RE.finditer(text):
-            if match.end() > position:
-                return text[start : match.start()].strip(), index
-            start = match.end()
-        return text[start:].strip(), index
-    return needle, 0
+def _sentences(text: str) -> list[str]:
+    return [part.strip() for part in _SENTENCE_END_RE.split(text) if part.strip()]
+
+
+def _covering_quotes(evidence: str, answer: str, *, limit: int = 3) -> list[tuple[str, int]]:
+    """Evidence sentences, with their document index, chosen greedily to cover the
+    content words of ``answer``: a real model quotes the clauses its answer restates,
+    one per fact, not a three-word anchor."""
+    wanted = content_words(answer)
+    candidates = [
+        (sentence, index, content_words(sentence))
+        for index, text in _documents(evidence)
+        for sentence in _sentences(text)
+    ]
+    chosen: list[tuple[str, int]] = []
+    while wanted and len(chosen) < limit:
+        sentence, index, words = max(candidates, key=lambda c: len(wanted & c[2]))
+        if not wanted & words:
+            break
+        chosen.append((sentence, index))
+        wanted -= words
+    return chosen
 
 
 def _extract_question(user_content: str) -> str:
@@ -221,12 +231,11 @@ def scripted_responder() -> Responder:
                         "citations": [],
                     }
                 )
-            anchor = next(a for a in theme.evidence_anchors if a in evidence)
-            quote, index = _sentence_containing(evidence, anchor)
+            quotes = _covering_quotes(evidence, theme.canned_answer)
             return json.dumps(
                 {
                     "answer": theme.canned_answer,
-                    "citations": [{"quote": quote, "chunk_index": index}],
+                    "citations": [{"quote": q, "chunk_index": i} for q, i in quotes],
                 }
             )
         if kind == "confidence":
