@@ -102,11 +102,30 @@ A confusion matrix over `answerable` vs `refused`, computed in `verity.eval.refu
 - **refusal recall** = refused out-of-scope / out-of-scope;
 - **refusal precision** = refused out-of-scope / refused.
 
-The agent refuses when the scorer model asks to, or when its self-reported
-confidence is below `confidence_threshold` (default 0.55, the value at the v1.0.0
-run's commit; the artefact does not record it). The threshold was set by hand,
-not tuned on a dev split, and the confidence score's calibration has not been
-measured. The scorecard JSON names this block `refusal`.
+The agent refuses when a deterministic check fails, when the scorer model asks to,
+or when the scorer's confidence score is below `confidence_threshold`. Each run
+records the threshold it used (`EvalRun.confidence_threshold`); the v1.0.0 run
+predates that field and used the hand-set default 0.55, on the same examples it
+reported.
+
+**Choosing the threshold** (`scripts/refusal_analysis.py`, rules fixed before the
+first live run on the dev/test split). The scorer prompt does not contain the
+threshold, so the refusals at any threshold are recomputed from the scores recorded
+in the dev run artefact (`verity.eval.calibration`):
+1. sweep thresholds 0.00, 0.05, ..., 1.00 on dev;
+2. take the highest refusal recall among thresholds with refusal precision ≥ 0.9
+   (at most one refusal in ten hits an answerable question); ties go to the lowest
+   threshold;
+3. if no threshold reaches 0.9, take the highest refusal F1 instead; the report
+   names the rule that applied;
+4. run the test split once at that threshold and publish its numbers.
+
+**Calibration.** The confidence score is read as the probability that the question is
+answerable, over the examples the scorer scored (a deterministic refusal has no
+score). ECE uses 10 equal-width bins: Σ |B|/n · |mean score(B) − answerable
+fraction(B)|. Isotonic and Platt maps are fitted on dev and their ECE measured on
+test; they are reported, not used by the agent. The reliability diagram plots the
+bins with their sizes. "Calibrated" is claimed only if the test ECE supports it.
 
 ### Operational
 - **Latency** p50 / p95 / p99 of the end-to-end `agent.answer` wall clock. With

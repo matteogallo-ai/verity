@@ -6,6 +6,7 @@ import pytest
 
 from verity.eval.calibration import (
     ScoredExample,
+    best_f1_threshold,
     calibration_pairs,
     choose_threshold,
     expected_calibration_error,
@@ -88,3 +89,9 @@ def test_a_perfectly_calibrated_bin_has_zero_error_and_one_point_zero_lands_in_t
 
 def test_ece_of_nothing_is_none() -> None:
     assert expected_calibration_error([]) is None
+
+
+def test_best_f1_threshold_is_the_fallback_when_precision_is_never_reached() -> None:
+    # At 0.5: precision 2/3, recall 1 -> F1 0.8; at 0.0: precision 1, recall 0.5 -> F1 0.667.
+    points = sweep(_EXAMPLES, [0.0, 0.5])
+    assert best_f1_threshold(points).threshold == 0.5

@@ -22,6 +22,7 @@ from typing import Any
 
 from verity.eval.calibration import (
     ScoredExample,
+    best_f1_threshold,
     calibration_pairs,
     choose_threshold,
     expected_calibration_error,
@@ -76,11 +77,22 @@ def _calibration(pairs: Sequence[tuple[float, bool]]) -> dict[str, Any]:
 
 def analyse(dev: list[ScoredExample], test: list[ScoredExample] | None) -> dict[str, Any]:
     curve = sweep(dev, THRESHOLDS)
-    chosen = choose_threshold(curve, min_precision=MIN_REFUSAL_PRECISION)
+    # Both rules were fixed before any live run; the report says which one applied.
+    try:
+        chosen = choose_threshold(curve, min_precision=MIN_REFUSAL_PRECISION)
+        rule = (
+            f"highest refusal recall with refusal precision >= {MIN_REFUSAL_PRECISION} "
+            "on dev; ties to the lowest threshold"
+        )
+    except ValueError:
+        chosen = best_f1_threshold(curve)
+        rule = (
+            f"fallback: no threshold reached refusal precision {MIN_REFUSAL_PRECISION} on "
+            "dev, so the highest refusal F1 on dev; ties to the lowest threshold"
+        )
     dev_pairs = calibration_pairs(dev)
     report: dict[str, Any] = {
-        "rule": f"highest refusal recall with refusal precision >= {MIN_REFUSAL_PRECISION} "
-        "on dev; ties to the lowest threshold",
+        "rule": rule,
         "dev": {
             "n": len(dev),
             "curve": [_point_dict(p) for p in curve],

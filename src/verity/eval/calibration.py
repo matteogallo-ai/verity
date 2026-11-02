@@ -111,6 +111,19 @@ def choose_threshold(points: Sequence[RefusalPoint], *, min_precision: float) ->
     return max(eligible, key=lambda p: (p.recall or 0.0, -p.threshold))
 
 
+def best_f1_threshold(points: Sequence[RefusalPoint]) -> RefusalPoint:
+    """The point with the highest refusal F1 (harmonic mean of refusal precision and
+    recall); ties go to the lowest threshold. The fallback rule when no threshold
+    reaches the precision floor of :func:`choose_threshold`."""
+
+    def f1(p: RefusalPoint) -> float:
+        if not p.precision or not p.recall:
+            return 0.0
+        return 2 * p.precision * p.recall / (p.precision + p.recall)
+
+    return max(points, key=lambda p: (f1(p), -p.threshold))
+
+
 def reliability_bins(
     pairs: Sequence[tuple[float, bool]], *, n_bins: int = 10
 ) -> list[ReliabilityBin]:

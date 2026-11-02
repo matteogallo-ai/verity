@@ -52,3 +52,12 @@ def test_threshold_comes_from_dev_and_is_applied_unchanged_to_test(tmp_path: Pat
 
 def test_dev_only_report_has_no_test_section() -> None:
     assert "test" not in _module().analyse(_DEV, None)
+
+
+def test_the_fallback_rule_is_applied_and_named_when_precision_is_out_of_reach() -> None:
+    # An answerable question scores below every unanswerable one: no threshold that
+    # refuses an unanswerable question avoids refusing it too.
+    dev = [_ex(True, 0.05), _ex(False, 0.1), _ex(False, 0.3), _ex(True, 0.9)]
+    report = _module().analyse(dev, None)
+    assert report["rule"].startswith("fallback")
+    assert report["dev"]["chosen"]["threshold"] == pytest.approx(0.35)
