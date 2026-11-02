@@ -646,7 +646,7 @@ def eval_run(
         load_full_dataset,
     )
     from verity.llm import create_default_routing_client
-    from verity.llm.routing import primary_client_identity
+    from verity.llm.routing import create_judge_client, primary_client_identity
 
     judge_mode = "stub" if ci else judge.lower()
     if judge_mode not in {"stub", "live"}:
@@ -681,7 +681,11 @@ def eval_run(
         judge_impl: object = StubFaithfulnessJudge()
         judge_model = STUB_JUDGE_MODEL
     else:
-        judge_client = create_default_routing_client()
+        try:
+            judge_client = create_judge_client(agent_client=agent_client)
+        except ValueError as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(code=2) from exc
         judge_impl = LLMFaithfulnessJudge(judge_client)
         judge_model = getattr(judge_impl, "model", "llm-judge")
 

@@ -270,7 +270,7 @@ class LLMFaithfulnessJudge(FaithfulnessJudge):
             answer=answer.text,
             citations=_render_citations(answer),
         )
-        completion = await self._client.complete(messages, max_tokens=512)
+        completion = await self._client.complete(messages, max_tokens=_MAX_TOKENS)
         self.last_usage = completion.usage
         self.last_provider = completion.provider
         self.last_model = completion.model
@@ -299,6 +299,11 @@ class LLMFaithfulnessJudge(FaithfulnessJudge):
             refusal_recall=0.0,
         )
 
+
+# Thinking models (Claude Opus 5.5 always thinks) spend part of max_tokens on thinking;
+# a verdict cut short parses as malformed and scores the answer as unsupported. Only
+# the tokens actually produced are billed, so the headroom costs nothing.
+_MAX_TOKENS = 8192
 
 _JUDGE_CLAIMS_KEYS = ("claims", "atomic_claims", "assessments", "verdicts")
 _JUDGE_SUPPORTED_KEYS = ("supported", "is_supported", "grounded")

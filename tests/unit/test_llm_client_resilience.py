@@ -88,7 +88,7 @@ def test_cost_comes_from_the_configured_price_table() -> None:
 
 def test_default_prices_cover_the_default_models() -> None:
     settings = Settings()
-    for model in (settings.anthropic_model, settings.openai_model, settings.judge_model):
+    for model in (settings.anthropic_model, settings.openai_model):
         assert model in settings.model_prices
 
 

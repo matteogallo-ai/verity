@@ -94,7 +94,16 @@ predates that measurement and does not claim it.
 
 The judge is an LLM and a source of error. In the v1.0.0 run the judge and the agent
 are the same model (`claude-sonnet-4-6`), and judge–human agreement has not been
-measured, so the answer-quality metrics are **unvalidated**. Claim-level verdicts are
+measured, so the answer-quality metrics are **unvalidated**. `Settings.judge_model` existed
+then but nothing read it: the live judge was built from the agent's own client.
+
+The judge is now chosen by `create_judge_client` (`verity.llm.routing`): another model
+family when its key is set (`VERITY_JUDGE_PROVIDER=auto`, OpenAI), otherwise a Claude
+model different from the agent's (`VERITY_JUDGE_ANTHROPIC_MODEL`, default
+`claude-opus-5-5`). It has a single client and no fallback, so the model named in the
+scorecard is the one that judged; a judge equal to the agent's model stops the run.
+Whatever the judge, Cohen's κ against human labels is required before its numbers are
+published. Claim-level verdicts are
 stored per example in the run artefact so disagreements can be inspected.
 
 ## Regression tracking

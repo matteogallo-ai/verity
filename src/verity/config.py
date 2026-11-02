@@ -28,6 +28,7 @@ class ModelPrice(BaseModel, frozen=True):
 # or a model change makes them wrong: cost figures are only as good as this table.
 DEFAULT_MODEL_PRICES: dict[str, ModelPrice] = {
     "claude-sonnet-4-6": ModelPrice(input_usd_per_mtok=3.0, output_usd_per_mtok=15.0),
+    "claude-opus-5-5": ModelPrice(input_usd_per_mtok=4.0, output_usd_per_mtok=20.0),
     "gpt-4.1-mini": ModelPrice(input_usd_per_mtok=0.40, output_usd_per_mtok=1.60),
 }
 
@@ -71,7 +72,12 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr | None = None
     anthropic_model: str = "claude-sonnet-4-6"
     openai_model: str = "gpt-4.1-mini"
-    judge_model: str = "claude-sonnet-4-6"  # LLM-as-judge for faithfulness eval
+    # LLM-as-judge (eval --judge live). "auto": the other family (OpenAI) when its key is
+    # set, else Claude. One client, no fallback; a judge equal to the agent's model is
+    # refused at start (verity.llm.routing.create_judge_client).
+    judge_provider: Literal["auto", "anthropic", "openai"] = "auto"
+    judge_anthropic_model: str = "claude-opus-5-5"
+    judge_openai_model: str = "gpt-4.1-mini"
     # A hung provider must surface as ProviderUnavailableError in bounded time, so the
     # router can fall back; the SDK default (10 min) would hold a request that long.
     # Worst case per provider: llm_timeout_s * (llm_max_retries + 1).
