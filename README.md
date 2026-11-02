@@ -213,21 +213,31 @@ curl -H 'X-API-Key: a-long-random-key' -H 'content-type: application/json' \
   -d '{"question": "What is the notice period?"}' http://127.0.0.1:8000/ask
 ```
 
-Reproducing the v1.0.0 headline calls Anthropic models (the original run cost
-$0.27):
+The published numbers are recomputed from the committed run artefact, with no model
+call:
+
+```bash
+uv run python scripts/generate_headline_results.py --check   # scorecard and README ≡ artefact
+```
+
+A new live evaluation calls paid models (agent and judge): estimate its cost first.
+The threshold is chosen on the dev split and the test split is run once at it
+([methodology](docs/evaluation-methodology.md#refusal-deterministic-over-the-agents-decisions)):
 
 ```bash
 export VERITY_ANTHROPIC_API_KEY=sk-ant-...
-uv run verity eval run \
-  --judge live --no-agent-stub --no-warmup \
-  --dataset datasets/eval/questions.jsonl \
-  --scorecard-json scorecards/live-v1.0.0.json \
-  --budget-usd 8.0 --report-only-floors \
-  --floor-refusal-recall 0.6 --floor-ndcg 0.5 --floor-recall 0.75
+uv run verity eval run --judge live --no-agent-stub \
+  --dataset datasets/eval/dev.jsonl --budget-usd 2.0 --report-only-floors
+uv run python scripts/refusal_analysis.py --dev datasets/eval/runs/live/eval_<sha>_dev.json \
+  --out-json scorecards/refusal-analysis.json --out-png docs/figures/reliability.png
+VERITY_CONFIDENCE_THRESHOLD=<chosen> uv run verity eval run --judge live --no-agent-stub \
+  --dataset datasets/eval/test.jsonl --budget-usd 2.8 --report-only-floors
+uv run python scripts/generate_headline_results.py \
+  --artefact datasets/eval/runs/live/eval_<sha>_test.json --scorecard scorecards/<name>.json
 ```
 
-It writes `datasets/eval/runs/live/eval_<sha>_questions.json` and the scorecard;
-`uv run python scripts/generate_headline_results.py` regenerates the README block.
+The v1.0.0 run (`scorecards/live-v1.0.0.json`) used 16 questions that predate the
+dev/test split; its artefact stays in `datasets/eval/runs/live/`.
 
 ## How this was built
 
