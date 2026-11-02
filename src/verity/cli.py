@@ -963,8 +963,8 @@ def _print_scorecard(result) -> None:  # type: ignore[no-untyped-def]
     )
     if q.n_judge_unparseable:
         answer.add_row("judge output unparseable", str(q.n_judge_unparseable), stub_note)
-    answer.add_row("refusal_recall", f"{sc.answer.refusal_recall:.3f}", refusal_tag)
     answer.add_row("refusal_precision", f"{sc.answer.refusal_precision:.3f}", refusal_tag)
+    answer.add_row("refusal_recall", f"{sc.answer.refusal_recall:.3f}", refusal_tag)
     # Companion to hallucination_rate — the count of out-of-scope examples
     # the agent DID NOT refuse. Computed from per_refusal for parity with the
     # JSON export.

@@ -8,7 +8,7 @@ reader looking at the console got a different vocabulary than a reader
 looking at the JSON — the same run, two different label sets.
 
 These tests LOCK the invariant: every headline label that appears in the
-CLI console output must exist as a key in the v2 JSON scorecard schema, and
+CLI console output must exist as a key in the JSON scorecard schema, and
 every user-visible metric in the JSON must also appear in the console table.
 There is one source of truth for what a metric is called.
 
@@ -69,31 +69,31 @@ class TestConsoleJsonLabelInvariant:
     """Every user-visible metric name + denominator is defined ONCE.
     Console and JSON agree on vocabulary AND on scope/n_denominator."""
 
-    def test_json_is_v3_with_scoped_metrics(self, tmp_path: Path) -> None:
-        """Baseline: the JSON we generate today is schema v3 — no drift back
-        to a v2/v1 shape under any refactor. Each judge-track metric is a
-        ``{value, scope, n_denominator}`` triple so no number can be
-        quoted without its denominator."""
+    def test_json_is_v4_with_both_aggregations(self, tmp_path: Path) -> None:
+        """Faithfulness and citation accuracy carry a macro and a micro figure, each
+        with its denominator; the hallucination rate carries its own."""
         _, payload = _run_stub_and_capture(tmp_path)
-        assert payload["schema"] == "verity.scorecard.headline/v3"
-        for name in ("faithfulness", "citation_accuracy", "hallucination_rate"):
+        assert payload["schema"] == "verity.scorecard.headline/v4"
+        for name in ("faithfulness", "citation_accuracy"):
             entry = payload["answer_quality"][name]
-            assert set(entry.keys()) == {"value", "scope", "n_denominator"}, (
-                f"v3 answer_quality[{name!r}] must be a {{value, scope, n_denominator}} triple"
-            )
-        # v2 leftovers must be absent.
-        assert "hallucination_rate_answerable" not in payload["answer_quality"]
-        # Sample-size table is present and complete.
-        assert set(payload["sample_sizes"].keys()) == {
+            assert set(entry["macro"]) == {"value", "n_questions"}
+            assert set(entry["micro"]) == {"value", "n_claims"}
+        assert set(payload["answer_quality"]["hallucination_rate"]) == {
+            "value",
+            "scope",
+            "n_questions",
+        }
+        assert set(payload["sample_sizes"]) == {
             "n_examples",
             "n_errored",
             "n_answered",
             "n_judged",
+            "n_judge_unparseable",
+            "n_claims",
             "n_refused",
             "n_answerable_answered",
         }
-        # Companion refusal metric.
-        assert "out_of_scope_answered" in payload["refusal_calibration"]
+        assert "out_of_scope_answered" in payload["refusal"]
 
     def test_console_uses_the_v3_scoped_hallucination_label(self, tmp_path: Path) -> None:
         """The console must display the v3-scoped name with the denominator,
@@ -119,6 +119,8 @@ class TestConsoleJsonLabelInvariant:
         console, _ = _run_stub_and_capture(tmp_path)
         assert "faithfulness (answered, n=" in console
         assert "citation_accuracy (answered, n=" in console
+        assert "faithfulness micro (claims, n=" in console
+        assert "citation_accuracy micro (claims, n=" in console
 
     def test_console_shows_out_of_scope_answered_companion(self, tmp_path: Path) -> None:
         """The v2 companion metric survives into v3 unchanged and must appear
