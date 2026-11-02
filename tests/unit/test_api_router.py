@@ -19,7 +19,7 @@ from verity.api import create_app
 
 
 class _FakeEmbeddingBackend:
-    def __init__(self, dim: int = 32) -> None:
+    def __init__(self, dim: int = 384) -> None:
         self._dim = dim
 
     def encode(
@@ -58,19 +58,14 @@ class _FakeRerankerBackend:
 
 @pytest.fixture
 def client(tmp_path: Path):  # type: ignore[no-untyped-def]
-    """Boot a real FastAPI app on the shipped corpus, in stub agent mode.
-
-    The ``patch`` calls below do NOT take effect: ``LocalEmbedder`` and
-    ``CrossEncoderReranker`` bind ``_default_backend_factory`` as a default
-    argument at definition time, so the real sentence-transformers models are
-    loaded (and the Hugging Face cache is consulted). That is why every test
-    using this fixture is marked ``slow``. Making the fixture hermetic needs a
-    production seam change and fakes whose dimension matches ``embedding_dim``.
+    """Boot a real FastAPI app on the shipped corpus, in stub agent mode, with fake
+    embedding and reranker backends: no model is loaded and nothing touches the
+    network. The fake embedder reports 384 dimensions to match ``embedding_dim``.
     """
     with (
         patch(
             "verity.ingestion.embedder._default_backend_factory",
-            return_value=_FakeEmbeddingBackend(32),
+            return_value=_FakeEmbeddingBackend(384),
         ),
         patch(
             "verity.retrieval.reranker._default_backend_factory",
@@ -86,7 +81,6 @@ def client(tmp_path: Path):  # type: ignore[no-untyped-def]
         yield TestClient(app)
 
 
-@pytest.mark.slow
 def test_status_reports_real_provenance_and_corpus(client) -> None:  # type: ignore[no-untyped-def]
     r = client.get("/status")
     assert r.status_code == 200
@@ -104,7 +98,6 @@ def test_status_reports_real_provenance_and_corpus(client) -> None:  # type: ign
     assert "status" not in body or body.get("status") not in {"ok", "OK"}
 
 
-@pytest.mark.slow
 def test_ask_provenance_reflects_the_actual_provider_used(client) -> None:  # type: ignore[no-untyped-def]
     """Provenance is derived per-request from the synthesizer's Completion.
 
@@ -130,7 +123,6 @@ def test_ask_provenance_reflects_the_actual_provider_used(client) -> None:  # ty
     assert prov["agent_model"] == "stub-agent"
 
 
-@pytest.mark.slow
 def test_ask_returns_full_answer_view_with_provenance(client) -> None:  # type: ignore[no-untyped-def]
     r = client.post(
         "/ask", json={"question": "What is the notice period for terminating the agreement?"}
@@ -171,7 +163,6 @@ def test_ask_returns_full_answer_view_with_provenance(client) -> None:  # type: 
     assert ans["trace_id"]
 
 
-@pytest.mark.slow
 def test_ask_refusal_state_is_first_class(client) -> None:  # type: ignore[no-untyped-def]
     r = client.post("/ask", json={"question": "What is the CEO's home address?"})
     assert r.status_code == 200, r.text
@@ -187,13 +178,11 @@ def test_ask_refusal_state_is_first_class(client) -> None:  # type: ignore[no-un
     assert body["provenance"]["is_stub"] is True
 
 
-@pytest.mark.slow
 def test_ask_rejects_empty_question(client) -> None:  # type: ignore[no-untyped-def]
     r = client.post("/ask", json={"question": ""})
     assert r.status_code == 422  # pydantic validation error, not a stack trace
 
 
-@pytest.mark.slow
 def test_ingest_upload_uses_content_addressed_id(client) -> None:  # type: ignore[no-untyped-def]
     """Same bytes → same document_id, regardless of the client-supplied filename.
 
@@ -234,7 +223,6 @@ def test_ingest_upload_uses_content_addressed_id(client) -> None:  # type: ignor
     )
 
 
-@pytest.mark.slow
 def test_ingest_rejects_empty_upload(client) -> None:  # type: ignore[no-untyped-def]
     r = client.post("/ingest", files={"file": ("empty.md", b"", "text/markdown")})
     assert r.status_code == 400

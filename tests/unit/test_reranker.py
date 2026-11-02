@@ -95,3 +95,12 @@ async def test_rerank_tie_break_by_input_rank() -> None:
     reranker = CrossEncoderReranker(model="fake", backend=_AllEqualBackend())
     out = await reranker.rerank("q", hits, top_k=3)
     assert [h.chunk.id for h in out] == [hits[0].chunk.id, hits[1].chunk.id, hits[2].chunk.id]
+
+
+def test_default_backend_factory_is_resolved_at_call_time() -> None:
+    """Same contract as the embedder: the module factory is looked up when needed."""
+    from unittest.mock import patch
+
+    sentinel = object()
+    with patch("verity.retrieval.reranker._default_backend_factory", return_value=sentinel):
+        assert CrossEncoderReranker()._get_backend() is sentinel

@@ -61,7 +61,7 @@ class CrossEncoderReranker(Reranker):
         *,
         batch_size: int = 32,
         backend: RerankerBackend | None = None,
-        backend_factory: Callable[[str], RerankerBackend] = _default_backend_factory,
+        backend_factory: Callable[[str], RerankerBackend] | None = None,
     ) -> None:
         self._model = model or get_settings().reranker_model
         self._batch_size = batch_size
@@ -74,7 +74,10 @@ class CrossEncoderReranker(Reranker):
 
     def _get_backend(self) -> RerankerBackend:
         if self._backend is None:
-            self._backend = self._backend_factory(self._model)
+            # The module-level default is looked up here, not bound at definition
+            # time, so tests can patch it and keep the real model off the fast lane.
+            factory = self._backend_factory or _default_backend_factory
+            self._backend = factory(self._model)
         return self._backend
 
     def _predict_sync(self, pairs: list[tuple[str, str]]) -> list[float]:
