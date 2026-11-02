@@ -41,7 +41,8 @@ class Settings(BaseSettings):
     )
 
     # --- Database ---------------------------------------------------------------------
-    database_url: str = "postgresql://verity:verity@localhost:5432/verity"
+    # Holds the password: kept out of repr, dumps and logs.
+    database_url: SecretStr = SecretStr("postgresql://verity:verity@localhost:5432/verity")
     # pgvector is what the API, the demo and the reference eval run on (ADR 0002).
     # "memory" runs without a database: unit tests, the CI pipeline smoke test.
     store: Literal["pgvector", "memory"] = "pgvector"
