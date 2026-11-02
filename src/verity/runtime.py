@@ -24,7 +24,7 @@ from verity.ingestion import (
 )
 from verity.ingestion.pipeline import discover_sources
 from verity.llm.base import RoutingClient
-from verity.llm.routing import create_default_routing_client
+from verity.llm.routing import create_default_routing_client, primary_client_identity
 from verity.observability.base import Tracer
 from verity.retrieval import (
     CrossEncoderReranker,
@@ -103,7 +103,7 @@ def build_agent(
         agent_model = "stub-agent"
     else:
         client = create_default_routing_client()
-        agent_model = _first_client_model(client) or "llm-agent"
+        agent_model = primary_client_identity(client)[1] or "llm-agent"
     agent = create_default_agent(retriever=retriever, client=client, tracer=tracer)
     return agent, agent_model
 
@@ -121,14 +121,6 @@ def build_retriever(
         reranker=reranker,
         tracer=tracer,
     )
-
-
-def _first_client_model(client: RoutingClient) -> str | None:
-    clients = getattr(client, "clients", None)
-    if not clients:
-        return None
-    model = getattr(clients[0], "model", None)
-    return model if isinstance(model, str) else None
 
 
 __all__ = [

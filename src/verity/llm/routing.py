@@ -24,7 +24,7 @@ from verity.llm.base import (
     ProviderUnavailableError,
     RoutingClient,
 )
-from verity.types import Completion, Message
+from verity.types import Completion, Message, Provider
 
 log = structlog.get_logger(__name__)
 
@@ -104,4 +104,28 @@ def create_default_routing_client(
     return MultiProviderRoutingClient(clients)
 
 
-__all__ = ["MultiProviderRoutingClient", "create_default_routing_client"]
+def primary_client_identity(client: object) -> tuple[Provider | None, str | None]:
+    """``(provider, model)`` of the first client a routing client would try.
+
+    Used to stamp provenance before any request has been served (the agent's
+    fallback stamp, the judge's model label, the scorecard's agent model). Works
+    on any object exposing a ``clients`` sequence; anything else, or a client
+    without a typed ``provider`` / string ``model``, yields ``None`` for that field.
+    """
+    clients = getattr(client, "clients", None)
+    if not clients:
+        return None, None
+    first = clients[0]
+    provider = getattr(first, "provider", None)
+    model = getattr(first, "model", None)
+    return (
+        provider if isinstance(provider, Provider) else None,
+        model if isinstance(model, str) else None,
+    )
+
+
+__all__ = [
+    "MultiProviderRoutingClient",
+    "create_default_routing_client",
+    "primary_client_identity",
+]

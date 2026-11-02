@@ -31,6 +31,7 @@ from verity.agent.scorer import LLMConfidenceScorer
 from verity.agent.synthesizer import CitedSynthesizer
 from verity.config import get_settings
 from verity.llm.base import RoutingClient
+from verity.llm.routing import primary_client_identity
 from verity.observability.base import Tracer
 from verity.observability.logging import request_trace
 from verity.observability.tracer import NoOpTracer
@@ -245,7 +246,7 @@ def create_default_agent(
     routing decision — not a None that would leak up to the API's boot-time
     default and lie about who would have served.
     """
-    preferred_provider, preferred_model = _resolve_preferred(client)
+    preferred_provider, preferred_model = primary_client_identity(client)
     return RagAgent(
         retriever=retriever,
         decomposer=LLMQuestionDecomposer(client),
@@ -255,24 +256,6 @@ def create_default_agent(
         preferred_provider=preferred_provider,
         preferred_model=preferred_model,
     )
-
-
-def _resolve_preferred(client: RoutingClient) -> tuple[Provider | None, str | None]:
-    """Peek at the routing client and return the first configured client's
-    ``(provider, model)``. Best-effort — unknown routers return ``(None, None)``
-    and the agent transparently ships an Answer with no provenance stamp, which
-    is what the API layer surfaces as ``agent_model="unknown"``."""
-    clients = getattr(client, "clients", None)
-    if not clients:
-        return None, None
-    first = clients[0]
-    provider = getattr(first, "provider", None)
-    model = getattr(first, "model", None)
-    if not isinstance(provider, Provider):
-        provider = None
-    if not isinstance(model, str):
-        model = None
-    return provider, model
 
 
 __all__ = ["AgentDeps", "RagAgent", "create_default_agent"]

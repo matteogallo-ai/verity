@@ -467,15 +467,6 @@ def _print_answer(answer: Answer) -> None:
     console.print(usage)
 
 
-def _first_client_model(client: object) -> str | None:
-    """Return the first registered client's ``.model`` on a RoutingClient, or None."""
-    clients = getattr(client, "clients", None)
-    if not clients:
-        return None
-    model = getattr(clients[0], "model", None)
-    return model if isinstance(model, str) else None
-
-
 @app.command()
 def serve(
     host: Annotated[str, typer.Option(help="Bind host.")] = "0.0.0.0",
@@ -624,6 +615,7 @@ def eval_run(
         load_full_dataset,
     )
     from verity.llm import create_default_routing_client
+    from verity.llm.routing import primary_client_identity
 
     judge_mode = "stub" if ci else judge.lower()
     if judge_mode not in {"stub", "live"}:
@@ -649,7 +641,9 @@ def eval_run(
     # Traceability: the refusal chiffres in the Scorecard are meaningless without
     # knowing WHICH agent produced the answers they aggregate over. "stub-agent"
     # is the sentinel picked up by the CLI and README as a prudence flag.
-    agent_model = "stub-agent" if agent_stub else _first_client_model(agent_client) or "llm-agent"
+    agent_model = (
+        "stub-agent" if agent_stub else primary_client_identity(agent_client)[1] or "llm-agent"
+    )
 
     # Judge: mechanical stub by default; real LLM only in --judge live.
     if judge_mode == "stub":

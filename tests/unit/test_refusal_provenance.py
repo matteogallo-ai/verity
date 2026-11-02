@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from verity.agent.agent import RagAgent, _resolve_preferred, create_default_agent
+from verity.agent.agent import RagAgent, create_default_agent
 from verity.agent.decomposer import LLMQuestionDecomposer
 from verity.agent.scorer import LLMConfidenceScorer
 from verity.agent.scripted_stub import build_stub_router
@@ -34,7 +34,7 @@ from verity.ingestion import (
 from verity.ingestion.embedder import LocalEmbedder
 from verity.ingestion.pipeline import discover_sources
 from verity.llm.clients import StubLLMClient
-from verity.llm.routing import MultiProviderRoutingClient
+from verity.llm.routing import MultiProviderRoutingClient, primary_client_identity
 from verity.retrieval import InMemoryVectorStore
 from verity.retrieval.hybrid import HybridRetriever
 from verity.retrieval.reranker import CrossEncoderReranker
@@ -143,7 +143,7 @@ async def test_refusal_falls_back_to_preferred_routing_decision() -> None:
 
     # A "live" stand-in for a real Anthropic client: same-typed provider, real
     # model id string. The test never actually calls this — it just needs the
-    # routing metadata to be resolvable by ``_resolve_preferred``.
+    # routing metadata to be resolvable by ``primary_client_identity``.
     live_client = StubLLMClient(
         _live_responder, model="claude-sonnet-4-6", provider=Provider.ANTHROPIC
     )
@@ -154,7 +154,7 @@ async def test_refusal_falls_back_to_preferred_routing_decision() -> None:
     synthesizer = _UnstampedSynthesizer(router)
     scorer = _AlwaysRefuseScorer(router)
 
-    provider, model = _resolve_preferred(router)
+    provider, model = primary_client_identity(router)
     agent = RagAgent(
         retriever=retriever,
         decomposer=decomposer,
