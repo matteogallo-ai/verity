@@ -29,10 +29,13 @@ src/verity/
   db/                 SQL migration runner
 prompts/              *.prompt files loaded by verity.llm.prompt
 migrations/           numbered SQL files (pgvector schema)
-datasets/corpus/      6 Markdown documents (one adversarial); datasets/eval/questions.jsonl: 19 labeled questions
+datasets/corpus/      21 documents (Markdown, PDF, DOCX; one adversarial), see datasets/CORPUS.md
+datasets/corpus_src/  Markdown sources of the PDF/DOCX documents
+datasets/eval/        questions.jsonl (95), frozen dev.jsonl / test.jsonl split
 scorecards/           committed live scorecard (source of the README table)
 scripts/              check_claims, check_stale_narrative, check_commit_messages,
-                      generate_headline_results, build_eval_labels
+                      generate_headline_results, build_eval_labels,
+                      build_corpus_documents, split_dataset
 tests/unit/           fast + slow lanes; tests/integration/ needs Postgres
 web/                  Next.js 15 UI (pnpm, vitest)
 ```
@@ -54,6 +57,8 @@ uv run python scripts/check_claims.py --no-run             # structure only, no 
 uv run python scripts/check_stale_narrative.py             # no sprint labels / future tense / bare TODO
 uv run python scripts/check_commit_messages.py main..HEAD  # Conventional Commits on the branch
 uv run python scripts/generate_headline_results.py --check # README results block ≡ scorecard
+uv run python scripts/build_corpus_documents.py --check    # PDF/DOCX corpus ≡ sources
+uv run python scripts/split_dataset.py --check             # dev/test split ≡ seed
 VERITY_STORE=memory uv run verity eval run --ci            # pipeline smoke test on stubs (no keys, no db)
 VERITY_API_AUTH_DISABLED=true uv run verity serve --port 8000  # API on pgvector, dev: no auth, stub without LLM key
 make demo                                                  # pgvector + API + web UI, stub mode

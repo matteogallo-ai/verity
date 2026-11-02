@@ -23,19 +23,38 @@ is a bug.
 
 ## The dataset
 
-`datasets/eval/questions.jsonl`, 16 examples over the 5 documents in
-`datasets/corpus/`: 11 answerable, 5 out-of-scope. Each example has:
+`datasets/eval/questions.jsonl` holds 95 questions over the 21 documents of
+`datasets/corpus/` (described, with their licence, in `datasets/CORPUS.md`):
+
+| Group | n | Tags |
+|---|---:|---|
+| answerable | 59 | `single-hop`, `multi-hop` (the evidence spans at least two documents), `negation`, `numeric` |
+| unanswerable | 27 | `out-of-corpus`, `near-miss` (adjacent to the corpus, not in it), `false-premise` |
+| adversarial | 9 | prompt injection in the question or in a retrieved document; 3 answerable, 6 not |
 
 | Field | Meaning |
 |---|---|
 | `question` | the query |
 | `answerable` | whether the corpus contains the answer |
 | `reference_answer` | gold answer, or `null` when `answerable = false` |
-| `relevant_chunk_ids` | gold chunk ids (filled for all 11 answerable examples) |
-| `tags` | `single-hop`, `multi-hop`, `numeric`, `near-miss`, `out-of-scope` |
+| `evidence` | verbatim corpus quotes that answer the question (empty when unanswerable) |
+| `relevant_chunk_ids` | gold chunks: every chunk containing one of the `evidence` quotes |
+| `tags` | the categories above |
 
-16 examples support a method check, not a benchmark: one example moves refusal
-recall by 0.2.
+`scripts/build_eval_labels.py` resolves `evidence` to chunk ids by substring match
+(never with the retriever it evaluates) and fails if a quote matches no chunk.
+
+A false-premise question counts as unanswerable: the fact it asks about does not exist
+in the corpus, so the expected outcome is a refusal. An answer that corrects the
+premise is scored as an answer.
+
+**Dev / test split.** `scripts/split_dataset.py` draws a stratified split (answerable,
+unanswerable, adversarial) with seed `20261102`: `dev.jsonl` (39 questions) and
+`test.jsonl` (56). The refusal threshold is tuned on dev only; results are published
+on test. Both files are committed and checked in CI, so the split cannot drift.
+
+The v1.0.0 run of record predates this dataset: it used 16 questions over 5 documents
+and had no split, so its threshold was tuned and reported on the same examples.
 
 ## Metrics as computed
 
@@ -118,6 +137,6 @@ embedding model ids) under `datasets/eval/runs/` (live runs under `runs/live/`).
 - a headline number computed on stub output (CI mode);
 - answer-quality numbers without a judge–human agreement figure (true of v1.0.0);
 - refusal recall reported without refusal precision;
-- a threshold tuned and reported on the same examples (true of v1.0.0: there is no
-  dev/test split);
+- a threshold tuned and reported on the same examples (true of v1.0.0, which predates
+  the dev/test split);
 - eval examples leaking into retriever or prompt tuning.
