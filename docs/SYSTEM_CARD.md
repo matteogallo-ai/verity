@@ -2,7 +2,7 @@
 
 **Owner:** Matteo Gallo · **Version:** 1.0.x · **Licence:** MIT (code, prompts, corpus,
 eval set) · Security posture: [`SECURITY.md`](../SECURITY.md) · Threats:
-[`THREAT_MODEL.md`](THREAT_MODEL.md)
+[`THREAT_MODEL.md`](THREAT_MODEL.md) · Operations: [`RUNBOOK.md`](RUNBOOK.md)
 
 Every number on this page is generated from the committed scorecard by
 `scripts/generate_headline_results.py`; CI runs it with `--check`. Every measured figure
@@ -88,7 +88,7 @@ Source: [`scorecards/live-v1.0.0.json`](../scorecards/live-v1.0.0.json) · commi
 
 The targets in the second table above are proposals from the implementer, **pending
 owner approval**; nothing enforces or alerts on them. How each is measured on a
-running server, with the signals the code emits:
+running server, with the signals the code emits (responses: [`RUNBOOK.md`](RUNBOOK.md)):
 
 | SLO | Measured from | Caveat |
 |---|---|---|
