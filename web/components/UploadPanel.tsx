@@ -33,8 +33,8 @@ export function UploadPanel({ onIngested }: UploadPanelProps) {
       <div className="panel-head">
         <h2 id="upload-heading">Upload</h2>
         <p className="hint">
-          Add a Markdown, PDF, DOCX, or TXT document. Content-addressed IDs —
-          same bytes produce the same document.
+          Add a Markdown, plain-text, PDF or DOCX document, up to 1 MiB.
+          Content-addressed IDs — same bytes produce the same document.
         </p>
       </div>
       <label className="dropzone" htmlFor="upload-input">
