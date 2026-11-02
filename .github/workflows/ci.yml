@@ -277,9 +277,8 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: No known vulnerability in the lockfiles
-        uses: google/osv-scanner-action/osv-scanner-action@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
+        # The image the osv-scanner-action runs, by digest: the action itself
+        # references it by the mutable tag v2.7.0, which a commit pin does not freeze.
+        uses: docker://ghcr.io/google/osv-scanner-action@sha256:d54770fe0b09493894e76a02aaed9f51a0513fa57c5186452a755d257b0068a6 # v2.7.0
         with:
-          scan-args: |-
-            --config=./osv-scanner.toml
-            --lockfile=./uv.lock
-            --lockfile=./web/pnpm-lock.yaml
+          args: --config=./osv-scanner.toml --lockfile=./uv.lock --lockfile=./web/pnpm-lock.yaml

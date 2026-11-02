@@ -1,5 +1,7 @@
-# Weekly, grouped version updates: one PR per ecosystem per week, so a week's
-# bumps are reviewed and tested together instead of in a dozen PRs.
+# Weekly, grouped version updates: one PR per ecosystem per week for minor and
+# patch bumps, so they are reviewed and tested together. Major bumps stay out of
+# the groups and get one PR each, because they break on their own (next 16 drops
+# `next lint`, vite 7 is outside @vitejs/plugin-react 4's peer range).
 version: 2
 updates:
   # pyproject.toml + uv.lock.
@@ -10,6 +12,7 @@ updates:
     groups:
       python-dependencies:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   # The Next.js UI; the npm ecosystem reads web/pnpm-lock.yaml.
   - package-ecosystem: "npm"
@@ -19,6 +22,7 @@ updates:
     groups:
       web-dependencies:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   # Actions are pinned by SHA; Dependabot updates the SHA and the version comment.
   - package-ecosystem: "github-actions"
@@ -28,3 +32,4 @@ updates:
     groups:
       github-actions:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
