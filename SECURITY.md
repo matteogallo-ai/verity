@@ -25,8 +25,10 @@ Stated as the code behaves today, verified against the source:
 
 - **No authentication and no rate limit** on any endpoint (`/ask`, `/ingest`,
   `/status`, `/metrics`, `/dashboard`).
-- **`verity serve` binds `0.0.0.0` by default**, so the API is reachable from the
-  local network unless `--host 127.0.0.1` is passed. CORS allows
+- **`verity serve` binds `127.0.0.1` by default.** Exposing it to the network takes
+  an explicit `--host 0.0.0.0`, and the command then prints a warning. The Docker
+  Compose `app` service passes `--host 0.0.0.0` because the container's port is
+  published; that publishes the API on the host's interfaces. CORS allows
   `http://localhost:3000` only; CORS does not protect against non-browser clients.
 - **Input sizes are not bounded.** `/ask` requires a non-empty question with no
   maximum length; `/ingest` reads the whole upload into memory with no size limit.

@@ -315,3 +315,28 @@ def test_ask_without_key_and_without_stub_errors_actionably(
     # Explicit "no traceback leaked" check — BadParameter must render as a Typer
     # message, not a raw Python stack.
     assert "Traceback" not in combined
+
+
+def _capture_serve(monkeypatch: pytest.MonkeyPatch, args: list[str]) -> tuple[dict, str]:  # type: ignore[type-arg]
+    import uvicorn
+
+    import verity.api
+
+    seen: dict = {}  # type: ignore[type-arg]
+    monkeypatch.setattr(verity.api, "create_app", lambda **_kw: object())
+    monkeypatch.setattr(uvicorn, "run", lambda _app, **kw: seen.update(kw))
+    result = runner.invoke(app, ["serve", *args], env={"COLUMNS": "200"})
+    assert result.exit_code == 0, result.output
+    return seen, result.output
+
+
+def test_serve_binds_loopback_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen, output = _capture_serve(monkeypatch, [])
+    assert seen["host"] == "127.0.0.1"
+    assert "reachable from other machines" not in output
+
+
+def test_serve_warns_when_bound_to_all_interfaces(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen, output = _capture_serve(monkeypatch, ["--host", "0.0.0.0"])
+    assert seen["host"] == "0.0.0.0"
+    assert "reachable from other machines" in output

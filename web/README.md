@@ -22,7 +22,7 @@ Or manually, two shells:
 
 ```bash
 # Shell 1 — API (stub agent, in-memory store, corpus preloaded):
-uv run verity serve --host 127.0.0.1 --port 8000
+uv run verity serve --port 8000
 
 # Shell 2 — Next dev server:
 cd web

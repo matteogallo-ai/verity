@@ -468,9 +468,18 @@ def _print_answer(answer: Answer) -> None:
     console.print(usage)
 
 
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+
+
 @app.command()
 def serve(
-    host: Annotated[str, typer.Option(help="Bind host.")] = "0.0.0.0",
+    host: Annotated[
+        str,
+        typer.Option(
+            help="Bind host. Loopback by default; pass 0.0.0.0 explicitly to expose the "
+            "API to the network (see SECURITY.md)."
+        ),
+    ] = "127.0.0.1",
     port: Annotated[int, typer.Option(help="Bind port.")] = 8000,
     runs_dir: Annotated[
         Path, typer.Option(help="Where the dashboard reads persisted eval runs from.")
@@ -495,6 +504,11 @@ def serve(
     configure_logging(settings.log_level)
     tracer = OTelTracer(otel_endpoint=settings.otel_endpoint)
     app_instance = create_app(tracer=tracer, runs_dir=runs_dir, dataset=dataset)
+    if host not in _LOOPBACK_HOSTS:
+        console.print(
+            f"[yellow]Bound to {host}: the API is reachable from other machines. "
+            "See SECURITY.md before exposing it.[/yellow]"
+        )
     console.print(f"[cyan]Serving[/cyan] http://{host}:{port}  (dashboard: /dashboard)")
     uvicorn.run(app_instance, host=host, port=port, log_level=settings.log_level.lower())
 
