@@ -1,0 +1,30 @@
+# Weekly, grouped version updates: one PR per ecosystem per week, so a week's
+# bumps are reviewed and tested together instead of in a dozen PRs.
+version: 2
+updates:
+  # pyproject.toml + uv.lock.
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      python-dependencies:
+        patterns: ["*"]
+
+  # The Next.js UI; the npm ecosystem reads web/pnpm-lock.yaml.
+  - package-ecosystem: "npm"
+    directory: "/web"
+    schedule:
+      interval: "weekly"
+    groups:
+      web-dependencies:
+        patterns: ["*"]
+
+  # Actions are pinned by SHA; Dependabot updates the SHA and the version comment.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns: ["*"]
