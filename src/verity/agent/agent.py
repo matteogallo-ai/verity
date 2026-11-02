@@ -47,6 +47,7 @@ from verity.llm.base import (
     ProviderUnavailableError,
     RoutingClient,
 )
+from verity.llm.budget import SpendCapExceededError
 from verity.llm.routing import primary_client_identity
 from verity.observability.base import StageSpan, Tracer
 from verity.observability.logging import request_trace
@@ -123,6 +124,8 @@ class RagAgent(Agent):
                 answer = await self._answer(question, trace_id, started, stage_ms, spent)
             except RetrievalUnavailableError as exc:
                 kind, error = ErrorKind.RETRIEVAL_UNAVAILABLE, exc
+            except SpendCapExceededError as exc:
+                kind, error = ErrorKind.BUDGET_EXCEEDED, exc
             except AuthenticationError as exc:
                 kind, error = ErrorKind.PROVIDER_AUTH, exc
             except ProviderUnavailableError as exc:

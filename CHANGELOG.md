@@ -6,6 +6,12 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `verity ask --budget-usd` (default `VERITY_ASK_BUDGET_USD`, $1): before each LLM call,
+  spend so far plus that call's worst-case cost must fit the cap, else the answer stops
+  with error kind `budget_exceeded`, exit 4, and the spend so far printed.
+
 ### Fixed
 
 - An answer that fails after some LLM calls returned now reports their tokens and cost

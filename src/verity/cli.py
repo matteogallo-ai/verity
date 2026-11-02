@@ -151,17 +151,36 @@ def ask(
             )
         ),
     ] = False,
+    budget_usd: Annotated[
+        float | None,
+        typer.Option(
+            help=(
+                "Spending cap in USD for this answer. Before each LLM call the spend so "
+                "far plus that call's worst-case cost must fit, else the answer stops "
+                "(exit 4). Default: VERITY_ASK_BUDGET_USD."
+            ),
+        ),
+    ] = None,
 ) -> None:
-    """Answer a question with citations. Refuses when the evidence is weak."""
+    """Answer a question with citations. Refuses when the evidence is weak.
+
+    Exit codes: 3 the answer failed (provider or store); 4 the spending cap stopped it.
+    """
     from verity.agent import create_default_agent
     from verity.agent.scripted_stub import build_stub_router
     from verity.llm import create_default_routing_client
+    from verity.llm.budget import SpendCappedClient
+
+    cap = budget_usd if budget_usd is not None else get_settings().ask_budget_usd
+    if cap <= 0:
+        raise typer.BadParameter("--budget-usd must be positive")
 
     if not stub:
         _require_llm_api_key()
 
     retriever, _ = asyncio.run(_build_retriever(corpus=corpus, store=store, no_rerank=False))
-    client = build_stub_router() if stub else create_default_routing_client()
+    router = build_stub_router() if stub else create_default_routing_client()
+    client = SpendCappedClient(router, cap_usd=cap)
     agent = create_default_agent(retriever=retriever, client=client)
     answer = asyncio.run(agent.answer(question))
     _print_answer(answer)
@@ -418,14 +437,18 @@ async def _run_retrieve(
 
 def _print_answer(answer: Answer) -> None:
     """Render an :class:`Answer` for the terminal — refuses visibly when refused."""
+    from verity.types import ErrorKind
+
     if answer.confidence is None:
-        kind = answer.error.kind.value if answer.error else "unknown"
+        kind = answer.error.kind if answer.error else None
         detail = answer.error.detail if answer.error else ""
         console.print(
-            f"[bold red]ERROR[/bold red] ({kind}) · trace_id=[dim]{answer.trace_id}[/dim]"
+            f"[bold red]ERROR[/bold red] ({kind.value if kind else 'unknown'}) · "
+            f"trace_id=[dim]{answer.trace_id}[/dim]"
         )
         console.print(detail)
-        raise typer.Exit(code=3)
+        _print_usage(answer)
+        raise typer.Exit(code=4 if kind is ErrorKind.BUDGET_EXCEEDED else 3)
     header = (
         "[bold red]REFUSED[/bold red]"
         if answer.confidence.refused
@@ -452,6 +475,11 @@ def _print_answer(answer: Answer) -> None:
             cit.add_row(str(i), str(c.chunk_id), f"{c.char_start}-{c.char_end}", c.quote)
         console.print(cit)
 
+    _print_usage(answer)
+
+
+def _print_usage(answer: Answer) -> None:
+    """Tokens and cost, also of a failed answer: what it spent before it stopped."""
     console.print()
     usage = Table(show_header=False, box=None)
     usage.add_column(style="dim")

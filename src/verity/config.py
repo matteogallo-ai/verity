@@ -77,6 +77,9 @@ class Settings(BaseSettings):
     llm_timeout_s: float = Field(default=30.0, gt=0.0)
     llm_max_retries: int = Field(default=2, ge=0)
     model_prices: dict[str, ModelPrice] = Field(default_factory=lambda: dict(DEFAULT_MODEL_PRICES))
+    # Default cap for one `verity ask`. A live answer on the default model costs about
+    # $0.02-0.05; $1 stops a runaway call without getting in the way of a normal one.
+    ask_budget_usd: float = Field(default=1.0, gt=0.0)
 
     # --- Refusal (headline feature) ---------------------------------------------------
     confidence_threshold: float = Field(
