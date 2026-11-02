@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 from collections.abc import Sequence
 
+import psycopg
 import pytest
 
 from verity.db import apply_pending
@@ -97,6 +98,13 @@ async def test_upsert_dense_sparse_roundtrip(migrated_db: str, tmp_path) -> None
     assert result2.failures == []
     after = await store.count_chunks()
     assert before == after
+
+    listed = {d.uri: d.n_chunks for d in await store.list_documents()}
+    assert all(listed[u] >= 1 for u in uris)
+
+    # The database is shared with the retrieval gate: leave only the shipped corpus.
+    async with await psycopg.AsyncConnection.connect(migrated_db) as conn:
+        await conn.execute("DELETE FROM documents WHERE uri = ANY(%s)", (uris,))
 
 
 @pytest.mark.asyncio

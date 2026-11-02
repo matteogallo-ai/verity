@@ -21,8 +21,8 @@ make demo
 Or manually, two shells:
 
 ```bash
-# Shell 1 — API (stub agent, in-memory store, corpus preloaded, auth off for dev):
-VERITY_API_AUTH_DISABLED=true uv run verity serve --port 8000
+# Shell 1 — API (stub agent, no database, corpus preloaded, auth off for dev):
+VERITY_STORE=memory VERITY_API_AUTH_DISABLED=true uv run verity serve --port 8000
 
 # Shell 2 — Next dev server:
 cd web

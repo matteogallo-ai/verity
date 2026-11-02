@@ -1,5 +1,5 @@
 """Integration: full FastAPI app running with a real OTelTracer + a real
-in-memory retriever + scripted agent — no pgvector required.
+in-memory retriever + scripted agent; ``test_api_pgvector`` covers the default store.
 
 Boots the app via httpx's ASGI transport, issues a couple of real
 ``agent.answer`` calls to populate the tracer, then asserts the /metrics

@@ -64,7 +64,7 @@ def create_app(
     (session spans populate ``/metrics``) or ``None`` (all session aggregates
     read zero — endpoints still respond 200). ``runs_dir`` + ``dataset``
     control which persisted eval runs the dashboard surfaces. ``corpus_dir``
-    is preloaded into the shared in-memory store on first request so the
+    is upserted into the configured store on first request so the
     demo UI can ask questions immediately. ``settings`` defaults to the process
     settings; without API keys the app refuses to start unless authentication is
     explicitly disabled.

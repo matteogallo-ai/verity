@@ -48,7 +48,7 @@ CI job `claims` runs those tests.
 - Verbatim citations: every quote is a substring of its source document; others are dropped (C01).
 - Threshold-gated refusal with a rationale (C02); unparseable scorer output is refused (C03).
 - Hybrid retrieval: dense + sparse, reciprocal rank fusion, cross-encoder rerank (C04).
-- Two vector stores: in-memory with cosine and BM25 (C05); Postgres + pgvector with full-text search (C06).
+- Two vector stores: in-memory with cosine and BM25 (C05); Postgres + pgvector with full-text search (C06), the default for the API, the demo and the eval (C22).
 - Markdown and plain-text ingestion with structure-aware chunking and machine-independent ids (C07); PDF and DOCX through docling (C08).
 - Multi-provider LLM routing with fallback, stopping on authentication errors (C09).
 - Per-request provenance: each answer records the model that actually served it (C10).
@@ -91,8 +91,8 @@ Every value in the table is copied from the committed scorecard JSON by
 `scope` and `n_denominator`. The full audit trail (per-question answer, citations,
 per-claim judge verdict) is
 [`datasets/eval/runs/live/eval_d0ca1d5_questions.json`](datasets/eval/runs/live/eval_d0ca1d5_questions.json).
-Retrieval numbers come from the in-memory store (BM25 sparse arm), the default of
-`verity eval run`. Definitions: [`docs/evaluation-methodology.md`](docs/evaluation-methodology.md).
+Retrieval numbers come from the in-memory store (BM25 sparse arm), which that run
+used; `verity eval run` now defaults to pgvector (`--store memory` reproduces it). Definitions: [`docs/evaluation-methodology.md`](docs/evaluation-methodology.md).
 
 ## Open issues: what the numbers do not say
 
@@ -126,7 +126,6 @@ Not implemented, or implemented without a test. Each item is a `roadmap` row in
 
 - Web-page ingestion: the trafilatura parser exists but no test exercises it (C30).
 - Calibrated refusal: measure calibration (ECE, reliability diagram) before claiming it (C21).
-- pgvector as the default store for the API, the demo and the reference eval (C22).
 - Prompt-injection defence for ingested documents, with adversarial tests (C24).
 - A Docker image that serves live answers: today it lacks `prompts/` and `migrations/` (C26).
 - A judge validated against human labels, from a different model family (C27).
@@ -142,8 +141,8 @@ flowchart LR
         chunker --> embedder[BAAI/bge-small-en-v1.5]
     end
 
+    embedder --> pg[(pgvector, default<br/>HNSW + FTS)]
     embedder --> mem[(in-memory store<br/>cosine + BM25)]
-    embedder --> pg[(pgvector<br/>HNSW + FTS)]
 
     subgraph Retrieve["Hybrid retrieval"]
         query[/"query"/] --> dense[dense search]
@@ -153,9 +152,9 @@ flowchart LR
         rrf --> rerank[cross-encoder<br/>ms-marco-MiniLM]
     end
 
-    mem --> dense
-    mem --> sparse
-    pg -.->|verity retrieve / eval retrieval --no-in-memory| dense
+    mem -.->|VERITY_STORE=memory| dense
+    pg --> dense
+    pg --> sparse
 
     subgraph Agent["Agent"]
         rerank --> decompose[decompose]
@@ -182,21 +181,23 @@ Stage-by-stage description: [`docs/architecture.md`](docs/architecture.md).
 ```bash
 git clone https://github.com/matteogallo-ai/verity && cd verity
 uv sync --dev                              # Python 3.12; CPU-only torch on Linux
-uv run verity eval run --ci                # pipeline smoke test on stubs, offline, ~10 s
-make demo                                  # API :8000 + Next.js :3000, stub agent, offline
+VERITY_STORE=memory uv run verity eval run --ci  # pipeline smoke test on stubs, no database
+make demo                                  # pgvector + API :8000 + Next.js :3000, stub agent
 ```
 
 The first run downloads the embedding and reranker models (~200 MB) into the
-Hugging Face cache. `make demo` needs Node 22 and corepack.
+Hugging Face cache. `make demo` needs Docker (for pgvector), Node 22 and corepack.
 
-pgvector path (the integration tests and `verity retrieve --no-in-memory` use it):
+pgvector is the default store (`VERITY_STORE`, or `--store` on the CLI); every command
+that reads the corpus first upserts it, idempotently:
 
 ```bash
 docker compose up -d db                    # pgvector on :5432
 uv run verity db upgrade                   # apply migrations
-uv run verity ingest datasets/corpus       # parse → chunk → embed → upsert into pgvector
-uv run verity eval retrieval --no-in-memory
+uv run verity eval retrieval               # ingests datasets/corpus, then scores retrieval
 ```
+
+`VERITY_STORE=memory` runs everything in process memory, without a database.
 
 Reproducing the v1.0.0 headline calls Anthropic models (the original run cost
 $0.27):
@@ -244,7 +245,7 @@ Human audits caught what the agents and CI did not:
 
 ## Stack
 
-Python 3.12 · FastAPI · Postgres + pgvector, or an in-memory store · local
+Python 3.12 · FastAPI · Postgres + pgvector (or an in-memory store) · local
 embeddings and cross-encoder reranker (offline, no keys) · Anthropic and OpenAI
 clients behind an ordered fallback router · OpenTelemetry spans (in-process) +
 structlog · Next.js 15 UI. Tooling: uv · ruff · mypy strict · vulture · deptry ·

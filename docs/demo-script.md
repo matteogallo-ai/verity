@@ -8,7 +8,7 @@ demo session.
 ## Setup
 
 ```bash
-make demo          # FastAPI (stub agent, in-memory store) on :8000 + Next.js on :3000
+make demo          # pgvector (Docker) + FastAPI (stub agent) on :8000 + Next.js on :3000
 ```
 
 The UI shows the stub-mode banner and a yellow `stub-agent` provenance badge on every
@@ -38,7 +38,7 @@ threshold, with the stub's rationale and the hits it refused against.
 Terminal:
 
 ```bash
-uv run verity eval run --ci                  # pipeline smoke test on stubs, ~10 s
+VERITY_STORE=memory uv run verity eval run --ci  # pipeline smoke test on stubs, ~10 s
 uv run verity eval compare                   # diff across runs with matching provenance
 jq '.refusal_calibration, .provenance' scorecards/live-v1.0.0.json
 ```

@@ -74,7 +74,7 @@ async def ingest_endpoint(
     request: Request,
     file: Annotated[UploadFile, File(description="Document to ingest (pdf, docx, md, txt).")],
 ) -> IngestResponse:
-    """Ingest one uploaded file into the in-memory store.
+    """Ingest one uploaded file into the configured store.
 
     The document id is ``uuid5(NAMESPACE_URL, "upload://<sha256><ext>")``: the same
     bytes with the same extension always yield the same id, whatever the file name

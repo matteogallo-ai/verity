@@ -21,14 +21,16 @@ dense and sparse; the reranker orders the top-k the agent reasons over. Each sta
 traced span (latency, hit count).
 
 Two `VectorStore` implementations exist:
-- `InMemoryVectorStore`: cosine dense search + BM25 (`rank-bm25`). Used by `verity ask`,
-  `verity eval run` and the API (`verity serve`) by default; the corpus is ingested at
-  start-up.
-- `PgVectorStore`: pgvector HNSW dense search + Postgres full-text search (`ts_rank`).
-  Written by `verity ingest`, read by `verity retrieve --no-in-memory` and
-  `verity eval retrieval --no-in-memory`, and exercised by the integration test lane and the CI retrieval
-  gate. BM25 and `ts_rank` are different sparse scorers; their rankings have not been
-  compared.
+- `PgVectorStore` (default, `VERITY_STORE=pgvector`): pgvector HNSW dense search +
+  Postgres full-text search (`ts_rank` over the OR of the query's lexemes). Used by the
+  API, `make demo`, every CLI command and the CI retrieval gate. The corpus is upserted
+  on first use; ids are content-addressed, so re-ingesting is a no-op.
+- `InMemoryVectorStore` (`VERITY_STORE=memory`, `--store memory`): cosine dense search +
+  BM25 (`rank-bm25`). Used by the unit tests and wherever no database is available.
+
+BM25 and `ts_rank` are different sparse scorers. `tests/integration/test_sparse_parity.py`
+measures them on the 19 eval questions: the gold chunk is in both top 5s for every
+answerable question, and the top hit agrees on 17 of 19.
 
 ### 3. Agentic RAG (`verity.agent`)
 `QuestionDecomposer → (multi-step retrieve) → synthesize with citations → ConfidenceScorer`.

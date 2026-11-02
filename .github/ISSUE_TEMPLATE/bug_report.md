@@ -21,4 +21,4 @@ labels: bug
 - Verity commit:
 - OS / Python version:
 - Mode: stub / live (which provider and model)
-- Store: in-memory / pgvector
+- Store (`VERITY_STORE`): pgvector / memory
