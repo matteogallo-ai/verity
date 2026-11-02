@@ -73,6 +73,13 @@ def test_a_hash_without_heading_text_is_not_a_heading() -> None:
         assert document.title == "generated"
 
 
+def test_unicode_spaces_after_the_separator_still_make_a_heading() -> None:
+    """Only the separator after ``#`` must be a space or tab (CommonMark)."""
+    raw = "# \u00a0Title".encode()
+    document = asyncio.run(MarkdownParser().parse("file:///corpus/generated.md", raw))
+    assert document.title == "Title"
+
+
 @given(_MARKDOWN_BYTES)
 def test_markdown_title_is_the_first_heading_or_the_file_stem(raw: bytes) -> None:
     document = asyncio.run(MarkdownParser().parse("file:///corpus/generated.md", raw))

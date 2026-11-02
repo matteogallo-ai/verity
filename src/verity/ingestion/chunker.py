@@ -200,7 +200,7 @@ class StructureAwareChunker:
         return chunks
 
     def _carry(self, emitted: list[_Paragraph]) -> tuple[list[_Paragraph], int, int]:
-        """The overlap kept after emitting ``emitted``: (buffer, its word count, 0 fresh)."""
+        """One place resets the buffer after an emit, so the fresh count cannot drift."""
         carried = emitted[-self._overlap :] if self._overlap > 0 else []
         return carried, sum(p.word_count for p in carried), 0
 

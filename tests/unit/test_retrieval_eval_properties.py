@@ -100,9 +100,7 @@ def test_retrieval_metrics_are_shares_with_the_documented_denominators(
 
 
 @given(_RETRIEVED, _GOLD.filter(bool), st.integers(1, 9))
-def test_recall_never_drops_when_k_grows(
-    retrieved: list[str], gold: set[str], k: int
-) -> None:
+def test_recall_never_drops_when_k_grows(retrieved: list[str], gold: set[str], k: int) -> None:
     assert recall_at_k(retrieved, gold, k + 1) >= recall_at_k(retrieved, gold, k)
 
 
