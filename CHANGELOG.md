@@ -11,6 +11,8 @@ follows [Semantic Versioning](https://semver.org/).
 - `verity ask --budget-usd` (default `VERITY_ASK_BUDGET_USD`, $1): before each LLM call,
   spend so far plus that call's worst-case cost must fit the cap, else the answer stops
   with error kind `budget_exceeded`, exit 4, and the spend so far printed.
+- `/ask` spending budget per API key over a sliding window (`VERITY_API_BUDGET_USD`, $5;
+  `VERITY_API_BUDGET_WINDOW_S`, 3600 s); over budget is `429` with `Retry-After`.
 
 ### Fixed
 

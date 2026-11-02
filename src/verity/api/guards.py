@@ -1,5 +1,5 @@
-"""Request guards for the HTTP API: API-key authentication, per-key rate limit, and
-upload type checks.
+"""Request guards for the HTTP API: API-key authentication, per-key rate limit, per-key
+spending budget, and upload type checks.
 
 Everything here is deterministic and in process: one API process serves one tenant
 (see SECURITY.md), so the limiter does not need shared state across processes.
@@ -49,6 +49,55 @@ class RateLimiter:
         return None
 
 
+class SpendBudget:
+    """At most ``budget_usd`` of LLM spend per ``window_s`` seconds, per principal.
+
+    Spend is recorded after each answer from the cost it reports, so a request is
+    admitted while the window's spend is under budget and may overshoot it by that
+    one answer (bounded by the per-call ``max_tokens`` and the question size limit).
+    """
+
+    def __init__(
+        self,
+        *,
+        budget_usd: float,
+        window_s: float,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self._budget_usd = budget_usd
+        self._window_s = window_s
+        self._clock = clock
+        self._spend: dict[str, deque[tuple[float, float]]] = {}
+
+    def _current(self, principal: str) -> deque[tuple[float, float]]:
+        now = self._clock()
+        spend = self._spend.setdefault(principal, deque())
+        while spend and spend[0][0] <= now - self._window_s:
+            spend.popleft()
+        return spend
+
+    def record(self, principal: str, cost_usd: float) -> None:
+        if cost_usd > 0:
+            self._current(principal).append((self._clock(), cost_usd))
+
+    def exhausted(self, principal: str) -> float | None:
+        """``None`` while under budget, else the seconds until enough spend expires."""
+        spend = self._current(principal)
+        total = sum(cost for _, cost in spend)
+        if total < self._budget_usd:
+            return None
+        for at, cost in spend:
+            total -= cost
+            if total < self._budget_usd:
+                return at + self._window_s - self._clock()
+        raise AssertionError("unreachable: the loop empties the window")
+
+
+def retry_after_header(seconds: float) -> dict[str, str]:
+    """``Retry-After`` in whole seconds, rounded up and at least 1, as HTTP requires."""
+    return {"Retry-After": str(max(1, math.ceil(seconds)))}
+
+
 def _principal_for(supplied: str | None, settings: Settings) -> str | None:
     """The configured key ``supplied`` matches, by index; ``None`` if none does.
 
@@ -85,7 +134,7 @@ async def require_api_key(request: Request) -> str:
         raise HTTPException(
             status_code=429,
             detail="Rate limit exceeded.",
-            headers={"Retry-After": str(max(1, math.ceil(retry_after)))},
+            headers=retry_after_header(retry_after),
         )
     structlog.contextvars.bind_contextvars(principal=principal)
     return principal
@@ -147,7 +196,9 @@ def _is_utf8(content: bytes) -> bool:
 __all__ = [
     "ALLOWED_EXTENSIONS",
     "RateLimiter",
+    "SpendBudget",
     "UploadRejectedError",
     "check_upload",
     "require_api_key",
+    "retry_after_header",
 ]

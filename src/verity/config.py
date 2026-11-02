@@ -112,6 +112,11 @@ class Settings(BaseSettings):
     # deliberate choice (local development), never the result of a missing variable.
     api_auth_disabled: bool = False
     api_rate_limit_per_minute: int = Field(default=30, gt=0)
+    # Spending budget per key over a sliding window, from the cost each /ask reports.
+    # $5 an hour is about 100 live answers on the default model: room for a team's
+    # interactive use, a ceiling on a leaked or looping key.
+    api_budget_usd: float = Field(default=5.0, gt=0.0)
+    api_budget_window_s: float = Field(default=3600.0, gt=0.0)
 
     # --- Observability ----------------------------------------------------------------
     # None → spans stay in the in-process exporter only (backs /metrics).

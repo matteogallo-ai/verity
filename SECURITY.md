@@ -35,6 +35,20 @@ rejected alternatives are in [ADR 0006](docs/adr/0006-api-security-baseline.md).
   aggregate latency and cost, never document text.
 - **Rate limit.** 30 requests per minute per key on `/ask` and `/ingest`, sliding
   window, `429` with `Retry-After`. In process: N API processes allow N × the limit.
+- **Spending budget.** `/ask` spend per key is capped at `VERITY_API_BUDGET_USD`
+  ($5 by default) over a sliding `VERITY_API_BUDGET_WINDOW_S` (3600 s), counted from
+  the cost each answer reports, including answers that fail after paying for some
+  calls. Over budget is `429` with `Retry-After` and a generic body. A request is
+  admitted while the key is under budget, so the budget can be overshot by the
+  answers in flight when it is crossed. In process: N API processes allow
+  N × the budget, and a restart resets it (`tests/unit/test_api_hardening.py`).
+- **Bounded LLM calls.** Each answer makes at most 3 LLM calls with `max_tokens`
+  256, 512 and 256, each under `VERITY_LLM_TIMEOUT_S` (30 s) and
+  `VERITY_LLM_MAX_RETRIES` (2) per provider. `verity ask` stops before any call
+  whose worst-case cost (input bytes as tokens, `max_tokens` as output, the dearest
+  configured provider) would take the answer past `--budget-usd`
+  (`VERITY_ASK_BUDGET_USD`, $1 by default): exit 4, spend so far printed
+  (`tests/unit/test_budget.py`).
 - **Input bounds.** Questions up to 2000 characters (`422`). Request bodies are checked
   on `Content-Length` before parsing (`411` without one, `413` over the limit); uploads
   up to 1 MiB (`413`).
@@ -64,7 +78,7 @@ rejected alternatives are in [ADR 0006](docs/adr/0006-api-security-baseline.md).
 |---|---|---|
 | Indirect prompt injection (instructions inside ingested documents) | **Partial** | Evidence, question and draft answer enter the prompts only inside delimiters, with document text unable to close them, and every prompt says they are untrusted data (`tests/unit/test_prompt_injection.py`). Before the scorer runs, a deterministic check refuses a draft that cites a document carrying an injection marker (verdict keys as JSON, "ignore previous instructions", role lines), whose words its quotes do not cover, or whose citations the reranker scores irrelevant (`verity.agent.support`, `tests/unit/test_support.py`). Adversarial eval questions q-017..q-019 run against a poisoned corpus document with a model that obeys it (`tests/unit/test_adversarial.py`). **Not stopped:** an injection paraphrased past the marker list, and a document that states a false fact relevant to the question. The marker list and the thresholds were tuned on the same 16 questions they are checked on. |
 | Corpus poisoning | **Partial** | Upload needs an API key, is size- and type-checked and capped at 200 documents, but any key holder can add a document every other client then retrieves, and with pgvector it persists. Control what is ingested. |
-| Cost / denial of wallet | **Partial** | `/ask` needs a key and is rate-limited per key; a live answer makes 3 LLM calls under SDK timeouts and bounded retries. No per-key spending budget. `verity eval run --budget-usd` caps an eval run; `verity ask` has no cap. |
+| Cost / denial of wallet | **Partial** | `/ask` needs a key, is rate-limited per key and has a per-key spending budget per window; a live answer makes at most 3 LLM calls with bounded `max_tokens`, SDK timeouts and bounded retries. `verity ask --budget-usd` stops an answer before a call that could cross the cap; `verity eval run --budget-usd` aborts a run once its cumulative cost crosses the cap. **Not stopped:** spend multiplied across API processes or restarts (the budget is in process), many keys, and the overshoot of the answers in flight when a key's budget is crossed. |
 | Information disclosure | **Partial** | Answers quote only ingested documents and errors are generic. Every key holder can query every document; the public read-only endpoints list corpus file names. |
 | Secret leakage | **Mitigated** | Provider keys and API keys are read from the environment only and held as `SecretStr`, so `repr()` / `str()` / `model_dump()` of the settings do not show them (`tests/unit/test_config.py::test_api_keys_never_appear_in_settings_repr`); API keys are never logged. The raw provider key is passed to the provider SDK client. |
 | Fabricated citations | **Mitigated** | A citation is kept only if its quote is a verbatim substring of the cited chunk (`tests/unit/test_citation_verbatim_invariant.py`, claim C01); an answer left without a citation is refused (`no_citation`). This does not prove the answer text is faithful. |
