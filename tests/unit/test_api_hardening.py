@@ -111,6 +111,42 @@ def test_rate_limiter_window_slides() -> None:
     assert limiter.hit("k") is None
 
 
+def test_repeated_bad_keys_are_throttled_per_client_even_for_the_right_key(
+    tmp_path: Path,
+) -> None:
+    """Brute force: after N failed keys from one client, that client is answered 429
+    without the key being checked, so a correct guess is not confirmed either."""
+    with api_app(tmp_path, _settings(api_auth_failures_per_minute=3)) as c:
+        for _ in range(3):
+            r = c.post("/ask", json={"question": _QUESTION}, headers={"X-API-Key": "guess"})
+            assert r.status_code == 401
+        blocked = c.post("/ask", json={"question": _QUESTION}, headers={"X-API-Key": _KEY})
+        assert blocked.status_code == 429
+        assert int(blocked.headers["Retry-After"]) >= 1
+
+
+def test_valid_requests_do_not_consume_the_auth_failure_budget(tmp_path: Path) -> None:
+    with api_app(tmp_path, _settings(api_auth_failures_per_minute=1)) as c:
+        c.headers["X-API-Key"] = _KEY
+        for _ in range(3):
+            assert c.post("/ask", json={"question": _QUESTION}).status_code == 200
+
+
+def test_auth_failure_buckets_are_bounded() -> None:
+    limiter = RateLimiter(limit=1, window_s=60.0, max_principals=2)
+    for client in ("a", "b", "c"):
+        assert limiter.hit(client) is None
+    assert limiter.n_principals == 2
+
+
+def test_retry_after_does_not_record_a_hit() -> None:
+    limiter = RateLimiter(limit=1, window_s=60.0)
+    assert limiter.retry_after("k") is None
+    assert limiter.retry_after("k") is None
+    assert limiter.hit("k") is None
+    assert limiter.retry_after("k") is not None
+
+
 # --- input bounds ----------------------------------------------------------------------
 
 

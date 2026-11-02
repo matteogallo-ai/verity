@@ -110,6 +110,9 @@ class Settings(BaseSettings):
     # deliberate choice (local development), never the result of a missing variable.
     api_auth_disabled: bool = False
     api_rate_limit_per_minute: int = Field(default=30, gt=0)
+    # Failed X-API-Key attempts per client address (brute force); see SECURITY.md for
+    # the reverse-proxy caveat.
+    api_auth_failures_per_minute: int = Field(default=10, gt=0)
 
     # --- Observability ----------------------------------------------------------------
     # None → spans stay in the in-process exporter only (backs /metrics).

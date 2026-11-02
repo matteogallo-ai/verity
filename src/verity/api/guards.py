@@ -10,7 +10,7 @@ from __future__ import annotations
 import hmac
 import math
 import time
-from collections import deque
+from collections import OrderedDict, deque
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -25,27 +25,55 @@ _ANONYMOUS = "anonymous"
 class RateLimiter:
     """Sliding-window limit of ``limit`` hits per ``window_s`` seconds, per principal.
 
-    Principals are configured keys (plus ``anonymous`` when auth is disabled), so the
-    number of buckets is bounded by configuration, not by client behaviour.
+    Principals are configured keys (plus ``anonymous`` when auth is disabled) or, for
+    failed authentications, client addresses. Addresses are chosen by the client, so
+    at most ``max_principals`` buckets are kept; the least recently hit is dropped.
     """
 
     def __init__(
-        self, *, limit: int, window_s: float, clock: Callable[[], float] = time.monotonic
+        self,
+        *,
+        limit: int,
+        window_s: float,
+        max_principals: int = 10_000,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._limit = limit
         self._window_s = window_s
+        self._max_principals = max_principals
         self._clock = clock
-        self._hits: dict[str, deque[float]] = {}
+        self._hits: OrderedDict[str, deque[float]] = OrderedDict()
+
+    @property
+    def n_principals(self) -> int:
+        return len(self._hits)
+
+    def _window(self, principal: str, now: float) -> deque[float]:
+        hits = self._hits.get(principal)
+        if hits is None:
+            return deque()
+        while hits and hits[0] <= now - self._window_s:
+            hits.popleft()
+        return hits
+
+    def retry_after(self, principal: str) -> float | None:
+        """Without recording a hit: ``None`` when allowed, else the seconds to wait."""
+        now = self._clock()
+        hits = self._window(principal, now)
+        if len(hits) >= self._limit:
+            return hits[0] + self._window_s - now
+        return None
 
     def hit(self, principal: str) -> float | None:
         """Record one hit. ``None`` when allowed, else the seconds until a slot frees."""
-        now = self._clock()
+        retry = self.retry_after(principal)
+        if retry is not None:
+            return retry
         hits = self._hits.setdefault(principal, deque())
-        while hits and hits[0] <= now - self._window_s:
-            hits.popleft()
-        if len(hits) >= self._limit:
-            return hits[0] + self._window_s - now
-        hits.append(now)
+        hits.append(self._clock())
+        self._hits.move_to_end(principal)
+        while len(self._hits) > self._max_principals:
+            self._hits.popitem(last=False)
         return None
 
 
@@ -75,20 +103,29 @@ async def require_api_key(request: Request) -> str:
     if settings.api_auth_disabled:
         principal = _ANONYMOUS
     else:
+        # Checked before the key: once a client has spent its failure budget, a right
+        # guess must not be distinguishable from a wrong one.
+        failures: RateLimiter = request.app.state.auth_failure_limiter
+        client = request.client.host if request.client else "unknown"
+        _raise_if_limited(failures.retry_after(client))
         found = _principal_for(request.headers.get("x-api-key"), settings)
         if found is None:
+            failures.hit(client)
             raise HTTPException(status_code=401, detail="Missing or invalid X-API-Key.")
         principal = found
     limiter: RateLimiter = request.app.state.rate_limiter
-    retry_after = limiter.hit(principal)
+    _raise_if_limited(limiter.hit(principal))
+    structlog.contextvars.bind_contextvars(principal=principal)
+    return principal
+
+
+def _raise_if_limited(retry_after: float | None) -> None:
     if retry_after is not None:
         raise HTTPException(
             status_code=429,
             detail="Rate limit exceeded.",
             headers={"Retry-After": str(max(1, math.ceil(retry_after)))},
         )
-    structlog.contextvars.bind_contextvars(principal=principal)
-    return principal
 
 
 # --- uploads ---------------------------------------------------------------------------

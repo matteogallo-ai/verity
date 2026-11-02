@@ -35,6 +35,12 @@ rejected alternatives are in [ADR 0006](docs/adr/0006-api-security-baseline.md).
   aggregate latency and cost, never document text.
 - **Rate limit.** 30 requests per minute per key on `/ask` and `/ingest`, sliding
   window, `429` with `Retry-After`. In process: N API processes allow N × the limit.
+- **Failed keys.** 10 missing or wrong `X-API-Key` attempts per minute per client
+  address (`VERITY_API_AUTH_FAILURES_PER_MINUTE`); past that the address gets `429`
+  before its key is checked, so a right guess is not confirmed either. The address is
+  the socket peer: behind a reverse proxy every client shares the proxy's address and
+  budget, so a proxy deployment needs its own limit. At most 10 000 addresses are
+  tracked; the least recently seen is forgotten first.
 - **Input bounds.** Questions up to 2000 characters (`422`). Request bodies are checked
   on `Content-Length` before parsing (`411` without one, `413` over the limit); uploads
   up to 1 MiB (`413`).

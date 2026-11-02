@@ -18,6 +18,7 @@ Every limit lives in `Settings` (env prefix `VERITY_`) and is checked in process
 | `X-API-Key` on `/ask` and `/ingest`; constant-time compare against every key | required | `api/guards.py::require_api_key` |
 | Start-up refuses to serve with no key unless `VERITY_API_AUTH_DISABLED=true` | on | `api/server.py::create_app` |
 | Sliding-window rate limit per key | 30 / minute, `429` + `Retry-After` | `api/guards.py::RateLimiter` |
+| Failed-key limit per client address, checked before the key | 10 / minute, `429` + `Retry-After` | `api/guards.py::require_api_key` |
 | Question length | 2000 characters, `422` | `api/router.py` |
 | Request body size, checked on `Content-Length` before parsing | upload limit + 16 KiB, `413`; no length `411` | `api/server.py` |
 | Upload size | 1 MiB, `413` | `config.py`, `api/server.py` |

@@ -106,6 +106,9 @@ def create_app(
     app.state.runtime = runtime
     app.state.settings = settings
     app.state.rate_limiter = RateLimiter(limit=settings.api_rate_limit_per_minute, window_s=60.0)
+    app.state.auth_failure_limiter = RateLimiter(
+        limit=settings.api_auth_failures_per_minute, window_s=60.0
+    )
     _install_request_context(app, settings)
     app.include_router(api_router)
 
