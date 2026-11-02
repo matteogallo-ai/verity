@@ -59,6 +59,7 @@ CI job `claims` runs those tests.
 - Per-stage tracing behind `/metrics`, `/metrics/prom` and `/dashboard` (C17); optional OTLP export, bounded in-memory spans (C29).
 - HTTP API with `/status`, `/ask` and content-addressed `/ingest` (C18), and a Next.js UI with citation highlighting and a provenance badge (C19).
 - Provider API keys held as secrets, absent from any printed settings (C20).
+- `docker compose up`: non-root image, Postgres, migrations, corpus ingestion and the API in order, smoke-tested in CI (C26).
 - API hardening: API keys on `/ask` and `/ingest`, per-key rate limit, bounded inputs, file-type allow-list, generic errors with a request ID (C23).
 - Prompt-injection defence: delimited, untrusted-labelled evidence, and a deterministic support check (citation coverage, cited relevance, injection markers) the model's score cannot override; adversarial eval questions (C24).
 - Provider and store outages reported as errors (HTTP 503), never as refusals (C25).
@@ -127,7 +128,6 @@ Not implemented, or implemented without a test. Each item is a `roadmap` row in
 
 - Web-page ingestion: the trafilatura parser exists but no test exercises it (C30).
 - Calibrated refusal: measure calibration (ECE, reliability diagram) before claiming it (C21).
-- A Docker image that serves live answers: today it lacks `prompts/` and `migrations/` (C26).
 - A judge validated against human labels, from a different model family (C27).
 - ≥ 80 questions with a frozen dev/test split; micro and macro aggregates (C28).
 
@@ -198,6 +198,15 @@ uv run verity eval retrieval               # ingests datasets/corpus, then score
 ```
 
 `VERITY_STORE=memory` runs everything in process memory, without a database.
+
+Everything in containers (the image embeds the local models; no provider key means stub
+mode):
+
+```bash
+VERITY_API_KEYS='["a-long-random-key"]' docker compose up   # or VERITY_API_AUTH_DISABLED=true
+curl -H 'X-API-Key: a-long-random-key' -H 'content-type: application/json' \
+  -d '{"question": "What is the notice period?"}' http://127.0.0.1:8000/ask
+```
 
 Reproducing the v1.0.0 headline calls Anthropic models (the original run cost
 $0.27):

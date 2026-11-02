@@ -221,6 +221,17 @@ jobs:
             --floor-ndcg 0.5 \
             --floor-recall 0.75
 
+  docker:
+    name: docker (image build + compose stack smoke test)
+    runs-on: ubuntu-latest
+    # Builds the image, brings up db → migrate → ingest → app with Compose and checks
+    # /health, a non-empty /status corpus, 401 without a key and one stub /ask.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compose smoke test
+        run: scripts/docker_smoke.sh
+
   web:
     name: web (Next.js UI · Node 22 · pnpm@9)
     runs-on: ubuntu-latest

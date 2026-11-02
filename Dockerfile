@@ -1,20 +1,50 @@
 # syntax=docker/dockerfile:1
-FROM python:3.12-slim
+# Build stage: resolve the locked dependencies into a virtualenv, install Verity as a
+# wheel (prompts/ and migrations/ ride inside it, see verity.resources) and download
+# the embedding and reranker models, so the runtime image needs no network.
+FROM python:3.12-slim AS builder
 
-ENV PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    UV_SYSTEM_PYTHON=1
+COPY --from=ghcr.io/astral-sh/uv:0.11.14 /uv /usr/local/bin/uv
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=never \
+    HF_HOME=/opt/hf
 
 WORKDIR /app
+# Dependencies first: this layer is reused until uv.lock changes.
+COPY pyproject.toml uv.lock README.md ./
+RUN uv sync --frozen --no-dev --no-install-project
 
-# uv for fast, reproducible installs
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-
-COPY pyproject.toml README.md ./
 COPY src ./src
+COPY prompts ./prompts
+COPY migrations ./migrations
+RUN uv sync --frozen --no-dev --no-editable
 
-RUN uv pip install --system -e .
+# The model names come from Settings, so the image holds the models the app loads.
+RUN /app/.venv/bin/python -c "\
+from sentence_transformers import CrossEncoder, SentenceTransformer; \
+from verity.config import get_settings; \
+s = get_settings(); \
+SentenceTransformer(s.embedding_model); CrossEncoder(s.reranker_model)"
 
+# Runtime stage: the virtualenv, the models and the demo corpus; no compiler, no uv,
+# no source tree. Runs as an unprivileged user.
+FROM python:3.12-slim
+
+RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin verity
+WORKDIR /app
+COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /opt/hf /opt/hf
+COPY datasets/corpus ./datasets/corpus
+
+ENV PATH=/app/.venv/bin:$PATH \
+    PYTHONUNBUFFERED=1 \
+    HF_HOME=/opt/hf \
+    HF_HUB_OFFLINE=1
+
+USER verity
 EXPOSE 8000
 ENTRYPOINT ["verity"]
-CMD ["serve"]
+# 0.0.0.0 inside the container only; docker-compose.yml publishes the port on the
+# host's loopback interface.
+CMD ["serve", "--host", "0.0.0.0", "--port", "8000"]

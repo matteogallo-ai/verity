@@ -57,7 +57,8 @@ uv run python scripts/generate_headline_results.py --check # README results bloc
 VERITY_STORE=memory uv run verity eval run --ci            # pipeline smoke test on stubs (no keys, no db)
 VERITY_API_AUTH_DISABLED=true uv run verity serve --port 8000  # API on pgvector, dev: no auth, stub without LLM key
 make demo                                                  # pgvector + API + web UI, stub mode
-docker compose up                                          # db + app; the image lacks prompts/ and migrations/ (C26)
+VERITY_API_AUTH_DISABLED=true docker compose up            # db → migrate → ingest → app on 127.0.0.1:8000 (C26)
+scripts/docker_smoke.sh                                    # build + compose + /health /status /ask (CI job docker)
 cd web && corepack pnpm lint && corepack pnpm typecheck && corepack pnpm test
 ```
 
