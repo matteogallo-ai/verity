@@ -4,13 +4,16 @@ Rule 2 of docs/ENGINEERING_STANDARDS.md: shipped code says what the code does
 now. Sprint labels ("S4.2"), promises ("lands in S3", "coming in v1.2") and
 TODOs without an issue link go stale the moment they are merged.
 
-Scanned: src/, docs/, prompts/, README.md, web/README.md, datasets/eval/README.md
-(text files only). Excluded: docs/ENGINEERING_STANDARDS.md (quotes the patterns as
-examples) and CHANGELOG.md (history is its job).
+Scanned: src/, docs/, prompts/, tests/, web/, .github/, Makefile, README.md,
+datasets/eval/README.md (text files only; node_modules/ and .next/ skipped).
+Excluded: docs/ENGINEERING_STANDARDS.md (quotes the patterns as examples),
+CHANGELOG.md (history is its job), tests/unit/test_check_stale_narrative.py and
+tests/unit/test_check_commit_messages.py (their fixtures quote the patterns).
 
 What it checks, per line:
 - ``sprint``: a sprint label S0-S7, optionally with a sub-number (S4.2), a range
-  (S4-S7, S1-S4) or a plus (S3+);
+  (S4-S7, S1-S4), a plus (S3+) or a hyphenated word (S3-established);
+  "S3-compatible" and "Amazon S3" / "AWS S3" are the storage service;
 - ``future``: "lands / landing / landed / wired in|at S<n>|v<n>",
   "coming / planned / scheduled in|for S<n>|v<n>", "Implementation(s) coming";
 - ``todo``: TODO / FIXME / XXX not followed by an issue link "(#<number>)".
@@ -34,10 +37,20 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-SCANNED_DIRS = ("src", "docs", "prompts")
-SCANNED_FILES = ("README.md", "web/README.md", "datasets/eval/README.md")
-EXCLUDED = frozenset({"docs/ENGINEERING_STANDARDS.md", "CHANGELOG.md"})
-TEXT_SUFFIXES = frozenset({".py", ".md", ".prompt", ".sql", ".txt", ".toml", ".yml", ".yaml"})
+SCANNED_DIRS = ("src", "docs", "prompts", "tests", "web", ".github")
+SCANNED_FILES = ("Makefile", "README.md", "datasets/eval/README.md")
+EXCLUDED = frozenset(
+    {
+        "docs/ENGINEERING_STANDARDS.md",
+        "CHANGELOG.md",
+        "tests/unit/test_check_stale_narrative.py",
+        "tests/unit/test_check_commit_messages.py",
+    }
+)
+SKIPPED_PARTS = frozenset({"__pycache__", "node_modules", ".next"})
+TEXT_SUFFIXES = frozenset(
+    {".py", ".md", ".prompt", ".sql", ".txt", ".toml", ".yml", ".yaml", ".ts", ".tsx", ".css"}
+)
 
 _SPRINT = r"S[0-7](?:\.\d+)?"
 PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
@@ -45,10 +58,11 @@ PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
         "sprint",
         # Not preceded by a word character, a path separator, a dot or
         # "Amazon "/"AWS " (the storage service); a hyphen may precede ("pre-S6.1");
-        # ranges accept a hyphen or an en dash (\u2013).
+        # ranges accept a hyphen or an en dash (\u2013). A hyphen may follow only
+        # before a word ("S3-established"), and "S3-compatible" is the storage API.
         re.compile(
             rf"(?<![\w/.])(?<!Amazon )(?<!AWS ){_SPRINT}"
-            rf"(?:\s*[-\u2013]\s*{_SPRINT}|\+)?(?![\w-])"
+            rf"(?:\s*[-\u2013]\s*{_SPRINT}|\+)?(?!\w|-compatible)"
         ),
     ),
     (
@@ -85,9 +99,9 @@ def iter_scanned_files(root: Path) -> Iterator[Path]:
     candidates.extend(root / f for f in SCANNED_FILES if (root / f).is_file())
     for path in sorted(set(candidates)):
         rel = path.relative_to(root).as_posix()
-        if rel in EXCLUDED or path.suffix not in TEXT_SUFFIXES:
+        if rel in EXCLUDED or (path.suffix not in TEXT_SUFFIXES and rel not in SCANNED_FILES):
             continue
-        if any(part in {"__pycache__", "node_modules"} for part in path.parts):
+        if SKIPPED_PARTS.intersection(path.relative_to(root).parts):
             continue
         yield path
 

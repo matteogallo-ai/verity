@@ -38,6 +38,7 @@ def _kinds(text: str) -> list[str]:
         "if S3+ needs conditionals",
         "the S1 invariant that citations point at real chunk text",
         "pre-S6.1 callers that build Answer",
+        "Floors are the S3-established gates",
     ],
 )
 def test_flags_sprint_labels(line: str) -> None:
@@ -89,16 +90,26 @@ def test_scan_respects_scope_and_exclusions(tmp_path: Path) -> None:
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "ENGINEERING_STANDARDS.md").write_text("Forbidden: lands in S<n>, S4.2\n")
     (tmp_path / "CHANGELOG.md").write_text("## S4.2 shipped\n")
-    (tmp_path / "tests").mkdir()
-    (tmp_path / "tests" / "t.py").write_text("# S4 regression\n")
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "tests" / "unit" / "t.py").write_text("# S4 regression\n")
+    (tmp_path / "tests" / "unit" / "test_check_stale_narrative.py").write_text("# S4 fixture\n")
+    (tmp_path / "Makefile").write_text("# demo path (S6)\n")
+    (tmp_path / ".github" / "workflows").mkdir(parents=True)
+    (tmp_path / ".github" / "workflows" / "ci.yml").write_text("# S3-established floors\n")
+    (tmp_path / "web").mkdir()
+    (tmp_path / "web" / "page.tsx").write_text("// S7 banner\n")
     (tmp_path / "README.md").write_text("ok\nEval harness (S4-S7)\n")
 
     findings = csn.scan(tmp_path)
 
     assert [str(f) for f in findings] == [
+        ".github/workflows/ci.yml:1: sprint: # S3-established floors",
+        "Makefile:1: sprint: # demo path (S6)",
         "README.md:2: sprint: Eval harness (S4-S7)",
         "src/a.py:1: sprint: x = 1  # lands in S3",
         "src/a.py:1: future: x = 1  # lands in S3",
+        "tests/unit/t.py:1: sprint: # S4 regression",
+        "web/page.tsx:1: sprint: // S7 banner",
     ]
 
 
