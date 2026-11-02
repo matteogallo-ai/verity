@@ -21,11 +21,11 @@ the draft ships or is replaced by a refusal.
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 
-from verity.config import get_settings
+from verity.agent.evidence import render_evidence
 from verity.llm.base import RoutingClient
+from verity.llm.json_output import parse_json_object
 from verity.llm.prompt import load_prompt
 from verity.types import Citation, Provider, RetrievalHit, UsageStats
 
@@ -72,8 +72,7 @@ class CitedSynthesizer:
         self.last_usage: UsageStats | None = None
 
     async def synthesize(self, question: str, hits: list[RetrievalHit]) -> SynthesisResult:
-        settings = get_settings()  # noqa: F841 — reserved for future max-hit trimming knobs
-        evidence = _render_evidence(hits)
+        evidence = render_evidence(hits, with_scores=False)
         messages = self._prompt.render(question=question, evidence=evidence)
         completion = await self._client.complete(
             messages, max_tokens=self._max_tokens, temperature=0.0
@@ -90,16 +89,6 @@ class CitedSynthesizer:
         )
 
 
-def _render_evidence(hits: list[RetrievalHit]) -> str:
-    lines: list[str] = []
-    for i, hit in enumerate(hits):
-        section = hit.chunk.section or "-"
-        # Strip trailing whitespace so the LLM sees a clean block per chunk.
-        body = hit.chunk.text.strip()
-        lines.append(f"[{i}] (section: {section})\n{body}")
-    return "\n\n".join(lines) if lines else "(no evidence available)"
-
-
 def _parse_synth_output(text: str) -> tuple[str, list[tuple[str, int]]]:
     """Extract ``(answer, [(quote, chunk_index), ...])`` from the LLM's JSON output.
 
@@ -108,14 +97,8 @@ def _parse_synth_output(text: str) -> tuple[str, list[tuple[str, int]]]:
     total parse failure return ``(text.strip(), [])`` so the citation validator
     drops the citations and the scorer refuses — safe path.
     """
-    candidate = _first_json_object(text) or text
-    try:
-        parsed = json.loads(candidate)
-    except json.JSONDecodeError:
-        return text.strip(), []
-    if isinstance(parsed, list):
-        parsed = next((item for item in parsed if isinstance(item, dict)), None)
-    if not isinstance(parsed, dict):
+    parsed = parse_json_object(text)
+    if parsed is None:
         return text.strip(), []
     answer = str(parsed.get("answer", "")).strip()
     citations_raw = parsed.get("citations", []) or []
@@ -131,20 +114,6 @@ def _parse_synth_output(text: str) -> tuple[str, list[tuple[str, int]]]:
                 if stripped:
                     citations.append((stripped, idx))
     return answer, citations
-
-
-def _first_json_object(text: str) -> str:
-    """Return the largest ``{...}`` slice, or the first ``[...]`` slice as a
-    fallback for models that wrap the response in a single-element array."""
-    start = text.find("{")
-    end = text.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        return text[start : end + 1]
-    array_start = text.find("[")
-    array_end = text.rfind("]")
-    if array_start != -1 and array_end != -1 and array_end > array_start:
-        return text[array_start : array_end + 1]
-    return ""
 
 
 def _validate_citations(
