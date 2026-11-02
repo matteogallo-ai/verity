@@ -53,6 +53,10 @@ def _fit_calibrators(pairs: Sequence[tuple[float, bool]]) -> dict[str, Calibrato
 
     x = np.array([s for s, _ in pairs])
     y = np.array([int(a) for _, a in pairs])
+    # Both maps need answerable and unanswerable scored examples; deterministic
+    # refusals carry no score, so dev can hold a single class.
+    if len(set(y.tolist())) < 2:
+        return {}
     isotonic = IsotonicRegression(y_min=0.0, y_max=1.0, out_of_bounds="clip").fit(x, y)
     platt = LogisticRegression().fit(x.reshape(-1, 1), y)
     return {
@@ -102,10 +106,13 @@ def analyse(dev: list[ScoredExample], test: list[ScoredExample] | None) -> dict[
     }
     if test is not None:
         test_pairs = calibration_pairs(test)
-        calibrated = {
+        calibrators = _fit_calibrators(dev_pairs)
+        calibrated: dict[str, Any] = {
             name: _calibration([(fn(s), a) for s, a in test_pairs])
-            for name, fn in _fit_calibrators(dev_pairs).items()
+            for name, fn in calibrators.items()
         }
+        if not calibrators:
+            calibrated["recalibration"] = "not fitted: dev scored examples hold one class"
         report["test"] = {
             "n": len(test),
             "at_chosen_threshold": _point_dict(refusal_point(test, chosen.threshold)),
@@ -130,8 +137,8 @@ def plot(report: dict[str, Any], path: Path) -> None:
     sizes = [20 + 8 * b["n"] for b in series["bins"] if b["n"]]
     left.plot(xs, ys, color="#3b6ea8", linewidth=1.5)
     left.scatter(xs, ys, s=sizes, color="#3b6ea8", zorder=3, label="bins (size = n)")
-    ece = series["ece"]
-    left.set_title(f"Reliability ({split}, n={series['n']}, ECE={ece:.3f})")
+    ece = "n/a" if series["ece"] is None else f"{series['ece']:.3f}"
+    left.set_title(f"Reliability ({split}, n={series['n']}, ECE={ece})")
     left.set_xlabel("confidence score")
     left.set_ylabel("fraction answerable")
     left.set_xlim(0, 1)

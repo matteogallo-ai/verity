@@ -61,3 +61,20 @@ def test_the_fallback_rule_is_applied_and_named_when_precision_is_out_of_reach()
     report = _module().analyse(dev, None)
     assert report["rule"].startswith("fallback")
     assert report["dev"]["chosen"]["threshold"] == pytest.approx(0.35)
+
+
+def test_single_class_dev_scores_skip_recalibration_instead_of_crashing(tmp_path: Path) -> None:
+    # Every unanswerable dev question was refused by a deterministic check (no score).
+    gate = RefusalReason.NO_CITATION
+    dev = [ScoredExample(False, 0.0, gate), _ex(True, 0.6), _ex(True, 0.9)]
+    report = _module().analyse(dev, _TEST)
+    assert report["test"]["calibration"]["recalibration"].startswith("not fitted")
+    assert "isotonic" not in report["test"]["calibration"]
+
+
+def test_a_run_without_scored_examples_still_plots(tmp_path: Path) -> None:
+    gate = RefusalReason.NO_CITATION
+    report = _module().analyse([ScoredExample(False, 0.0, gate)], None)
+    assert report["dev"]["calibration"]["ece"] is None
+    _module().plot(report, tmp_path / "r.png")
+    assert (tmp_path / "r.png").is_file()
