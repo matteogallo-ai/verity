@@ -237,7 +237,13 @@ class PgVectorStore:
             await conn.close()
 
     async def sparse_search(self, query: str, k: int) -> list[RetrievalHit]:
-        """FTS via ``websearch_to_tsquery`` + ``ts_rank`` over the generated tsvector."""
+        """Full-text search: any of the query's English lexemes, ranked by ``ts_rank``.
+
+        ``websearch_to_tsquery`` / ``plainto_tsquery`` AND every term, so a natural
+        question ("What is the notice period for ...?") matched no chunk at all for 14
+        of the 19 eval questions. OR-ing the lexemes, as BM25 does, lets ``ts_rank``
+        order partial matches. The cast re-parses the normalised lexemes as-is.
+        """
         if k <= 0 or not query.strip():
             return []
         conn = await self._connect()
@@ -245,12 +251,16 @@ class PgVectorStore:
             async with conn.cursor(row_factory=dict_row) as cur:
                 await cur.execute(
                     """
+                    WITH q AS (
+                        SELECT replace(plainto_tsquery('english', %(q)s)::text, '&', '|')
+                               ::tsquery AS tsq
+                    )
                     SELECT id, document_id, ordinal, char_start, char_end,
                            section, page, text, metadata,
-                           ts_rank(text_tsv, websearch_to_tsquery('english', %(q)s)) AS score
-                      FROM chunks
-                     WHERE text_tsv @@ websearch_to_tsquery('english', %(q)s)
-                     ORDER BY score DESC
+                           ts_rank(text_tsv, q.tsq) AS score
+                      FROM chunks, q
+                     WHERE text_tsv @@ q.tsq
+                     ORDER BY score DESC, id
                      LIMIT %(k)s
                     """,
                     {"q": query, "k": k},

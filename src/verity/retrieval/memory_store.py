@@ -6,14 +6,15 @@ Two reasons this exists:
    green with no Postgres running. A structural VectorStore that keeps chunks in a
    dict lets us exercise the retrieval assembly end-to-end offline.
 
-2. **Local eval without Docker.** ``verity eval retrieval --in-memory`` produces the
-   real scorecard on a laptop with no infra installed. The retriever and metrics
-   don't know which backend they're talking to — the numbers are legitimate
-   apples-to-apples with the pgvector run.
+2. **Local runs without Docker.** ``VERITY_STORE=memory`` runs the CLI, the API and
+   the eval with no database.
 
-We use ``rank_bm25.BM25Okapi`` for the sparse channel (already a dep, mirrors what
-Postgres' FTS does at a small scale) and numpy cosine for dense. Both indexes are
-rebuilt on ``upsert`` — fine at the small corpus sizes this backend targets.
+The sparse channel is ``rank_bm25.BM25Okapi``; Postgres uses ``ts_rank`` on English
+lexemes. They are different scorers and do not rank identically: on the eval corpus
+both put every gold chunk in their top 5 and agree on the top hit for 17 of 19
+questions (``tests/integration/test_sparse_parity.py``). Numbers from the two stores
+are therefore close, not interchangeable. Dense is numpy cosine. Both indexes are
+rebuilt on ``upsert``, fine at the small corpus sizes this backend targets.
 """
 
 from __future__ import annotations
