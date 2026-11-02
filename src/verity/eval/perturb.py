@@ -59,17 +59,24 @@ MONTHS = (
 
 # A figure not glued to letters (FY2024, SOC2 are identifiers), with optional
 # thousands separators and decimals.
-_NUMBER_RE = re.compile(r"(?<![\w.,])(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?![\w])")
+_NUMBER_RE = re.compile(r"(?<![\w.,-])(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?![\w-])")
+# A figure after these words is a reference, not a quantity ("Section 4.2").
+_REFERENCE_RE = re.compile(r"(?:Section|Article|Clause|Schedule|Exhibit|Annex|No\.|§)\s*$")
 _YEAR_RE = re.compile(r"(?<!\d)(?:19|20)\d{2}(?!\d)")
 _MONTH_RE = re.compile(r"\b(" + "|".join(MONTHS) + r")\b")
 _NEGATIVE_RE = re.compile(r"\b(?:not|no|never|none|cannot|nor)\b|n't", re.IGNORECASE)
 _AUX_RE = re.compile(
-    r"\b(is|are|was|were|has|have|had|does|do|did|will|would|should|must|may|might|could|can)\b"
+    r"(?<![\w-])(is|are|was|were|has|have|had|does|do|did|will|would|should|must|may|might|could|can)(?![\w-])"
 )
 # "has" / "have" / "had" are auxiliaries only before a participle; "has three tiers"
 # would become "has not three tiers".
 _PERFECT_AUX = {"has", "have", "had"}
-_PARTICIPLE_RE = re.compile(r"\s+(?:been|\w+ed|\w+en)\b")
+# "-ed" participles, "been", and the common "-en" ones: "fifteen" or "children" end in
+# "en" too, and "has not fifteen days" is not English.
+_PARTICIPLE_RE = re.compile(
+    r"\s+(?:been|\w+ed|taken|given|written|chosen|broken|driven|forgotten|seen|shown|known|"
+    r"grown|drawn|proven|spoken|stolen|frozen|hidden|ridden|risen|beaten|eaten|fallen)\b"
+)
 _SCALES = (1.5, 0.5, 2.0, 1.25, 3.0)
 _MONTH_SHIFTS = (3, 6, 9, 1)
 _YEAR_SHIFTS = (1, -1, 2, -2)
@@ -131,6 +138,8 @@ def _edit_number(claim: str, evidence: str) -> tuple[int, int, str] | None:
             continue
         if _next_to_month(claim, match.start(), match.end()):
             continue
+        if _REFERENCE_RE.search(claim[: match.start()]):
+            continue
         value = float(token.replace(",", ""))
         percent = claim[match.end() :].lstrip().startswith(("%", "percent"))
         for scale in _SCALES:
@@ -168,6 +177,8 @@ def _edit_negation(claim: str, evidence: str) -> tuple[int, int, str] | None:
         aux = match.group()
         if aux in _PERFECT_AUX and not _PARTICIPLE_RE.match(claim, match.end()):
             continue
+        if re.search(r"\bto\s+$", claim[: match.start()]):
+            continue  # "need to do": a main verb after "to", not an auxiliary
         return match.start(), match.end(), "cannot" if aux == "can" else f"{aux} not"
     return None
 
@@ -181,7 +192,9 @@ def _inside_longer_name(text: str, start: int, end: int) -> bool:
     """ "Northwind" in "Northwind Logistics": a capitalised word right before or after
     makes it part of another name."""
     before = re.search(r"([A-Z][\w-]*) $", text[:start])
-    return bool(re.match(r" [A-Z]", text[end:]) or (before and before.group(1) not in _OPENERS))
+    # "Director of Finance" is a title of its own.
+    after = re.match(r" (?:of )?[A-Z]", text[end:])
+    return bool(after or (before and before.group(1) not in _OPENERS))
 
 
 def _edit_entity(

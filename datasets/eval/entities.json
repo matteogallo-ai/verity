@@ -9,7 +9,7 @@
   "role_short": ["CEO", "CFO", "CISO", "COO"],
   "document": ["Acceptable Use Policy", "Data Processing Addendum", "Employee Handbook", "Information Security Policy", "Master Services Agreement", "Order Form", "Procurement Policy", "Remote Work Policy", "Service Level Agreement"],
   "segment": ["Enterprise Cloud", "Managed Services"],
-  "edition": ["Business", "Enterprise", "Professional", "Standard"],
+  "edition": ["Business edition", "Enterprise edition", "Professional edition", "Standard edition"],
   "leave": ["Bereavement Leave", "Parental Leave", "Sick Leave", "Unpaid Leave"],
   "insurance": ["Disability Insurance", "Health Insurance"]
 }

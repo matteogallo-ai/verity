@@ -130,3 +130,52 @@ def test_entity_leaves_a_name_that_is_part_of_a_longer_name() -> None:
 def test_entity_after_a_capitalised_function_word_is_still_a_name() -> None:
     p = perturb("If Northwind objects, The Board decides.", Kind.ENTITY, "", ENTITIES)
     assert p is not None and p.perturbed == "If Acme objects, The Board decides."
+
+
+@pytest.mark.parametrize(
+    "claim",
+    [
+        "Employees have fifteen days of paid leave.",  # "fifteen" is not a participle
+        "The company has children's benefits.",
+        "Staff in at-will roles receive notice.",  # "will" inside a hyphenated word
+        "Managers need to do a quarterly review.",  # "do" is the main verb after "to"
+    ],
+)
+def test_negation_skips_words_that_are_not_auxiliaries_here(claim: str) -> None:
+    assert perturb(claim, Kind.NEGATION, EVIDENCE) is None
+
+
+def test_negation_keeps_a_perfect_auxiliary_before_a_participle() -> None:
+    p = perturb("The policy has been updated.", Kind.NEGATION, EVIDENCE)
+    assert p is not None and p.perturbed == "The policy has not been updated."
+
+
+ROLES = {
+    # An edition is listed with its noun: "Business" alone is a common word.
+    "edition": ["Business edition", "Enterprise edition", "Standard edition"],
+    "role": ["Director", "Vice President"],
+}
+
+
+@pytest.mark.parametrize(
+    "claim",
+    [
+        "Business days exclude holidays.",  # a common word, not the edition
+        "Standard shipping applies.",
+        "The Director of Finance approves.",  # a title, not the role alone
+    ],
+)
+def test_entity_skips_common_words_and_titles(claim: str) -> None:
+    assert perturb(claim, Kind.ENTITY, "", ROLES) is None
+
+
+def test_entity_swaps_an_edition_named_as_one() -> None:
+    p = perturb("The Business edition costs more.", Kind.ENTITY, "", ROLES)
+    assert p is not None and p.perturbed == "The Enterprise edition costs more."
+
+
+@pytest.mark.parametrize(
+    "claim", ["See Section 4.2 for details.", "Call 555-0100 for support.", "Article 12 applies."]
+)
+def test_number_leaves_section_numbers_and_phone_numbers(claim: str) -> None:
+    assert perturb(claim, Kind.NUMBER, EVIDENCE) is None
