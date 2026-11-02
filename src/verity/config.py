@@ -36,7 +36,11 @@ class Settings(BaseSettings):
     # --- Retrieval --------------------------------------------------------------------
     retrieval_k: int = 20  # candidates per retriever before fusion
     rerank_k: int = 8  # kept after reranking → fed to the agent
-    rrf_k: int = 60  # reciprocal rank fusion constant
+    rrf_k: int = Field(
+        default=60,
+        gt=0,
+        description="Reciprocal rank fusion constant; ranks are 0-based (see retrieval.fusion).",
+    )
 
     # --- LLM runtime ------------------------------------------------------------------
     provider_order: tuple[Provider, ...] = (Provider.ANTHROPIC, Provider.OPENAI)

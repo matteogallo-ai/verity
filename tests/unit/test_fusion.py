@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from uuid import UUID
 
+import pytest
+
 from verity.retrieval.fusion import ReciprocalRankFusion
 from verity.types import Chunk, DocumentId, RetrievalHit, RetrieverKind
 
@@ -76,3 +78,26 @@ def test_rrf_zero_k_returns_empty() -> None:
 
 def test_rrf_empty_lists_return_empty() -> None:
     assert ReciprocalRankFusion(rrf_k=60).fuse([[], []], k=5) == []
+
+
+def test_rrf_rank_is_zero_based() -> None:
+    """Verity uses 0-based ranks: the top hit of one list scores 1/rrf_k.
+
+    Cormack et al. (2009) use 1-based ranks, 1/(k + r) with r >= 1. Verity's
+    rrf_k=60 is therefore Cormack's formula with k=59; the ordering is the same
+    as Cormack's at k=59, not at k=60.
+    """
+    dense = [_hit(UUID(int=i + 1), i) for i in range(3)]
+    fused = ReciprocalRankFusion(rrf_k=60).fuse([dense], k=3)
+    assert [h.score for h in fused] == pytest.approx([1 / 60, 1 / 61, 1 / 62])
+
+    def cormack(rank_1_based: int, k: int) -> float:
+        return 1 / (k + rank_1_based)
+
+    assert [h.score for h in fused] == pytest.approx([cormack(r, 59) for r in (1, 2, 3)])
+
+
+def test_rrf_k_zero_is_rejected_at_construction() -> None:
+    """With 0-based ranks, rrf_k=0 divides by zero on the top hit."""
+    with pytest.raises(ValueError, match="rrf_k"):
+        ReciprocalRankFusion(rrf_k=0)

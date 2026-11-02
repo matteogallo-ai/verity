@@ -6,10 +6,16 @@ by accident. RRF sidesteps the problem by scoring on *ranks* alone:
 
     RRF_score(c) = Σ_i 1 / (rrf_k + rank_i(c))
 
-where ``rank_i(c)`` is the 0-based rank of chunk ``c`` in the i-th input list, and
-``rrf_k`` (default 60, following Cormack et al. 2009) dampens the head so a chunk
-that appears in two lists at moderate ranks outranks one that appears in a single
-list at rank 0.
+where ``rank_i(c)`` is the **0-based** rank of chunk ``c`` in the i-th input list.
+``rrf_k`` dampens the head so a chunk that appears in two lists at moderate ranks
+outranks one that appears in a single list at rank 0.
+
+Cormack, Clarke & Buettcher (2009) define the same sum with **1-based** ranks and
+k = 60. With 0-based ranks, Verity's default ``rrf_k = 60`` equals Cormack's formula
+at k = 59 (top hit scores 1/60, not 1/61). The difference is one unit of damping;
+it is kept because the retrieval scorecards were measured with it, and pinned by
+``tests/unit/test_fusion.py::test_rrf_rank_is_zero_based``. Because rank 0 exists,
+``rrf_k`` must be strictly positive.
 
 We deduplicate by ``chunk.id``, add the contributions, and break ties on ``chunk.id``
 so a re-run of the same input produces bit-for-bit the same output.
@@ -26,8 +32,8 @@ class ReciprocalRankFusion:
 
     def __init__(self, rrf_k: int | None = None) -> None:
         self._rrf_k = rrf_k if rrf_k is not None else get_settings().rrf_k
-        if self._rrf_k < 0:
-            raise ValueError(f"rrf_k must be non-negative, got {self._rrf_k}")
+        if self._rrf_k <= 0:
+            raise ValueError(f"rrf_k must be positive (ranks are 0-based), got {self._rrf_k}")
 
     def fuse(self, ranked_lists: list[list[RetrievalHit]], k: int) -> list[RetrievalHit]:
         if k <= 0:
