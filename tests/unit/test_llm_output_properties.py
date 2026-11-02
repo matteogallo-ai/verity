@@ -16,7 +16,7 @@ import sys
 from typing import Any
 
 import pytest
-from hypothesis import given
+from hypothesis import example, given
 from hypothesis import strategies as st
 
 from verity.agent.decomposer import _parse_sub_questions
@@ -57,6 +57,8 @@ def _completions(draw: st.DrawFn) -> str:
 
 
 @given(st.integers(0, 200), st.sampled_from([("[", "]"), ('{"a":', "}")]))
+@example(64, ("[", "]"))
+@example(65, ("[", "]"))
 def test_load_json_decodes_up_to_the_nesting_bound_and_rejects_beyond(
     depth: int, brackets: tuple[str, str]
 ) -> None:
@@ -67,6 +69,13 @@ def test_load_json_decodes_up_to_the_nesting_bound_and_rejects_beyond(
     else:
         with pytest.raises(ValueError, match="nested deeper"):
             load_json(text)
+
+
+@given(st.integers(65, 300), st.integers(1, 3))
+def test_load_json_bounds_depth_not_size(siblings: int, depth: int) -> None:
+    """Many shallow siblings are fine: closing brackets give their level back."""
+    text = "[" + ",".join(["[" * depth + "1" + "]" * depth] * siblings) + "]"
+    assert load_json(text) == json.loads(text)
 
 
 @given(_completions())
