@@ -1,6 +1,6 @@
 """SDK-signature smoke tests for the 4 real LLM call sites.
 
-Motivation — the S7 hotfix incident: ``anthropic`` 1.x removed ``temperature``
+Motivation — an incident on the first live run: ``anthropic`` 1.x removed ``temperature``
 from the typed ``AsyncMessages.create`` signature. Every unit test in the
 suite drives the pipeline through :class:`StubLLMClient`, so the real Anthropic
 call shape (kwargs actually delivered to the SDK) was never exercised until

@@ -202,7 +202,7 @@ jobs:
         # faithfulness / citation_accuracy / hallucination_rate come from the
         # mechanical stub judge and are labelled "stub-judge-v1" in the artefact —
         # they are never presented as real LLM-judge numbers.
-        # Floors are the S3-established anti-regression gates.
+        # Floors are anti-regression gates on the stub pipeline, not quality measures.
         run: |
           uv run verity eval run \
             --judge stub \

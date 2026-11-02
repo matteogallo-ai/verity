@@ -41,9 +41,9 @@ class SynthesisResult:
     to re-query the router. This is the load-bearing signal for per-request
     provenance in the UI.
 
-    ``provider`` and ``model`` may be ``None`` when a future degraded synthesis
-    path (e.g. graceful mid-flight refusal on a transient LLM error) short-
-    circuits before it can consult the router. In that case the RagAgent's
+    ``provider`` and ``model`` may be ``None`` when a synthesizer returns
+    without consulting the router (the test double in
+    ``tests/unit/test_refusal_provenance.py`` does). In that case the RagAgent's
     ``preferred_*`` fallback stamps the routing decision — the invariant
     covered by ``tests/unit/test_refusal_provenance.py``.
     """

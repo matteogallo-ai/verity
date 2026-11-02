@@ -47,7 +47,7 @@ _REFUSAL_TEXT = "I don't know based on the provided documents."
 
 
 class RagAgent(Agent):
-    """The public entry point the CLI (and future API) calls."""
+    """The public entry point the CLI and the API call."""
 
     def __init__(
         self,
@@ -72,8 +72,7 @@ class RagAgent(Agent):
         # the CLI/API wiring in an ``OTelTracer``.
         self._tracer: Tracer = tracer or NoOpTracer()
         # Routing-decision fallback stamped on every Answer this agent emits.
-        # Prevents a future short-circuit (e.g. mid-flight refusal on a
-        # transient LLM error) from producing an Answer with
+        # Prevents a synthesizer that skips the router from producing an Answer with
         # ``provider_used = None`` and letting downstream provenance fall back
         # to a boot-time default that lies about who would have served.
         self._preferred_provider = preferred_provider
@@ -128,8 +127,7 @@ class RagAgent(Agent):
             # reflects the fallback, not the primary. Load-bearing for the
             # provenance badge in the UI.
             #
-            # If synthesis is ever short-circuited by a future code path
-            # (e.g. graceful mid-flight refusal on a transient LLM error),
+            # If a synthesizer returns without consulting the router,
             # ``synthesis.provider`` / ``synthesis.model`` may be missing;
             # we fall through to the routing-decision fallback stamped at
             # construction time so the Answer NEVER carries a None provider.
@@ -233,8 +231,8 @@ def create_default_agent(
     """Wire the default agent: LLM-based decomposer + synthesizer + scorer.
 
     The routing client's first configured provider + model is stamped on the
-    agent as the ``preferred_*`` fallback so any Answer (including one from a
-    future graceful mid-flight refusal that skips synthesis) carries the real
+    agent as the ``preferred_*`` fallback so any Answer (including one whose
+    synthesizer skipped the router) carries the real
     routing decision — not a None that would leak up to the API's boot-time
     default and lie about who would have served.
     """

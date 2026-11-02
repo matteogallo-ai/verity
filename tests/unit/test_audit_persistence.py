@@ -1,6 +1,6 @@
 """Auditability contract for every persisted eval run.
 
-The S7 pre-tag audit exposed this hole: the aggregate scorecard was written
+A pre-release audit exposed this hole: the aggregate scorecard was written
 to disk but the per-example answer text, citations, and judge verdict were
 not. That meant a run of record could not be re-read after the fact —
 a question like "what did the agent say for q-015?" had no answer without

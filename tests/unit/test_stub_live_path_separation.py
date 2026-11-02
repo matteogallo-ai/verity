@@ -1,6 +1,6 @@
 """Physical path separation of live and stub audit artefacts.
 
-The S7 pre-tag audit exposed this class of accident: the CLI wrote both
+A pre-release audit exposed this class of accident: the CLI wrote both
 stub verification runs and live runs of record to the same
 ``datasets/eval/runs/eval_<sha>_questions.json`` path. A subsequent stub
 run (from CI, from ``verity eval run --ci``, from a maintainer's manual

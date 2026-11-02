@@ -57,7 +57,7 @@ async def test_synthesizer_validates_quote_and_reanchors_offsets() -> None:
     quote_pos_in_chunk = hits[0].chunk.text.find("thirty (30) days")
     assert citation.char_start == hits[0].chunk.char_start + quote_pos_in_chunk
     assert citation.char_end == citation.char_start + len("thirty (30) days")
-    # Chunk text is a substring of document.text (S1 invariant); the citation's quote
+    # Chunk text is a substring of document.text (chunker invariant); the citation's quote
     # is by construction a substring of chunk.text — the assertion the acceptance
     # criteria explicitly demand.
     assert citation.quote in hits[0].chunk.text

@@ -110,8 +110,8 @@ def test_ask_provenance_reflects_the_actual_provider_used(client) -> None:  # ty
 
     In stub mode the synthesizer's completion carries ``Provider.LOCAL``, so
     the API MUST report ``is_stub=True`` + ``agent_model="stub-agent"``. This
-    test prevents the audit's "static-provenance-lies-on-fallback" class of
-    bug from re-emerging when the S7 live routing lands.
+    test guards against the "static-provenance-lies-on-fallback" class of
+    bug, where the API reported a boot-time model instead of the one used.
     """
     r = client.post(
         "/ask",
@@ -197,8 +197,8 @@ def test_ask_rejects_empty_question(client) -> None:  # type: ignore[no-untyped-
 def test_ingest_upload_uses_content_addressed_id(client) -> None:  # type: ignore[no-untyped-def]
     """Same bytes → same document_id, regardless of the client-supplied filename.
 
-    Prevents the S1.1 non-portable-id bug from silently reappearing in the
-    upload path.
+    Guards the upload path against the non-portable-id bug, where ids depended
+    on the machine-specific path of the file.
     """
     content = b"# Uploaded document\n\nThis body is content-addressed.\n"
     r1 = client.post(

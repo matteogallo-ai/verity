@@ -4,9 +4,8 @@ Guarantee that ANY refusal produced by :class:`RagAgent` carries the actual
 routing decision — never ``None``, never falling back to a boot-time default
 that lies about who would have served.
 
-This is the S7 pre-tag audit fix: the mission asks for a **live** refusal
-(post-S7) to be labelled honestly. Since S6 still runs the stub, we simulate
-"live mode" by wiring a :class:`MultiProviderRoutingClient` in which the first
+A refusal in live mode must name the provider that would have served. The
+test simulates live mode without a key by wiring a :class:`MultiProviderRoutingClient` in which the first
 client is a stub carrying a real-looking Provider — the routing decision.
 Then we verify the refusal path stamps that decision (via
 ``RagAgent._preferred_*``) even when synthesis is bypassed by a synthesizer

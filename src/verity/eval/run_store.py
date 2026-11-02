@@ -88,8 +88,8 @@ class FileRunStore(RunStore):
 
     def path_for(self, git_sha: str, dataset: str) -> Path:
         """Where :meth:`save` writes the run for ``(git_sha, dataset)``."""
-        # Dataset in the filename lets multiple datasets coexist per SHA — cheap
-        # future-proofing for when the harness gains a second labeled set.
+        # Dataset in the filename keeps runs on different datasets at the same SHA
+        # from overwriting each other (`--dataset` accepts any JSONL file).
         safe = "".join(c for c in dataset if c.isalnum() or c in {"-", "_"}) or "default"
         return self._runs_dir / f"eval_{git_sha}_{safe}.json"
 

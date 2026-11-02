@@ -1,6 +1,6 @@
 """Console-vs-JSON label consistency contract.
 
-The S7 pre-tag audit exposed this gap: the JSON scorecard was renamed to
+A pre-release audit exposed this gap: the JSON scorecard was renamed to
 ``hallucination_rate_answerable`` + ``out_of_scope_answered`` (schema v2),
 but the Rich console table in :func:`verity.cli._print_scorecard` still
 printed the pre-v2 name ``hallucination_rate`` with no companion row. A

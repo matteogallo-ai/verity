@@ -178,7 +178,7 @@ def resolve_runs_dir(runs_dir: Path, *, judge_mode: str, agent_stub: bool) -> Pa
     ``"live"``    ``False``     both            ``runs_dir/live/``
     ============  ============  ==============  =========================
 
-    The rule is defined once here so the CLI, the CLI tests, and any future
+    The rule is defined once here so the CLI, the CLI tests, and any other
     caller share the same source of truth — no drift between the runtime
     behaviour and its regression assertions.
     """

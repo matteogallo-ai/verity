@@ -1,7 +1,7 @@
 # Verity — dev shortcuts. Every target runs offline with no keys.
 .PHONY: demo demo-web demo-api ui-install ui-test test test-fast test-slow all
 
-# One-command demo path (S6):
+# One-command demo path:
 #   1. FastAPI (stub agent, in-memory store, corpus preloaded) on :8000
 #   2. Next.js dev server on :3000
 # Ctrl-C stops both cleanly (trap on the API child).

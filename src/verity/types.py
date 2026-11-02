@@ -295,8 +295,7 @@ class PerExampleAudit(BaseModel, frozen=True):
 
     The published headline scorecard remains aggregated; this record is the
     audit trail that stands behind every number. Persisted verbatim under
-    :attr:`EvalRun.per_audit` so ``verity eval compare`` (or a future audit UI)
-    can walk from an aggregate metric back to the exact answer, citations, hits
+    :attr:`EvalRun.per_audit` so ``verity eval compare`` can walk from an aggregate metric back to the exact answer, citations, hits
     and per-claim judge verdict that produced it.
 
     Design guarantee — see ``tests/unit/test_audit_persistence.py``:
