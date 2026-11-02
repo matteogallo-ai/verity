@@ -2,7 +2,7 @@
 
 The first ``verity ask`` or ``verity eval run`` invocation pays for
 sentence-transformers + cross-encoder model loads (multi-second overhead visible
-as p95/p99 outliers in the S4 scorecard). Those numbers are real, but they
+as p95/p99 outliers in an eval scorecard). Those numbers are real, but they
 describe *first-boot latency*, not steady-state serving.
 
 :func:`agent_warmup` runs one full ``agent.answer("warmup ...")`` on a

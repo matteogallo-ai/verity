@@ -5,7 +5,8 @@ Three orthogonal responsibilities, three protocols. A ``Chunker`` never knows wh
 This is what lets us swap docling for a naive parser in tests, or a local embedder for
 a hosted one, without touching the rest of the pipeline.
 
-Implementations land in S1.
+Implementations: :mod:`verity.ingestion.parsers`, :mod:`verity.ingestion.chunker`,
+:mod:`verity.ingestion.embedder`, :mod:`verity.ingestion.pipeline`.
 """
 
 from __future__ import annotations

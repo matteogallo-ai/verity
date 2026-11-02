@@ -7,7 +7,7 @@ adds on top.
 
 Why a singleton: the demo lives inside one FastAPI process. Rebuilding the
 embedder + reranker on every request would waste seconds of model loading
-each time and defeat the S5 cold-start work.
+each time; one process-wide instance pays the model load once.
 """
 
 from __future__ import annotations

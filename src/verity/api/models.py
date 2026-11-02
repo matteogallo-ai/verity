@@ -47,8 +47,8 @@ class CitationView(BaseModel, frozen=True):
 
 
 class ConfidenceView(BaseModel, frozen=True):
-    """Verbatim from :class:`verity.types.Confidence`. ``score`` is the calibrated
-    confidence produced by the scorer for this request (real value, not fabricated).
+    """Verbatim from :class:`verity.types.Confidence`. ``score`` is the confidence
+    the scorer reported for this request (not calibrated, not computed by the API).
     ``refused`` is the load-bearing headline behaviour: True → the agent honoured
     its refusal threshold rather than fabricate."""
 

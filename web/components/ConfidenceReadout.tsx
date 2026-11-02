@@ -6,7 +6,7 @@ import type { AnswerView, Provenance } from "@/lib/types";
  * The score is NOT a composite computed by the UI. It is a passthrough of the
  * value the agent's confidence scorer returned for this exact request — a
  * canned constant in stub mode (0.88 for on-theme, 0.15 for out-of-scope),
- * an LLM-produced calibrated value in live mode.
+ * the scorer model's self-reported value in live mode (not calibrated).
  *
  * Rule of iron: never present a bare percentage authoritative next to an
  * answer. This component:

@@ -19,7 +19,7 @@ Two implementations behind the ``FaithfulnessJudge`` protocol:
     contains a phrase that is verbatim present in the retrieved context (the
     substring check is deliberately strict so a hallucination cannot pass).
   * Every citation's ``quote`` is already a substring of its chunk by construction
-    (S3 synthesizer invariant), so ``citation_accuracy`` is 1.0 by definition —
+    (synthesizer invariant), so ``citation_accuracy`` is 1.0 by definition —
     we re-verify it here and would flag any drift.
 
   The per-example ``refusal_*`` fields are placeholders (0.0); the aggregator
@@ -175,7 +175,7 @@ class StubFaithfulnessJudge(FaithfulnessJudge):
         faithfulness = supported / len(claims)
 
         # Citation accuracy: every quote must be a verbatim substring of the
-        # retrieved context (S3 synthesizer already enforces this against the
+        # retrieved context (the synthesizer already enforces this against the
         # citation's chunk, so this is a floor sanity check).
         if answer.citations:
             valid_citations = sum(1 for q in quotes if q in context)

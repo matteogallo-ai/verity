@@ -6,7 +6,7 @@ relevant, and the hit scores it produced. Spans are exported via OpenTelemetry a
 same data backs the ``/metrics`` endpoint and the dashboard (cost, latency, quality
 over time). Logging is structured (structlog) and carries the ``trace_id`` on every line.
 
-Implementations land in S5.
+Implementations: :mod:`verity.observability.tracer`, :mod:`verity.observability.logging`.
 """
 
 from __future__ import annotations

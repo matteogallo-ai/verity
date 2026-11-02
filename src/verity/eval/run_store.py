@@ -1,8 +1,8 @@
 """Persist and diff :class:`EvalRun` records for regression tracking.
 
-One JSON file per (git_sha, dataset) under ``datasets/eval/runs/`` — see the S2
-retrieval scorecards for the sibling format. The naming convention lets both eval
-tracks (retrieval-only S2 and full S4) coexist without collision.
+One JSON file per (git_sha, dataset) under ``datasets/eval/runs/``
+(``eval_<sha>_<dataset>.json``). Retrieval-only scorecards use
+``retrieval_<sha>.json`` in the same directory; the prefixes keep them apart.
 """
 
 from __future__ import annotations
@@ -27,8 +27,8 @@ class StubOverwritesLiveError(RuntimeError):
     """Raised when a stub-provenance run would clobber an on-disk live run
     at the same ``(git_sha, dataset)`` path.
 
-    Guards the audit trail: the S7 pre-tag audit exposed that the same file
-    is used for both stub verification runs and live runs of record, so a
+    Guards the audit trail: the same file name is used for stub verification
+    runs and live runs of record at a given SHA, so before this guard a
     routine ``verity eval run --ci`` after a $0.30 live run silently
     destroyed the audit data. This error stops that class of accident;
     callers who genuinely want to overwrite pass ``allow_overwrite=True``.
@@ -218,7 +218,7 @@ def are_compatible(a: EvalRun, b: EvalRun) -> bool:
     delta reflects the change of agent, not a real regression. Same reasoning
     for ``judge_model`` (a stub-judge chiffre vs a real-judge chiffre for
     faithfulness). ``embedding_model`` isn't checked because it is stable across
-    the whole S1-S4 codebase; if it ever becomes tunable, add it here.
+    every run so far; if it ever becomes tunable, add it here.
     """
     return (
         a.scorecard.dataset == b.scorecard.dataset

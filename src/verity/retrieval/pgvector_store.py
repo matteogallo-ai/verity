@@ -1,13 +1,12 @@
 """Postgres + pgvector implementation of the :class:`VectorStore` protocol.
 
 Only the primitives live here: upsert, dense_search, sparse_search, get_chunks.
-Fusion, rerank, and the hybrid retriever land in S2 — this module deliberately does
-none of that.
+Fusion and rerank live in :mod:`verity.retrieval.hybrid`.
 
-Concurrency model: one shared :class:`psycopg.AsyncConnection` per store instance is
-fine at the throughput of an ingestion CLI + an evaluation loop; if that stops being
-true, swap in :class:`psycopg_pool.AsyncConnectionPool` behind the same interface
-without touching callers.
+Connection model: every operation opens its own :class:`psycopg.AsyncConnection` and
+closes it on return. That is enough for the ingestion CLI and the retrieval
+scorecard; under concurrent load, a :class:`psycopg_pool.AsyncConnectionPool` behind
+``_connect`` would avoid one connection setup per call without touching callers.
 """
 
 from __future__ import annotations

@@ -7,8 +7,7 @@ Definitions (all against the gold set ``example.relevant_chunk_ids``):
   scikit-learn, and it lets the eval harness score a broken pipeline coherently.
 - **recall@k**    — |retrieved ∩ gold| / |gold|. Undefined when ``|gold| == 0``;
   the harness must therefore call these metrics only on *answerable* questions
-  (the S2 spec is explicit: out-of-scope questions are scored on refusal in S3/S4,
-  not on retrieval here).
+  (out-of-scope questions are scored by the refusal metrics, not on retrieval).
 - **nDCG@k**      — DCG@k / IDCG@k, with binary gain (relevant = 1). DCG uses the
   standard log2(rank+2) discount with 0-based ranks so DCG of the ideal ordering
   is Σ_{i=0..r-1} 1 / log2(i+2) where ``r = min(k, |gold|)``.

@@ -11,7 +11,8 @@ run with local embeddings + a stubbed judge, so the eval suite is free and gate-
 CI. The published headline scorecard comes from a separate real run (real judge model),
 never fabricated.
 
-Implementations land in S4.
+Implementations: :mod:`verity.eval.harness`, :mod:`verity.eval.judge`,
+:mod:`verity.eval.retrieval_metric`, :mod:`verity.eval.run_store`.
 """
 
 from __future__ import annotations

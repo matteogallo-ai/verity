@@ -7,8 +7,8 @@ triggers fallback). Any other exception propagates unchanged.
 
 ``StubLLMClient`` is what makes the eval harness and CI free: it takes a
 ``responder`` callable, deterministically maps a message list to a completion, and
-never touches a network. Every S3+ test constructs the agent with a stub — no keys
-required to prove the pipeline works.
+never touches a network. Every agent test constructs the agent with a stub, so no
+key is needed to prove the pipeline is wired correctly (not that the model behaves).
 """
 
 from __future__ import annotations

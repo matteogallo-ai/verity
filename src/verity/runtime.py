@@ -1,8 +1,7 @@
 """Shared composition helpers so the CLI and the FastAPI layer wire the exact
 same components.
 
-Rule of iron for S6: the HTTP API must NOT reimplement any agent/ingestion
-logic. It's a serializer over the same runtime the CLI executes. Anything the
+Rule: the HTTP API must NOT reimplement any agent/ingestion logic. It's a serializer over the same runtime the CLI executes. Anything the
 CLI does — pick embedder + reranker, ingest a corpus, build the agent with a
 stub or a live routing client — lives here so ``verity ask`` and ``POST /ask``
 share a single source of truth.

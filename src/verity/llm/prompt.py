@@ -1,19 +1,18 @@
-"""Thin adapter that consumes ``.prompt`` files (PromptLang sources).
+"""Loader for ``prompts/*.prompt`` files.
 
-ADR 0004 records the decision to author orchestration prompts in PromptLang and to
-front them behind a *thin adapter* so the runtime can swap for direct templating if
-PromptLang ever becomes a blocker. This module is that adapter.
+The files use a small syntax borrowed from PromptLang, parsed here with regular
+expressions; the PromptLang compiler is not a dependency. ADR 0004 describes an
+intended PromptLang integration that this module does not implement.
 
-The subset of PromptLang syntax we consume:
+The syntax this module reads:
 
 - ``@version`` and ``@model`` directive lines (recorded, not used at runtime).
 - ``system: |`` and ``user: |`` block-scalar sections.
 - ``{{ var }}`` substitutions inside the rendered text (whitespace around the
   variable name is tolerated).
 
-Full PromptLang is a separate project; if S3+ needs conditionals, few-shot templating
-or partials, we swap this module for the real compiler behind the same interface
-(:class:`PromptTemplate.render`).
+Conditionals, few-shot templating and partials are not supported. Callers depend only
+on :class:`PromptTemplate.render`, so the parser can be replaced without touching them.
 """
 
 from __future__ import annotations

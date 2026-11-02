@@ -1,4 +1,4 @@
-"""Calibrated confidence + refusal decision.
+"""Confidence score + threshold-gated refusal decision.
 
 Wraps ``confidence.prompt`` and owns the single comparison against
 ``config.confidence_threshold`` that decides whether the agent ships an answer or a
@@ -6,9 +6,10 @@ refusal. The scorer *never* decides silently: below-threshold outcomes carry a
 concrete rationale (evidence weak / contradictory / out of scope) so the eval
 harness can inspect and the UI can display *why*.
 
-Fail-open on parsing: a malformed JSON response from the model is treated as
-"unable to verify grounding" → refused with a rationale that says so. This keeps
-the agent honest even when the scorer LLM misbehaves.
+Fail-closed on parsing: a malformed JSON response from the model is treated as
+"unable to verify grounding" and refused, with a rationale that says so. The score
+is the model's self-report, not a calibrated probability; calibration has not been
+measured.
 """
 
 from __future__ import annotations

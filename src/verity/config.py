@@ -57,7 +57,7 @@ class Settings(BaseSettings):
         default=0.55,
         ge=0.0,
         le=1.0,
-        description="Below this calibrated confidence the agent refuses to answer.",
+        description="Below this scorer-reported confidence the agent refuses to answer.",
     )
     max_agent_steps: int = 4  # cap on multi-step retrieval decomposition
 

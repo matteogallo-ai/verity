@@ -6,7 +6,7 @@ RoutingClient: try providers in order, fall back on transient/availability error
 reason to silently burn the fallback provider. That decision is recorded and not to be
 revisited.
 
-Implementations land in S3.
+Implementations: :mod:`verity.llm.clients`, :mod:`verity.llm.routing`.
 """
 
 from __future__ import annotations

@@ -37,7 +37,7 @@ def load_dataset(path: Path) -> list[EvalExample]:
 def load_full_dataset(path: Path) -> list[EvalExample]:
     """Read a JSONL dataset and return **every** example, answerable or not.
 
-    Used by the S4 harness (refusal calibration needs the out-of-scope half).
+    Used by the eval harness: the refusal metrics need the out-of-scope half.
     """
     examples: list[EvalExample] = []
     with path.open("r", encoding="utf-8") as fh:

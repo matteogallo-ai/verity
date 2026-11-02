@@ -8,8 +8,7 @@ We do **not** trust the LLM to invent citations. Every citation is:
 1. mapped to the ``N``-th chunk in the evidence list we handed to the model (indexes
    into the ``hits`` argument, not into any global chunk table);
 2. rejected if its ``quote`` is not a verbatim substring of the referenced
-   ``chunk.text`` (the load-bearing S1 invariant that citations point at real
-   passages);
+   ``chunk.text`` (the invariant that citations point at real passages);
 3. re-anchored so ``char_start`` / ``char_end`` are offsets into
    ``document.text`` (chunk.char_start + quote position), which is what the UI
    highlights against.
@@ -122,8 +121,8 @@ def _validate_citations(
 ) -> tuple[Citation, ...]:
     """Keep only citations whose quote is a verbatim substring of the referenced chunk.
 
-    ``char_start``/``char_end`` are re-anchored to ``document.text`` offsets — the S1
-    contract is that ``document.text[chunk.char_start:chunk.char_end] == chunk.text``,
+    ``char_start``/``char_end`` are re-anchored to ``document.text`` offsets — the
+    chunker guarantees ``document.text[chunk.char_start:chunk.char_end] == chunk.text``,
     so the absolute span is ``chunk.char_start + position_of_quote_in_chunk``.
     """
     out: list[Citation] = []

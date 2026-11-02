@@ -10,11 +10,15 @@ Pipeline for one ``answer(question)`` call:
 4. **Score** confidence and refuse below-threshold rather than shipping a
    fabricated answer.
 
-Guarantees on the returned :class:`Answer`:
-- non-refusal answers carry ≥1 citation whose ``quote`` is a verbatim substring of
-  the referenced chunk (enforced upstream in :class:`CitedSynthesizer`);
-- ``confidence.refused = True`` iff calibrated confidence < threshold — the text
-  becomes an honest "I don't know" with a rationale;
+What holds on the returned :class:`Answer`:
+- every citation's ``quote`` is a verbatim substring of the referenced chunk
+  (citations that are not are dropped in :class:`CitedSynthesizer`). A non-refused
+  answer is NOT guaranteed to carry a citation: if the synthesizer's citations are
+  all dropped and the scorer does not refuse, the answer ships with none;
+- ``confidence.refused`` is True when the scorer model asked to refuse OR its
+  self-reported score is below ``confidence_threshold`` (threshold-gated refusal;
+  the score is not calibrated). A refused answer's text is a fixed "I don't know"
+  with the scorer's rationale;
 - ``hits_used`` and ``usage`` are always populated for observability and eval.
 """
 
@@ -165,10 +169,10 @@ class RagAgent(Agent):
     async def _collect_hits(self, sub_questions: list[str]) -> list[RetrievalHit]:
         """Retrieve per sub-question and deduplicate by chunk id, keeping the best score.
 
-        We iterate serially rather than gather() so log lines interleave predictably
-        with the per-stage HybridRetriever spans — helpful for demo transcripts. This
-        can move to gather() once observability lands (S5) and we don't rely on log
-        ordering for the demo.
+        Sub-questions are retrieved serially rather than with gather() so log lines
+        and per-stage spans interleave in question order, which keeps a trace
+        readable. Typical questions decompose into one or two sub-questions, so the
+        latency cost is small.
         """
         seen: dict[str, RetrievalHit] = {}
         for sub in sub_questions:

@@ -130,11 +130,12 @@ class Citation(BaseModel, frozen=True):
 
 
 class Confidence(BaseModel, frozen=True):
-    """Calibrated confidence in the answer.
+    """The scorer's confidence in the answer and the refusal decision.
 
-    ``refused`` is the headline behaviour of Verity: when ``score`` falls below the
-    configured threshold the agent returns an "I don't know" answer instead of a
-    fabricated one. ``rationale`` explains *why* — weak retrieval, contradictory
+    ``score`` is the scorer model's self-reported confidence in [0, 1]; it is not
+    calibrated. ``refused`` is True when the scorer asked to refuse or ``score`` is
+    below the configured threshold; the agent then returns an "I don't know" answer
+    instead of the draft. ``rationale`` explains *why* — weak retrieval, contradictory
     evidence, question out of corpus scope.
     """
 
@@ -154,7 +155,7 @@ class UsageStats(BaseModel, frozen=True):
 
 
 class Answer(BaseModel, frozen=True):
-    """The complete result of a query: text, citations, calibrated confidence,
+    """The complete result of a query: text, citations, confidence,
     the evidence actually used, and full accounting — everything the UI and the
     eval harness need, nothing they have to reconstruct.
 

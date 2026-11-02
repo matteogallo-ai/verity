@@ -1,12 +1,12 @@
 """A scripted stub responder for offline / demo runs of the agent.
 
-Used by ``verity ask --stub``, the S3 integration test, and — critically — by the S4
-eval harness in ``--judge stub`` mode. One responder drives all three so the
-demo, the ask-e2e test, and the eval scorecard exercise the same code paths.
+Used by ``verity ask --stub``, the ask end-to-end test, and the eval harness in
+``--judge stub`` mode. One responder drives all three so the demo, the e2e test and
+the stub scorecard exercise the same code paths.
 
 It's a stub, not a fake win: it knows only the themes the shipped corpus supports.
-Questions off-theme produce an honest refusal — that is the *feature* being measured
-by the S4 refusal-calibration track, not a bug in the stub.
+Questions off-theme produce a refusal; that is the behaviour the refusal metrics
+measure, not a bug in the stub.
 
 When a question matches multiple themes on generic keywords (e.g. "notice" appears in
 both termination and maintenance topics), the matcher picks the theme with the

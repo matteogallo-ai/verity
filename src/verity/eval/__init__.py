@@ -1,4 +1,4 @@
-"""Evaluation package. S4 wires the full harness on top of the S2 retrieval metrics."""
+"""Evaluation package: retrieval metrics, refusal metrics, faithfulness judge, harness."""
 
 from __future__ import annotations
 

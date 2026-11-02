@@ -13,8 +13,8 @@ Two audiences:
 Provenance aggregation is deliberately per-request, not boot-config: the
 strings ``agent_model`` / ``judge_model`` in this JSON are summaries computed
 from the per-answer / per-judge-call stamps that the router actually served.
-This carries the S6/S7 per-request-provenance invariant into the reporting
-layer — a fallback that swapped provider mid-run shows up as an honest split
+This carries the per-request-provenance invariant (``Answer.provider_used``)
+into the reporting layer — a fallback that swapped provider mid-run shows up as an honest split
 ("anthropic 15/16, openai 1/16") instead of the boot-time first-client label.
 
 Schema v3 (pre-tag correction, 2026-09-07): every judge-track metric carries

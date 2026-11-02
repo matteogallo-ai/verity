@@ -482,8 +482,8 @@ def serve(
 
     The dashboard is server-rendered HTML with two panels: live session metrics
     (in-memory spans from this process's tracer) and persisted eval-run
-    history. The full Next.js UI is scheduled for S6 — this is the minimal
-    demo-ready surface.
+    history. The full UI is the Next.js app in ``web/``, which talks to the same
+    process through /status, /ask and /ingest.
     """
     import uvicorn
 
@@ -535,7 +535,7 @@ def eval_run(
     ci: Annotated[
         bool,
         typer.Option(
-            help="Legacy alias for --judge stub — kept for backwards compat with S0 CI.",
+            help="Alias for --judge stub (offline, deterministic). Used by CI and the quickstart.",
         ),
     ] = False,
     warmup: Annotated[
@@ -693,9 +693,9 @@ def eval_run(
 
     # JSON write is deliberately UNCONDITIONAL and happens BEFORE any floor
     # evaluation: a floor breached on the one-shot measurement must never
-    # prevent the artefact from being written to disk. See the S7 micro-patch
-    # rationale — a "failed run" that also loses its scorecard invites a
-    # re-spend, which contradicts the "one run of record" invariant.
+    # prevent the artefact from being written to disk. A paid run that fails a
+    # floor and loses its scorecard invites a re-spend, which contradicts the
+    # "one run of record" invariant.
     if scorecard_json is not None:
         from verity.eval import write_headline_scorecard
         from verity.eval.headline import StubOverwritesLiveScorecardError
@@ -828,12 +828,12 @@ def eval_compare(
 def _print_scorecard(result) -> None:  # type: ignore[no-untyped-def]
     """Render a full Scorecard with an explicit stub-vs-real annotation.
 
-    The refusal chiffres are *mechanically* deterministic (a confusion matrix
-    with zero LLM calls), but they measure the calibration of whichever agent
+    The refusal numbers are mechanically deterministic (a confusion matrix with
+    zero LLM calls), but they measure the refusal behaviour of whichever agent
     produced the Answers. When the agent is the scripted stub, the numbers
-    reflect the stub's calibration, not Verity's real behaviour in production.
-    The header + the refusal rows carry that agent-provenance so no reader can
-    lift a chiffre without seeing the caveat.
+    describe the stub, not Verity's behaviour with a real model. The header and
+    the refusal rows carry that agent provenance so no reader can quote a number
+    without seeing the caveat.
     """
     from verity.eval import STUB_JUDGE_MODEL
 

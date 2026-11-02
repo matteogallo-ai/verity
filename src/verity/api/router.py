@@ -73,9 +73,10 @@ async def ingest_endpoint(
 ) -> IngestResponse:
     """Ingest one uploaded file into the in-memory store.
 
-    The document id is derived from ``uuid5(NAMESPACE_URL, "upload://<sha256>/<name>")``
-    so the same bytes always yield the same id, regardless of the machine or
-    original filename path.
+    The document id is ``uuid5(NAMESPACE_URL, "upload://<sha256><ext>")``: the same
+    bytes with the same extension always yield the same id, whatever the file name
+    or machine. The extension is kept because it selects the parser. No size, type
+    or count limit is enforced (see SECURITY.md).
     """
     runtime = _runtime(request)
     await runtime.preload_corpus()
