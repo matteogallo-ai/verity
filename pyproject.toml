@@ -97,8 +97,9 @@ ignore_names = [
   "RetrievalMetric", "evaluate", "latest", "dim", "get_chunks", "count_chunks",
   # OpenTelemetry SpanExporter interface, called by the span processor.
   "export",
-  # Tracer state asserted by tests/unit/test_tracer.py (OTLP active or not).
-  "otlp_enabled",
+  # State asserted by tests: tracer OTLP status (test_tracer.py), rate-limiter memory
+  # bound (test_api_hardening.py).
+  "otlp_enabled", "n_principals",
 ]
 
 [tool.deptry.per_rule_ignores]
