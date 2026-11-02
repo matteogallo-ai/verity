@@ -42,3 +42,13 @@ def test_runtime_stage_runs_as_an_unprivileged_user() -> None:
     users = re.findall(r"^USER (\S+)$", runtime, re.MULTILINE)
     assert users and users[-1] not in {"root", "0"}
     assert "HF_HUB_OFFLINE=1" in runtime
+
+
+def test_runtime_image_carries_the_docling_models_offline() -> None:
+    """Without them the first PDF upload tries to download ~700 MB and fails, since
+    the runtime image sets HF_HUB_OFFLINE. scripts/docker_smoke.sh uploads a PDF."""
+    runtime = _DOCKERFILE.rsplit("FROM ", 1)[1]
+    assert "docling-tools models download" in _DOCKERFILE
+    assert "COPY --from=builder /opt/docling /opt/docling" in runtime
+    assert "DOCLING_ARTIFACTS_PATH=/opt/docling" in runtime
+    assert "HF_HUB_OFFLINE=1" in runtime

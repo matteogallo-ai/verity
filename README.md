@@ -199,8 +199,11 @@ uv run verity eval retrieval               # ingests datasets/corpus, then score
 
 `VERITY_STORE=memory` runs everything in process memory, without a database.
 
-Everything in containers (the image embeds the local models; no provider key means stub
-mode):
+Everything in containers (no provider key means stub mode). The image embeds every
+local model, so it runs offline, PDF and DOCX uploads included: 4.77 GB uncompressed
+on linux/arm64, of which 1.89 GB is the Python environment (torch CPU, docling),
+765 MB the docling layout, table and OCR models, 227 MB the embedder and reranker and
+204 MB the X11/GL libraries opencv needs.
 
 ```bash
 VERITY_API_KEYS='["a-long-random-key"]' docker compose up   # or VERITY_API_AUTH_DISABLED=true
