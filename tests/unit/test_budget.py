@@ -20,7 +20,7 @@ from verity.llm.budget import (
     MESSAGE_OVERHEAD_TOKENS,
     SpendCapExceededError,
     SpendCappedClient,
-    worst_case_cost,
+    upper_cost_estimate,
 )
 from verity.llm.clients import OpenAIClient, StubLLMClient
 from verity.llm.routing import MultiProviderRoutingClient
@@ -60,7 +60,7 @@ def test_estimate_bounds_input_by_bytes_and_output_by_max_tokens_at_the_dearest_
     messages = [Message(role=Role.SYSTEM, content="sys"), Message(role=Role.USER, content="héllo")]
     n_bytes = len(b"sys") + len("héllo".encode())
 
-    estimate = worst_case_cost([cheap, dear], messages, max_tokens=256)
+    estimate = upper_cost_estimate([cheap, dear], messages, max_tokens=256)
 
     assert estimate == pytest.approx(
         dear.cost_usd(input_tokens=n_bytes + 2 * MESSAGE_OVERHEAD_TOKENS, output_tokens=256)
@@ -69,7 +69,7 @@ def test_estimate_bounds_input_by_bytes_and_output_by_max_tokens_at_the_dearest_
 
 def test_an_unpriced_stub_is_estimated_at_zero() -> None:
     stub = StubLLMClient(lambda _m: "x")
-    assert worst_case_cost([stub], [Message(role=Role.USER, content="q")], max_tokens=10) == 0.0
+    assert upper_cost_estimate([stub], [Message(role=Role.USER, content="q")], max_tokens=10) == 0.0
 
 
 @pytest.mark.asyncio
@@ -161,3 +161,13 @@ def test_ask_stops_at_the_budget_with_exit_4_and_prints_the_spend(
     assert "$0.0250 cap" in result.output
     assert "llm calls" in result.output
     assert "0.0200" in result.output
+
+
+def test_a_non_positive_budget_is_rejected_before_any_work() -> None:
+    import verity.cli
+
+    result = CliRunner().invoke(
+        verity.cli.app, ["ask", _QUESTION, "--stub", "--budget-usd", "0"], env={"COLUMNS": "200"}
+    )
+    assert result.exit_code == 2
+    assert "must be positive" in result.output

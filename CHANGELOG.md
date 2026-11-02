@@ -9,7 +9,7 @@ follows [Semantic Versioning](https://semver.org/).
 ### Added
 
 - `verity ask --budget-usd` (default `VERITY_ASK_BUDGET_USD`, $1): before each LLM call,
-  spend so far plus that call's worst-case cost must fit the cap, else the answer stops
+  spend so far plus that call's estimated upper cost must fit the cap, else the answer stops
   with error kind `budget_exceeded`, exit 4, and the spend so far printed.
 - `/ask` spending budget per API key over a sliding window (`VERITY_API_BUDGET_USD`, $5;
   `VERITY_API_BUDGET_WINDOW_S`, 3600 s); over budget is `429` with `Retry-After`.
@@ -17,7 +17,11 @@ follows [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 - An answer that fails after some LLM calls returned now reports their tokens and cost
-  (it reported zero), in `Answer.usage` and in the `answer_failed` log line.
+  (it reported zero), in `Answer.usage` and in the `answer_failed` log line. Eval
+  `cost.*` figures and `verity eval run --budget-usd` therefore include the spend of
+  errored answers.
+- Concurrent answers from one agent (the API) each report their own usage; the
+  decompose usage of one could be reported by another.
 
 ## [1.0.1] — 2026-09-08
 

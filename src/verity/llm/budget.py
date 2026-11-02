@@ -1,9 +1,13 @@
 """A spending cap on a routing client, enforced before each call.
 
-The cap is checked *before* a call, against spend so far plus a worst-case cost of
+The cap is checked *before* a call, against spend so far plus an upper estimate of
 that call, because a call's real cost is only known once it has been paid for.
 Spend is the sum of the ``usage.cost_usd`` the clients report, i.e. the same
 token counts and price table (``Settings.model_prices``) the eval harness sums.
+
+Both cover the attempt that returns a completion. An attempt that fails (an SDK
+retry, a routing fallback after a timeout) reports no usage, so if a provider bills
+it anyway it is neither estimated nor counted.
 """
 
 from __future__ import annotations
@@ -14,8 +18,9 @@ from typing import Protocol, runtime_checkable
 from verity.llm.base import LLMError, RoutingClient
 from verity.types import Completion, Message, UsageStats
 
-# Chat templates add a few special tokens around each message (role markers,
-# separators); 16 covers the Anthropic and OpenAI chat formats with margin.
+# Chat templates add special tokens around each message (role markers, separators).
+# OpenAI documents 3-4 per message plus 3 per reply; Anthropic does not publish its
+# count, so 16 is an assumed margin, not a measured one.
 MESSAGE_OVERHEAD_TOKENS = 16
 
 
@@ -30,14 +35,15 @@ class SpendCapExceededError(LLMError):
     """The next LLM call could take spend past the cap, so it was not sent."""
 
 
-def worst_case_cost(
+def upper_cost_estimate(
     clients: Sequence[object], messages: list[Message], *, max_tokens: int
 ) -> float:
-    """An upper bound on the cost of one call, in USD.
+    """An upper estimate of the cost of one call, in USD.
 
-    Input: byte-level BPE tokenizers (Anthropic, OpenAI) never emit a token shorter
-    than one byte, so the UTF-8 length bounds the token count; output: ``max_tokens``
-    is a hard limit the provider enforces. The dearest client counts because a
+    Input: a byte-level BPE tokenizer never emits a token shorter than one byte, so
+    the UTF-8 length bounds the token count. That holds for OpenAI's (tiktoken);
+    Anthropic's tokenizer is not public, so for it this is an assumption. Output:
+    ``max_tokens`` is a hard limit the provider enforces. The dearest client counts because a
     routing fallback may serve the call. A client without a ``cost_usd`` price
     (the stubs) costs nothing.
     """
@@ -72,7 +78,7 @@ class SpendCappedClient(RoutingClient):
     async def complete(
         self, messages: list[Message], *, max_tokens: int = 1024, temperature: float = 0.0
     ) -> Completion:
-        estimate = worst_case_cost(self.clients, messages, max_tokens=max_tokens)
+        estimate = upper_cost_estimate(self.clients, messages, max_tokens=max_tokens)
         if self.spent.cost_usd + estimate > self._cap_usd:
             raise SpendCapExceededError(
                 f"spent ${self.spent.cost_usd:.4f} of the ${self._cap_usd:.4f} cap; the next "
@@ -95,5 +101,5 @@ __all__ = [
     "MESSAGE_OVERHEAD_TOKENS",
     "SpendCapExceededError",
     "SpendCappedClient",
-    "worst_case_cost",
+    "upper_cost_estimate",
 ]

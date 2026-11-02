@@ -53,8 +53,8 @@ class SpendBudget:
     """At most ``budget_usd`` of LLM spend per ``window_s`` seconds, per principal.
 
     Spend is recorded after each answer from the cost it reports, so a request is
-    admitted while the window's spend is under budget and may overshoot it by that
-    one answer (bounded by the per-call ``max_tokens`` and the question size limit).
+    admitted while the window's spend is under budget: the answers in flight when
+    it is crossed (at most the per-key rate limit) overshoot it.
     """
 
     def __init__(
@@ -64,6 +64,8 @@ class SpendBudget:
         window_s: float,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
+        if budget_usd <= 0 or window_s <= 0:
+            raise ValueError("budget_usd and window_s must be positive")
         self._budget_usd = budget_usd
         self._window_s = window_s
         self._clock = clock

@@ -180,6 +180,25 @@ def test_spend_budget_window_slides() -> None:
     assert budget.exhausted("k") is None
 
 
+def test_spend_budget_retry_waits_for_as_many_entries_as_needed() -> None:
+    from verity.api.guards import SpendBudget
+
+    now = [0.0]
+    budget = SpendBudget(budget_usd=1.0, window_s=3600.0, clock=lambda: now[0])
+    for at in (0.0, 10.0, 20.0):
+        now[0] = at
+        budget.record("k", 0.5)
+    # $1.50 spent: under $1.00 only once the first two entries have expired, at t=3610.
+    assert budget.exhausted("k") == pytest.approx(3590.0)
+
+
+def test_spend_budget_rejects_a_non_positive_budget() -> None:
+    from verity.api.guards import SpendBudget
+
+    with pytest.raises(ValueError, match="positive"):
+        SpendBudget(budget_usd=0.0, window_s=60.0)
+
+
 # --- input bounds ----------------------------------------------------------------------
 
 

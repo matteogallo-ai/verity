@@ -77,8 +77,9 @@ class Settings(BaseSettings):
     llm_timeout_s: float = Field(default=30.0, gt=0.0)
     llm_max_retries: int = Field(default=2, ge=0)
     model_prices: dict[str, ModelPrice] = Field(default_factory=lambda: dict(DEFAULT_MODEL_PRICES))
-    # Default cap for one `verity ask`. A live answer on the default model costs about
-    # $0.02-0.05; $1 stops a runaway call without getting in the way of a normal one.
+    # Default cap for one `verity ask`. A live answer on the default model cost
+    # $0.012 on average in the run of record (scorecards/live-v1.0.0.json); $1 stops a
+    # runaway answer without getting in the way of a normal one.
     ask_budget_usd: float = Field(default=1.0, gt=0.0)
 
     # --- Refusal (headline feature) ---------------------------------------------------
@@ -113,8 +114,8 @@ class Settings(BaseSettings):
     api_auth_disabled: bool = False
     api_rate_limit_per_minute: int = Field(default=30, gt=0)
     # Spending budget per key over a sliding window, from the cost each /ask reports.
-    # $5 an hour is about 100 live answers on the default model: room for a team's
-    # interactive use, a ceiling on a leaked or looping key.
+    # $5 an hour is about 400 live answers at the run-of-record average ($0.012): room
+    # for a team's interactive use, a ceiling on a leaked or looping key.
     api_budget_usd: float = Field(default=5.0, gt=0.0)
     api_budget_window_s: float = Field(default=3600.0, gt=0.0)
 

@@ -156,7 +156,7 @@ def ask(
         typer.Option(
             help=(
                 "Spending cap in USD for this answer. Before each LLM call the spend so "
-                "far plus that call's worst-case cost must fit, else the answer stops "
+                "far plus that call's estimated upper cost must fit, else the answer stops "
                 "(exit 4). Default: VERITY_ASK_BUDGET_USD."
             ),
         ),
