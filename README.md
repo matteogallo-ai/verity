@@ -48,7 +48,7 @@ CI job `claims` runs those tests.
 - Verbatim citations: every quote is a substring of its source document; others are dropped (C01).
 - Threshold-gated refusal with a rationale (C02); unparseable scorer output is refused (C03).
 - Hybrid retrieval: dense + sparse, reciprocal rank fusion, cross-encoder rerank (C04).
-- Two vector stores: in-memory with BM25, the default for `ask`, `eval run` and the API (C05); Postgres + pgvector with full-text search (C06).
+- Two vector stores: in-memory with cosine and BM25 (C05); Postgres + pgvector with full-text search (C06).
 - Markdown and plain-text ingestion with structure-aware chunking and machine-independent ids (C07).
 - Multi-provider LLM routing with fallback, stopping on authentication errors (C09).
 - Per-request provenance: each answer records the model that actually served it (C10).

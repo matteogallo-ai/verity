@@ -22,7 +22,7 @@ import pytest
 from verity.agent.agent import RagAgent, create_default_agent
 from verity.agent.decomposer import LLMQuestionDecomposer
 from verity.agent.scorer import LLMConfidenceScorer
-from verity.agent.scripted_stub import build_stub_router
+from verity.agent.scripted_stub import build_stub_router, scripted_responder
 from verity.agent.synthesizer import CitedSynthesizer, SynthesisResult
 from verity.api.state import AppRuntime
 from verity.ingestion import (
@@ -32,6 +32,7 @@ from verity.ingestion import (
 )
 from verity.ingestion.embedder import LocalEmbedder
 from verity.ingestion.pipeline import discover_sources
+from verity.llm.base import ProviderUnavailableError
 from verity.llm.clients import StubLLMClient
 from verity.llm.routing import MultiProviderRoutingClient, primary_client_identity
 from verity.retrieval import InMemoryVectorStore
@@ -106,11 +107,9 @@ async def test_stub_refusal_carries_the_actual_provider() -> None:
 
 
 class _UnstampedSynthesizer(CitedSynthesizer):
-    """Test double: emits a SynthesisResult with no provider/model stamp — the
-    canonical shape of a future graceful mid-flight refusal that short-
-    circuits before it can consult the router. In production this exact shape
-    never occurs (the real synthesizer always stamps from the Completion), but
-    we simulate it here to prove :attr:`RagAgent._preferred_*` catches the
+    """Test double: emits a SynthesisResult with no provider/model stamp, as a
+    synthesizer that returns without consulting the router would. The real
+    synthesizer always stamps from the Completion; this double proves :attr:`RagAgent._preferred_*` catches the
     ``provider_used = None`` regression class."""
 
     async def synthesize(self, question, hits):  # type: ignore[no-untyped-def]
@@ -193,3 +192,23 @@ def test_api_provenance_for_none_answer_labels_unknown_honestly() -> None:
     assert provenance.agent_model == "unknown"
     # is_stub reflects mode ("live") as the least-misleading fallback.
     assert provenance.is_stub is False
+
+
+@pytest.mark.asyncio
+async def test_answer_after_fallback_names_the_provider_that_served() -> None:
+    """The first provider is down, the second serves: the answer must name the
+    second, not the router's preferred (first) provider."""
+
+    def _down(_msgs):  # type: ignore[no-untyped-def]
+        raise ProviderUnavailableError("primary down")
+
+    primary = StubLLMClient(_down, model="claude-sonnet-4-6", provider=Provider.ANTHROPIC)
+    secondary = StubLLMClient(scripted_responder(), model="gpt-4o", provider=Provider.OPENAI)
+    router = MultiProviderRoutingClient([primary, secondary])
+    agent = create_default_agent(retriever=await _build_retriever(), client=router)
+
+    answer = await agent.answer("What is the notice period for terminating the agreement?")
+
+    assert secondary.calls, "the secondary provider must have served"
+    assert answer.provider_used is Provider.OPENAI
+    assert answer.model_used == "gpt-4o"
