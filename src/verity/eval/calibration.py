@@ -25,6 +25,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from verity.eval.refusal import RefusalOutcome, build_confusion
 from verity.types import PerExampleAudit, RefusalReason
 
 _SCORER_REASONS = {None, RefusalReason.BELOW_THRESHOLD, RefusalReason.MODEL_REFUSED}
@@ -86,18 +87,13 @@ def _ratio(num: int, den: int) -> float | None:
 
 
 def refusal_point(examples: Sequence[ScoredExample], threshold: float) -> RefusalPoint:
-    tp = fp = fn = tn = 0
-    for ex in examples:
-        refused = ex.refused_at(threshold)
-        if refused and not ex.expected_answerable:
-            tp += 1
-        elif refused:
-            fp += 1
-        elif not ex.expected_answerable:
-            fn += 1
-        else:
-            tn += 1
-    return RefusalPoint(threshold, tp, fp, fn, tn, _ratio(tp, tp + fp), _ratio(tp, tp + fn))
+    c = build_confusion(
+        RefusalOutcome(str(i), ex.expected_answerable, ex.refused_at(threshold))
+        for i, ex in enumerate(examples)
+    )
+    return RefusalPoint(
+        threshold, c.tp, c.fp, c.fn, c.tn, _ratio(c.tp, c.tp + c.fp), _ratio(c.tp, c.tp + c.fn)
+    )
 
 
 def sweep(examples: Sequence[ScoredExample], thresholds: Sequence[float]) -> list[RefusalPoint]:
