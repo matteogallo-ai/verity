@@ -59,6 +59,7 @@ uv run python scripts/check_commit_messages.py main..HEAD  # Conventional Commit
 uv run python scripts/generate_headline_results.py --check # README results block ≡ scorecard
 uv run python scripts/build_corpus_documents.py --check    # PDF/DOCX corpus ≡ sources
 uv run python scripts/split_dataset.py --check             # dev/test split ≡ seed
+uv run python -m tests.docling_fixture                     # refresh the parsed PDF/DOCX fixture of the fast lane
 VERITY_STORE=memory uv run verity eval run --ci            # pipeline smoke test on stubs (no keys, no db)
 VERITY_API_AUTH_DISABLED=true uv run verity serve --port 8000  # API on pgvector, dev: no auth, stub without LLM key
 make demo                                                  # pgvector + API + web UI, stub mode
