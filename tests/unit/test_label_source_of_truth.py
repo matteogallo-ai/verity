@@ -86,6 +86,7 @@ class TestConsoleJsonLabelInvariant:
         # Sample-size table is present and complete.
         assert set(payload["sample_sizes"].keys()) == {
             "n_examples",
+            "n_errored",
             "n_answered",
             "n_judged",
             "n_refused",
