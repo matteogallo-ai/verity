@@ -95,6 +95,10 @@ ignore_names = [
   # Public protocol surface (verity.*.base), conformance checked in
   # tests/unit/test_protocols.py; implementations must keep these members.
   "RetrievalMetric", "evaluate", "latest", "dim", "get_chunks", "count_chunks",
+  # OpenTelemetry SpanExporter interface, called by the span processor.
+  "export",
+  # Tracer state asserted by tests/unit/test_tracer.py (OTLP active or not).
+  "otlp_enabled",
 ]
 
 [tool.deptry.per_rule_ignores]
