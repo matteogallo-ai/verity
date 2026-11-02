@@ -79,7 +79,9 @@ def _find_paragraphs(text: str, section: Section) -> tuple[_Paragraph, ...]:
         end = cursor
         # Trim trailing whitespace *inside* the span (not the leading whitespace of
         # the paragraph — leaving it in would break the invariant on re-slicing).
-        while end > start and body[end - 1] in {" ", "\t", "\n"}:
+        # Any Unicode whitespace counts: a paragraph of only a no-break space would
+        # otherwise become a chunk with nothing to retrieve.
+        while end > start and body[end - 1].isspace():
             end -= 1
         if end <= start:
             continue
@@ -142,30 +144,37 @@ class StructureAwareChunker:
 
             buffer: list[_Paragraph] = []
             buffer_words = 0
+            # Paragraphs of ``buffer`` not yet in any chunk. The rest is the overlap
+            # carried from the previous chunk: emitting it alone would repeat that chunk.
+            fresh = 0
 
             for paragraph in paragraphs:
                 # A single paragraph over the max budget still gets emitted as one chunk
                 # rather than being split mid-sentence — chunkers that split arbitrary
                 # sentences produce citations that read like garbage. Big paragraphs are
                 # rare in practice; the retriever downstream handles length just fine.
-                if buffer and buffer_words + paragraph.word_count > self._max:
+                if fresh and buffer_words + paragraph.word_count > self._max:
                     chunks.append(self._emit(document, section, buffer, ordinal))
                     ordinal += 1
-                    buffer = buffer[-self._overlap :] if self._overlap > 0 else []
-                    buffer_words = sum(p.word_count for p in buffer)
+                    buffer, buffer_words, fresh = self._carry(buffer)
+                if not fresh and buffer_words + paragraph.word_count > self._max:
+                    # The overlap is context, not content: it gives way to the budget.
+                    buffer, buffer_words = [], 0
                 buffer.append(paragraph)
                 buffer_words += paragraph.word_count
+                fresh += 1
 
                 if buffer_words >= self._target:
                     chunks.append(self._emit(document, section, buffer, ordinal))
                     ordinal += 1
-                    buffer = buffer[-self._overlap :] if self._overlap > 0 else []
-                    buffer_words = sum(p.word_count for p in buffer)
+                    buffer, buffer_words, fresh = self._carry(buffer)
 
-            if buffer and buffer_words >= self._min:
+            if not fresh:
+                continue
+            if buffer_words >= self._min:
                 chunks.append(self._emit(document, section, buffer, ordinal))
                 ordinal += 1
-            elif buffer and chunks:
+            elif chunks:
                 # A small trailing buffer is merged into the previous chunk rather than
                 # emitted as an underweight chunk, which would hurt retrieval quality.
                 last = chunks[-1]
@@ -182,13 +191,18 @@ class StructureAwareChunker:
                     page=last.page,
                     metadata=last.metadata,
                 )
-            elif buffer:
+            else:
                 # No previous chunk to merge with — emit even if under min_words so we
                 # never drop content silently.
                 chunks.append(self._emit(document, section, buffer, ordinal))
                 ordinal += 1
 
         return chunks
+
+    def _carry(self, emitted: list[_Paragraph]) -> tuple[list[_Paragraph], int, int]:
+        """The overlap kept after emitting ``emitted``: (buffer, its word count, 0 fresh)."""
+        carried = emitted[-self._overlap :] if self._overlap > 0 else []
+        return carried, sum(p.word_count for p in carried), 0
 
     def _emit(
         self,
