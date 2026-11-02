@@ -35,6 +35,11 @@ dependencies = [
   "sentence-transformers>=3.2",
   "docling>=2.0",
   "trafilatura>=2.0",
+  # Not imported directly: declared so [tool.uv.sources] can route them to the
+  # CPU-only PyTorch index (uv sources apply to direct dependencies only).
+  # sentence-transformers and docling pull them in transitively.
+  "torch>=2.4",
+  "torchvision>=0.19",
 ]
 
 [project.scripts]
@@ -97,6 +102,18 @@ markers = [
 [tool.coverage.run]
 branch = true
 source = ["src/verity"]
+
+# CPU-only PyTorch on Linux and Windows. The default PyPI torch wheel for Linux
+# pulls ~15 nvidia-* CUDA packages (several GB) that a CPU inference workload never
+# uses. macOS wheels on PyPI carry no CUDA, so macOS keeps the default index.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }]
+torchvision = [{ index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [build-system]
 requires = ["hatchling"]
