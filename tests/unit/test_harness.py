@@ -192,3 +192,58 @@ async def test_errored_examples_are_counted_apart_from_every_metric() -> None:
     assert result.scorecard.errored_example_ids == (examples[0].id,)
     assert len(result.per_refusal) == len(examples) - 1
     assert examples[0].id not in {r.example_id for r in result.per_refusal}
+
+
+def _billed_outage_agent(real: object, failing_question: str, cost_usd: float) -> object:
+    """An agent whose answer to ``failing_question`` errors after spending ``cost_usd``."""
+    from verity.types import Answer, AnswerError, ErrorKind, UsageStats
+
+    class _Agent:
+        async def answer(self, question: str) -> Answer:
+            if question == failing_question:
+                return Answer(
+                    query=question,
+                    text="",
+                    error=AnswerError(kind=ErrorKind.PROVIDER_UNAVAILABLE, detail="down"),
+                    usage=UsageStats(input_tokens=400, llm_calls=2, cost_usd=cost_usd),
+                )
+            return await real.answer(question)  # type: ignore[attr-defined]
+
+    return _Agent()
+
+
+def _evaluator(agent: object) -> AgentEvaluator:
+    return AgentEvaluator(
+        agent=agent,  # type: ignore[arg-type]
+        judge=StubFaithfulnessJudge(),
+        embedding_model="fake",
+        judge_model=STUB_JUDGE_MODEL,
+        agent_model="stub-agent",
+        dataset_name="questions",
+    )
+
+
+@pytest.mark.asyncio
+async def test_cost_spent_on_an_errored_example_counts_in_the_run_cost() -> None:
+    examples = load_full_dataset(DATASET)
+    real = create_default_agent(retriever=await _seed_retriever(), client=build_stub_router())
+    agent = _billed_outage_agent(real, examples[0].question, cost_usd=0.5)
+
+    result = await _evaluator(agent).run(examples, git_sha="test0000")
+
+    assert result.errored_cost_usd == pytest.approx(0.5)
+    # The stub agent's answers cost nothing: the mean is the errored spend over every
+    # attempted question.
+    assert result.scorecard.cost_per_query_usd == pytest.approx(0.5 / len(examples))
+
+
+@pytest.mark.asyncio
+async def test_budget_cap_counts_the_cost_of_errored_examples() -> None:
+    from verity.eval.harness import BudgetExceededError
+
+    examples = load_full_dataset(DATASET)
+    real = create_default_agent(retriever=await _seed_retriever(), client=build_stub_router())
+    agent = _billed_outage_agent(real, examples[0].question, cost_usd=0.5)
+
+    with pytest.raises(BudgetExceededError, match=examples[0].id):
+        await _evaluator(agent).run(examples, git_sha="test0000", budget_usd_cap=0.1)

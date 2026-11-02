@@ -270,7 +270,7 @@ def build_headline_dict(
     See module docstring for the v3 scoping rules.
     """
     sc = result.scorecard
-    agent_cost_usd = sum(a.usage.cost_usd for a in result.answers)
+    agent_cost_usd = sum(a.usage.cost_usd for a in result.answers) + result.errored_cost_usd
 
     agent_stamps: list[tuple[str | None, str | None]] = [
         (a.provider_used.value if a.provider_used is not None else None, a.model_used)

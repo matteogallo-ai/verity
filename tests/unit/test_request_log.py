@@ -70,6 +70,8 @@ async def test_an_outage_logs_decision_error_with_the_stages_reached() -> None:
     assert line["decision"] == "error"
     assert line["error_kind"] == "provider_unavailable"
     assert set(line["stage_ms"]) == {"agent.decompose"}  # type: ignore[arg-type]
+    assert line["input_tokens"] == 0  # the only call failed; nothing was billed
+    assert line["cost_usd"] == 0.0
 
 
 def test_the_api_log_line_carries_the_request_id(tmp_path: Path) -> None:

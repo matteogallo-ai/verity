@@ -27,6 +27,7 @@ from verity.ingestion.chunker import StructureAwareChunker
 from verity.ingestion.embedder import LocalEmbedder
 from verity.ingestion.parsers import create_default_parser
 from verity.ingestion.pipeline import IngestionPipeline, discover_sources
+from verity.llm.base import ProviderUnavailableError
 from verity.llm.clients import StubLLMClient
 from verity.llm.routing import MultiProviderRoutingClient
 from verity.retrieval import CrossEncoderReranker, HybridRetriever, InMemoryVectorStore
@@ -219,3 +220,34 @@ async def test_agent_usage_sums_every_llm_call() -> None:
     # Keep the JSON canary — the stub returns JSON so Answer.text should be non-empty.
     assert answer.text
     _ = json  # keep the import even if unused elsewhere
+
+
+class _ScorerDownClient(_CountingStubClient):
+    """Decompose and synthesize are billed; the scorer call then fails."""
+
+    async def complete(
+        self,
+        messages: list[Message],
+        *,
+        max_tokens: int = 1024,
+    ) -> Completion:
+        if "assess whether" in (messages[0].content if messages else "").lower():
+            raise ProviderUnavailableError("scorer provider down")
+        return await super().complete(messages, max_tokens=max_tokens)
+
+
+@pytest.mark.asyncio
+async def test_tokens_spent_before_an_error_stay_in_the_answer_usage() -> None:
+    """A provider error on the third call must not erase the two billed calls before it:
+    the eval's cost and its --budget-usd cap read Answer.usage."""
+    agent = create_default_agent(
+        retriever=await _seed_retriever(),
+        client=MultiProviderRoutingClient([_ScorerDownClient()]),
+    )
+    answer = await agent.answer("What is the notice period for terminating the agreement?")
+
+    assert answer.error is not None
+    assert answer.usage.llm_calls == 2
+    assert answer.usage.input_tokens == 100 + 300
+    assert answer.usage.output_tokens == 20 + 80
+    assert answer.usage.cost_usd == pytest.approx(0.010 + 0.030)

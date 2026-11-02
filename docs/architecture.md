@@ -56,8 +56,8 @@ and the extra missing, startup logs the warning `otlp_export_disabled`. Logs are
 (structlog) and carry `trace_id` on every line; under the API also `request_id` and the
 authenticated principal. Each request ends with one line: `answer_done` carries the
 decision (answered or refused), the refusal reason, per-stage latency, tokens and cost;
-`answer_failed` carries `decision=error`, the error kind and the latency of the stages
-reached. Tokens spent before a failure are not reported.
+`answer_failed` carries `decision=error`, the error kind, the latency of the stages
+reached and the tokens and cost of the calls made before the failure.
 
 ### 6. Evaluation (`verity.eval`)
 Runs the whole agent over the labeled dataset and emits a `Scorecard` saved as JSON with

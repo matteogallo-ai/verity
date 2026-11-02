@@ -113,11 +113,14 @@ class RagAgent(Agent):
             started = time.perf_counter()
             # Filled as each stage ends, so an error line shows how far the request got.
             stage_ms: dict[str, float] = {}
+            # Each billed call's usage, appended as it returns: an error on a later
+            # call must not erase what the earlier ones cost.
+            spent: list[UsageStats] = []
             error: Exception
             # An infrastructure failure is returned as a typed error, never as a
             # refusal: "the provider is down" must not read as "the evidence is weak".
             try:
-                answer = await self._answer(question, trace_id, started, stage_ms)
+                answer = await self._answer(question, trace_id, started, stage_ms, spent)
             except RetrievalUnavailableError as exc:
                 kind, error = ErrorKind.RETRIEVAL_UNAVAILABLE, exc
             except AuthenticationError as exc:
@@ -129,7 +132,7 @@ class RagAgent(Agent):
             else:
                 _log_answer(answer, stage_ms)
                 return answer
-            return _error_answer(question, trace_id, started, kind, error, stage_ms)
+            return _error_answer(question, trace_id, started, kind, error, stage_ms, spent)
 
     @asynccontextmanager
     async def _stage(
@@ -144,12 +147,17 @@ class RagAgent(Agent):
             stage_ms[name] = round((time.perf_counter() - stage_started) * 1000, 2)
 
     async def _answer(
-        self, question: str, trace_id: TraceId, started: float, stage_ms: dict[str, float]
+        self,
+        question: str,
+        trace_id: TraceId,
+        started: float,
+        stage_ms: dict[str, float],
+        spent: list[UsageStats],
     ) -> Answer:
         async with self._stage("agent.decompose", trace_id, stage_ms) as span:
             sub_questions = await self._decomposer.decompose(question)
             span.set_attribute("n_sub_questions", len(sub_questions))
-            _bind_component_usage(span, self._decomposer)
+            _record_usage(span, spent, _last_usage_of(self._decomposer))
             log.info("decomposed", n_sub_questions=len(sub_questions))
 
         async with self._stage("agent.retrieve", trace_id, stage_ms) as span:
@@ -159,10 +167,9 @@ class RagAgent(Agent):
 
         async with self._stage("agent.synthesize", trace_id, stage_ms) as span:
             synthesis = await self._synthesizer.synthesize(question, hits)
-            span.set_usage(synthesis.usage)
+            _record_usage(span, spent, synthesis.usage)
             span.set_attribute("n_citations", len(synthesis.citations))
 
-        scorer_usage: UsageStats | None = None
         async with self._stage("agent.confidence", trace_id, stage_ms) as span:
             # Deterministic gates before the scorer: a draft with no verified citation,
             # or whose citations do not cover it or are irrelevant to the question, is
@@ -187,8 +194,7 @@ class RagAgent(Agent):
                 )
             else:
                 confidence = await self._scorer.score(question, synthesis.text, hits)
-                scorer_usage = _last_usage_of(self._scorer)
-                _bind_component_usage(span, self._scorer)
+                _record_usage(span, spent, _last_usage_of(self._scorer))
             span.set_attribute("score", float(confidence.score))
             span.set_attribute("refused", bool(confidence.refused))
             span.set_attribute("citation_coverage", support.coverage)
@@ -196,12 +202,7 @@ class RagAgent(Agent):
         # Latency is the measured wall-clock, not a sum of per-call latencies:
         # the calls partially overlap, so summing would over-count.
         latency_ms = round((time.perf_counter() - started) * 1000, 2)
-        usage = _aggregate_usage(
-            _last_usage_of(self._decomposer),
-            synthesis.usage,
-            scorer_usage,
-            latency_ms=latency_ms,
-        )
+        usage = _aggregate_usage(*spent, latency_ms=latency_ms)
 
         # Stamp the provider that ACTUALLY served the synthesis step, so a
         # routing fallback (e.g. Anthropic unavailable → OpenAI) is reported as
@@ -283,8 +284,10 @@ def _error_answer(
     kind: ErrorKind,
     exc: Exception,
     stage_ms: dict[str, float],
+    spent: list[UsageStats],
 ) -> Answer:
     latency_ms = round((time.perf_counter() - started) * 1000, 2)
+    usage = _aggregate_usage(*spent, latency_ms=latency_ms)
     log.error(
         "answer_failed",
         trace_id=str(trace_id),
@@ -293,21 +296,24 @@ def _error_answer(
         error=str(exc),
         stage_ms=stage_ms,
         latency_ms=latency_ms,
+        input_tokens=usage.input_tokens,
+        output_tokens=usage.output_tokens,
+        cost_usd=usage.cost_usd,
     )
     return Answer(
         query=question,
         text="",
         error=AnswerError(kind=kind, detail=f"{type(exc).__name__}: {exc}"),
-        usage=UsageStats(latency_ms=latency_ms),
+        usage=usage,
         trace_id=trace_id,
     )
 
 
-def _bind_component_usage(span, component: object) -> None:  # type: ignore[no-untyped-def]
-    """Attach a component's ``last_usage`` to the current stage span, if present."""
-    usage = _last_usage_of(component)
+def _record_usage(span: StageSpan, spent: list[UsageStats], usage: UsageStats | None) -> None:
+    """Attach a stage's usage to its span and to the request's running total."""
     if usage is not None:
         span.set_usage(usage)
+        spent.append(usage)
 
 
 def _last_usage_of(component: object) -> UsageStats | None:

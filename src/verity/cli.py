@@ -740,7 +740,11 @@ def eval_run(
 
     # Real total_cost_usd — displayed at the end for the operator to eyeball
     # before the live artefact is committed.
-    total_cost = sum(a.usage.cost_usd for a in result.answers) + result.judge_cost_usd
+    total_cost = (
+        sum(a.usage.cost_usd for a in result.answers)
+        + result.errored_cost_usd
+        + result.judge_cost_usd
+    )
     console.print(
         f"[dim]total observed cost:[/dim] "
         f"[bold]${total_cost:.4f}[/bold] "
