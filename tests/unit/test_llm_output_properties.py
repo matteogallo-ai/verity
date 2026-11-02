@@ -11,8 +11,11 @@ from __future__ import annotations
 import asyncio
 import json
 import math
+import subprocess
+import sys
 from typing import Any
 
+import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -20,7 +23,7 @@ from verity.agent.decomposer import _parse_sub_questions
 from verity.agent.scorer import LLMConfidenceScorer, _parse_confidence
 from verity.eval.judge import _parse_judge_output
 from verity.llm.clients import StubLLMClient
-from verity.llm.json_output import first_matching, parse_json_object
+from verity.llm.json_output import first_matching, load_json, parse_json_object
 from verity.llm.routing import MultiProviderRoutingClient
 
 _JSON_SCALARS = st.none() | st.booleans() | st.integers() | st.floats() | st.text(max_size=10)
@@ -51,6 +54,19 @@ def _completions(draw: st.DrawFn) -> str:
         opener, closer = draw(st.sampled_from([("[", "]"), ('{"a":', "}")]))
         return opener * depth + "1" + closer * depth
     return draw(st.text(max_size=80))
+
+
+@given(st.integers(0, 200), st.sampled_from([("[", "]"), ('{"a":', "}")]))
+def test_load_json_decodes_up_to_the_nesting_bound_and_rejects_beyond(
+    depth: int, brackets: tuple[str, str]
+) -> None:
+    opener, closer = brackets
+    text = opener * depth + "1" + closer * depth
+    if depth <= 64:
+        assert load_json(text) == json.loads(text)
+    else:
+        with pytest.raises(ValueError, match="nested deeper"):
+            load_json(text)
 
 
 @given(_completions())
@@ -108,6 +124,33 @@ def test_deeply_nested_output_is_unparseable_not_a_crash() -> None:
     """Found by the dict-or-none property: json raised RecursionError past ~10^5 levels."""
     assert parse_json_object("[" * 100_000 + "]" * 100_000) is None
     assert _parse_sub_questions("[" * 100_000 + "]" * 100_000) == []
+
+
+_ON_A_SMALL_STACK = """
+import threading
+from verity.agent.decomposer import _parse_sub_questions
+from verity.llm.json_output import parse_json_object
+deep = "[" * 100_000 + "]" * 100_000
+threading.stack_size(512 * 1024)
+results = []
+worker = threading.Thread(
+    target=lambda: results.extend([parse_json_object(deep), _parse_sub_questions(deep)])
+)
+worker.start()
+worker.join()
+print(results)
+"""
+
+
+def test_deeply_nested_output_does_not_crash_a_worker_thread() -> None:
+    """Found by mutation testing: in a thread with a 512 KiB stack (macOS's default for
+    secondary threads) the JSON decoder overflowed the C stack before Python raised
+    RecursionError, and the process died (SIGBUS on macOS)."""
+    run = subprocess.run(
+        [sys.executable, "-c", _ON_A_SMALL_STACK], capture_output=True, text=True, timeout=60
+    )
+    assert run.returncode == 0, run.stderr[-500:]
+    assert run.stdout.strip() == "[None, []]"
 
 
 @given(_completions())

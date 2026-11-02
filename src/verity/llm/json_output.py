@@ -14,9 +14,26 @@ import json
 from collections.abc import Mapping
 from typing import Any
 
-# What json.loads raises on model output that is not JSON. RecursionError: the decoder
-# recurses once per nesting level, so a long run of brackets exhausts the stack.
-JSON_PARSE_ERRORS = (json.JSONDecodeError, RecursionError)
+# json.loads recurses in C once per nesting level. A long run of brackets raises
+# RecursionError on the main thread but overflows the stack of a thread with a small
+# one (512 KiB by default on macOS) and kills the process, so depth is checked before
+# decoding. The prompts ask for two or three levels; brackets inside strings count too,
+# which only makes the bound stricter.
+_MAX_NESTING = 64
+
+
+def load_json(text: str) -> Any:
+    """``json.loads`` for model output: :class:`ValueError` (``JSONDecodeError`` is
+    one) on invalid JSON or on nesting deeper than :data:`_MAX_NESTING`."""
+    depth = 0
+    for char in text:
+        if char in "[{":
+            depth += 1
+            if depth > _MAX_NESTING:
+                raise ValueError(f"JSON nested deeper than {_MAX_NESTING} levels")
+        elif char in "]}":
+            depth -= 1
+    return json.loads(text)
 
 
 def first_json_object(text: str) -> str:
@@ -48,8 +65,8 @@ def parse_json_object(text: str) -> dict[str, Any] | None:
     """
     candidate = first_json_object(text) or text
     try:
-        parsed = json.loads(candidate)
-    except JSON_PARSE_ERRORS:
+        parsed = load_json(candidate)
+    except ValueError:
         return None
     if isinstance(parsed, list):
         parsed = next((item for item in parsed if isinstance(item, dict)), None)
@@ -68,4 +85,4 @@ def first_matching(mapping: Mapping[str, Any], keys: tuple[str, ...]) -> Any:
     return None
 
 
-__all__ = ["JSON_PARSE_ERRORS", "first_json_object", "first_matching", "parse_json_object"]
+__all__ = ["first_json_object", "first_matching", "load_json", "parse_json_object"]
