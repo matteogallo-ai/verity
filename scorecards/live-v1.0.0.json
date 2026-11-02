@@ -138,6 +138,12 @@
     "run_sha": "d0ca1d5"
   },
   "refusal": {
+    "by_reason": {
+      "not_recorded": {
+        "answerable": 0,
+        "unanswerable": 4
+      }
+    },
     "confidence_threshold": null,
     "out_of_scope_answered": {
       "count": 1,

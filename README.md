@@ -85,6 +85,8 @@ CI job `claims` runs those tests.
 | Latency p50 / p95 / p99 | 9374.7 ms / 32526.5 ms / 36653.1 ms | no warmup: includes the first question's model loading |
 | Cost / query | $0.0122 | total not recorded = agent $0.1950 + judge not recorded |
 
+4 refusal(s) with no recorded cause (artefact predates it).
+
 Generated from [`scorecards/live-v1.0.0.json`](scorecards/live-v1.0.0.json), itself computed from the run artefact `datasets/eval/runs/live/eval_d0ca1d5_questions.json` (`scripts/generate_headline_results.py --check` recomputes both).
 
 <!-- RESULTS:END -->

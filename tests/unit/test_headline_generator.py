@@ -385,3 +385,49 @@ def test_check_fails_when_the_scorecard_differs_from_its_artefact(tmp_path: Path
     payload["answer_quality"]["citation_accuracy"]["micro"]["value"] = 0.9
     scorecard.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     assert generator.main(["--check", "--scorecard", str(scorecard), "--readme", str(readme)]) == 1
+
+
+def test_refusals_are_counted_by_recorded_cause() -> None:
+    """The scorecard says which check decided each refusal, split by label, so the
+    README can show from the artefact whether the threshold decided any of them."""
+    from verity.types import RefusalReason
+
+    base = _fixture_result()
+    reasons = {
+        11: RefusalReason.NO_CITATION,
+        12: RefusalReason.NO_CITATION,
+        13: RefusalReason.MODEL_REFUSED,
+        14: RefusalReason.BELOW_THRESHOLD,
+    }
+    audits = [
+        a.model_copy(update={"refusal_reason": reasons.get(i)})
+        for i, a in enumerate(base.per_audit)
+    ]
+    result = HarnessResult(**{**base.__dict__, "per_audit": audits})  # type: ignore[arg-type]
+    by_reason = build_headline_dict(result)["refusal"]["by_reason"]
+    assert by_reason == {
+        "below_threshold": {"answerable": 0, "unanswerable": 1},
+        "model_refused": {"answerable": 0, "unanswerable": 1},
+        "no_citation": {"answerable": 0, "unanswerable": 2},
+        "not_recorded": {"answerable": 0, "unanswerable": 1},
+    }
+    block = _load_generator().render_block(build_headline_dict(result))
+    assert "Refusals by cause" in block
+    assert "`no_citation` 2 (0 answerable)" in block
+    assert "`below_threshold` 1 (0 answerable)" in block
+    assert "1 refusal(s) with no recorded cause" in block
+
+
+def test_block_says_when_the_threshold_decided_no_refusal() -> None:
+    from verity.types import RefusalReason
+
+    base = _fixture_result()
+    audits = [
+        a.model_copy(update={"refusal_reason": RefusalReason.LOW_CITATION_COVERAGE})
+        if a.refused
+        else a
+        for a in base.per_audit
+    ]
+    result = HarnessResult(**{**base.__dict__, "per_audit": audits})  # type: ignore[arg-type]
+    block = _load_generator().render_block(build_headline_dict(result))
+    assert "the confidence threshold decided none of them" in block

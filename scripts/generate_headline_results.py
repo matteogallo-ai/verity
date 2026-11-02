@@ -147,6 +147,24 @@ def render_block(data: dict[str, Any], *, scorecard_path: Path = DEFAULT_SCORECA
         f"agent {_usd(cost['agent_usd'])} + judge {_usd(cost['judge_usd'])} |"
     )
     lines.append("")
+    by_reason = refu.get("by_reason") or {}
+    recorded = {k: v for k, v in by_reason.items() if k != "not_recorded"}
+    if recorded:
+        causes = " · ".join(
+            f"`{k}` {v['answerable'] + v['unanswerable']} ({v['answerable']} answerable)"
+            for k, v in recorded.items()
+        )
+        lines.append(f"Refusals by cause: {causes}.")
+        if "below_threshold" not in recorded:
+            lines.append(
+                "No refusal has the cause `below_threshold`: the confidence threshold "
+                "decided none of them."
+            )
+        lines.append("")
+    if "not_recorded" in by_reason:
+        n = sum(by_reason["not_recorded"].values())
+        lines.append(f"{n} refusal(s) with no recorded cause (artefact predates it).")
+        lines.append("")
     if without_claims:
         lines.append(
             f"{without_claims} judged answer(s) got no usable claim from the judge (output "

@@ -31,7 +31,7 @@ from typing import Any
 from verity.eval.answer_quality import Ratio, answer_quality
 from verity.eval.harness import HarnessResult
 from verity.eval.refusal import RefusalOutcome, build_confusion
-from verity.types import EvalRun, UsageStats
+from verity.types import EvalRun, PerExampleAudit, UsageStats
 
 
 def _summarize_stamps(models: Sequence[str | None], *, total_examples: int) -> str:
@@ -70,6 +70,21 @@ def _ratio_dict(ratio: Ratio, *, unit: str) -> dict[str, Any]:
         "value": None if ratio.value is None else round(ratio.value, 6),
         f"n_{unit}": ratio.denominator,
     }
+
+
+def _refusals_by_reason(audits: Sequence[PerExampleAudit]) -> dict[str, dict[str, int]]:
+    """Refusals per recorded cause, split by gold label. Artefacts from before the
+    cause was recorded count under ``not_recorded``."""
+    counts: dict[str, dict[str, int]] = {}
+    for a in audits:
+        if not a.refused:
+            continue
+        row = counts.setdefault(
+            str(a.refusal_reason) if a.refusal_reason else "not_recorded",
+            {"answerable": 0, "unanswerable": 0},
+        )
+        row["answerable" if a.expected_answerable else "unanswerable"] += 1
+    return dict(sorted(counts.items()))
 
 
 def build_headline_dict_from_eval_run(
@@ -185,6 +200,7 @@ def build_headline_dict_from_eval_run(
             "refusal_precision": tp / (tp + fp) if tp + fp else None,
             "refusal_recall": tp / (tp + fn) if tp + fn else None,
             "out_of_scope_answered": {"count": fn, "total": n_unanswerable},
+            "by_reason": _refusals_by_reason(audits),
         },
         "latency_ms": {
             "p50": sc.latency.p50_ms,
