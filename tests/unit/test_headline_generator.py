@@ -447,6 +447,30 @@ def test_system_card_reads_counts_stored_in_a_newer_scorecard() -> None:
     ]
 
 
+def test_per_claim_counts_in_a_newer_scorecard_get_a_per_claim_row() -> None:
+    payload = _committed_scorecard()
+    payload["answer_quality"]["faithfulness"] = {
+        "scope": "answered",
+        "micro": {"value": 0.990826, "k": 108, "n_claims": 109},
+    }
+    rows = _card_rows(payload)
+    assert rows["Faithfulness per claim (judge)"] == ["0.991", "108/109", "[0.950, 0.998]"]
+
+
+def test_a_missing_card_marker_writes_neither_file(tmp_path: Path) -> None:
+    generator = _load_generator()
+    readme = tmp_path / "README.md"
+    stale = (REPO_ROOT / "README.md").read_text(encoding="utf-8").replace("| 0.722", "| 0.999")
+    readme.write_text(stale, encoding="utf-8")
+    card = tmp_path / "SYSTEM_CARD.md"
+    card.write_text("no markers\n", encoding="utf-8")
+    with pytest.raises(SystemExit):
+        generator.main(["--readme", str(readme), "--system-card", str(card)])
+    assert readme.read_text(encoding="utf-8") == stale
+    with pytest.raises(SystemExit, match="not found"):
+        generator.main(["--readme", str(readme), "--system-card", str(tmp_path / "absent.md")])
+
+
 def test_a_refusal_value_that_disagrees_with_its_records_fails_loudly() -> None:
     payload = _committed_scorecard()
     payload["refusal_calibration"]["refusal_recall"] = 0.9
@@ -460,10 +484,15 @@ def test_check_covers_the_system_card_and_never_writes_it(tmp_path: Path) -> Non
     readme.write_text((REPO_ROOT / "README.md").read_text(encoding="utf-8"), encoding="utf-8")
     card = tmp_path / "SYSTEM_CARD.md"
     committed = (REPO_ROOT / "docs" / "SYSTEM_CARD.md").read_text(encoding="utf-8")
-    args = ["--check", "--readme", str(readme), "--system-card", str(card)]
+    args = ["--readme", str(readme), "--system-card", str(card)]
     card.write_text(committed, encoding="utf-8")
+    # The source link is relative to the card, so a copy elsewhere is regenerated first.
     assert generator.main(args) == 0
-    stale = committed.replace("| 4/5 |", "| 5/5 |")
+    args.insert(0, "--check")
+    assert generator.main(args) == 0
+    regenerated = card.read_text(encoding="utf-8")
+    stale = regenerated.replace("| 4/5 |", "| 5/5 |")
+    assert stale != regenerated
     card.write_text(stale, encoding="utf-8")
     assert generator.main(args) == 1
     assert card.read_text(encoding="utf-8") == stale

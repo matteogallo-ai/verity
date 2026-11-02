@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import re
 import sys
 from datetime import datetime
@@ -292,7 +293,8 @@ def _slo_rows(data: dict[str, Any]) -> list[str]:
     return [
         f"| p95 latency of one answer | ≤ {SLO_P95_LATENCY_MS:,.0f} ms ({proposed}) | "
         f"{_fmt_ms(p95)} (n={n}, {warm}) | {_against(p95, SLO_P95_LATENCY_MS)} |",
-        f"| Error rate (requests ending in `answer_failed`) | ≤ {SLO_ERROR_RATE:.0%} ({proposed}) | "
+        f"| Error rate (requests answered with neither an answer nor a refusal) | "
+        f"≤ {SLO_ERROR_RATE:.0%} ({proposed}) | "
         f"{error_cell} | {_against(error_rate, SLO_ERROR_RATE)} |",
         f"| Cost per answer (agent calls; the judge is eval-only) | "
         f"≤ ${SLO_COST_PER_REQUEST_USD:.2f} ({proposed}) | ${per_query:.4f} (mean, n={n}) | "
@@ -300,13 +302,16 @@ def _slo_rows(data: dict[str, Any]) -> list[str]:
     ]
 
 
-def render_system_card_block(data: dict[str, Any], *, scorecard_path: Path) -> str:
+def render_system_card_block(
+    data: dict[str, Any], *, scorecard_path: Path, card_path: Path = DEFAULT_SYSTEM_CARD
+) -> str:
     """Markdown for the system card: measured performance with intervals, then SLOs."""
     prov = data["provenance"]
     ds = data["dataset"]
     source = _repo_path(scorecard_path)
+    link = Path(os.path.relpath(scorecard_path.resolve(), card_path.resolve().parent)).as_posix()
     lines = [
-        f"Source: [`{source}`](../{source}) · commit `{prov['run_sha']}` · "
+        f"Source: [`{source}`]({link}) · commit `{prov['run_sha']}` · "
         f"{_short_date(str(data['generated_at']))} · agent `{prov['agent_model']}` · "
         f"judge `{prov['judge_model']}` · n={ds['n_questions']} "
         f"({ds['n_answerable']} answerable + {ds['n_unanswerable']} out-of-scope).",
@@ -376,19 +381,27 @@ def main(argv: list[str] | None = None) -> int:
         (
             args.system_card,
             lambda text, block: replace_between(text, block, CARD_START, CARD_END),
-            render_system_card_block(payload, scorecard_path=args.scorecard),
+            render_system_card_block(
+                payload, scorecard_path=args.scorecard, card_path=args.system_card
+            ),
         ),
     )
-    stale: list[Path] = []
+    # Render every file before writing any, so a missing file or marker leaves both as
+    # they were instead of updating one of them.
+    pending: list[tuple[Path, str]] = []
     for path, render, block in targets:
+        if not path.is_file():
+            raise SystemExit(f"file to regenerate not found: {path}")
         current = path.read_text(encoding="utf-8")
         rendered = render(current, block)
         if rendered == current:
             print(f"{path} already up to date")
-            continue
-        stale.append(path)
-        # --check only compares: a CI or pre-commit run must never edit the tree.
-        if not args.check:
+        else:
+            pending.append((path, rendered))
+    stale = [path for path, _ in pending]
+    # --check only compares: a CI or pre-commit run must never edit the tree.
+    if not args.check:
+        for path, rendered in pending:
             path.write_text(rendered, encoding="utf-8")
             print(f"Updated {path}")
     if args.check and stale:

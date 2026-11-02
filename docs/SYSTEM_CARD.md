@@ -4,7 +4,7 @@
 eval set) · Security posture: [`SECURITY.md`](../SECURITY.md) · Threats:
 [`THREAT_MODEL.md`](THREAT_MODEL.md) · Operations: [`RUNBOOK.md`](RUNBOOK.md)
 
-Every number on this page is generated from the committed scorecard by
+Every measured number on this page is generated from the committed scorecard by
 `scripts/generate_headline_results.py`; CI runs it with `--check`. Every measured figure
 is in the generated block; the prose around it quotes none.
 
@@ -59,8 +59,10 @@ The API does not detect or filter personal data in uploaded documents.
 
 One live run, never averaged or re-run; read every value with its n and its interval.
 The answer-quality rows come from an LLM judge (named in the source line) that is not
-validated against human labels (claim C27, roadmap). Faithfulness and citation accuracy are means of
-per-question fractions, not proportions, so the scorecard holds no k/n for them.
+validated against human labels (claim C27, roadmap). Faithfulness and citation accuracy, as means of
+per-question fractions, are not proportions: they get n and no interval. A scorecard
+that stores per-claim counts gets a per-claim row instead, whose interval is too narrow
+because the claims of one answer are correlated.
 Definitions: [`evaluation-methodology.md`](evaluation-methodology.md).
 
 <!-- SYSTEM-CARD:START -->
@@ -80,7 +82,7 @@ Source: [`scorecards/live-v1.0.0.json`](../scorecards/live-v1.0.0.json) · commi
 | SLO | Target | Measured on the run of record | Status |
 |---|---|---|---|
 | p95 latency of one answer | ≤ 15,000 ms (proposed, pending owner approval) | 32526.5 ms (n=16, no warmup: includes model loading) | over target |
-| Error rate (requests ending in `answer_failed`) | ≤ 1% (proposed, pending owner approval) | not recorded by this scorecard | not measured |
+| Error rate (requests answered with neither an answer nor a refusal) | ≤ 1% (proposed, pending owner approval) | not recorded by this scorecard | not measured |
 | Cost per answer (agent calls; the judge is eval-only) | ≤ $0.02 (proposed, pending owner approval) | $0.0122 (mean, n=16) | within target |
 <!-- SYSTEM-CARD:END -->
 
@@ -92,9 +94,9 @@ running server, with the signals the code emits (responses: [`RUNBOOK.md`](RUNBO
 
 | SLO | Measured from | Caveat |
 |---|---|---|
-| p95 latency | `latency_ms` of the `answer_done` and `answer_failed` log lines (wall clock of one `agent.answer`); offline, the scorecard's `latency_ms.p95` | `/metrics` and `/metrics/prom` expose per-stage percentiles only, not the end-to-end one; the run of record includes model loading |
-| Error rate | count of `answer_failed` lines ÷ (`answer_done` + `answer_failed`) over the window; the same requests are `/ask` responses with status 503 | `verity_requests_total` counts `agent.confidence` spans, which a failed request may never open, so it cannot be the denominator |
-| Cost per answer | `cost_usd` of `answer_done`; `verity_cost_usd_total` ÷ `verity_requests_total` for the session | priced from the `model_prices` table in `verity.config`, not from provider invoices; the judge's cost is excluded (eval-only) |
+| p95 latency | `latency_ms` of the `answer_done` and `answer_failed` log lines (wall clock of one `agent.answer`); offline, the scorecard's `latency_ms.p95` | excludes HTTP handling and the first request's corpus preload; `/metrics` and `/metrics/prom` expose per-stage percentiles only |
+| Error rate | `5xx` responses to `/ask` ÷ all `/ask` responses other than `401`/`422`/`429`, from the HTTP access log or a proxy; offline, errored examples ÷ examples | the log lines alone undercount: `answer_failed` covers provider and store failures inside the agent, but a store failure during the corpus preload logs `store_unavailable` and an exception outside the agent (e.g. a missing model cache) logs `unhandled_error`, with no `answer_failed`; no counter exists in `/metrics` |
+| Cost per answer | `cost_usd` of `answer_done` | priced from the `model_prices` table in `verity.config`, not from provider invoices; the judge's cost is excluded (eval-only); `verity_cost_usd_total` ÷ `verity_requests_total` is only an approximation: it covers the retained spans (`VERITY_TRACE_MAX_SPANS`) and adds the decompose cost of failed requests |
 
 ## Known limits
 
