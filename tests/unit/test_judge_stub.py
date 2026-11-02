@@ -120,18 +120,25 @@ async def test_stub_judge_supported_answer_with_citation() -> None:
 async def test_stub_judge_flags_hallucination_on_unsupported_claim() -> None:
     judge = StubFaithfulnessJudge()
     hit = _hit("Contract mentions widgets.", ordinal=0)  # short, unrelated context
+    # A cited quote that does not support the claims: an uncited answer cannot
+    # exist any more (Answer converts it into a no_citation refusal).
+    citation = Citation(
+        chunk_id=hit.chunk.id,
+        document_id=hit.chunk.document_id,
+        quote="widgets",
+        char_start=hit.chunk.char_start + hit.chunk.text.find("widgets"),
+        char_end=hit.chunk.char_start + hit.chunk.text.find("widgets") + len("widgets"),
+    )
     metrics = await judge.judge(
         _example(answerable=True),
         _answer(
             text="The CEO's name is Alice Smith and revenue was $999 million.",
             hits=[hit],
-            citations=(),
+            citations=(citation,),
         ),
     )
     assert metrics.hallucination_rate == 1.0
     assert metrics.faithfulness < 1.0
-    # No citations on an answerable question → citation_accuracy 0.
-    assert metrics.citation_accuracy == 0.0
 
 
 @pytest.mark.asyncio

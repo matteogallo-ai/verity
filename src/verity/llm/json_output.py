@@ -4,9 +4,8 @@ Real model outputs drift from "ONLY the JSON object": prose before or after it,
 markdown code fences, or a one-element ``[{...}]`` wrapper. The synthesizer, the
 confidence scorer and the faithfulness judge all need the same recovery, so it
 lives here once. Callers decide what a ``None`` (unrecoverable output) means for
-them: the scorer refuses, the synthesizer returns the raw text with no citations
-(the scorer then judges that draft like any other), the judge marks the example
-unsupported.
+them: the scorer refuses, the synthesizer returns an empty draft that the agent
+refuses (``no_citation``), the judge marks the example unsupported.
 """
 
 from __future__ import annotations

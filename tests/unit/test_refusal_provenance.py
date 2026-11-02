@@ -179,7 +179,7 @@ def test_api_provenance_for_none_answer_labels_unknown_honestly() -> None:
     external caller or a future degraded path), ``provenance_for`` must NOT
     silently claim the boot-time default. It labels ``agent_model="unknown"``
     and preserves ``is_stub`` from the process mode as the only honest signal."""
-    runtime = AppRuntime(mode="live", corpus_dir=Path("/tmp/does-not-exist"))
+    runtime = AppRuntime(mode="live", corpus_dir=Path("/tmp/does-not-exist"), store="memory")
     unknown_answer = Answer(
         query="q",
         text="something",

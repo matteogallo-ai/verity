@@ -7,7 +7,9 @@ and the pipeline runs the same way.
 
 Errors are handled per-source, not per-batch: one bad PDF must not sink an ingestion
 run over a directory of 500 documents. Failures are logged with structured context
-and the pipeline continues.
+and the pipeline continues. The exceptions are :class:`StoreSchemaError` and
+:class:`StoreUnavailableError`: the store cannot accept any document, so they
+propagate at the first one.
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ from urllib.parse import urlparse
 import structlog
 
 from verity.ingestion.base import Chunker, Embedder, Parser
+from verity.retrieval.base import StoreSchemaError, StoreUnavailableError
 from verity.types import Chunk, Document
 
 log = structlog.get_logger(__name__)
@@ -102,6 +105,9 @@ class IngestionPipeline:
         started = time.perf_counter()
 
         for uri in uris:
+            # Each stage below catches everything on purpose: one unreadable source is
+            # logged and recorded as a failure, and the rest of the batch continues
+            # (module docstring). Store errors that affect every document re-raise.
             try:
                 doc = await self._parser.parse(uri)
             except Exception as exc:
@@ -127,6 +133,8 @@ class IngestionPipeline:
                 try:
                     await self._sink.upsert_documents([doc])
                     await self._sink.upsert(embedded)
+                except (StoreSchemaError, StoreUnavailableError):
+                    raise
                 except Exception as exc:
                     log.error(
                         "upsert_failed",

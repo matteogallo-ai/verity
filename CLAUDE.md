@@ -29,7 +29,7 @@ src/verity/
   db/                 SQL migration runner
 prompts/              *.prompt files loaded by verity.llm.prompt
 migrations/           numbered SQL files (pgvector schema)
-datasets/corpus/      5 Markdown documents; datasets/eval/questions.jsonl: 16 labeled questions
+datasets/corpus/      6 Markdown documents (one adversarial); datasets/eval/questions.jsonl: 19 labeled questions
 scorecards/           committed live scorecard (source of the README table)
 scripts/              check_claims, check_stale_narrative, check_commit_messages,
                       generate_headline_results, build_eval_labels
@@ -45,7 +45,7 @@ uv run ruff check . && uv run ruff format --check .        # lint + format
 uv run mypy                                                # typecheck (strict)
 uv run vulture                                             # dead code
 uv run deptry src                                          # dependency hygiene
-uv run pytest -m "not integration and not slow"            # fast lane, < 60 s
+HF_HUB_OFFLINE=1 uv run pytest -m "not integration and not slow"  # fast lane: < 60 s, network blocked
 uv run pytest -m "slow and not integration"                # slow lane: loads local models (~3 min)
 docker compose up -d db && uv run verity db upgrade        # pgvector for the integration lane
 uv run pytest -m integration                               # integration lane (VERITY_DATABASE_URL)
@@ -54,10 +54,11 @@ uv run python scripts/check_claims.py --no-run             # structure only, no 
 uv run python scripts/check_stale_narrative.py             # no sprint labels / future tense / bare TODO
 uv run python scripts/check_commit_messages.py main..HEAD  # Conventional Commits on the branch
 uv run python scripts/generate_headline_results.py --check # README results block ≡ scorecard
-uv run verity eval run --ci                                # pipeline smoke test on stubs (no keys)
-uv run verity serve --host 127.0.0.1 --port 8000           # API (stub mode without a key)
-make demo                                                  # API + web UI, stub mode
-docker compose up                                          # db + app; the image lacks prompts/ and migrations/ (C26)
+VERITY_STORE=memory uv run verity eval run --ci            # pipeline smoke test on stubs (no keys, no db)
+VERITY_API_AUTH_DISABLED=true uv run verity serve --port 8000  # API on pgvector, dev: no auth, stub without LLM key
+make demo                                                  # pgvector + API + web UI, stub mode
+VERITY_API_AUTH_DISABLED=true docker compose up            # db → migrate → ingest → app on 127.0.0.1:8000 (C26)
+scripts/docker_smoke.sh                                    # build + compose + /health /status /ask (CI job docker)
 cd web && corepack pnpm lint && corepack pnpm typecheck && corepack pnpm test
 ```
 

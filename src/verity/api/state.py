@@ -1,9 +1,10 @@
 """Process-scoped runtime shared by every HTTP request.
 
-One :class:`InMemoryVectorStore`, one :class:`LocalEmbedder`, one
-:class:`CrossEncoderReranker`, one :class:`RagAgent`. The eval corpus is
-preloaded on startup so the demo works with zero uploads; ``POST /ingest``
-adds on top.
+One store (pgvector by default, ``VERITY_STORE=memory`` for no database), one
+:class:`LocalEmbedder`, one :class:`CrossEncoderReranker`, one :class:`RagAgent`.
+The eval corpus is ingested on the first request (an idempotent upsert) so the demo
+works with zero uploads; ``POST /ingest`` adds on top. ``/status`` lists what the
+store holds, so with pgvector it includes uploads from earlier processes.
 
 Why a singleton: the demo lives inside one FastAPI process. Rebuilding the
 embedder + reranker on every request would waste seconds of model loading
@@ -27,12 +28,15 @@ if TYPE_CHECKING:  # pragma: no cover — types only
     from verity.types import Answer
 from verity.config import get_settings
 from verity.ingestion import LocalEmbedder
+from verity.ingestion.ids import document_id_for_uri
 from verity.observability.base import Tracer
 from verity.observability.tracer import NoOpTracer
-from verity.retrieval import CrossEncoderReranker, InMemoryVectorStore
+from verity.retrieval import CrossEncoderReranker
+from verity.retrieval.base import CorpusStore, DocumentSummary
 from verity.retrieval.hybrid import HybridRetriever
 from verity.runtime import (
     AgentMode,
+    StoreKind,
     build_agent,
     build_local_components,
     build_retriever,
@@ -44,9 +48,17 @@ _UPLOAD_URI_PREFIX = "upload://"
 _FILENAME_SANITISE_RE = re.compile(r"[^A-Za-z0-9._-]+")
 
 
+class CorpusFullError(Exception):
+    """The shared corpus already holds the configured maximum of documents."""
+
+    def __init__(self, limit: int) -> None:
+        super().__init__(f"corpus holds the maximum of {limit} documents")
+        self.limit = limit
+
+
 @dataclass
 class IngestedSource:
-    """Bookkeeping for the /status endpoint — one entry per ingested Document."""
+    """What ``POST /ingest`` reports about the document it just stored."""
 
     uri: str
     title: str | None
@@ -69,23 +81,26 @@ class AppRuntime:
         *,
         mode: AgentMode,
         corpus_dir: Path,
+        store: StoreKind,
         tracer: Tracer | None = None,
     ) -> None:
         self._mode: AgentMode = mode
         self._corpus_dir = corpus_dir
         self._tracer: Tracer = tracer or NoOpTracer()
         self._lock = asyncio.Lock()
+        self._ingest_lock = asyncio.Lock()
         self._preloaded = False
-        self._sources: dict[str, IngestedSource] = {}
 
-        self.store: InMemoryVectorStore
+        self.store: CorpusStore
         self.embedder: LocalEmbedder
         self.reranker: CrossEncoderReranker | None
         self.retriever: HybridRetriever
         self.agent: RagAgent
         self.agent_model: str
 
-        self.store, self.embedder, self.reranker = build_local_components(no_rerank=False)
+        self.store, self.embedder, self.reranker = build_local_components(
+            store=store, no_rerank=False
+        )
         self.retriever = build_retriever(
             store=self.store,
             embedder=self.embedder,
@@ -104,21 +119,16 @@ class AppRuntime:
             if not self._corpus_dir.exists():
                 self._preloaded = True
                 return
-            result = await ingest_corpus(
+            await ingest_corpus(
                 corpus_dir=self._corpus_dir,
                 store=self.store,
                 embedder=self.embedder,
             )
-            for doc in result.documents:
-                self._sources[str(doc.id)] = IngestedSource(
-                    uri=doc.uri,
-                    title=doc.title,
-                    document_id=str(doc.id),
-                    n_chunks=sum(1 for c in result.chunks if c.document_id == doc.id),
-                )
             self._preloaded = True
 
-    async def ingest_bytes(self, *, filename: str, content: bytes) -> IngestedSource:
+    async def ingest_bytes(
+        self, *, filename: str, content: bytes, extension: str, max_documents: int
+    ) -> IngestedSource:
         """Ingest a client-uploaded file.
 
         The URI is a **pure content address** — ``upload://<sha256><ext>`` —
@@ -127,34 +137,42 @@ class AppRuntime:
         ``document_id`` (``uuid5(NAMESPACE_URL, uri)``); re-uploads are
         idempotent by construction. The filename is preserved separately as
         the ``title`` for display, and the extension (parsed off the sanitised
-        name) is what drives the ``SourceType`` dispatch.
+        name) is what drives the ``SourceType`` dispatch; the caller has already
+        checked it against the allow-list.
+
+        A new document beyond ``max_documents`` raises :class:`CorpusFullError`; a
+        re-upload of bytes already in the corpus does not count.
         """
         safe_name = _sanitise_filename(filename)
         digest = hashlib.sha256(content).hexdigest()
-        ext = _extension_for(safe_name)
-        access_uri = f"{_UPLOAD_URI_PREFIX}{digest}{ext}"
-        result = await ingest_uri(
-            uri=access_uri,
-            store=self.store,
-            embedder=self.embedder,
-            raw=content,
-        )
+        access_uri = f"{_UPLOAD_URI_PREFIX}{digest}{extension}"
+        # Check and write under one lock: both await I/O, so concurrent uploads would
+        # otherwise all pass the check before any of them is stored. One process per
+        # tenant (SECURITY.md) makes an in-process lock sufficient.
+        async with self._ingest_lock:
+            held = {d.document_id for d in await self.store.list_documents()}
+            if str(document_id_for_uri(access_uri)) not in held and len(held) >= max_documents:
+                raise CorpusFullError(max_documents)
+            result = await ingest_uri(
+                uri=access_uri,
+                store=self.store,
+                embedder=self.embedder,
+                raw=content,
+            )
         assert result.documents, "ingest_uri produced no document"
         doc = result.documents[0]
-        record = IngestedSource(
+        return IngestedSource(
             uri=doc.uri,
             title=safe_name,
             document_id=str(doc.id),
             n_chunks=len(result.chunks),
         )
-        self._sources[str(doc.id)] = record
-        return record
 
     async def ask(self, question: str) -> Answer:
         return await self.agent.answer(question)
 
-    def sources(self) -> Sequence[IngestedSource]:
-        return list(self._sources.values())
+    async def sources(self) -> Sequence[DocumentSummary]:
+        return await self.store.list_documents()
 
     def provenance(self) -> Provenance:
         """Fallback provenance derived from the boot-time configuration.
@@ -215,18 +233,6 @@ def _sanitise_filename(name: str) -> str:
     return _FILENAME_SANITISE_RE.sub("_", stripped) or "upload"
 
 
-def _extension_for(name: str) -> str:
-    """Recover a parser-dispatchable extension from a sanitised filename.
-
-    Falls back to ``.txt`` so bare uploads without an extension still parse.
-    """
-    lowered = name.lower()
-    for ext in (".pdf", ".docx", ".md", ".markdown", ".txt"):
-        if lowered.endswith(ext):
-            return ext
-    return ".txt"
-
-
 def default_agent_mode() -> AgentMode:
     """Stub by default when no LLM key is configured — matches the CLI guard."""
     settings = get_settings()
@@ -235,4 +241,4 @@ def default_agent_mode() -> AgentMode:
     return "stub"
 
 
-__all__ = ["AppRuntime", "IngestedSource", "default_agent_mode"]
+__all__ = ["AppRuntime", "CorpusFullError", "IngestedSource", "default_agent_mode"]

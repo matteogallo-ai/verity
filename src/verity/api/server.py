@@ -18,19 +18,38 @@ never chunk texts or raw prompts.
 from __future__ import annotations
 
 import html
+import re
+import uuid
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Response
+import structlog
+from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 
 from verity import __version__
 from verity.api.aggregator import SessionMetrics, aggregate_spans, to_prometheus
+from verity.api.guards import RateLimiter
 from verity.api.router import router as api_router
 from verity.api.state import AppRuntime, default_agent_mode
+from verity.config import Settings, get_settings
 from verity.eval import FileRunStore
 from verity.observability.tracer import NoOpTracer
+from verity.retrieval.base import RetrievalUnavailableError, StoreSchemaError
+
+_log = structlog.get_logger("verity.api")
+_REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+# Multipart framing around one file part; generous so a legal upload is never refused.
+_MULTIPART_OVERHEAD_BYTES = 16 * 1024
+# A JSON client may escape every non-ASCII character: an astral one is a surrogate
+# pair, \uXXXX\uXXXX, 12 bytes. Budgeting 12 bytes per character means a question
+# within the character limit always reaches the length check (422), never 413.
+_JSON_BYTES_PER_CHAR = 12
+# Envelope around the question, plus headroom.
+_JSON_OVERHEAD_BYTES = 4 * 1024
 
 
 def create_app(
@@ -41,6 +60,7 @@ def create_app(
     corpus_dir: Path = Path("datasets/corpus"),
     agent_mode: str | None = None,
     cors_origins: tuple[str, ...] = ("http://localhost:3000",),
+    settings: Settings | None = None,
 ) -> FastAPI:
     """Build the FastAPI app.
 
@@ -48,9 +68,17 @@ def create_app(
     (session spans populate ``/metrics``) or ``None`` (all session aggregates
     read zero — endpoints still respond 200). ``runs_dir`` + ``dataset``
     control which persisted eval runs the dashboard surfaces. ``corpus_dir``
-    is preloaded into the shared in-memory store on first request so the
-    demo UI can ask questions immediately.
+    is upserted into the configured store on first request so the
+    demo UI can ask questions immediately. ``settings`` defaults to the process
+    settings; without API keys the app refuses to start unless authentication is
+    explicitly disabled.
     """
+    settings = settings or get_settings()
+    if not settings.api_keys and not settings.api_auth_disabled:
+        raise ValueError(
+            "API authentication is on but VERITY_API_KEYS is empty: set keys, or "
+            "VERITY_API_AUTH_DISABLED=true for local development only."
+        )
     app = FastAPI(
         title="verity",
         version=__version__,
@@ -72,9 +100,13 @@ def create_app(
     runtime = AppRuntime(
         mode="stub" if resolved_mode == "stub" else "live",
         corpus_dir=corpus_dir,
+        store=settings.store,
         tracer=runtime_tracer,
     )
     app.state.runtime = runtime
+    app.state.settings = settings
+    app.state.rate_limiter = RateLimiter(limit=settings.api_rate_limit_per_minute, window_s=60.0)
+    _install_request_context(app, settings)
     app.include_router(api_router)
 
     store = FileRunStore(runs_dir)
@@ -106,6 +138,99 @@ def create_app(
         return HTMLResponse(_render_dashboard(session=session, runs=runs, dataset=dataset))
 
     return app
+
+
+def _request_id(request: Request) -> str:
+    return str(getattr(request.state, "request_id", ""))
+
+
+def _body_limit(path: str, settings: Settings) -> int:
+    if path == "/ingest":
+        return settings.api_max_upload_bytes + _MULTIPART_OVERHEAD_BYTES
+    return settings.api_max_question_chars * _JSON_BYTES_PER_CHAR + _JSON_OVERHEAD_BYTES
+
+
+def _install_request_context(app: FastAPI, settings: Settings) -> None:
+    """Request ID on every response and log line; generic error bodies.
+
+    The client gets a status, a short message and the request ID; the detail
+    (exception, traceback, parser message) is in the structured log under that ID.
+    """
+
+    @app.middleware("http")
+    async def request_context(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        incoming = request.headers.get("x-request-id", "")
+        request_id = incoming if _REQUEST_ID_RE.match(incoming) else uuid.uuid4().hex
+        request.state.request_id = request_id
+        structlog.contextvars.bind_contextvars(request_id=request_id)
+        try:
+            response = await _guarded(request, call_next, settings)
+        finally:
+            structlog.contextvars.unbind_contextvars("request_id", "principal")
+        response.headers["X-Request-ID"] = request_id
+        return response
+
+    @app.exception_handler(HTTPException)
+    async def http_error(request: Request, exc: HTTPException) -> JSONResponse:
+        return JSONResponse(
+            {"detail": exc.detail, "request_id": _request_id(request)},
+            status_code=exc.status_code,
+            headers=exc.headers,
+        )
+
+    @app.exception_handler(StoreSchemaError)
+    @app.exception_handler(RetrievalUnavailableError)
+    async def store_unavailable(request: Request, exc: Exception) -> JSONResponse:
+        # A schema mismatch is a server misconfiguration; to the client it is the same
+        # unavailable store, and the detail goes to the log.
+        _log.error("store_unavailable", path=request.url.path, exc_info=exc)
+        return JSONResponse(
+            {
+                "detail": {
+                    "error": "retrieval_unavailable",
+                    "message": "The document store is unavailable; retry later.",
+                },
+                "request_id": _request_id(request),
+            },
+            status_code=503,
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+        # FastAPI's default body echoes the rejected input; location and reason suffice.
+        errors = [{"loc": e.get("loc"), "msg": e.get("msg")} for e in exc.errors()]
+        return JSONResponse({"detail": errors, "request_id": _request_id(request)}, status_code=422)
+
+
+async def _guarded(
+    request: Request,
+    call_next: Callable[[Request], Awaitable[Response]],
+    settings: Settings,
+) -> Response:
+    request_id = _request_id(request)
+    if request.method == "POST":
+        declared = request.headers.get("content-length")
+        if declared is None or not declared.isdigit():
+            return JSONResponse(
+                {"detail": "Content-Length required.", "request_id": request_id},
+                status_code=411,
+            )
+        if int(declared) > _body_limit(request.url.path, settings):
+            return JSONResponse(
+                {"detail": "Request body too large.", "request_id": request_id},
+                status_code=413,
+            )
+    try:
+        return await call_next(request)
+    except Exception as exc:
+        # Last handler before the client: any uncaught error becomes a generic 500;
+        # the traceback is logged under the request ID the client receives.
+        _log.error("unhandled_error", path=request.url.path, exc_info=exc)
+        return JSONResponse(
+            {"detail": "Internal error.", "request_id": request_id}, status_code=500
+        )
 
 
 # --------------------------------------------------------------------------------------

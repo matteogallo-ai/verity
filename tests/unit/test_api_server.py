@@ -13,8 +13,11 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from verity.api import create_app
+from verity.config import Settings
 from verity.observability.tracer import OTelTracer
 from verity.types import UsageStats, new_id
+
+_DEV = Settings(api_auth_disabled=True, store="memory")
 
 
 def _seed_tracer_with_a_query(tracer: OTelTracer) -> None:
@@ -32,7 +35,7 @@ def _seed_tracer_with_a_query(tracer: OTelTracer) -> None:
 
 
 def test_health_endpoint_returns_ok(tmp_path: Path) -> None:
-    app = create_app(tracer=None, runs_dir=tmp_path, dataset="questions")
+    app = create_app(tracer=None, runs_dir=tmp_path, dataset="questions", settings=_DEV)
     client = TestClient(app)
     r = client.get("/health")
     assert r.status_code == 200
@@ -40,7 +43,7 @@ def test_health_endpoint_returns_ok(tmp_path: Path) -> None:
 
 
 def test_metrics_endpoint_empty_when_no_spans(tmp_path: Path) -> None:
-    app = create_app(tracer=None, runs_dir=tmp_path, dataset="questions")
+    app = create_app(tracer=None, runs_dir=tmp_path, dataset="questions", settings=_DEV)
     client = TestClient(app)
     r = client.get("/metrics")
     assert r.status_code == 200
@@ -53,7 +56,7 @@ def test_metrics_endpoint_empty_when_no_spans(tmp_path: Path) -> None:
 def test_metrics_json_aggregates_are_populated(tmp_path: Path) -> None:
     tracer = OTelTracer()
     _seed_tracer_with_a_query(tracer)
-    app = create_app(tracer=tracer, runs_dir=tmp_path, dataset="questions")
+    app = create_app(tracer=tracer, runs_dir=tmp_path, dataset="questions", settings=_DEV)
     client = TestClient(app)
     r = client.get("/metrics")
     assert r.status_code == 200
@@ -71,7 +74,7 @@ def test_metrics_json_aggregates_are_populated(tmp_path: Path) -> None:
 def test_metrics_prom_returns_prometheus_text(tmp_path: Path) -> None:
     tracer = OTelTracer()
     _seed_tracer_with_a_query(tracer)
-    app = create_app(tracer=tracer, runs_dir=tmp_path, dataset="questions")
+    app = create_app(tracer=tracer, runs_dir=tmp_path, dataset="questions", settings=_DEV)
     client = TestClient(app)
     r = client.get("/metrics/prom")
     assert r.status_code == 200
@@ -84,7 +87,7 @@ def test_metrics_prom_returns_prometheus_text(tmp_path: Path) -> None:
 def test_dashboard_renders_html(tmp_path: Path) -> None:
     tracer = OTelTracer()
     _seed_tracer_with_a_query(tracer)
-    app = create_app(tracer=tracer, runs_dir=tmp_path, dataset="questions")
+    app = create_app(tracer=tracer, runs_dir=tmp_path, dataset="questions", settings=_DEV)
     client = TestClient(app)
     r = client.get("/dashboard")
     assert r.status_code == 200

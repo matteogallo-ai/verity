@@ -1,4 +1,4 @@
-"""End-to-end harness with stub agent + stub judge over the real 16-question dataset.
+"""End-to-end harness with stub agent + stub judge over the real 19-question dataset.
 
 No network, no keys, no DB — the in-memory store + scripted stub + mechanical judge
 run entirely locally, so this test replaces the integration lane for reviewers who
@@ -94,7 +94,7 @@ async def test_harness_produces_full_scorecard_with_stub_labels() -> None:
     judge = StubFaithfulnessJudge()
 
     examples = load_full_dataset(DATASET)
-    assert len(examples) == 16, f"expected 16-question dataset, got {len(examples)}"
+    assert len(examples) == 19, f"expected 19-question dataset, got {len(examples)}"
 
     evaluator = AgentEvaluator(
         agent=agent,
@@ -108,12 +108,12 @@ async def test_harness_produces_full_scorecard_with_stub_labels() -> None:
 
     # Scorecard shape.
     sc = result.scorecard
-    assert sc.n_examples == 16
+    assert sc.n_examples == 19
     assert sc.git_sha == "test0000"
     assert 0.0 <= sc.retrieval.precision_at_k <= 1.0
     assert 0.0 <= sc.retrieval.recall_at_k <= 1.0
     assert 0.0 <= sc.retrieval.ndcg_at_k <= 1.0
-    # Refusal is REAL — not stub. Computed from 11 answerable + 5 out-of-scope.
+    # Refusal is REAL — not stub. Computed from 11 answerable + 8 out-of-scope.
     assert 0.0 <= sc.answer.refusal_recall <= 1.0
     assert 0.0 <= sc.answer.refusal_precision <= 1.0
     # The stub judge AND stub agent carried through — traceability triple.
@@ -124,8 +124,8 @@ async def test_harness_produces_full_scorecard_with_stub_labels() -> None:
     assert run.agent_model == "stub-agent"
 
     # Every example got a refusal outcome recorded.
-    assert len(result.per_refusal) == 16
-    out_of_scope_ids = {"q-004", "q-006", "q-014", "q-015", "q-016"}
+    assert len(result.per_refusal) == 19
+    out_of_scope_ids = {"q-004", "q-006", "q-014", "q-015", "q-016", "q-017", "q-018", "q-019"}
     observed_out_of_scope = {p.example_id for p in result.per_refusal if not p.expected_answerable}
     assert observed_out_of_scope == out_of_scope_ids
 
@@ -157,3 +157,38 @@ async def test_harness_refusal_recall_captures_hallucinations_on_near_miss() -> 
         if not p.expected_answerable:
             assert p.observed_refused, f"stub agent hallucinated on out-of-scope {p.example_id}"
     assert result.scorecard.answer.refusal_recall == 1.0
+
+
+@pytest.mark.asyncio
+async def test_errored_examples_are_counted_apart_from_every_metric() -> None:
+    """One example hits an outage: it is listed, not scored as a refusal or an answer."""
+    from verity.types import Answer, AnswerError, ErrorKind
+
+    retriever = await _seed_retriever()
+    real = create_default_agent(retriever=retriever, client=build_stub_router())
+    examples = load_full_dataset(DATASET)
+    failing_question = examples[0].question
+
+    class _FlakyAgent:
+        async def answer(self, question: str) -> Answer:
+            if question == failing_question:
+                return Answer(
+                    query=question,
+                    text="",
+                    error=AnswerError(kind=ErrorKind.PROVIDER_UNAVAILABLE, detail="down"),
+                )
+            return await real.answer(question)
+
+    evaluator = AgentEvaluator(
+        agent=_FlakyAgent(),  # type: ignore[arg-type]
+        judge=StubFaithfulnessJudge(),
+        embedding_model="fake",
+        judge_model=STUB_JUDGE_MODEL,
+        agent_model="stub-agent",
+        dataset_name="questions",
+    )
+    result = await evaluator.run(examples, git_sha="test0000")
+
+    assert result.scorecard.errored_example_ids == (examples[0].id,)
+    assert len(result.per_refusal) == len(examples) - 1
+    assert examples[0].id not in {r.example_id for r in result.per_refusal}

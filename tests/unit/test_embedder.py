@@ -63,3 +63,13 @@ async def test_embed_chunks_binds_model_id() -> None:
     assert [e.chunk for e in out] == chunks
     assert all(e.model == "fake-v1" for e in out)
     assert all(len(e.embedding) == 4 for e in out)
+
+
+def test_default_backend_factory_is_resolved_at_call_time() -> None:
+    """Patching the module factory must reach a default-constructed embedder, so
+    tests can keep the real model (and the network) out of the fast lane."""
+    from unittest.mock import Mock, patch
+
+    fake = Mock(**{"get_sentence_embedding_dimension.return_value": 384})
+    with patch("verity.ingestion.embedder._default_backend_factory", return_value=fake):
+        assert LocalEmbedder(expected_dim=384)._get_backend() is fake

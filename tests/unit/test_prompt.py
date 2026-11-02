@@ -13,7 +13,7 @@ from verity.types import Role
 def test_parse_shipped_decompose_prompt() -> None:
     p = load_prompt("decompose")
     assert isinstance(p, PromptTemplate)
-    assert p.version == "0.1.0"
+    assert p.version == "0.2.0"
     assert "decompose enterprise-document questions" in p.system.lower()
     assert "{{ question }}" in p.user
 

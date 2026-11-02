@@ -8,11 +8,28 @@ scattered as magic numbers across the codebase.
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Literal
 
-from pydantic import Field, SecretStr
+from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from verity.types import Provider
+
+
+class ModelPrice(BaseModel, frozen=True):
+    """List price of one model, in USD per million tokens."""
+
+    input_usd_per_mtok: float = Field(ge=0.0)
+    output_usd_per_mtok: float = Field(ge=0.0)
+
+
+# Anthropic list prices from the Anthropic model table; OpenAI's from its gpt-4.1-mini
+# model page. Override with VERITY_MODEL_PRICES='{"<model>": {...}}' when a contract
+# or a model change makes them wrong: cost figures are only as good as this table.
+DEFAULT_MODEL_PRICES: dict[str, ModelPrice] = {
+    "claude-sonnet-4-6": ModelPrice(input_usd_per_mtok=3.0, output_usd_per_mtok=15.0),
+    "gpt-4.1-mini": ModelPrice(input_usd_per_mtok=0.40, output_usd_per_mtok=1.60),
+}
 
 
 class Settings(BaseSettings):
@@ -25,6 +42,9 @@ class Settings(BaseSettings):
 
     # --- Database ---------------------------------------------------------------------
     database_url: str = "postgresql://verity:verity@localhost:5432/verity"
+    # pgvector is what the API, the demo and the reference eval run on (ADR 0002).
+    # "memory" runs without a database: unit tests, the CI pipeline smoke test.
+    store: Literal["pgvector", "memory"] = "pgvector"
 
     # --- Embeddings (local by default → CI needs no API keys) -------------------------
     embedding_model: str = "BAAI/bge-small-en-v1.5"
@@ -51,6 +71,12 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-sonnet-4-6"
     openai_model: str = "gpt-4.1-mini"
     judge_model: str = "claude-sonnet-4-6"  # LLM-as-judge for faithfulness eval
+    # A hung provider must surface as ProviderUnavailableError in bounded time, so the
+    # router can fall back; the SDK default (10 min) would hold a request that long.
+    # Worst case per provider: llm_timeout_s * (llm_max_retries + 1).
+    llm_timeout_s: float = Field(default=30.0, gt=0.0)
+    llm_max_retries: int = Field(default=2, ge=0)
+    model_prices: dict[str, ModelPrice] = Field(default_factory=lambda: dict(DEFAULT_MODEL_PRICES))
 
     # --- Refusal (headline feature) ---------------------------------------------------
     confidence_threshold: float = Field(
@@ -60,11 +86,45 @@ class Settings(BaseSettings):
         description="Below this scorer-reported confidence the agent refuses to answer.",
     )
     max_agent_steps: int = 4  # cap on multi-step retrieval decomposition
+    # Deterministic checks a cited draft must pass before the scorer runs
+    # (verity.agent.support). On the committed live run (d0ca1d5), the 12 answered
+    # questions had coverage 0.58-1.00 and a best cited reranker logit of 0.94-9.31;
+    # q-015, labelled out of scope and answered, had 0.30 and -0.85. Both values were
+    # chosen on those same 16 examples: they need a held-out split to be validated.
+    min_citation_coverage: float = Field(default=0.5, ge=0.0, le=1.0)
+    min_cited_rerank_score: float = 0.0
+
+    # --- HTTP API (see docs/adr/0006-api-security-baseline.md) ------------------------
+    # The longest labeled question is 97 characters. 2000 leaves 20x headroom while
+    # bounding what one request puts into each of its three prompts (~500 tokens).
+    api_max_question_chars: int = Field(default=2000, gt=0)
+    # The shipped corpus files are 1-4 KB; 1 MiB fits a long contract or a short PDF.
+    api_max_upload_bytes: int = Field(default=1_048_576, gt=0)
+    # The corpus is shared by every client and, on pgvector, outlives the process; this
+    # caps its growth because no endpoint deletes a document.
+    api_max_documents: int = Field(default=200, gt=0)
+    # JSON list in the environment: VERITY_API_KEYS='["key-1","key-2"]'.
+    api_keys: tuple[SecretStr, ...] = ()
+    # No key configured is a startup error unless this is set: an open API must be a
+    # deliberate choice (local development), never the result of a missing variable.
+    api_auth_disabled: bool = False
+    api_rate_limit_per_minute: int = Field(default=30, gt=0)
 
     # --- Observability ----------------------------------------------------------------
     # None → spans stay in the in-process exporter only (backs /metrics).
     otel_endpoint: str | None = None
+    # Spans kept in memory for /metrics and /dashboard; older spans are dropped.
+    trace_max_spans: int = Field(default=10_000, gt=0)
     log_level: str = "INFO"
+
+    def price_for(self, model: str) -> ModelPrice:
+        """The configured price of ``model``; an unpriced model is a configuration error."""
+        try:
+            return self.model_prices[model]
+        except KeyError:
+            raise ValueError(
+                f"no price configured for model {model!r}; add it to VERITY_MODEL_PRICES"
+            ) from None
 
     @property
     def has_llm_api_key(self) -> bool:

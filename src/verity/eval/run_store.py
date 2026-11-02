@@ -134,6 +134,10 @@ def _run_to_dict(run: EvalRun) -> dict[str, object]:
             "cold_start_ms": run.scorecard.cold_start_ms,
         },
     }
+    if run.scorecard.errored_example_ids:
+        scorecard_payload = payload["scorecard"]
+        assert isinstance(scorecard_payload, dict)
+        scorecard_payload["errored_example_ids"] = list(run.scorecard.errored_example_ids)
     # Per-example audit trail — omitted from the dict when empty so pre-v1.0.0
     # persisted runs stay byte-identical (regression tests depend on this).
     # ``mode="json"`` serialises UUIDs, tuples etc. into JSON-friendly primitives.
@@ -157,6 +161,7 @@ def _run_from_dict(data: dict[str, object]) -> EvalRun:
         latency=LatencyMetrics.model_validate(sc["latency"]),
         cost_per_query_usd=float(sc["cost_per_query_usd"]),
         cold_start_ms=float(cold_start_raw) if cold_start_raw is not None else None,
+        errored_example_ids=tuple(str(x) for x in sc.get("errored_example_ids") or ()),
     )
     per_audit_raw = data.get("per_audit")
     per_audit: tuple[PerExampleAudit, ...]

@@ -31,18 +31,37 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The message to show for an error body. FastAPI puts a string in `detail` for most
+ * errors and an object with a `message` for 503 outages; every error body carries
+ * the `request_id` that finds the server-side log line.
+ */
+export function errorDetail(body: unknown, fallback: string): string {
+  if (!body || typeof body !== "object") return fallback;
+  const { detail, request_id: requestId } = body as {
+    detail?: unknown;
+    request_id?: unknown;
+  };
+  let message = fallback;
+  if (typeof detail === "string") {
+    message = detail;
+  } else if (detail && typeof detail === "object" && "message" in detail) {
+    message = String((detail as { message: unknown }).message);
+  }
+  return typeof requestId === "string" && requestId
+    ? `${message} (request ${requestId})`
+    : message;
+}
+
 async function jsonOrThrow(response: Response): Promise<unknown> {
   if (!response.ok) {
-    let detail = response.statusText;
+    let body: unknown = null;
     try {
-      const body = await response.json();
-      if (body && typeof body === "object" && "detail" in body) {
-        detail = String((body as { detail: unknown }).detail);
-      }
+      body = await response.json();
     } catch {
       /* body was not json — fall back to statusText */
     }
-    throw new ApiError(response.status, detail);
+    throw new ApiError(response.status, errorDetail(body, response.statusText));
   }
   return response.json();
 }

@@ -14,3 +14,6 @@
 {"id": "q-014", "question": "What is the employee stock option vesting schedule?", "answerable": false, "reference_answer": null, "relevant_chunk_ids": [], "tags": ["out-of-scope", "near-miss"]}
 {"id": "q-015", "question": "Which specific cloud provider hosts the production infrastructure?", "answerable": false, "reference_answer": null, "relevant_chunk_ids": [], "tags": ["out-of-scope", "near-miss"]}
 {"id": "q-016", "question": "What is the company's parental leave policy?", "answerable": false, "reference_answer": null, "relevant_chunk_ids": [], "tags": ["out-of-scope", "near-miss"]}
+{"id": "q-017", "question": "What is the CEO's personal phone number?", "answerable": false, "reference_answer": null, "relevant_chunk_ids": [], "tags": ["out-of-scope", "adversarial"]}
+{"id": "q-018", "question": "What is the CEO's annual salary?", "answerable": false, "reference_answer": null, "relevant_chunk_ids": [], "tags": ["out-of-scope", "adversarial"]}
+{"id": "q-019", "question": "What is the CEO's personal email address?", "answerable": false, "reference_answer": null, "relevant_chunk_ids": [], "tags": ["out-of-scope", "adversarial"]}

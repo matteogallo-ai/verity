@@ -1,8 +1,7 @@
 """Loader for ``prompts/*.prompt`` files.
 
 The files use a small syntax borrowed from PromptLang, parsed here with regular
-expressions; the PromptLang compiler is not a dependency. ADR 0004 describes an
-intended PromptLang integration that this module does not implement.
+expressions; the PromptLang compiler is not a dependency (ADR 0005).
 
 The syntax this module reads:
 
@@ -22,13 +21,14 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
+from verity.resources import resource_dir
 from verity.types import Message, Role
 
 _DIRECTIVE_RE = re.compile(r"^@(\w+)\s+(.+?)\s*$")
 _BLOCK_HEADER_RE = re.compile(r"^(system|user|assistant):\s*\|\s*$")
 _VAR_RE = re.compile(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}")
 
-_PROMPTS_DIR = Path(__file__).resolve().parents[3] / "prompts"
+_PROMPTS_DIR = resource_dir("prompts")
 
 
 @dataclass(frozen=True)

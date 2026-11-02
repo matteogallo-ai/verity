@@ -1,12 +1,29 @@
+# Development stack: db → migrate → ingest → app. `docker compose up` brings it up in
+# that order; each one-shot step must succeed before the next starts.
+#
+# The API refuses to start without a key. Either set keys:
+#   VERITY_API_KEYS='["a-long-random-key"]' docker compose up
+# or open it explicitly for local development:
+#   VERITY_API_AUTH_DISABLED=true docker compose up
+# Without a provider key the agent runs in stub mode (scripted, no LLM call).
+x-verity: &verity
+  build: .
+  image: verity:local
+  environment: &verity-env
+    VERITY_DATABASE_URL: postgresql://verity:verity@db:5432/verity
+    VERITY_STORE: pgvector
+
 services:
   db:
     image: pgvector/pgvector:pg16
     environment:
+      # Development credentials; the port is published on loopback only
+      # (VERITY_DB_PORT and VERITY_API_PORT change the host side of each port).
       POSTGRES_USER: verity
       POSTGRES_PASSWORD: verity
       POSTGRES_DB: verity
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${VERITY_DB_PORT:-5432}:5432"
     volumes:
       - verity-db:/var/lib/postgresql/data
     healthcheck:
@@ -15,18 +32,38 @@ services:
       timeout: 3s
       retries: 10
 
-  app:
-    build: .
+  migrate:
+    <<: *verity
+    command: ["db", "upgrade"]
     depends_on:
       db:
         condition: service_healthy
+
+  ingest:
+    <<: *verity
+    command: ["ingest", "datasets/corpus"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  app:
+    <<: *verity
     environment:
-      VERITY_DATABASE_URL: postgresql://verity:verity@db:5432/verity
+      <<: *verity-env
+      VERITY_API_KEYS: ${VERITY_API_KEYS:-[]}
+      VERITY_API_AUTH_DISABLED: ${VERITY_API_AUTH_DISABLED:-false}
       VERITY_ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       VERITY_OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    depends_on:
+      ingest:
+        condition: service_completed_successfully
     ports:
-      - "8000:8000"
-    command: ["verity", "serve", "--host", "0.0.0.0", "--port", "8000"]
+      - "127.0.0.1:${VERITY_API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
 
 volumes:
   verity-db:

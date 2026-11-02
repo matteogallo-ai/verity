@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, cast
 
 import typer
 from rich.console import Console
@@ -16,6 +16,7 @@ from verity.config import get_settings
 
 if TYPE_CHECKING:
     from verity.retrieval.base import Retriever
+    from verity.runtime import StoreKind
     from verity.types import Answer, RetrievalHit
 
 app = typer.Typer(
@@ -59,7 +60,8 @@ def ingest(
     """Ingest documents into the index.
 
     Runs parse → chunk → embed → upsert. Errors per source are logged and skipped so
-    a single bad file does not sink the whole batch.
+    a single bad file does not sink the whole batch; a store schema error (wrong
+    embedding dimension, migrations not applied) stops the run with exit code 2.
     """
     # Local imports keep `verity version` and `verity db upgrade` cheap when the
     # heavy ingestion deps (docling, torch) are not needed for the invoked command.
@@ -71,6 +73,7 @@ def ingest(
     )
     from verity.ingestion.pipeline import discover_sources
     from verity.retrieval import PgVectorStore
+    from verity.retrieval.base import StoreSchemaError, StoreUnavailableError
 
     uris = discover_sources(str(path))
     if not uris:
@@ -89,7 +92,11 @@ def ingest(
         + (" [yellow](dry run — no writes)[/yellow]" if dry_run else "")
     )
     pipeline = IngestionPipeline(parser=parser, chunker=chunker, embedder=embedder, sink=sink)
-    result = asyncio.run(pipeline.ingest(uris))
+    try:
+        result = asyncio.run(pipeline.ingest(uris))
+    except (StoreSchemaError, StoreUnavailableError) as exc:
+        console.print(f"[red]Ingestion stopped:[/red] {exc}")
+        raise typer.Exit(code=2) from exc
 
     table = Table(title="Ingestion summary", show_header=True, header_style="bold cyan")
     table.add_column("Metric")
@@ -127,11 +134,14 @@ def db_upgrade() -> None:
 def ask(
     question: Annotated[str, typer.Argument(help="Question to ask the corpus.")],
     corpus: Annotated[
-        Path, typer.Option(help="Corpus directory to ingest into an in-memory store.")
+        Path, typer.Option(help="Corpus directory to ingest into the store first (idempotent).")
     ] = Path("datasets/corpus"),
-    in_memory: Annotated[
-        bool, typer.Option(help="Use an in-memory store (no Postgres required). Default: True.")
-    ] = True,
+    store: Annotated[
+        str | None,
+        typer.Option(
+            help="Vector store, 'pgvector' or 'memory'. Default: VERITY_STORE (pgvector)."
+        ),
+    ] = None,
     stub: Annotated[
         bool,
         typer.Option(
@@ -150,9 +160,7 @@ def ask(
     if not stub:
         _require_llm_api_key()
 
-    retriever, _ = asyncio.run(
-        _build_retriever(corpus=corpus, in_memory=in_memory, no_rerank=False)
-    )
+    retriever, _ = asyncio.run(_build_retriever(corpus=corpus, store=store, no_rerank=False))
     client = build_stub_router() if stub else create_default_routing_client()
     agent = create_default_agent(retriever=retriever, client=client)
     answer = asyncio.run(agent.answer(question))
@@ -213,17 +221,14 @@ def retrieve(
     k: Annotated[int, typer.Option(help="Number of hits to display.")] = 5,
     corpus: Annotated[
         Path,
-        typer.Option(help="Corpus directory to ingest into an in-memory store."),
+        typer.Option(help="Corpus directory to ingest into the store first (idempotent)."),
     ] = Path("datasets/corpus"),
-    in_memory: Annotated[
-        bool,
+    store: Annotated[
+        str | None,
         typer.Option(
-            help=(
-                "Use an in-memory store populated from --corpus instead of pgvector. "
-                "Default: True; pass --no-in-memory to query pgvector."
-            )
+            help="Vector store, 'pgvector' or 'memory'. Default: VERITY_STORE (pgvector)."
         ),
-    ] = True,
+    ] = None,
     no_rerank: Annotated[
         bool,
         typer.Option(help="Skip the cross-encoder rerank stage (dense + sparse + RRF only)."),
@@ -231,7 +236,7 @@ def retrieve(
 ) -> None:
     """Run one hybrid retrieval and print the top hits."""
     hits = asyncio.run(
-        _run_retrieve(query=query, k=k, corpus=corpus, in_memory=in_memory, no_rerank=no_rerank)
+        _run_retrieve(query=query, k=k, corpus=corpus, store=store, no_rerank=no_rerank)
     )
     if not hits:
         console.print("[yellow]No hits.[/yellow]")
@@ -273,10 +278,12 @@ def eval_retrieval(
         int | None,
         typer.Option(help="k used for precision@k / recall@k / nDCG@k (default: rerank_k)."),
     ] = None,
-    in_memory: Annotated[
-        bool,
-        typer.Option(help="Use an in-memory store (no Postgres required). Default: True."),
-    ] = True,
+    store: Annotated[
+        str | None,
+        typer.Option(
+            help="Vector store, 'pgvector' or 'memory'. Default: VERITY_STORE (pgvector)."
+        ),
+    ] = None,
     no_rerank: Annotated[
         bool, typer.Option(help="Score the fused set without the cross-encoder rerank.")
     ] = False,
@@ -312,7 +319,7 @@ def eval_retrieval(
         raise typer.Exit(code=0)
 
     retriever, backend_name = asyncio.run(
-        _build_retriever(corpus=corpus, in_memory=in_memory, no_rerank=no_rerank)
+        _build_retriever(corpus=corpus, store=store, no_rerank=no_rerank)
     )
 
     scorecard = asyncio.run(
@@ -374,56 +381,51 @@ def eval_retrieval(
 
 
 async def _build_retriever(
-    *, corpus: Path, in_memory: bool, no_rerank: bool
+    *, corpus: Path, store: str | None, no_rerank: bool
 ) -> tuple[Retriever, str]:
-    """Instantiate the retriever + populate the store when in-memory.
+    """Build the retriever on the chosen store, after ingesting ``corpus`` into it.
 
-    Returns ``(retriever, backend_name)`` so the scorecard records where the
-    numbers came from.
+    The upsert is idempotent (content-derived ids), so with pgvector a run re-embeds
+    the corpus but never duplicates it, and its numbers never depend on what an
+    earlier process left in the database. Returns ``(retriever, store_name)`` so
+    the scorecard records where the numbers came from.
     """
-    from verity.ingestion import (
-        IngestionPipeline,
-        LocalEmbedder,
-        StructureAwareChunker,
-        create_default_parser,
+    from verity.runtime import build_local_components, build_retriever, ingest_corpus
+
+    kind = _resolve_store(store)
+    vector_store, embedder, reranker = build_local_components(store=kind, no_rerank=no_rerank)
+    result = await ingest_corpus(corpus_dir=corpus, store=vector_store, embedder=embedder)
+    console.print(
+        f"[dim]{kind} store: ingested {result.n_documents} docs, {result.n_chunks} chunks "
+        f"(elapsed {result.elapsed_s:.2f}s)[/dim]"
     )
-    from verity.ingestion.pipeline import discover_sources
-    from verity.retrieval import (
-        CrossEncoderReranker,
-        HybridRetriever,
-        InMemoryVectorStore,
-        PgVectorStore,
-    )
+    return build_retriever(store=vector_store, embedder=embedder, reranker=reranker), kind
 
-    embedder = LocalEmbedder()
-    reranker = None if no_rerank else CrossEncoderReranker()
 
-    if in_memory:
-        store = InMemoryVectorStore()
-        parser = create_default_parser()
-        chunker = StructureAwareChunker()
-        pipeline = IngestionPipeline(parser=parser, chunker=chunker, embedder=embedder, sink=store)
-        uris = discover_sources(str(corpus))
-        result = await pipeline.ingest(uris)
-        console.print(
-            f"[dim]in-memory store: {result.n_documents} docs, {result.n_chunks} chunks "
-            f"(elapsed {result.elapsed_s:.2f}s)[/dim]"
-        )
-        return HybridRetriever(store=store, embedder=embedder, reranker=reranker), "in-memory"
-
-    pg_store = PgVectorStore()
-    return HybridRetriever(store=pg_store, embedder=embedder, reranker=reranker), "pgvector"
+def _resolve_store(store: str | None) -> StoreKind:
+    resolved = store or get_settings().store
+    if resolved not in ("pgvector", "memory"):
+        raise typer.BadParameter(f"--store must be 'pgvector' or 'memory', got {resolved!r}")
+    return cast("StoreKind", resolved)
 
 
 async def _run_retrieve(
-    *, query: str, k: int, corpus: Path, in_memory: bool, no_rerank: bool
+    *, query: str, k: int, corpus: Path, store: str | None, no_rerank: bool
 ) -> list[RetrievalHit]:
-    retriever, _ = await _build_retriever(corpus=corpus, in_memory=in_memory, no_rerank=no_rerank)
+    retriever, _ = await _build_retriever(corpus=corpus, store=store, no_rerank=no_rerank)
     return await retriever.retrieve(query, k=k)
 
 
 def _print_answer(answer: Answer) -> None:
     """Render an :class:`Answer` for the terminal — refuses visibly when refused."""
+    if answer.confidence is None:
+        kind = answer.error.kind.value if answer.error else "unknown"
+        detail = answer.error.detail if answer.error else ""
+        console.print(
+            f"[bold red]ERROR[/bold red] ({kind}) · trace_id=[dim]{answer.trace_id}[/dim]"
+        )
+        console.print(detail)
+        raise typer.Exit(code=3)
     header = (
         "[bold red]REFUSED[/bold red]"
         if answer.confidence.refused
@@ -462,9 +464,18 @@ def _print_answer(answer: Answer) -> None:
     console.print(usage)
 
 
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+
+
 @app.command()
 def serve(
-    host: Annotated[str, typer.Option(help="Bind host.")] = "0.0.0.0",
+    host: Annotated[
+        str,
+        typer.Option(
+            help="Bind host. Loopback by default; pass 0.0.0.0 explicitly to expose the "
+            "API to the network (see SECURITY.md)."
+        ),
+    ] = "127.0.0.1",
     port: Annotated[int, typer.Option(help="Bind port.")] = 8000,
     runs_dir: Annotated[
         Path, typer.Option(help="Where the dashboard reads persisted eval runs from.")
@@ -487,8 +498,17 @@ def serve(
 
     settings = get_settings()
     configure_logging(settings.log_level)
-    tracer = OTelTracer(otel_endpoint=settings.otel_endpoint)
-    app_instance = create_app(tracer=tracer, runs_dir=runs_dir, dataset=dataset)
+    tracer = OTelTracer(otel_endpoint=settings.otel_endpoint, max_spans=settings.trace_max_spans)
+    try:
+        app_instance = create_app(tracer=tracer, runs_dir=runs_dir, dataset=dataset)
+    except ValueError as exc:
+        console.print(f"[red]Cannot start:[/red] {exc}")
+        raise typer.Exit(code=2) from exc
+    if host not in _LOOPBACK_HOSTS:
+        console.print(
+            f"[yellow]Bound to {host}: the API is reachable from other machines. "
+            "See SECURITY.md before exposing it.[/yellow]"
+        )
     console.print(f"[cyan]Serving[/cyan] http://{host}:{port}  (dashboard: /dashboard)")
     uvicorn.run(app_instance, host=host, port=port, log_level=settings.log_level.lower())
 
@@ -504,9 +524,12 @@ def eval_run(
     judge: Annotated[
         str, typer.Option(help="Faithfulness judge: 'stub' (offline, deterministic) or 'live'.")
     ] = "stub",
-    in_memory: Annotated[
-        bool, typer.Option(help="Use in-memory store instead of pgvector. Default: True.")
-    ] = True,
+    store: Annotated[
+        str | None,
+        typer.Option(
+            help="Vector store, 'pgvector' or 'memory'. Default: VERITY_STORE (pgvector)."
+        ),
+    ] = None,
     agent_stub: Annotated[
         bool,
         typer.Option(
@@ -596,6 +619,10 @@ def eval_run(
     ``judge_model`` field is set to ``stub-judge-v1`` so they are never mistaken
     for a real LLM verdict. Switch to ``--judge live`` (with an API key configured)
     to publish real answer-quality numbers.
+
+    Exit codes: 2 a floor is breached (0 with ``--report-only-floors``); 4 the
+    budget is exceeded; 5 a stub run would overwrite a live artefact; 6 at least
+    one example errored (provider or store outage), so the run is incomplete.
     """
     from verity.agent.agent import create_default_agent
     from verity.agent.scripted_stub import build_stub_router
@@ -625,7 +652,7 @@ def eval_run(
         raise typer.Exit(code=0)
 
     retriever, backend_name = asyncio.run(
-        _build_retriever(corpus=corpus, in_memory=in_memory, no_rerank=False)
+        _build_retriever(corpus=corpus, store=store, no_rerank=False)
     )
 
     # Agent LLM: stub by default (offline), real client if the user turned it off.
@@ -676,14 +703,14 @@ def eval_run(
     from verity.eval.run_store import StubOverwritesLiveError
 
     effective_runs_dir = resolve_runs_dir(runs_dir, judge_mode=judge_mode, agent_stub=agent_stub)
-    store = FileRunStore(effective_runs_dir)
+    run_store = FileRunStore(effective_runs_dir)
     run = result.as_eval_run()
     try:
-        store.save(run)
+        run_store.save(run)
     except StubOverwritesLiveError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=5) from exc
-    path = store.path_for(run.scorecard.git_sha, run.scorecard.dataset)
+    path = run_store.path_for(run.scorecard.git_sha, run.scorecard.dataset)
     console.print(f"[green]Persisted[/green] {path}")
 
     # JSON write is deliberately UNCONDITIONAL and happens BEFORE any floor
@@ -711,6 +738,16 @@ def eval_run(
         f"(agent ${total_cost - result.judge_cost_usd:.4f}, "
         f"judge ${result.judge_cost_usd:.4f})"
     )
+
+    if result.scorecard.errored_example_ids:
+        # Metrics cover fewer questions than the scorecard's n: the run is
+        # incomplete and must not pass as a run of record, even with report-only
+        # floors. The artefacts above are kept for diagnosis.
+        console.print(
+            f"[red]{len(result.scorecard.errored_example_ids)} example(s) errored: "
+            "the run is incomplete; do not publish it.[/red]"
+        )
+        raise typer.Exit(code=6)
 
     failed: list[str] = []
     if (
@@ -940,6 +977,12 @@ def _print_scorecard(result) -> None:  # type: ignore[no-untyped-def]
         ops.add_row("cold start ms", f"{sc.cold_start_ms:.1f}")
     ops.add_row("cost / query USD", f"{sc.cost_per_query_usd:.4f}")
     console.print(ops)
+    if sc.errored_example_ids:
+        console.print(
+            f"[bold red]{len(sc.errored_example_ids)} example(s) errored[/bold red] "
+            "(provider or store failure; excluded from every metric above): "
+            + ", ".join(sc.errored_example_ids)
+        )
 
     # Refusal per-example (headline feature — always shown explicitly).
     refusal_title_tag = (

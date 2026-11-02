@@ -40,7 +40,7 @@ SCRIPT_PATH = REPO_ROOT / "scripts" / "generate_headline_results.py"
 
 
 def _load_generator():  # type: ignore[no-untyped-def]
-    """Import the CLI script as a module so we can call render_block / patch_readme."""
+    """Import the CLI script as a module so we can call render_block / render_readme."""
     spec = importlib.util.spec_from_file_location("headline_gen", SCRIPT_PATH)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
@@ -295,14 +295,11 @@ def test_generator_is_idempotent(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     generator = _load_generator()
-    first = generator.patch_readme(
-        readme, generator.render_block(json.loads(scorecard_path.read_text()))
-    )
-    second = generator.patch_readme(
-        readme, generator.render_block(json.loads(scorecard_path.read_text()))
-    )
-    assert first is True
-    assert second is False
+    block = generator.render_block(json.loads(scorecard_path.read_text()))
+    first = generator.render_readme(readme.read_text(encoding="utf-8"), block)
+    second = generator.render_readme(first, block)
+    assert first != readme.read_text(encoding="utf-8")
+    assert second == first
 
 
 def test_generator_fails_loudly_without_markers(tmp_path: Path) -> None:
@@ -313,8 +310,9 @@ def test_generator_fails_loudly_without_markers(tmp_path: Path) -> None:
     readme.write_text("no markers here\n", encoding="utf-8")
     generator = _load_generator()
     with pytest.raises(SystemExit):
-        generator.patch_readme(
-            readme, generator.render_block(json.loads(scorecard_path.read_text()))
+        generator.render_readme(
+            readme.read_text(encoding="utf-8"),
+            generator.render_block(json.loads(scorecard_path.read_text())),
         )
 
 
@@ -352,11 +350,18 @@ def test_answer_quality_rows_state_macro_aggregation() -> None:
 
 
 def test_committed_readme_matches_committed_scorecard(tmp_path: Path) -> None:
-    """The real README's results block is what the committed scorecard renders.
-
-    Runs on a copy: ``--check`` rewrites the file it checks before exiting 1.
-    """
+    """The real README's results block is what the committed scorecard renders."""
     generator = _load_generator()
     readme = tmp_path / "README.md"
     readme.write_text((REPO_ROOT / "README.md").read_text(encoding="utf-8"), encoding="utf-8")
     assert generator.main(["--check", "--readme", str(readme)]) == 0
+
+
+def test_check_mode_never_writes_the_readme(tmp_path: Path) -> None:
+    """``--check`` compares and exits 1 on drift; the file on disk is left as is."""
+    generator = _load_generator()
+    readme = tmp_path / "README.md"
+    stale = (REPO_ROOT / "README.md").read_text(encoding="utf-8").replace("| 0.722", "| 0.999")
+    readme.write_text(stale, encoding="utf-8")
+    assert generator.main(["--check", "--readme", str(readme)]) == 1
+    assert readme.read_text(encoding="utf-8") == stale

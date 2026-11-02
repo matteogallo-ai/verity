@@ -11,39 +11,63 @@ Pipeline for one ``answer(question)`` call:
    fabricated answer.
 
 What holds on the returned :class:`Answer`:
+- either ``error`` is set (a provider or the retrieval store failed; no answer,
+  no refusal) or ``confidence`` is;
 - every citation's ``quote`` is a verbatim substring of the referenced chunk
-  (citations that are not are dropped in :class:`CitedSynthesizer`). A non-refused
-  answer is NOT guaranteed to carry a citation: if the synthesizer's citations are
-  all dropped and the scorer does not refuse, the answer ships with none;
-- ``confidence.refused`` is True when the scorer model asked to refuse OR its
+  (citations that are not are dropped in :class:`CitedSynthesizer`), and a
+  non-refused answer carries at least one: a draft with none is refused with
+  reason ``no_citation`` before the scorer runs;
+- a cited draft is also refused before the scorer when its quotes cover too little
+  of it or the reranker judged them irrelevant (:mod:`verity.agent.support`), so a
+  document that steers the scorer cannot ship an answer on its own;
+- ``confidence.refused`` is also True when the scorer model asked to refuse OR its
   self-reported score is below ``confidence_threshold`` (threshold-gated refusal;
   the score is not calibrated). A refused answer's text is a fixed "I don't know"
-  with the scorer's rationale;
-- ``hits_used`` and ``usage`` are always populated for observability and eval.
+  with the rationale;
+- ``hits_used`` and ``usage`` are populated for observability and eval.
 """
 
 from __future__ import annotations
 
 import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 import structlog
 
 from verity.agent.base import Agent, ConfidenceScorer, QuestionDecomposer
 from verity.agent.decomposer import LLMQuestionDecomposer
 from verity.agent.scorer import LLMConfidenceScorer
+from verity.agent.support import check_support
 from verity.agent.synthesizer import CitedSynthesizer
 from verity.config import get_settings
-from verity.llm.base import RoutingClient
+from verity.llm.base import (
+    AuthenticationError,
+    LLMError,
+    ProviderUnavailableError,
+    RoutingClient,
+)
 from verity.llm.routing import primary_client_identity
-from verity.observability.base import Tracer
+from verity.observability.base import StageSpan, Tracer
 from verity.observability.logging import request_trace
 from verity.observability.tracer import NoOpTracer
-from verity.retrieval.base import Retriever
-from verity.types import Answer, Provider, RetrievalHit, UsageStats, new_id
+from verity.retrieval.base import RetrievalUnavailableError, Retriever
+from verity.types import (
+    NO_CITATION_RATIONALE,
+    REFUSAL_TEXT,
+    Answer,
+    AnswerError,
+    Confidence,
+    ErrorKind,
+    Provider,
+    RefusalReason,
+    RetrievalHit,
+    TraceId,
+    UsageStats,
+    new_id,
+)
 
 log = structlog.get_logger(__name__)
-
-_REFUSAL_TEXT = "I don't know based on the provided documents."
 
 
 class RagAgent(Agent):
@@ -67,6 +91,8 @@ class RagAgent(Agent):
         self._synthesizer = synthesizer
         self._scorer = scorer
         self._rerank_k = rerank_k if rerank_k is not None else settings.rerank_k
+        self._min_citation_coverage = settings.min_citation_coverage
+        self._min_cited_rerank_score = settings.min_cited_rerank_score
         # NoOp default keeps ~120 existing tests untouched: they instantiate the
         # agent without supplying a tracer. Real observability is enabled by
         # the CLI/API wiring in an ``OTelTracer``.
@@ -85,77 +111,110 @@ class RagAgent(Agent):
         # it via the observability contextvar).
         with request_trace(trace_id):
             started = time.perf_counter()
+            # Filled as each stage ends, so an error line shows how far the request got.
+            stage_ms: dict[str, float] = {}
+            error: Exception
+            # An infrastructure failure is returned as a typed error, never as a
+            # refusal: "the provider is down" must not read as "the evidence is weak".
+            try:
+                answer = await self._answer(question, trace_id, started, stage_ms)
+            except RetrievalUnavailableError as exc:
+                kind, error = ErrorKind.RETRIEVAL_UNAVAILABLE, exc
+            except AuthenticationError as exc:
+                kind, error = ErrorKind.PROVIDER_AUTH, exc
+            except ProviderUnavailableError as exc:
+                kind, error = ErrorKind.PROVIDER_UNAVAILABLE, exc
+            except LLMError as exc:
+                kind, error = ErrorKind.PROVIDER_ERROR, exc
+            else:
+                _log_answer(answer, stage_ms)
+                return answer
+            return _error_answer(question, trace_id, started, kind, error, stage_ms)
 
-            async with self._tracer.stage("agent.decompose", trace_id) as span:
-                sub_questions = await self._decomposer.decompose(question)
-                span.set_attribute("n_sub_questions", len(sub_questions))
-                _bind_component_usage(span, self._decomposer)
-                log.info("decomposed", n_sub_questions=len(sub_questions))
+    @asynccontextmanager
+    async def _stage(
+        self, name: str, trace_id: TraceId, stage_ms: dict[str, float]
+    ) -> AsyncIterator[StageSpan]:
+        """A tracer span that also records its wall-clock time in ``stage_ms``."""
+        stage_started = time.perf_counter()
+        try:
+            async with self._tracer.stage(name, trace_id) as span:
+                yield span
+        finally:
+            stage_ms[name] = round((time.perf_counter() - stage_started) * 1000, 2)
 
-            async with self._tracer.stage("agent.retrieve", trace_id) as span:
-                hits = await self._collect_hits(sub_questions)
-                span.record_hits(len(hits), hits[0].score if hits else None)
-                log.info("aggregated_hits", n_hits=len(hits))
+    async def _answer(
+        self, question: str, trace_id: TraceId, started: float, stage_ms: dict[str, float]
+    ) -> Answer:
+        async with self._stage("agent.decompose", trace_id, stage_ms) as span:
+            sub_questions = await self._decomposer.decompose(question)
+            span.set_attribute("n_sub_questions", len(sub_questions))
+            _bind_component_usage(span, self._decomposer)
+            log.info("decomposed", n_sub_questions=len(sub_questions))
 
-            async with self._tracer.stage("agent.synthesize", trace_id) as span:
-                synthesis = await self._synthesizer.synthesize(question, hits)
-                span.set_usage(synthesis.usage)
-                span.set_attribute("n_citations", len(synthesis.citations))
+        async with self._stage("agent.retrieve", trace_id, stage_ms) as span:
+            hits = await self._collect_hits(sub_questions)
+            span.record_hits(len(hits), hits[0].score if hits else None)
+            log.info("aggregated_hits", n_hits=len(hits))
 
-            async with self._tracer.stage("agent.confidence", trace_id) as span:
-                confidence = await self._scorer.score(question, synthesis.text, hits)
-                span.set_attribute("score", float(confidence.score))
-                span.set_attribute("refused", bool(confidence.refused))
-                _bind_component_usage(span, self._scorer)
+        async with self._stage("agent.synthesize", trace_id, stage_ms) as span:
+            synthesis = await self._synthesizer.synthesize(question, hits)
+            span.set_usage(synthesis.usage)
+            span.set_attribute("n_citations", len(synthesis.citations))
 
-            # Aggregate token/cost accounting across every LLM call in the flow:
-            # decomposer + synthesizer + scorer (one call each in the current
-            # single-sub-question pipeline). Latency is the measured wall-clock,
-            # not a sum of per-call latencies — the individual calls run partially
-            # overlapped, so summing would over-count.
-            latency_ms = round((time.perf_counter() - started) * 1000, 2)
-            usage = _aggregate_usage(
-                _last_usage_of(self._decomposer),
-                synthesis.usage,
-                _last_usage_of(self._scorer),
-                latency_ms=latency_ms,
+        scorer_usage: UsageStats | None = None
+        async with self._stage("agent.confidence", trace_id, stage_ms) as span:
+            # Deterministic gates before the scorer: a draft with no verified citation,
+            # or whose citations do not cover it or are irrelevant to the question, is
+            # refused whatever a model reading the same documents would say about it.
+            support = check_support(
+                synthesis.text,
+                synthesis.citations,
+                hits,
+                min_coverage=self._min_citation_coverage,
+                min_rerank_score=self._min_cited_rerank_score,
             )
-
-            # Stamp the provider that ACTUALLY served the synthesis step —
-            # the LLM call that produced the answer text. When a live routing
-            # client falls back (e.g. Anthropic unavailable → OpenAI), this
-            # reflects the fallback, not the primary. Load-bearing for the
-            # provenance badge in the UI.
-            #
-            # If a synthesizer returns without consulting the router,
-            # ``synthesis.provider`` / ``synthesis.model`` may be missing;
-            # we fall through to the routing-decision fallback stamped at
-            # construction time so the Answer NEVER carries a None provider.
-            provider_used = synthesis.provider or self._preferred_provider
-            model_used = synthesis.model or self._preferred_model
-
-            if confidence.refused:
-                log.info(
-                    "refused",
-                    score=confidence.score,
-                    rationale=confidence.rationale,
+            if not synthesis.citations or not synthesis.text.strip():
+                confidence = Confidence(
+                    score=0.0,
+                    refused=True,
+                    rationale=NO_CITATION_RATIONALE,
+                    reason=RefusalReason.NO_CITATION,
                 )
-                return Answer(
-                    query=question,
-                    text=_REFUSAL_TEXT,
-                    citations=(),
-                    confidence=confidence,
-                    hits_used=tuple(hits),
-                    usage=usage,
-                    trace_id=trace_id,
-                    provider_used=provider_used,
-                    model_used=model_used,
+            elif support.reason is not None:
+                confidence = Confidence(
+                    score=0.0, refused=True, rationale=support.rationale, reason=support.reason
                 )
+            else:
+                confidence = await self._scorer.score(question, synthesis.text, hits)
+                scorer_usage = _last_usage_of(self._scorer)
+                _bind_component_usage(span, self._scorer)
+            span.set_attribute("score", float(confidence.score))
+            span.set_attribute("refused", bool(confidence.refused))
+            span.set_attribute("citation_coverage", support.coverage)
 
+        # Latency is the measured wall-clock, not a sum of per-call latencies:
+        # the calls partially overlap, so summing would over-count.
+        latency_ms = round((time.perf_counter() - started) * 1000, 2)
+        usage = _aggregate_usage(
+            _last_usage_of(self._decomposer),
+            synthesis.usage,
+            scorer_usage,
+            latency_ms=latency_ms,
+        )
+
+        # Stamp the provider that ACTUALLY served the synthesis step, so a
+        # routing fallback (e.g. Anthropic unavailable → OpenAI) is reported as
+        # such. If a synthesizer returns without consulting the router, fall back
+        # to the routing decision stamped at construction, never None.
+        provider_used = synthesis.provider or self._preferred_provider
+        model_used = synthesis.model or self._preferred_model
+
+        if confidence.refused:
             return Answer(
                 query=question,
-                text=synthesis.text or _REFUSAL_TEXT,
-                citations=synthesis.citations,
+                text=REFUSAL_TEXT,
+                citations=(),
                 confidence=confidence,
                 hits_used=tuple(hits),
                 usage=usage,
@@ -163,6 +222,18 @@ class RagAgent(Agent):
                 provider_used=provider_used,
                 model_used=model_used,
             )
+
+        return Answer(
+            query=question,
+            text=synthesis.text,
+            citations=synthesis.citations,
+            confidence=confidence,
+            hits_used=tuple(hits),
+            usage=usage,
+            trace_id=trace_id,
+            provider_used=provider_used,
+            model_used=model_used,
+        )
 
     async def _collect_hits(self, sub_questions: list[str]) -> list[RetrievalHit]:
         """Retrieve per sub-question and deduplicate by chunk id, keeping the best score.
@@ -183,6 +254,53 @@ class RagAgent(Agent):
         # Preserve the best-score-first ordering so the synthesizer sees the strongest
         # evidence at the top of its rendered evidence block.
         return sorted(seen.values(), key=lambda h: -h.score)
+
+
+def _log_answer(answer: Answer, stage_ms: dict[str, float]) -> None:
+    """The one line per answered or refused request: what operations reads first."""
+    confidence = answer.confidence
+    assert confidence is not None and answer.usage is not None
+    log.info(
+        "answer_done",
+        trace_id=str(answer.trace_id),
+        decision="refused" if confidence.refused else "answered",
+        reason=confidence.reason.value if confidence.reason else None,
+        score=confidence.score,
+        rationale=confidence.rationale if confidence.refused else None,
+        stage_ms=stage_ms,
+        latency_ms=answer.usage.latency_ms,
+        input_tokens=answer.usage.input_tokens,
+        output_tokens=answer.usage.output_tokens,
+        cost_usd=answer.usage.cost_usd,
+        n_citations=len(answer.citations),
+    )
+
+
+def _error_answer(
+    question: str,
+    trace_id: TraceId,
+    started: float,
+    kind: ErrorKind,
+    exc: Exception,
+    stage_ms: dict[str, float],
+) -> Answer:
+    latency_ms = round((time.perf_counter() - started) * 1000, 2)
+    log.error(
+        "answer_failed",
+        trace_id=str(trace_id),
+        decision="error",
+        error_kind=kind.value,
+        error=str(exc),
+        stage_ms=stage_ms,
+        latency_ms=latency_ms,
+    )
+    return Answer(
+        query=question,
+        text="",
+        error=AnswerError(kind=kind, detail=f"{type(exc).__name__}: {exc}"),
+        usage=UsageStats(latency_ms=latency_ms),
+        trace_id=trace_id,
+    )
 
 
 def _bind_component_usage(span, component: object) -> None:  # type: ignore[no-untyped-def]

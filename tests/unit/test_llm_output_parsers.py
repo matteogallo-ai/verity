@@ -110,13 +110,11 @@ class TestSynthParserRealShapes:
         text = '[{"answer": "hello", "citations": []}]'
         assert _parse_synth_output(text) == ("hello", [])
 
-    def test_no_json_returns_text_verbatim(self) -> None:
-        """Fallback shape: no JSON in the output → treat the whole thing as the
-        answer with no citations. Citation validation will drop empty citations
-        and the scorer will refuse — safe path."""
-        text = "I cannot answer this."
-        answer, citations = _parse_synth_output(text)
-        assert answer == text
+    def test_no_json_returns_an_empty_draft(self) -> None:
+        """No JSON in the output: the raw text is never shipped. The empty, uncited
+        draft is refused by the agent with reason no_citation."""
+        answer, citations = _parse_synth_output("Sure! The notice period is 30 days.")
+        assert answer == ""
         assert citations == []
 
 

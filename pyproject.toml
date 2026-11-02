@@ -49,6 +49,11 @@ verity = "verity.cli:app"
 Homepage = "https://github.com/matteogallo-ai/verity"
 Repository = "https://github.com/matteogallo-ai/verity"
 
+[project.optional-dependencies]
+# OTLP trace export to a collector (VERITY_OTEL_ENDPOINT). Optional: it pulls in
+# protobuf and an HTTP stack the local demo does not need.
+otlp = ["opentelemetry-exporter-otlp-proto-http>=1.27"]
+
 [dependency-groups]
 dev = [
   "pytest>=8.3",
@@ -58,6 +63,9 @@ dev = [
   "mypy>=1.13",
   "vulture>=2.16",
   "deptry>=0.25.1",
+  "pytest-socket>=0.8.1",
+  "pyyaml>=6",
+  "types-pyyaml>=6",
 ]
 
 [tool.ruff]
@@ -75,8 +83,8 @@ known-first-party = ["verity"]
 [tool.vulture]
 paths = ["src"]
 min_confidence = 60
-# Called by a framework, not by our code: Typer commands and FastAPI routes.
-ignore_decorators = ["@app.*", "@router.*", "@*_app.command"]
+# Called by a framework, not by our code: Typer commands, FastAPI routes, pydantic validators.
+ignore_decorators = ["@app.*", "@router.*", "@*_app.command", "@model_validator"]
 ignore_names = [
   # pydantic / pydantic-settings fields read by the framework or serialized to JSON.
   "model_config", "cited", "version", "reference_answer", "tags", "answer_text",
@@ -89,13 +97,20 @@ ignore_names = [
   # Public protocol surface (verity.*.base), conformance checked in
   # tests/unit/test_protocols.py; implementations must keep these members.
   "RetrievalMetric", "evaluate", "latest", "dim", "get_chunks", "count_chunks",
+  # OpenTelemetry SpanExporter interface, called by the span processor.
+  "export",
+  # Tracer state asserted by tests/unit/test_tracer.py (OTLP active or not).
+  "otlp_enabled",
 ]
 
 [tool.deptry.per_rule_ignores]
 # python-multipart: imported by FastAPI at runtime for UploadFile / Form parsing.
 # torch, torchvision: declared only to route them to the CPU index (see
 #   [tool.uv.sources]); imported by sentence-transformers and docling.
-DEP002 = ["python-multipart", "torch", "torchvision"]
+# opentelemetry-exporter-otlp-proto-http: the otlp extra, imported lazily by
+#   verity.observability.tracer; deptry maps modules by their top-level package
+#   (opentelemetry), which the core SDK dependency already claims.
+DEP002 = ["python-multipart", "torch", "torchvision", "opentelemetry-exporter-otlp-proto-http"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -147,3 +162,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/verity"]
+
+# Prompts and SQL migrations are read at run time; the wheel carries them so an
+# installed package does not depend on a checkout (see verity.resources).
+[tool.hatch.build.targets.wheel.force-include]
+"prompts" = "verity/_resources/prompts"
+"migrations" = "verity/_resources/migrations"

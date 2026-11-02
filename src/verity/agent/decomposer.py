@@ -1,4 +1,4 @@
-"""Question decomposition via the ``decompose.prompt`` PromptLang source.
+"""Question decomposition via ``prompts/decompose.prompt``.
 
 Contract: return a list of sub-questions in the order they should be answered. A
 simple, single-fact question returns a one-element list — we **do not** force
@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 
 from verity.agent.base import QuestionDecomposer
+from verity.agent.evidence import neutralise
 from verity.config import get_settings
 from verity.llm.base import RoutingClient
 from verity.llm.prompt import load_prompt
@@ -45,7 +46,7 @@ class LLMQuestionDecomposer(QuestionDecomposer):
         self.last_usage: UsageStats | None = None
 
     async def decompose(self, question: str) -> list[str]:
-        messages = self._prompt.render(question=question)
+        messages = self._prompt.render(question=neutralise(question))
         completion = await self._client.complete(messages, max_tokens=256, temperature=0.0)
         self.last_usage = completion.usage
         sub_questions = _parse_sub_questions(completion.text) or [question]

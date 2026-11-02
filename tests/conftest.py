@@ -1,8 +1,15 @@
-"""Shared fixtures for the Verity test suite."""
+"""Shared fixtures for the Verity test suite.
+
+Tests that are neither ``slow`` nor ``integration`` (the fast lane) run with
+network sockets disabled: a hidden download or API call fails the test instead of
+passing on a machine that happens to be online. Unix sockets stay allowed for the
+asyncio event loop.
+"""
 
 from __future__ import annotations
 
 import pytest
+import pytest_socket
 
 from verity.types import (
     Chunk,
@@ -49,3 +56,16 @@ def confident() -> Confidence:
 @pytest.fixture
 def refused() -> Confidence:
     return Confidence(score=0.2, refused=True, rationale="Question is out of corpus scope.")
+
+
+_NETWORKED_MARKERS = frozenset({"slow", "integration"})
+
+
+@pytest.fixture(autouse=True)
+def _block_network_in_fast_lane(request: pytest.FixtureRequest):  # type: ignore[no-untyped-def]
+    if _NETWORKED_MARKERS.isdisjoint(m.name for m in request.node.iter_markers()):
+        pytest_socket.disable_socket(allow_unix_socket=True)
+        yield
+        pytest_socket.enable_socket()
+    else:
+        yield

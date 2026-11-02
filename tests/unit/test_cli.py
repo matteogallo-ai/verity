@@ -252,6 +252,23 @@ def test_ingest_exits_clean(tmp_path: object) -> None:
     assert result.exit_code == 0
 
 
+def test_ingest_stops_with_exit_2_on_a_schema_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from verity.ingestion.pipeline import IngestionPipeline
+    from verity.retrieval.pgvector_store import SchemaNotMigratedError
+
+    async def _raise(self, uris):  # type: ignore[no-untyped-def]
+        raise SchemaNotMigratedError("chunks table missing; run `verity db upgrade`")
+
+    monkeypatch.setattr(IngestionPipeline, "ingest", _raise)
+    (tmp_path / "a.md").write_text("# A\n\nbody\n")
+    result = runner.invoke(app, ["ingest", str(tmp_path)], env={"COLUMNS": "200"})
+    assert result.exit_code == 2
+    assert "Ingestion stopped" in result.output
+    assert "verity db upgrade" in result.output
+
+
 def test_missing_key_message_contains_actionable_hints() -> None:
     """Directly assert on the guard message constant — the source of truth.
 
@@ -298,3 +315,92 @@ def test_ask_without_key_and_without_stub_errors_actionably(
     # Explicit "no traceback leaked" check — BadParameter must render as a Typer
     # message, not a raw Python stack.
     assert "Traceback" not in combined
+
+
+def _capture_serve(monkeypatch: pytest.MonkeyPatch, args: list[str]) -> tuple[dict, str]:  # type: ignore[type-arg]
+    import uvicorn
+
+    import verity.api
+
+    seen: dict = {}  # type: ignore[type-arg]
+    monkeypatch.setattr(verity.api, "create_app", lambda **_kw: object())
+    monkeypatch.setattr(uvicorn, "run", lambda _app, **kw: seen.update(kw))
+    result = runner.invoke(app, ["serve", *args], env={"COLUMNS": "200"})
+    assert result.exit_code == 0, result.output
+    return seen, result.output
+
+
+def test_serve_binds_loopback_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen, output = _capture_serve(monkeypatch, [])
+    assert seen["host"] == "127.0.0.1"
+    assert "reachable from other machines" not in output
+
+
+def test_serve_warns_when_bound_to_all_interfaces(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen, output = _capture_serve(monkeypatch, ["--host", "0.0.0.0"])
+    assert seen["host"] == "0.0.0.0"
+    assert "reachable from other machines" in output
+
+
+def test_serve_refuses_to_start_without_api_keys(monkeypatch: pytest.MonkeyPatch) -> None:
+    import uvicorn
+
+    from verity.config import get_settings
+
+    monkeypatch.delenv("VERITY_API_KEYS", raising=False)
+    monkeypatch.delenv("VERITY_API_AUTH_DISABLED", raising=False)
+    get_settings.cache_clear()
+    monkeypatch.setattr(uvicorn, "run", lambda *_a, **_kw: pytest.fail("must not serve"))
+    try:
+        result = runner.invoke(app, ["serve"], env={"COLUMNS": "200"})
+    finally:
+        get_settings.cache_clear()
+    assert result.exit_code == 2
+    assert "VERITY_API_KEYS" in result.output
+
+
+def test_store_option_rejects_an_unknown_backend() -> None:
+    result = runner.invoke(app, ["retrieve", "x", "--store", "sqlite"])
+    assert result.exit_code != 0
+    assert "pgvector" in result.output
+
+
+def test_store_defaults_to_the_setting(monkeypatch: pytest.MonkeyPatch) -> None:
+    from verity.cli import _resolve_store
+    from verity.config import get_settings
+
+    get_settings.cache_clear()
+    monkeypatch.setenv("VERITY_STORE", "memory")
+    try:
+        assert _resolve_store(None) == "memory"
+        assert _resolve_store("pgvector") == "pgvector"
+    finally:
+        get_settings.cache_clear()
+
+
+@pytest.mark.slow
+def test_eval_run_with_errored_examples_exits_six(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An outage on one question makes the run incomplete: its metrics cover fewer
+    questions than the scorecard's n, so it must not exit as a clean run."""
+    from verity.agent.agent import RagAgent
+    from verity.types import Answer, AnswerError, ErrorKind
+
+    original = RagAgent.answer
+    seen: list[str] = []
+
+    async def _first_fails(self: RagAgent, question: str) -> Answer:
+        seen.append(question)
+        if len(seen) == 2:  # the first call after the warm-up
+            return Answer(
+                query=question,
+                text="",
+                error=AnswerError(kind=ErrorKind.PROVIDER_UNAVAILABLE, detail="down"),
+            )
+        return await original(self, question)
+
+    monkeypatch.setattr(RagAgent, "answer", _first_fails)
+    result = runner.invoke(app, ["eval", "run", "--ci", "--runs-dir", str(tmp_path)])
+    assert result.exit_code == 6, result.output
+    assert "errored" in result.output

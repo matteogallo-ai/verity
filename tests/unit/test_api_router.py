@@ -8,85 +8,21 @@ assertion here checks the SHAPE of the response mirrors the domain type.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
-from fastapi.testclient import TestClient
 
-from verity.api import create_app
-
-
-class _FakeEmbeddingBackend:
-    def __init__(self, dim: int = 32) -> None:
-        self._dim = dim
-
-    def encode(
-        self,
-        sentences: Sequence[str],
-        *,
-        batch_size: int = 32,
-        normalize_embeddings: bool = True,
-        show_progress_bar: bool = False,
-        convert_to_numpy: bool = True,
-    ) -> list[list[float]]:
-        rows: list[list[float]] = []
-        for s in sentences:
-            v = [0.0] * self._dim
-            for tok in s.lower().split():
-                v[hash(tok) % self._dim] += 1.0
-            n = sum(x * x for x in v) ** 0.5 or 1.0
-            rows.append([x / n for x in v])
-        return rows
-
-    def get_sentence_embedding_dimension(self) -> int:
-        return self._dim
-
-
-class _FakeRerankerBackend:
-    def predict(
-        self,
-        sentences: Sequence[tuple[str, str]],
-        *,
-        batch_size: int = 32,
-        show_progress_bar: bool = False,
-        convert_to_numpy: bool = True,
-    ) -> list[float]:
-        return [float(len(set(q.lower().split()) & set(p.lower().split()))) for q, p in sentences]
+from tests.unit.api_app import api_app
+from verity.config import Settings
 
 
 @pytest.fixture
 def client(tmp_path: Path):  # type: ignore[no-untyped-def]
-    """Boot a real FastAPI app on the shipped corpus, in stub agent mode.
-
-    The ``patch`` calls below do NOT take effect: ``LocalEmbedder`` and
-    ``CrossEncoderReranker`` bind ``_default_backend_factory`` as a default
-    argument at definition time, so the real sentence-transformers models are
-    loaded (and the Hugging Face cache is consulted). That is why every test
-    using this fixture is marked ``slow``. Making the fixture hermetic needs a
-    production seam change and fakes whose dimension matches ``embedding_dim``.
-    """
-    with (
-        patch(
-            "verity.ingestion.embedder._default_backend_factory",
-            return_value=_FakeEmbeddingBackend(32),
-        ),
-        patch(
-            "verity.retrieval.reranker._default_backend_factory",
-            return_value=_FakeRerankerBackend(),
-        ),
-    ):
-        app = create_app(
-            runs_dir=tmp_path / "runs",
-            corpus_dir=Path("datasets/corpus"),
-            agent_mode="stub",
-            cors_origins=(),
-        )
-        yield TestClient(app)
+    """Stub-mode app on the shipped corpus with authentication disabled, as in dev."""
+    with api_app(tmp_path, Settings(api_auth_disabled=True)) as test_client:
+        yield test_client
 
 
-@pytest.mark.slow
 def test_status_reports_real_provenance_and_corpus(client) -> None:  # type: ignore[no-untyped-def]
     r = client.get("/status")
     assert r.status_code == 200
@@ -104,7 +40,6 @@ def test_status_reports_real_provenance_and_corpus(client) -> None:  # type: ign
     assert "status" not in body or body.get("status") not in {"ok", "OK"}
 
 
-@pytest.mark.slow
 def test_ask_provenance_reflects_the_actual_provider_used(client) -> None:  # type: ignore[no-untyped-def]
     """Provenance is derived per-request from the synthesizer's Completion.
 
@@ -130,7 +65,6 @@ def test_ask_provenance_reflects_the_actual_provider_used(client) -> None:  # ty
     assert prov["agent_model"] == "stub-agent"
 
 
-@pytest.mark.slow
 def test_ask_returns_full_answer_view_with_provenance(client) -> None:  # type: ignore[no-untyped-def]
     r = client.post(
         "/ask", json={"question": "What is the notice period for terminating the agreement?"}
@@ -171,7 +105,6 @@ def test_ask_returns_full_answer_view_with_provenance(client) -> None:  # type: 
     assert ans["trace_id"]
 
 
-@pytest.mark.slow
 def test_ask_refusal_state_is_first_class(client) -> None:  # type: ignore[no-untyped-def]
     r = client.post("/ask", json={"question": "What is the CEO's home address?"})
     assert r.status_code == 200, r.text
@@ -187,13 +120,11 @@ def test_ask_refusal_state_is_first_class(client) -> None:  # type: ignore[no-un
     assert body["provenance"]["is_stub"] is True
 
 
-@pytest.mark.slow
 def test_ask_rejects_empty_question(client) -> None:  # type: ignore[no-untyped-def]
     r = client.post("/ask", json={"question": ""})
     assert r.status_code == 422  # pydantic validation error, not a stack trace
 
 
-@pytest.mark.slow
 def test_ingest_upload_uses_content_addressed_id(client) -> None:  # type: ignore[no-untyped-def]
     """Same bytes → same document_id, regardless of the client-supplied filename.
 
@@ -234,8 +165,51 @@ def test_ingest_upload_uses_content_addressed_id(client) -> None:  # type: ignor
     )
 
 
-@pytest.mark.slow
 def test_ingest_rejects_empty_upload(client) -> None:  # type: ignore[no-untyped-def]
     r = client.post("/ingest", files={"file": ("empty.md", b"", "text/markdown")})
     assert r.status_code == 400
     assert "empty" in r.json()["detail"].lower()
+
+
+def _rewire_agent(client, *, llm=None, store=None) -> None:  # type: ignore[no-untyped-def]
+    from verity.agent.agent import create_default_agent
+    from verity.agent.scripted_stub import build_stub_router
+    from verity.retrieval import HybridRetriever
+
+    runtime = client.app.state.runtime
+    retriever = runtime.retriever
+    if store is not None:
+        retriever = HybridRetriever(store=store, embedder=runtime.embedder, reranker=None)
+    runtime.agent = create_default_agent(retriever=retriever, client=llm or build_stub_router())
+
+
+def test_ask_answers_503_when_every_provider_is_down(client) -> None:  # type: ignore[no-untyped-def]
+    from verity.llm.base import ProviderUnavailableError
+    from verity.llm.clients import StubLLMClient
+    from verity.llm.routing import MultiProviderRoutingClient
+
+    def _down(_messages):  # type: ignore[no-untyped-def]
+        raise ProviderUnavailableError("anthropic: 529 overloaded; openai: timeout")
+
+    _rewire_agent(client, llm=MultiProviderRoutingClient([StubLLMClient(_down)]))
+    r = client.post("/ask", json={"question": "What is the notice period?"})
+    assert r.status_code == 503
+    body = r.json()["detail"]
+    assert body["error"] == "provider_unavailable"
+    assert body["trace_id"]
+    assert "overloaded" not in r.text, "provider detail must stay in the logs"
+
+
+def test_ask_answers_503_when_the_store_is_down(client) -> None:  # type: ignore[no-untyped-def]
+    from verity.retrieval import InMemoryVectorStore
+
+    class _DownStore(InMemoryVectorStore):
+        async def dense_search(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+            raise ConnectionError("could not connect to postgres at db:5432")
+
+    client.get("/status")  # preload before swapping the store
+    _rewire_agent(client, store=_DownStore())
+    r = client.post("/ask", json={"question": "What is the notice period?"})
+    assert r.status_code == 503
+    assert r.json()["detail"]["error"] == "retrieval_unavailable"
+    assert "postgres" not in r.text

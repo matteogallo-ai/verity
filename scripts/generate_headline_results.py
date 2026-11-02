@@ -141,10 +141,8 @@ def render_block(data: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def patch_readme(readme_path: Path, block: str) -> bool:
-    """Replace the content between the RESULTS markers. Returns True if the
-    file changed, False if it was already up to date."""
-    text = readme_path.read_text(encoding="utf-8")
+def render_readme(text: str, block: str) -> str:
+    """Return ``text`` with the content between the RESULTS markers replaced."""
     start = text.find(START)
     end = text.find(END)
     if start == -1 or end == -1 or end < start:
@@ -157,11 +155,9 @@ def patch_readme(readme_path: Path, block: str) -> bool:
     suffix = text[end:]
     replacement = f"{prefix}\n{block}\n{suffix}"
     if replacement == text:
-        return False
+        return text
     # Collapse any accidental double blank lines the replacement introduced.
-    replacement = re.sub(r"\n{3,}", "\n\n", replacement)
-    readme_path.write_text(replacement, encoding="utf-8")
-    return True
+    return re.sub(r"\n{3,}", "\n\n", replacement)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -182,15 +178,18 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(
             f"scorecard schema is not verity.scorecard.headline/v3 (got {payload.get('schema')!r})"
         )
-    block = render_block(payload)
-    changed = patch_readme(args.readme, block)
+    current = args.readme.read_text(encoding="utf-8")
+    rendered = render_readme(current, render_block(payload))
+    changed = rendered != current
+    # --check only compares: a CI or pre-commit run must never edit the tree.
     if args.check and changed:
         print(
             "README would be modified — run scripts/generate_headline_results.py to regenerate.",
             file=sys.stderr,
         )
         return 1
-    if changed:
+    if changed and not args.check:
+        args.readme.write_text(rendered, encoding="utf-8")
         print(f"Updated {args.readme}")
     else:
         print(f"README already up to date ({args.readme})")

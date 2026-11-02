@@ -14,9 +14,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Any
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 # --------------------------------------------------------------------------------------
 # Identifiers
@@ -129,6 +130,23 @@ class Citation(BaseModel, frozen=True):
     char_end: int
 
 
+REFUSAL_TEXT = "I don't know based on the provided documents."
+NO_CITATION_RATIONALE = "The draft answer carried no verifiable citation."
+
+
+class RefusalReason(StrEnum):
+    """Why an answer was refused. Distinct from :class:`ErrorKind`: a refusal is a
+    decision about the evidence, an error means the system could not decide."""
+
+    MODEL_REFUSED = "model_refused"
+    BELOW_THRESHOLD = "below_threshold"
+    SCORER_UNPARSEABLE = "scorer_unparseable"
+    NO_CITATION = "no_citation"
+    LOW_CITATION_COVERAGE = "low_citation_coverage"
+    IRRELEVANT_CITATION = "irrelevant_citation"
+    SUSPECTED_INJECTION = "suspected_injection"
+
+
 class Confidence(BaseModel, frozen=True):
     """The scorer's confidence in the answer and the refusal decision.
 
@@ -142,6 +160,7 @@ class Confidence(BaseModel, frozen=True):
     score: float = Field(ge=0.0, le=1.0)
     refused: bool
     rationale: str
+    reason: RefusalReason | None = None
 
 
 class UsageStats(BaseModel, frozen=True):
@@ -152,6 +171,22 @@ class UsageStats(BaseModel, frozen=True):
     llm_calls: int = 0
     cost_usd: float = 0.0
     latency_ms: float = 0.0
+
+
+class ErrorKind(StrEnum):
+    """An infrastructure failure that prevented an answer. Never a refusal."""
+
+    PROVIDER_UNAVAILABLE = "provider_unavailable"
+    PROVIDER_AUTH = "provider_auth"
+    PROVIDER_ERROR = "provider_error"
+    RETRIEVAL_UNAVAILABLE = "retrieval_unavailable"
+
+
+class AnswerError(BaseModel, frozen=True):
+    """What failed. ``detail`` is for logs and operators, never for API clients."""
+
+    kind: ErrorKind
+    detail: str
 
 
 class Answer(BaseModel, frozen=True):
@@ -171,12 +206,49 @@ class Answer(BaseModel, frozen=True):
     query: str
     text: str
     citations: tuple[Citation, ...] = ()
-    confidence: Confidence
+    confidence: Confidence | None = None
+    error: AnswerError | None = None
     hits_used: tuple[RetrievalHit, ...] = ()
     usage: UsageStats = Field(default_factory=UsageStats)
     trace_id: TraceId = Field(default_factory=new_id)
     provider_used: Provider | None = None
     model_used: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _uncited_answers_are_refusals(cls, data: Any) -> Any:
+        """Exactly one of ``confidence`` / ``error``; an answer that is not refused
+        and carries no citation is converted into a refusal (``no_citation``).
+
+        The agent already refuses such drafts; this holds the invariant for every
+        other way an Answer is built, so no caller can ship uncited text.
+        """
+        if not isinstance(data, dict):
+            return data
+        confidence = data.get("confidence")
+        error = data.get("error")
+        if (confidence is None) == (error is None):
+            raise ValueError("an Answer carries exactly one of confidence or error")
+        if error is not None:
+            return data
+        conf = (
+            confidence
+            if isinstance(confidence, Confidence)
+            else Confidence.model_validate(confidence)
+        )
+        if conf.refused or data.get("citations"):
+            return data
+        return {
+            **data,
+            "text": REFUSAL_TEXT,
+            "citations": (),
+            "confidence": Confidence(
+                score=conf.score,
+                refused=True,
+                rationale=NO_CITATION_RATIONALE,
+                reason=RefusalReason.NO_CITATION,
+            ),
+        }
 
 
 # --------------------------------------------------------------------------------------
@@ -272,6 +344,10 @@ class Scorecard(BaseModel, frozen=True):
     # serving latency an operator would see in production. ``None`` when no
     # warmup was performed (measurement is combined into the percentiles then).
     cold_start_ms: float | None = None
+    # Examples where a provider or the store failed. They are excluded from every
+    # quality metric (an outage is neither a correct nor a wrong refusal) and listed
+    # here so a run with failures cannot pass for a clean one.
+    errored_example_ids: tuple[str, ...] = ()
 
 
 class ClaimVerdict(BaseModel, frozen=True):

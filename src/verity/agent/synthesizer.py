@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from verity.agent.evidence import render_evidence
+from verity.agent.evidence import neutralise, render_evidence
 from verity.llm.base import RoutingClient
 from verity.llm.json_output import parse_json_object
 from verity.llm.prompt import load_prompt
@@ -72,7 +72,7 @@ class CitedSynthesizer:
 
     async def synthesize(self, question: str, hits: list[RetrievalHit]) -> SynthesisResult:
         evidence = render_evidence(hits, with_scores=False)
-        messages = self._prompt.render(question=question, evidence=evidence)
+        messages = self._prompt.render(question=neutralise(question), evidence=evidence)
         completion = await self._client.complete(
             messages, max_tokens=self._max_tokens, temperature=0.0
         )
@@ -93,13 +93,12 @@ def _parse_synth_output(text: str) -> tuple[str, list[tuple[str, int]]]:
 
     Robust to prose wrapping, markdown code fences, and single-element array
     wrappers (all real-model drifts observed with Sonnet-class outputs). On
-    total parse failure return ``(text.strip(), [])``: the raw text becomes the
-    draft answer with no citations, and the scorer judges it like any other draft.
-    Nothing forces a refusal here; see the module docstring of ``agent.py``.
+    total parse failure return ``("", [])``: the raw model text is never shipped,
+    and the agent refuses the empty, uncited draft with reason ``no_citation``.
     """
     parsed = parse_json_object(text)
     if parsed is None:
-        return text.strip(), []
+        return "", []
     answer = str(parsed.get("answer", "")).strip()
     citations_raw = parsed.get("citations", []) or []
     citations: list[tuple[str, int]] = []

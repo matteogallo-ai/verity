@@ -156,7 +156,8 @@ class DoclingParser:
                 cleanup.unlink(missing_ok=True)
 
         structure = DocumentStructure(sections=sections)
-        title = _title_from_sections(sections, text) or source_path.stem or None
+        # The URI names the document; source_path may be a temporary copy.
+        title = _title_from_sections(sections, text) or Path(uri.rstrip("/")).stem or None
         return Document(
             id=document_id_for_uri(uri),
             source_type=source_type,

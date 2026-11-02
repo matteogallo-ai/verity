@@ -19,6 +19,7 @@ import json
 import re
 from dataclasses import dataclass
 
+from verity.agent.support import content_words
 from verity.llm.clients import Responder, StubLLMClient
 from verity.llm.routing import MultiProviderRoutingClient
 from verity.types import Message
@@ -48,8 +49,9 @@ _THEMES: tuple[_Theme, ...] = (
         question_keywords=("liable", "liability", "cap", "data-processing", "breach"),
         evidence_anchors=("one million", "$1,000,000"),
         canned_answer=(
-            "Provider's aggregate liability is capped at one million United States "
-            "dollars ($1,000,000) or the fees paid over the preceding 12 months, "
+            "Acme Corporation, as Provider, is liable for breaches of its data-processing "
+            "obligations, subject to an aggregate liability cap of one million United "
+            "States dollars ($1,000,000) or the fees paid over the preceding 12 months, "
             "whichever is greater."
         ),
     ),
@@ -170,26 +172,43 @@ def _classify(messages: list[Message]) -> str:
     return "unknown"
 
 
-def _index_containing(evidence: str, needle: str) -> int:
-    idx = 0
-    for line in evidence.splitlines():
-        if line.startswith("[") and "]" in line:
-            try:
-                idx = int(line[1 : line.find("]")])
-            except ValueError:
-                continue
-        elif needle in line:
-            return idx
-    return 0
+_DOCUMENT_RE = re.compile(r'<document index="(\d+)"[^\n]*>\n(.*?)\n</document>', re.DOTALL)
+_QUESTION_RE = re.compile(r"<question>\s*(.*?)\s*</question>", re.DOTALL)
+_SENTENCE_END_RE = re.compile(r"(?<=[.!?])\s+|\n+")
 
 
-_QUESTION_LINE_RE = re.compile(r"^\s*(QUESTION|Question)\s*:\s*(.*?)\s*$", re.MULTILINE)
+def _documents(evidence: str) -> list[tuple[int, str]]:
+    return [(int(index), text) for index, text in _DOCUMENT_RE.findall(evidence)]
+
+
+def _sentences(text: str) -> list[str]:
+    return [part.strip() for part in _SENTENCE_END_RE.split(text) if part.strip()]
+
+
+def _covering_quotes(evidence: str, answer: str, *, limit: int = 3) -> list[tuple[str, int]]:
+    """Evidence sentences, with their document index, chosen greedily to cover the
+    content words of ``answer``: a real model quotes the clauses its answer restates,
+    one per fact, not a three-word anchor."""
+    wanted = content_words(answer)
+    candidates = [
+        (sentence, index, content_words(sentence))
+        for index, text in _documents(evidence)
+        for sentence in _sentences(text)
+    ]
+    chosen: list[tuple[str, int]] = []
+    while wanted and len(chosen) < limit:
+        sentence, index, words = max(candidates, key=lambda c: len(wanted & c[2]))
+        if not wanted & words:
+            break
+        chosen.append((sentence, index))
+        wanted -= words
+    return chosen
 
 
 def _extract_question(user_content: str) -> str:
     """Recover the original question from the rendered user prompt of any of our prompts."""
-    match = _QUESTION_LINE_RE.search(user_content)
-    return match.group(2).strip() if match else user_content.strip()
+    match = _QUESTION_RE.search(user_content)
+    return match.group(1).strip() if match else user_content.strip()
 
 
 def scripted_responder() -> Responder:
@@ -212,13 +231,11 @@ def scripted_responder() -> Responder:
                         "citations": [],
                     }
                 )
-            anchor = next(a for a in theme.evidence_anchors if a in evidence)
+            quotes = _covering_quotes(evidence, theme.canned_answer)
             return json.dumps(
                 {
                     "answer": theme.canned_answer,
-                    "citations": [
-                        {"quote": anchor, "chunk_index": _index_containing(evidence, anchor)}
-                    ],
+                    "citations": [{"quote": q, "chunk_index": i} for q, i in quotes],
                 }
             )
         if kind == "confidence":

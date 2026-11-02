@@ -21,8 +21,8 @@ make demo
 Or manually, two shells:
 
 ```bash
-# Shell 1 — API (stub agent, in-memory store, corpus preloaded):
-uv run verity serve --host 127.0.0.1 --port 8000
+# Shell 1 — API (stub agent, no database, corpus preloaded, auth off for dev):
+VERITY_STORE=memory VERITY_API_AUTH_DISABLED=true uv run verity serve --port 8000
 
 # Shell 2 — Next dev server:
 cd web
@@ -43,10 +43,15 @@ Then walk the demo:
 3. **Ask an out-of-scope question**: e.g. "What is the CEO's home address?" —
    the answer card becomes a first-class refusal panel with the rationale and
    the hits the agent chose to refuse against.
-4. **Upload a document** (`.md` / `.txt` / `.pdf` / `.docx`) — it becomes part
+4. **Upload a document** (`.md` / `.txt` / `.pdf` / `.docx`, up to 1 MiB) — it becomes part
    of the queryable corpus immediately. The document id is content-addressed:
    the same bytes with the same extension always produce the same id, whatever
-   the filename. The API enforces no size, type or count limit (see SECURITY.md).
+   the filename. The API rejects other types (415), larger files (413) and
+   uploads beyond its corpus cap (409); see SECURITY.md.
+
+The UI sends no API key: a key in a `NEXT_PUBLIC_*` variable would ship to every
+browser. It therefore talks to an API started with `VERITY_API_AUTH_DISABLED=true`
+on loopback; an API with keys needs a server-side proxy in front of the UI.
 
 ## Provenance is always visible
 

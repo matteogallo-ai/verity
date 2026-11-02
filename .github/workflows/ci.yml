@@ -45,7 +45,11 @@ jobs:
       - name: README results block matches the committed scorecard
         run: uv run python scripts/generate_headline_results.py --check
 
-      - name: Pytest — fast lane (no local models, must stay < 60 s)
+      - name: Pytest — fast lane (no models, no network, must stay < 60 s)
+        # tests/conftest.py disables inet sockets for this lane; HF_HUB_OFFLINE makes
+        # a hidden model download fail fast instead of retrying.
+        env:
+          HF_HUB_OFFLINE: "1"
         run: uv run pytest -m "not integration and not slow"
 
       - name: Pytest — slow lane (loads the local embedding / reranker models)
@@ -177,7 +181,7 @@ jobs:
         # the labeled corpus grows.
         run: |
           uv run verity eval retrieval \
-            --no-in-memory \
+            --store pgvector \
             --floor-ndcg 0.5 \
             --floor-recall 0.75
 
@@ -202,6 +206,9 @@ jobs:
         run: uv sync --dev
 
       - name: Pipeline smoke test (stub agent, stub judge; not a quality measure)
+        # This job has no Postgres service: the in-memory store keeps it self-contained.
+        env:
+          VERITY_STORE: memory
         # Retrieval metrics come from the real local embedder and reranker. Refusal
         # metrics come from the scripted stub agent, and answer-quality metrics from
         # the stub judge (labelled "stub-judge-v1" in the artefact). The floors catch
@@ -213,6 +220,17 @@ jobs:
             --floor-refusal-recall 0.8 \
             --floor-ndcg 0.5 \
             --floor-recall 0.75
+
+  docker:
+    name: docker (image build + compose stack smoke test)
+    runs-on: ubuntu-latest
+    # Builds the image, brings up db → migrate → ingest → app with Compose and checks
+    # /health, a non-empty /status corpus, 401 without a key and one stub /ask.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compose smoke test
+        run: scripts/docker_smoke.sh
 
   web:
     name: web (Next.js UI · Node 22 · pnpm@9)

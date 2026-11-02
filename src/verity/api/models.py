@@ -148,6 +148,8 @@ def answer_to_view(answer: Answer) -> AnswerView:
         )
         for c in answer.citations
     )
+    if answer.confidence is None:
+        raise ValueError("an errored Answer has no view; the API answers 503 instead")
     return AnswerView(
         query=answer.query,
         text=answer.text,

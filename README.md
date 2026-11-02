@@ -48,17 +48,21 @@ CI job `claims` runs those tests.
 - Verbatim citations: every quote is a substring of its source document; others are dropped (C01).
 - Threshold-gated refusal with a rationale (C02); unparseable scorer output is refused (C03).
 - Hybrid retrieval: dense + sparse, reciprocal rank fusion, cross-encoder rerank (C04).
-- Two vector stores: in-memory with cosine and BM25 (C05); Postgres + pgvector with full-text search (C06).
-- Markdown and plain-text ingestion with structure-aware chunking and machine-independent ids (C07).
+- Two vector stores: in-memory with cosine and BM25 (C05); Postgres + pgvector with full-text search (C06), the default for the API, the demo and the eval (C22).
+- Markdown and plain-text ingestion with structure-aware chunking and machine-independent ids (C07); PDF and DOCX through docling (C08).
 - Multi-provider LLM routing with fallback, stopping on authentication errors (C09).
 - Per-request provenance: each answer records the model that actually served it (C10).
 - Evaluation harness: retrieval, refusal and LLM-judged answer-quality metrics, one audit record per question (C11).
 - Live run artefacts protected from being overwritten by stub runs (C12).
 - README results generated from the scorecard and checked in CI (C13); CLI labels match scorecard keys (C14).
 - SDK call signatures (C15) and LLM output parsers (C16) tested against the shapes real models produce.
-- Per-stage tracing behind `/metrics`, `/metrics/prom` and `/dashboard` (C17).
+- Per-stage tracing behind `/metrics`, `/metrics/prom` and `/dashboard` (C17); optional OTLP export, bounded in-memory spans (C29).
 - HTTP API with `/status`, `/ask` and content-addressed `/ingest` (C18), and a Next.js UI with citation highlighting and a provenance badge (C19).
 - Provider API keys held as secrets, absent from any printed settings (C20).
+- `docker compose up`: non-root image, Postgres, migrations, corpus ingestion and the API in order, smoke-tested in CI (C26).
+- API hardening: API keys on `/ask` and `/ingest`, per-key rate limit, bounded inputs, file-type allow-list, generic errors with a request ID (C23).
+- Prompt-injection defence: delimited, untrusted-labelled evidence, and a deterministic support check (citation coverage, cited relevance, injection markers) the model's score cannot override; adversarial eval questions (C24).
+- Provider and store outages reported as errors (HTTP 503), never as refusals (C25).
 
 ## Measured results
 
@@ -89,8 +93,8 @@ Every value in the table is copied from the committed scorecard JSON by
 `scope` and `n_denominator`. The full audit trail (per-question answer, citations,
 per-claim judge verdict) is
 [`datasets/eval/runs/live/eval_d0ca1d5_questions.json`](datasets/eval/runs/live/eval_d0ca1d5_questions.json).
-Retrieval numbers come from the in-memory store (BM25 sparse arm), the default of
-`verity eval run`. Definitions: [`docs/evaluation-methodology.md`](docs/evaluation-methodology.md).
+Retrieval numbers come from the in-memory store (BM25 sparse arm), which that run
+used; `verity eval run` now defaults to pgvector (`--store memory` reproduces it). Definitions: [`docs/evaluation-methodology.md`](docs/evaluation-methodology.md).
 
 ## Open issues: what the numbers do not say
 
@@ -122,29 +126,23 @@ Retrieval numbers come from the in-memory store (BM25 sparse arm), the default o
 Not implemented, or implemented without a test. Each item is a `roadmap` row in
 [`docs/CLAIMS.md`](docs/CLAIMS.md).
 
-- PDF, DOCX and web-page ingestion: the docling and trafilatura parsers exist but no test exercises them (C08).
+- Web-page ingestion: the trafilatura parser exists but no test exercises it (C30).
 - Calibrated refusal: measure calibration (ECE, reliability diagram) before claiming it (C21).
-- pgvector as the default store for the API, the demo and the reference eval (C22).
-- API hardening: authentication, rate limits, bounded inputs, file-type allow-list, generic errors (C23).
-- Prompt-injection defence for ingested documents, with adversarial tests (C24).
-- Provider and database outages reported as errors, not refusals (C25).
-- A Docker image that serves live answers: today it lacks `prompts/` and `migrations/` (C26).
 - A judge validated against human labels, from a different model family (C27).
 - ≥ 80 questions with a frozen dev/test split; micro and macro aggregates (C28).
-- OTLP trace export: the exporter is not a dependency and a configured endpoint is ignored (C29).
 
 ## Architecture
 
 ```mermaid
 flowchart LR
     subgraph Ingest["Ingestion"]
-        docs[/"documents<br/>MD · TXT (PDF · DOCX · web untested)"/] --> parser[parser<br/>structure-aware]
+        docs[/"documents<br/>MD · TXT · PDF · DOCX (web untested)"/] --> parser[parser<br/>structure-aware]
         parser --> chunker[chunker]
         chunker --> embedder[BAAI/bge-small-en-v1.5]
     end
 
+    embedder --> pg[(pgvector, default<br/>HNSW + FTS)]
     embedder --> mem[(in-memory store<br/>cosine + BM25)]
-    embedder --> pg[(pgvector<br/>HNSW + FTS)]
 
     subgraph Retrieve["Hybrid retrieval"]
         query[/"query"/] --> dense[dense search]
@@ -154,9 +152,9 @@ flowchart LR
         rrf --> rerank[cross-encoder<br/>ms-marco-MiniLM]
     end
 
-    mem --> dense
-    mem --> sparse
-    pg -.->|verity retrieve / eval retrieval --no-in-memory| dense
+    mem -.->|VERITY_STORE=memory| dense
+    pg --> dense
+    pg --> sparse
 
     subgraph Agent["Agent"]
         rerank --> decompose[decompose]
@@ -183,20 +181,31 @@ Stage-by-stage description: [`docs/architecture.md`](docs/architecture.md).
 ```bash
 git clone https://github.com/matteogallo-ai/verity && cd verity
 uv sync --dev                              # Python 3.12; CPU-only torch on Linux
-uv run verity eval run --ci                # pipeline smoke test on stubs, offline, ~10 s
-make demo                                  # API :8000 + Next.js :3000, stub agent, offline
+VERITY_STORE=memory uv run verity eval run --ci  # pipeline smoke test on stubs, no database
+make demo                                  # pgvector + API :8000 + Next.js :3000, stub agent
 ```
 
 The first run downloads the embedding and reranker models (~200 MB) into the
-Hugging Face cache. `make demo` needs Node 22 and corepack.
+Hugging Face cache. `make demo` needs Docker (for pgvector), Node 22 and corepack.
 
-pgvector path (the integration tests and `verity retrieve --no-in-memory` use it):
+pgvector is the default store (`VERITY_STORE`, or `--store` on the CLI); every command
+that reads the corpus first upserts it, idempotently:
 
 ```bash
 docker compose up -d db                    # pgvector on :5432
 uv run verity db upgrade                   # apply migrations
-uv run verity ingest datasets/corpus       # parse → chunk → embed → upsert into pgvector
-uv run verity eval retrieval --no-in-memory
+uv run verity eval retrieval               # ingests datasets/corpus, then scores retrieval
+```
+
+`VERITY_STORE=memory` runs everything in process memory, without a database.
+
+Everything in containers (the image embeds the local models; no provider key means stub
+mode):
+
+```bash
+VERITY_API_KEYS='["a-long-random-key"]' docker compose up   # or VERITY_API_AUTH_DISABLED=true
+curl -H 'X-API-Key: a-long-random-key' -H 'content-type: application/json' \
+  -d '{"question": "What is the notice period?"}' http://127.0.0.1:8000/ask
 ```
 
 Reproducing the v1.0.0 headline calls Anthropic models (the original run cost
@@ -245,7 +254,7 @@ Human audits caught what the agents and CI did not:
 
 ## Stack
 
-Python 3.12 · FastAPI · Postgres + pgvector, or an in-memory store · local
+Python 3.12 · FastAPI · Postgres + pgvector (or an in-memory store) · local
 embeddings and cross-encoder reranker (offline, no keys) · Anthropic and OpenAI
 clients behind an ordered fallback router · OpenTelemetry spans (in-process) +
 structlog · Next.js 15 UI. Tooling: uv · ruff · mypy strict · vulture · deptry ·
@@ -257,7 +266,7 @@ pytest · GitHub Actions. Eval history is kept as versioned JSON files.
 uv run ruff check . && uv run ruff format --check .
 uv run mypy
 uv run vulture && uv run deptry src
-uv run pytest -m "not integration and not slow"    # fast lane, < 60 s
+HF_HUB_OFFLINE=1 uv run pytest -m "not integration and not slow"  # fast lane, no network
 uv run pytest -m "slow and not integration"        # loads the local models
 VERITY_DATABASE_URL=postgresql://verity:verity@localhost:5432/verity \
   uv run pytest -m integration                     # needs pgvector

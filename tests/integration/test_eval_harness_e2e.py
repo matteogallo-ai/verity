@@ -76,7 +76,7 @@ async def test_eval_harness_produces_full_scorecard(seeded_retriever: HybridRetr
     judge = StubFaithfulnessJudge()
 
     examples = load_full_dataset(DATASET_PATH)
-    assert len(examples) == 16
+    assert len(examples) == 19
 
     evaluator = AgentEvaluator(
         agent=agent,
@@ -89,7 +89,7 @@ async def test_eval_harness_produces_full_scorecard(seeded_retriever: HybridRetr
     result = await evaluator.run(examples, git_sha="int-test")
     sc = result.scorecard
 
-    assert sc.n_examples == 16
+    assert sc.n_examples == 19
     assert result.judge_model == STUB_JUDGE_MODEL
     assert result.agent_model == "stub-agent"
 
@@ -108,9 +108,9 @@ async def test_eval_harness_produces_full_scorecard(seeded_retriever: HybridRetr
     assert sc.latency.p50_ms >= 0.0
     assert sc.cost_per_query_usd >= 0.0
 
-    # Refusal is measured on all 5 out-of-scope.
+    # Refusal is measured on all 8 out-of-scope (3 adversarial).
     out_of_scope = [p for p in result.per_refusal if not p.expected_answerable]
-    assert len(out_of_scope) == 5
+    assert len(out_of_scope) == 8
     # And the near-miss questions are represented explicitly.
     ids = {p.example_id for p in out_of_scope}
-    assert {"q-014", "q-015", "q-016"}.issubset(ids)
+    assert {"q-014", "q-015", "q-016", "q-017", "q-018", "q-019"}.issubset(ids)

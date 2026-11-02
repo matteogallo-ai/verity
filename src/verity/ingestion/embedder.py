@@ -69,7 +69,7 @@ class LocalEmbedder(Embedder):
         batch_size: int = 32,
         normalize: bool = True,
         backend: EmbeddingBackend | None = None,
-        backend_factory: Callable[[str], EmbeddingBackend] = _default_backend_factory,
+        backend_factory: Callable[[str], EmbeddingBackend] | None = None,
     ) -> None:
         settings = get_settings()
         self._model = model or settings.embedding_model
@@ -90,7 +90,10 @@ class LocalEmbedder(Embedder):
 
     def _get_backend(self) -> EmbeddingBackend:
         if self._backend is None:
-            self._backend = self._backend_factory(self._model)
+            # The module-level default is looked up here, not bound at definition
+            # time, so tests can patch it and keep the real model off the fast lane.
+            factory = self._backend_factory or _default_backend_factory
+            self._backend = factory(self._model)
         if not self._dim_verified:
             actual = self._backend.get_sentence_embedding_dimension()
             if actual is None:
