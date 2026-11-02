@@ -108,6 +108,8 @@ class Settings(BaseSettings):
     # --- Observability ----------------------------------------------------------------
     # None → spans stay in the in-process exporter only (backs /metrics).
     otel_endpoint: str | None = None
+    # Spans kept in memory for /metrics and /dashboard; older spans are dropped.
+    trace_max_spans: int = Field(default=10_000, gt=0)
     log_level: str = "INFO"
 
     def price_for(self, model: str) -> ModelPrice:

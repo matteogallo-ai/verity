@@ -49,6 +49,11 @@ verity = "verity.cli:app"
 Homepage = "https://github.com/matteogallo-ai/verity"
 Repository = "https://github.com/matteogallo-ai/verity"
 
+[project.optional-dependencies]
+# OTLP trace export to a collector (VERITY_OTEL_ENDPOINT). Optional: it pulls in
+# protobuf and an HTTP stack the local demo does not need.
+otlp = ["opentelemetry-exporter-otlp-proto-http>=1.27"]
+
 [dependency-groups]
 dev = [
   "pytest>=8.3",
@@ -96,7 +101,10 @@ ignore_names = [
 # python-multipart: imported by FastAPI at runtime for UploadFile / Form parsing.
 # torch, torchvision: declared only to route them to the CPU index (see
 #   [tool.uv.sources]); imported by sentence-transformers and docling.
-DEP002 = ["python-multipart", "torch", "torchvision"]
+# opentelemetry-exporter-otlp-proto-http: the otlp extra, imported lazily by
+#   verity.observability.tracer; deptry maps modules by their top-level package
+#   (opentelemetry), which the core SDK dependency already claims.
+DEP002 = ["python-multipart", "torch", "torchvision", "opentelemetry-exporter-otlp-proto-http"]
 
 [tool.mypy]
 python_version = "3.12"

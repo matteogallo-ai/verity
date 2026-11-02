@@ -56,7 +56,7 @@ CI job `claims` runs those tests.
 - Live run artefacts protected from being overwritten by stub runs (C12).
 - README results generated from the scorecard and checked in CI (C13); CLI labels match scorecard keys (C14).
 - SDK call signatures (C15) and LLM output parsers (C16) tested against the shapes real models produce.
-- Per-stage tracing behind `/metrics`, `/metrics/prom` and `/dashboard` (C17).
+- Per-stage tracing behind `/metrics`, `/metrics/prom` and `/dashboard` (C17); optional OTLP export, bounded in-memory spans (C29).
 - HTTP API with `/status`, `/ask` and content-addressed `/ingest` (C18), and a Next.js UI with citation highlighting and a provenance badge (C19).
 - Provider API keys held as secrets, absent from any printed settings (C20).
 - API hardening: API keys on `/ask` and `/ingest`, per-key rate limit, bounded inputs, file-type allow-list, generic errors with a request ID (C23).
@@ -131,7 +131,6 @@ Not implemented, or implemented without a test. Each item is a `roadmap` row in
 - A Docker image that serves live answers: today it lacks `prompts/` and `migrations/` (C26).
 - A judge validated against human labels, from a different model family (C27).
 - ≥ 80 questions with a frozen dev/test split; micro and macro aggregates (C28).
-- OTLP trace export: the exporter is not a dependency and a configured endpoint is ignored (C29).
 
 ## Architecture
 

@@ -40,5 +40,5 @@ CI `web` job runs them.
 | C26 | `docker compose up` serves live answers (the image lacks `prompts/` and `migrations/`). | — | — | roadmap |
 | C27 | Judge validated against human labels (Cohen's κ), judge from a different model family. | — | — | roadmap |
 | C28 | Evaluation on ≥ 80 questions with a frozen dev/test split; micro and macro aggregates published. | — | — | roadmap |
-| C29 | OTLP trace export (the exporter package is not a dependency; a configured endpoint is ignored). | — | — | roadmap |
+| C29 | OTLP trace export: with the `otlp` extra and `VERITY_OTEL_ENDPOINT`, spans go to a collector through a batching processor; a configured endpoint without the extra logs a warning at startup. In-memory spans for `/metrics` are bounded. | `src/verity/observability/tracer.py`, `pyproject.toml` | `tests/unit/test_tracer.py::test_configured_endpoint_with_the_extra_attaches_a_batched_exporter`<br>`tests/unit/test_tracer.py::test_configured_endpoint_without_the_otlp_extra_warns_at_startup`<br>`tests/unit/test_tracer.py::test_span_buffer_is_bounded_and_keeps_the_newest` | shipped |
 | C30 | Ingestion of web pages (trafilatura). Code exists; no test parses a page. | `src/verity/ingestion/parsers/web.py` | — | roadmap |

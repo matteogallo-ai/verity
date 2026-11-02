@@ -510,7 +510,7 @@ def serve(
 
     settings = get_settings()
     configure_logging(settings.log_level)
-    tracer = OTelTracer(otel_endpoint=settings.otel_endpoint)
+    tracer = OTelTracer(otel_endpoint=settings.otel_endpoint, max_spans=settings.trace_max_spans)
     try:
         app_instance = create_app(tracer=tracer, runs_dir=runs_dir, dataset=dataset)
     except ValueError as exc:

@@ -45,11 +45,14 @@ config bug, not a fallback trigger) — same decision as PromptLang's RoutingCli
 
 ### 5. Observability (`verity.observability`)
 Every stage opens a `StageSpan` bound to the query's `trace_id`: latency, token/cost usage,
-hit counts and scores. Spans go to an in-process OpenTelemetry `InMemorySpanExporter` that
-backs `/metrics` and the dashboard. OTLP export is attempted only when
-`VERITY_OTEL_ENDPOINT` is set AND `opentelemetry-exporter-otlp-proto-http` is installed;
-that package is not a declared dependency, and when it is missing the endpoint is ignored
-without a warning. Logs are structured (structlog) and carry `trace_id` on every line.
+hit counts and scores. Spans go to an in-process ring buffer (`RingBufferSpanExporter`, the
+newest `VERITY_TRACE_MAX_SPANS`, default 10 000) that backs `/metrics` and the dashboard.
+With `VERITY_OTEL_ENDPOINT` set and the `otlp` extra installed (`uv sync --extra otlp`),
+spans are also sent to that collector through a batching processor; with the endpoint set
+and the extra missing, startup logs the warning `otlp_export_disabled`. Logs are structured
+(structlog) and carry `trace_id` on every line; under the API also `request_id` and the
+authenticated principal. Each request ends with one `answer_done` or `answer_failed` line:
+decision, refusal reason or error kind, per-stage latency, tokens and cost.
 
 ### 6. Evaluation (`verity.eval`)
 Runs the whole agent over the labeled dataset and emits a `Scorecard` saved as JSON with
