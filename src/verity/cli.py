@@ -118,11 +118,20 @@ def ingest(
 @db_app.command("upgrade")
 def db_upgrade() -> None:
     """Apply pending database migrations (idempotent)."""
+    import psycopg
+
     from verity.db import apply_pending, list_applied
+    from verity.db.redact import redact_conninfo
 
     settings = get_settings()
-    applied = apply_pending(settings.database_url)
-    total = list_applied(settings.database_url)
+    try:
+        applied = apply_pending(settings.database_url)
+        total = list_applied(settings.database_url)
+    except psycopg.Error as exc:
+        # Printed redacted and not chained: libpq may quote the password.
+        reason = redact_conninfo(str(exc).strip(), settings.database_url)
+        console.print(f"[red]Migration failed:[/red] {type(exc).__name__}: {reason}")
+        raise typer.Exit(code=2) from None
     if applied:
         console.print(f"[green]Applied {len(applied)} migration(s):[/green] {', '.join(applied)}")
     else:

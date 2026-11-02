@@ -20,6 +20,7 @@ import psycopg
 from psycopg.rows import dict_row, tuple_row
 
 from verity.config import get_settings
+from verity.db.redact import redact_conninfo
 from verity.retrieval.base import DocumentSummary, StoreSchemaError, StoreUnavailableError
 from verity.types import Chunk, EmbeddedChunk, RetrievalHit, RetrieverKind
 
@@ -98,9 +99,14 @@ class PgVectorStore:
                 psycopg.AsyncConnection[dict[str, Any]],
                 await psycopg.AsyncConnection.connect(self._url),
             )
-        except psycopg.OperationalError as exc:
-            # The message names host and port, never the password.
-            raise StoreUnavailableError(f"cannot connect to Postgres: {exc}") from exc
+        # ProgrammingError is a connection string libpq cannot parse; its message
+        # quotes the offending fragment, which can be the password. The driver error
+        # is not chained (``from None``) so no traceback renders its raw message.
+        except psycopg.Error as exc:
+            reason = redact_conninfo(str(exc).strip(), self._url)
+            raise StoreUnavailableError(
+                f"cannot connect to Postgres: {type(exc).__name__}: {reason}"
+            ) from None
         if not self._schema_checked:
             try:
                 await _check_embedding_dim(conn, self._embedding_dim)
