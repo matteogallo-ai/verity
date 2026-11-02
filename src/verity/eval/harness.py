@@ -225,7 +225,7 @@ class AgentEvaluator(Evaluator):
 
             # Per-call judge provenance — both StubFaithfulnessJudge and
             # LLMFaithfulnessJudge set ``last_provider`` / ``last_model`` per
-            # call (both None on the refusal skip path, honest that no LLM
+            # call (both None on the refusal skip path, recording that no LLM
             # was called).
             judge_stamps.append(
                 JudgeCallStamp(

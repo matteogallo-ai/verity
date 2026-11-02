@@ -162,7 +162,7 @@ class AppRuntime:
         Used only by ``/status`` (and by any call path that hasn't produced
         an :class:`Answer` yet). Never a substitute for
         :meth:`provenance_for` — call sites that HAVE an Answer must use that
-        one so a live-mode routing fallback is reported honestly per request.
+        one so a live-mode routing fallback is reported per request.
         """
         settings = get_settings()
         return Provenance(
@@ -180,14 +180,14 @@ class AppRuntime:
         populated by :class:`RagAgent` from the synthesizer's ``Completion``,
         with the router's first-configured provider stamped as a fallback so
         even a graceful short-circuit refusal (e.g. mid-flight LLM error)
-        still carries the honest routing decision.
+        still carries the routing decision.
 
         When ``provider_used`` is genuinely ``None`` — the caller built an
         Answer manually, no routing decision available — we surface
         ``agent_model="unknown"`` explicitly. We deliberately do **not**
         silently fall back to the boot-time :meth:`provenance` here: a live
         deployment with a stub-side fallback that misreports as "live" is
-        exactly the class of dishonest label this fix closes.
+        exactly the class of wrong label this prevents.
         """
         from verity.types import Provider
 

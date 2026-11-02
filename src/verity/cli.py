@@ -1,10 +1,5 @@
-"""Verity command-line interface.
-
-The command surface is defined now so it is stable across the build-out; the bodies
-are filled stage by stage. Commands that are not yet implemented say so honestly and
-exit 0 (they are scaffold gates, not failures) — this keeps CI green without faking
-results.
-"""
+"""Verity command-line interface: version, ingest, db upgrade, ask, retrieve, serve, and the
+eval commands (retrieval, run, compare). Every command is implemented."""
 
 from __future__ import annotations
 
@@ -147,7 +142,7 @@ def ask(
         ),
     ] = False,
 ) -> None:
-    """Answer a question with citations. Refuses honestly when the evidence is weak."""
+    """Answer a question with citations. Refuses when the evidence is weak."""
     from verity.agent import create_default_agent
     from verity.agent.scripted_stub import build_stub_router
     from verity.llm import create_default_routing_client
@@ -200,7 +195,7 @@ MISSING_KEY_MESSAGE = (
 def _require_llm_api_key() -> None:
     """Fail fast with an actionable message when no provider key is configured.
 
-    Refusing to fall back to the stub silently is the honest behaviour: the caller
+    Refusing to fall back to the stub silently is deliberate: the caller
     asked for a real answer, so we surface the misconfiguration instead of quietly
     serving them a scripted response. The message text is exposed as
     :data:`MISSING_KEY_MESSAGE` so tests can assert on it directly without depending
@@ -585,7 +580,7 @@ def eval_run(
         bool,
         typer.Option(
             help=(
-                "Print 'below floor' constats but exit 0 anyway. Intended for "
+                "Print 'below floor' findings but exit 0 anyway. Intended for "
                 "the one-shot LIVE run: a floor breach on a run of record must "
                 "NOT be presented as 'failure' that invites a re-run (=re-spend). "
                 "Stub / CI runs keep hard floors (do NOT set this in CI)."
@@ -638,7 +633,7 @@ def eval_run(
     if not agent_stub:
         _require_llm_api_key()
     agent = create_default_agent(retriever=retriever, client=agent_client)
-    # Traceability: the refusal chiffres in the Scorecard are meaningless without
+    # Traceability: the refusal numbers in the Scorecard are meaningless without
     # knowing WHICH agent produced the answers they aggregate over. "stub-agent"
     # is the sentinel picked up by the CLI and README as a prudence flag.
     agent_model = (
@@ -734,7 +729,7 @@ def eval_run(
         )
     if failed:
         if report_only_floors:
-            # Report-only: log the constat honestly (so the operator sees the
+            # Report-only: log the finding (so the operator sees the
             # breach in the run of record) but exit 0. Semantics for the LIVE
             # one-shot: the JSON is committed above, the below-floor observation
             # is recorded in the console log, no re-run is invited.
@@ -887,14 +882,14 @@ def _print_scorecard(result) -> None:  # type: ignore[no-untyped-def]
     stub_note = "STUB" if judge_is_stub else "REAL"
     # Refusal maths is deterministic, but the *observed* refuses come from the agent
     # → tag the agent explicitly on each refusal row so no reader can quote a
-    # refusal chiffre without knowing which agent produced it.
+    # refusal number without knowing which agent produced it.
     refusal_tag = (
         "REAL calc / agent=stub-agent"
         if agent_is_stub
         else f"REAL calc / agent={result.agent_model}"
     )
-    # v3 scoped metrics computed from per_audit — every judge-track chiffre
-    # displayed with its honest denominator so a reader cannot quote it
+    # v3 scoped metrics computed from per_audit — every judge-track number
+    # displayed with its denominator so a reader cannot quote it
     # without knowing what was averaged. See
     # ``verity.eval.headline.build_headline_dict`` for the same rules on the
     # JSON side.

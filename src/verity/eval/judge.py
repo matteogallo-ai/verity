@@ -276,8 +276,8 @@ class LLMFaithfulnessJudge(FaithfulnessJudge):
         self.last_model = completion.model
         parsed = _parse_judge_output(completion.text)
         if parsed is None:
-            # Refuse to fabricate a chiffre on malformed output — flag as
-            # unsupported so the scorecard reflects the failure honestly.
+            # Refuse to fabricate a number on malformed output — flag as
+            # unsupported so the scorecard counts the failure.
             self.last_claims = ()
             return AnswerMetrics(
                 faithfulness=0.0,

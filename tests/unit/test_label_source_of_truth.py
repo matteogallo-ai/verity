@@ -72,7 +72,7 @@ class TestConsoleJsonLabelInvariant:
     def test_json_is_v3_with_scoped_metrics(self, tmp_path: Path) -> None:
         """Baseline: the JSON we generate today is schema v3 — no drift back
         to a v2/v1 shape under any refactor. Each judge-track metric is a
-        ``{value, scope, n_denominator}`` triple so no chiffre can be
+        ``{value, scope, n_denominator}`` triple so no number can be
         quoted without its denominator."""
         _, payload = _run_stub_and_capture(tmp_path)
         assert payload["schema"] == "verity.scorecard.headline/v3"
@@ -97,7 +97,7 @@ class TestConsoleJsonLabelInvariant:
     def test_console_uses_the_v3_scoped_hallucination_label(self, tmp_path: Path) -> None:
         """The console must display the v3-scoped name with the denominator,
         never the bare v1 name and never the v2 ``(answerable only)`` label
-        (which doesn't say ``n=…``). Load-bearing: no chiffre-without-denominator
+        (which doesn't say ``n=…``). Load-bearing: no number-without-denominator
         can leak into a demo screenshot."""
         console, _ = _run_stub_and_capture(tmp_path)
         assert "hallucination_rate (answerable_and_answered, n=" in console, (

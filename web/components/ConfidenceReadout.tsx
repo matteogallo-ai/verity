@@ -1,7 +1,7 @@
 import type { AnswerView, Provenance } from "@/lib/types";
 
 /**
- * Honest rendering of ``answer.confidence.score``.
+ * Rendering of ``answer.confidence.score``.
  *
  * The score is NOT a composite computed by the UI. It is a passthrough of the
  * value the agent's confidence scorer returned for this exact request — a

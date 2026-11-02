@@ -46,7 +46,7 @@ class Agent(Protocol):
     Guarantees on the returned Answer:
       * every non-refusal answer carries ≥1 citation mapped to an exact passage;
       * ``confidence.refused`` is True whenever confidence < threshold, and the text is
-        an honest "I don't know" rather than a hallucinated answer;
+        an "I don't know" rather than a hallucinated answer;
       * ``usage`` and ``trace_id`` are always populated for observability and eval.
     """
 

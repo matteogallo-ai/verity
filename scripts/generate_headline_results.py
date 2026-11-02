@@ -89,7 +89,7 @@ def render_block(data: dict[str, Any]) -> str:
         f"| **Refusal precision** | **{_fmt(refu['refusal_precision'])}** | of the refusals, fraction that were genuinely unanswerable |"
     )
     # v3: each judge-track metric is a {value, scope, n_denominator} triple.
-    # Render the value alongside the scope so no chiffre can be quoted
+    # Render the value alongside the scope so no number can be quoted
     # without its denominator visible.
     faith = ans["faithfulness"]
     ca = ans["citation_accuracy"]

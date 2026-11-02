@@ -294,7 +294,7 @@ class PerExampleAudit(BaseModel, frozen=True):
     RE-READ later without re-spending on the judge.
 
     The published headline scorecard remains aggregated; this record is the
-    audit trail that stands behind every chiffre. Persisted verbatim under
+    audit trail that stands behind every number. Persisted verbatim under
     :attr:`EvalRun.per_audit` so ``verity eval compare`` (or a future audit UI)
     can walk from an aggregate metric back to the exact answer, citations, hits
     and per-claim judge verdict that produced it.
@@ -330,7 +330,7 @@ class EvalRun(BaseModel, frozen=True):
     - ``embedding_model`` — the vector encoder used for retrieval (real component
       even in ``--judge stub`` mode).
     - ``agent_model`` — the LLM the *agent* used to decompose, synthesize, and
-      self-score. When set to ``"stub-agent"`` the Scorecard's refusal chiffres
+      self-score. When set to ``"stub-agent"`` the Scorecard's refusal numbers
       (though mechanically deterministic) reflect the *stub*'s calibration, not
       the real agent's — the CLI and README carry this nuance explicitly.
     - ``judge_model`` — the faithfulness/citation LLM judge. ``"stub-judge-v1"``

@@ -73,7 +73,7 @@ def test_round_trip_save_and_history(tmp_path: Path) -> None:
     store.save(r2)
     history = store.history("questions")
     assert [r.scorecard.git_sha for r in history] == ["bbb2222", "aaa1111"]
-    # Provenance triple round-trips — refusal chiffres can never be read without
+    # Provenance triple round-trips — refusal numbers can never be read without
     # knowing which agent produced them.
     assert history[0].agent_model == "claude-sonnet-4-6"
     assert history[1].agent_model == "stub-agent"
@@ -83,7 +83,7 @@ def test_round_trip_save_and_history(tmp_path: Path) -> None:
 
 def test_legacy_run_without_agent_model_deserialises(tmp_path: Path) -> None:
     """Older JSON scorecards (0.5.0 pre-fix) don't have an ``agent_model`` field.
-    The reader defaults them to ``"unknown"`` rather than crashing — no chiffre
+    The reader defaults them to ``"unknown"`` rather than crashing — no number
     lost, but the caveat is visible."""
     import json
 

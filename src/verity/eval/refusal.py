@@ -18,7 +18,7 @@ Metrics (ADR 0003, docs/evaluation-methodology.md):
 
 Both are computed here without any LLM call, from the ``answerable`` label on the
 example and ``Answer.confidence.refused`` on the observed output. This is why the
-refusal chiffre in the Scorecard is real from day one, even in ``--judge stub`` mode.
+refusal number in the Scorecard is real from day one, even in ``--judge stub`` mode.
 """
 
 from __future__ import annotations

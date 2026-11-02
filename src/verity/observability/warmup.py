@@ -8,7 +8,7 @@ describe *first-boot latency*, not steady-state serving.
 :func:`agent_warmup` runs one full ``agent.answer("warmup ...")`` on a
 throwaway question so every lazy component is warm before the timed loop begins.
 The wall-clock of that single call is the ``cold_start_ms`` — reported in the
-Scorecard as a distinct field so honesty is preserved (nothing is hidden, it is
+Scorecard as a distinct field (nothing is hidden, it is
 just placed where it belongs).
 """
 

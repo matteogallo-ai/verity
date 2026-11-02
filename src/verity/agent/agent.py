@@ -197,7 +197,7 @@ def _bind_component_usage(span, component: object) -> None:  # type: ignore[no-u
 def _last_usage_of(component: object) -> UsageStats | None:
     """Best-effort accessor for the ``last_usage`` attribute the concrete LLM-backed
     decomposer / scorer expose. Protocol implementations without it contribute nothing
-    to the aggregate — which is the honest fallback (better than fabricating a count)."""
+    to the aggregate rather than a fabricated count."""
     usage = getattr(component, "last_usage", None)
     return usage if isinstance(usage, UsageStats) else None
 

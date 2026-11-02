@@ -216,7 +216,7 @@ def are_compatible(a: EvalRun, b: EvalRun) -> bool:
     Comparing a run measured on ``agent=stub-agent`` against one measured on
     ``agent=claude-sonnet-4-6`` is apples-to-oranges: any refusal or latency
     delta reflects the change of agent, not a real regression. Same reasoning
-    for ``judge_model`` (a stub-judge chiffre vs a real-judge chiffre for
+    for ``judge_model`` (a stub-judge number vs a real-judge number for
     faithfulness). ``embedding_model`` isn't checked because it is stable across
     every run so far; if it ever becomes tunable, add it here.
     """

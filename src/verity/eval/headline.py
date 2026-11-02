@@ -7,18 +7,18 @@ Two audiences:
   in the root ``README.md``. Numbers are copied verbatim, no rescaling.
 - Reviewers who want a machine-readable v1.0.0 artefact without walking the
   whole ``EvalRun`` structure. Every metric on this file carries the
-  provenance triple + total_cost_usd + timestamp so a chiffre can never be
+  provenance triple + total_cost_usd + timestamp so a number can never be
   quoted without knowing the run that produced it.
 
 Provenance aggregation is deliberately per-request, not boot-config: the
 strings ``agent_model`` / ``judge_model`` in this JSON are summaries computed
 from the per-answer / per-judge-call stamps that the router actually served.
 This carries the per-request-provenance invariant (``Answer.provider_used``)
-into the reporting layer — a fallback that swapped provider mid-run shows up as an honest split
+into the reporting layer — a fallback that swapped provider mid-run shows up as a split
 ("anthropic 15/16, openai 1/16") instead of the boot-time first-client label.
 
 Schema v3 (pre-tag correction, 2026-09-07): every judge-track metric carries
-its **honest denominator** and **scope description**. Refusals bypass the
+its **denominator** and **scope description**. Refusals bypass the
 judge (no LLM call happens), and the previous v2 aggregate averaged them in
 with a convention value of 1.0 — inflating ``citation_accuracy`` in
 particular. v3 reports each metric only over its meaningful sample:
@@ -75,7 +75,7 @@ def _summarize_judge_stamps(
     Format when refusals bypassed the judge on some examples:
         ``"<model> (K/N answered — <skipped> refusals bypass the judge)"``
 
-    Load-bearing honesty rule: a reader must not be able to confuse the
+    Load-bearing rule: a reader must not be able to confuse the
     judge call count with the total question count. The v2 output
     ``"(12/12)"`` was arithmetically true (12 non-None stamps out of 12
     counted stamps) but misleading — 4 refusals had already been filtered
@@ -210,7 +210,7 @@ def _compute_headline(inputs: _NormalizedInputs, *, dataset_sha: str | None) -> 
         },
         "answer_quality": {
             # v3 rename: each metric is a {value, scope, n_denominator} triple
-            # so no chiffre can be quoted without its scope. Refusals no longer
+            # so no number can be quoted without its scope. Refusals no longer
             # boost the aggregate — the denominators shrink to the meaningful
             # sample. See module docstring for the full rationale.
             "faithfulness": {

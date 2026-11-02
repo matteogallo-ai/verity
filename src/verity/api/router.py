@@ -52,7 +52,7 @@ def _corpus_summary(runtime: AppRuntime) -> CorpusSummary:
 
 @router.get("/status", response_model=StatusResponse)
 async def status_endpoint(request: Request) -> StatusResponse:
-    """Honest status: real corpus counts, real provenance triple, real
+    """Status: real corpus counts, real provenance triple, real
     otel endpoint config. No hard-coded ``"ok"``."""
     runtime = _runtime(request)
     settings = get_settings()
@@ -104,7 +104,7 @@ async def ask_endpoint(request: Request, body: AskRequest) -> AskResponse:
     :class:`Provenance` **derived per-request** from the synthesizer's actual
     :class:`Completion` via :meth:`AppRuntime.provenance_for`. Provenance is
     never separated from the answer on the wire so the UI can't lift a
-    chiffre without its badge, and it correctly reflects a routing fallback
+    number without its badge, and it correctly reflects a routing fallback
     in live mode (Anthropic → OpenAI) rather than a static boot-time value.
     """
     runtime = _runtime(request)
