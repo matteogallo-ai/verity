@@ -27,6 +27,7 @@ if TYPE_CHECKING:  # pragma: no cover — types only
     from verity.types import Answer
 from verity.config import get_settings
 from verity.ingestion import LocalEmbedder
+from verity.ingestion.ids import document_id_for_uri
 from verity.observability.base import Tracer
 from verity.observability.tracer import NoOpTracer
 from verity.retrieval import CrossEncoderReranker, InMemoryVectorStore
@@ -42,6 +43,14 @@ from verity.runtime import (
 
 _UPLOAD_URI_PREFIX = "upload://"
 _FILENAME_SANITISE_RE = re.compile(r"[^A-Za-z0-9._-]+")
+
+
+class CorpusFullError(Exception):
+    """The shared corpus already holds the configured maximum of documents."""
+
+    def __init__(self, limit: int) -> None:
+        super().__init__(f"corpus holds the maximum of {limit} documents")
+        self.limit = limit
 
 
 @dataclass
@@ -118,7 +127,9 @@ class AppRuntime:
                 )
             self._preloaded = True
 
-    async def ingest_bytes(self, *, filename: str, content: bytes) -> IngestedSource:
+    async def ingest_bytes(
+        self, *, filename: str, content: bytes, extension: str, max_documents: int
+    ) -> IngestedSource:
         """Ingest a client-uploaded file.
 
         The URI is a **pure content address** — ``upload://<sha256><ext>`` —
@@ -127,12 +138,20 @@ class AppRuntime:
         ``document_id`` (``uuid5(NAMESPACE_URL, uri)``); re-uploads are
         idempotent by construction. The filename is preserved separately as
         the ``title`` for display, and the extension (parsed off the sanitised
-        name) is what drives the ``SourceType`` dispatch.
+        name) is what drives the ``SourceType`` dispatch; the caller has already
+        checked it against the allow-list.
+
+        A new document beyond ``max_documents`` raises :class:`CorpusFullError`; a
+        re-upload of bytes already in the corpus does not count.
         """
         safe_name = _sanitise_filename(filename)
         digest = hashlib.sha256(content).hexdigest()
-        ext = _extension_for(safe_name)
-        access_uri = f"{_UPLOAD_URI_PREFIX}{digest}{ext}"
+        access_uri = f"{_UPLOAD_URI_PREFIX}{digest}{extension}"
+        if (
+            str(document_id_for_uri(access_uri)) not in self._sources
+            and len(self._sources) >= max_documents
+        ):
+            raise CorpusFullError(max_documents)
         result = await ingest_uri(
             uri=access_uri,
             store=self.store,
@@ -215,18 +234,6 @@ def _sanitise_filename(name: str) -> str:
     return _FILENAME_SANITISE_RE.sub("_", stripped) or "upload"
 
 
-def _extension_for(name: str) -> str:
-    """Recover a parser-dispatchable extension from a sanitised filename.
-
-    Falls back to ``.txt`` so bare uploads without an extension still parse.
-    """
-    lowered = name.lower()
-    for ext in (".pdf", ".docx", ".md", ".markdown", ".txt"):
-        if lowered.endswith(ext):
-            return ext
-    return ".txt"
-
-
 def default_agent_mode() -> AgentMode:
     """Stub by default when no LLM key is configured — matches the CLI guard."""
     settings = get_settings()
@@ -235,4 +242,4 @@ def default_agent_mode() -> AgentMode:
     return "stub"
 
 
-__all__ = ["AppRuntime", "IngestedSource", "default_agent_mode"]
+__all__ = ["AppRuntime", "CorpusFullError", "IngestedSource", "default_agent_mode"]

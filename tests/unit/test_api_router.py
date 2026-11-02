@@ -13,12 +13,13 @@ from pathlib import Path
 import pytest
 
 from tests.unit.api_app import api_app
+from verity.config import Settings
 
 
 @pytest.fixture
 def client(tmp_path: Path):  # type: ignore[no-untyped-def]
     """Stub-mode app on the shipped corpus."""
-    with api_app(tmp_path) as test_client:
+    with api_app(tmp_path, Settings()) as test_client:
         yield test_client
 
 

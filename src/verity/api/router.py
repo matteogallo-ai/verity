@@ -10,10 +10,12 @@ from __future__ import annotations
 
 from typing import Annotated, cast
 
+import structlog
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 
 from verity import __version__
+from verity.api.guards import UploadRejectedError, check_upload
 from verity.api.models import (
     AskResponse,
     CorpusSummary,
@@ -21,10 +23,11 @@ from verity.api.models import (
     StatusResponse,
     answer_to_view,
 )
-from verity.api.state import AppRuntime
-from verity.config import get_settings
+from verity.api.state import AppRuntime, CorpusFullError
+from verity.config import Settings
 
 router = APIRouter()
+_log = structlog.get_logger("verity.api")
 
 
 class AskRequest(BaseModel):
@@ -55,7 +58,7 @@ async def status_endpoint(request: Request) -> StatusResponse:
     """Status: real corpus counts, real provenance triple, real
     otel endpoint config. No hard-coded ``"ok"``."""
     runtime = _runtime(request)
-    settings = get_settings()
+    settings: Settings = request.app.state.settings
     # First hit doubles as a lazy preload — subsequent hits are free.
     await runtime.preload_corpus()
     return StatusResponse(
@@ -75,19 +78,42 @@ async def ingest_endpoint(
 
     The document id is ``uuid5(NAMESPACE_URL, "upload://<sha256><ext>")``: the same
     bytes with the same extension always yield the same id, whatever the file name
-    or machine. The extension is kept because it selects the parser. No size, type
-    or count limit is enforced (see SECURITY.md).
+    or machine. The extension is kept because it selects the parser.
+
+    Limits (SECURITY.md): size (413, enforced on the request body before parsing and
+    again here), type allow-list checked on extension, declared MIME and content
+    (415), corpus size (409). A parse failure is a generic 422: the parser's message
+    names temporary files and library internals, so it goes to the log only.
     """
     runtime = _runtime(request)
+    settings: Settings = request.app.state.settings
     await runtime.preload_corpus()
 
-    content = await file.read()
+    content = await file.read(settings.api_max_upload_bytes + 1)
     if not content:
         raise HTTPException(status_code=400, detail="Empty upload.")
+    if len(content) > settings.api_max_upload_bytes:
+        raise HTTPException(status_code=413, detail="Upload too large.")
+    filename = file.filename or "upload"
     try:
-        record = await runtime.ingest_bytes(filename=file.filename or "upload", content=content)
-    except Exception as exc:  # translate any parse error into a 4xx for the UI
-        raise HTTPException(status_code=422, detail=f"Ingestion failed: {exc}") from exc
+        extension = check_upload(filename, file.content_type, content)
+    except UploadRejectedError as exc:
+        raise HTTPException(status_code=415, detail=exc.message) from exc
+    try:
+        record = await runtime.ingest_bytes(
+            filename=filename,
+            content=content,
+            extension=extension,
+            max_documents=settings.api_max_documents,
+        )
+    except CorpusFullError as exc:
+        raise HTTPException(status_code=409, detail="The corpus is full.") from exc
+    except Exception as exc:
+        # Parsers (docling, python-docx, decoders) raise many unrelated types; any of
+        # them means "this document could not be read". Logged with the traceback,
+        # re-raised as a typed 422 without the message.
+        _log.warning("ingest_failed", filename=filename, exc_info=exc)
+        raise HTTPException(status_code=422, detail="The document could not be parsed.") from exc
 
     return IngestResponse(
         document_id=record.document_id,
@@ -108,6 +134,9 @@ async def ask_endpoint(request: Request, body: AskRequest) -> AskResponse:
     in live mode (Anthropic → OpenAI) rather than a static boot-time value.
     """
     runtime = _runtime(request)
+    limit = cast(Settings, request.app.state.settings).api_max_question_chars
+    if len(body.question) > limit:
+        raise HTTPException(status_code=422, detail=f"question exceeds {limit} characters.")
     await runtime.preload_corpus()
     answer = await runtime.ask(body.question)
     if answer.error is not None:

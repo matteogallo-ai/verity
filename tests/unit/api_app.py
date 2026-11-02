@@ -15,6 +15,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from verity.api import create_app
+from verity.config import Settings
 
 
 class FakeEmbeddingBackend:
@@ -56,7 +57,7 @@ class FakeRerankerBackend:
 
 
 @contextmanager
-def api_app(tmp_path: Path) -> Iterator[TestClient]:
+def api_app(tmp_path: Path, settings: Settings) -> Iterator[TestClient]:
     with (
         patch(
             "verity.ingestion.embedder._default_backend_factory",
@@ -72,5 +73,6 @@ def api_app(tmp_path: Path) -> Iterator[TestClient]:
             corpus_dir=Path("datasets/corpus"),
             agent_mode="stub",
             cors_origins=(),
+            settings=settings,
         )
         yield TestClient(app, raise_server_exceptions=False)

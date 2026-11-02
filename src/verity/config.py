@@ -83,6 +83,15 @@ class Settings(BaseSettings):
     )
     max_agent_steps: int = 4  # cap on multi-step retrieval decomposition
 
+    # --- HTTP API (see docs/adr/0006-api-security-baseline.md) ------------------------
+    # The longest labeled question is 97 characters. 2000 leaves 20x headroom while
+    # bounding what one request puts into each of its three prompts (~500 tokens).
+    api_max_question_chars: int = Field(default=2000, gt=0)
+    # The shipped corpus files are 1-4 KB; 1 MiB fits a long contract or a short PDF.
+    api_max_upload_bytes: int = Field(default=1_048_576, gt=0)
+    # The corpus is shared by every client and lives in memory; this caps its growth.
+    api_max_documents: int = Field(default=200, gt=0)
+
     # --- Observability ----------------------------------------------------------------
     # None → spans stay in the in-process exporter only (backs /metrics).
     otel_endpoint: str | None = None
