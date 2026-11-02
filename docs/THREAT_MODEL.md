@@ -21,7 +21,7 @@ equal ([ADR 0006](adr/0006-api-security-baseline.md)). The parties:
 | Document text (shipped or uploaded) | nothing: it is data | any instruction it contains |
 | Question text | nothing: it is data | any instruction it contains |
 | LLM provider (Anthropic, OpenAI) | producing text | the format and truth of that text |
-| Unauthenticated network client | `/health`, `/status`, `/metrics`, `/metrics/prom`, `/dashboard` | `/ask`, `/ingest` |
+| Unauthenticated network client | `/health`, `/status` (whose first call also triggers the corpus preload), `/metrics`, `/metrics/prom`, `/dashboard`, `/docs`, `/openapi.json` | `/ask`, `/ingest` |
 
 ## Summary
 
@@ -55,7 +55,7 @@ endpoint returns them.
 
 | Path | Gate | Test |
 |---|---|---|
-| `POST /ingest` | `X-API-Key` (`api.guards.require_api_key`), 30 requests/minute/key, 1 MiB, type allow-list on extension + MIME + content (`api.guards.check_upload`), 200-document cap (`api.state.AppRuntime.ingest_bytes`) | `tests/unit/test_api_hardening.py::test_missing_key_is_401`, `tests/unit/test_api_hardening.py::test_two_megabyte_upload_is_413`, `tests/unit/test_api_hardening.py::test_disallowed_upload_type_is_415`, `tests/unit/test_api_hardening.py::test_corpus_document_limit_is_409` (C23); `tests/unit/test_corpus_cap.py::test_concurrent_uploads_cannot_overshoot_the_cap` |
+| `POST /ingest` | `X-API-Key` (`api.guards.require_api_key`), 30 requests a minute per key, shared with `/ask`, 1 MiB, type allow-list on extension + MIME + content (`api.guards.check_upload`), 200-document cap (`api.state.AppRuntime.ingest_bytes`) | `tests/unit/test_api_hardening.py::test_missing_key_is_401`, `tests/unit/test_api_hardening.py::test_two_megabyte_upload_is_413`, `tests/unit/test_api_hardening.py::test_disallowed_upload_type_is_415`, `tests/unit/test_api_hardening.py::test_corpus_document_limit_is_409` (C23); `tests/unit/test_corpus_cap.py::test_concurrent_uploads_cannot_overshoot_the_cap` |
 | First request of a process | ingests every file under the corpus directory (`AppRuntime.preload_corpus`) | `tests/unit/test_api_router.py::test_status_reports_real_provenance_and_corpus` (C18) |
 | `verity ingest`, `docker compose` ingest step | shell or container access | `tests/unit/test_container.py::test_compose_runs_db_then_migrate_then_ingest_then_app` (C26) |
 | Direct SQL | Postgres credentials; Compose publishes Postgres on the host's `127.0.0.1` only | `tests/unit/test_container.py::test_published_ports_bind_loopback_only` (C26) |
@@ -146,10 +146,11 @@ process holds credentials.
 bodies are generic and the detail goes to the log under a request id
 (`tests/unit/test_api_hardening.py::test_corrupt_pdf_is_a_generic_422_with_a_request_id`,
 `tests/unit/test_api_hardening.py::test_unhandled_error_is_a_generic_500_with_a_request_id`, C23); FastAPI's default 422
-body, which echoes the input, is replaced (`api.server._install_request_context`). Logs
+body, which echoes the input, is replaced (`api.server._install_request_context`; no
+test). Logs
 carry `principal=key-<n>`, never the key
 (`tests/unit/test_request_log.py::test_the_api_log_line_carries_the_request_id`). The
-agent's log lines carry decision, stages, tokens and cost, not the question.
+agent's log lines carry decision, stages, tokens and cost, not the question (no test).
 
 **Not stopped.**
 
@@ -172,7 +173,7 @@ layout and OCR models, and two hosted LLM APIs.
 
 **Mitigation.** Dependencies are pinned in `uv.lock` and `web/pnpm-lock.yaml`. The
 Docker image embeds the embedding and reranker models and runs with
-`HF_HUB_OFFLINE=1` as an unprivileged user
+`HF_HUB_OFFLINE=1` (no test) as an unprivileged user
 (`tests/unit/test_container.py::test_runtime_stage_runs_as_an_unprivileged_user`, C26).
 The fast test lane cannot open a network socket
 (`tests/unit/test_network_guard.py::test_fast_lane_test_cannot_open_an_inet_socket`).
@@ -269,7 +270,7 @@ OCR models.
 
 | Bound | Where | Test |
 |---|---|---|
-| Key required; 30 requests/minute per key on `/ask` and `/ingest` | `api.guards.RateLimiter` | `tests/unit/test_api_hardening.py::test_rate_limit_is_per_key_and_answers_429_with_retry_after` (C23) |
+| Key required; 30 requests a minute per key, `/ask` and `/ingest` combined | `api.guards.RateLimiter` | `tests/unit/test_api_hardening.py::test_rate_limit_is_per_key_and_answers_429_with_retry_after` (C23) |
 | Question ≤ 2000 characters; body size checked on `Content-Length` before parsing | `api.router.ask_endpoint`, `api.server._guarded` | `tests/unit/test_api_hardening.py::test_question_longer_than_the_limit_is_422` (C23), `tests/unit/test_api_hardening.py::test_oversized_request_body_is_413_before_parsing` |
 | Upload ≤ 1 MiB; corpus ≤ 200 documents | `api.router.ingest_endpoint`, `api.state.AppRuntime.ingest_bytes` | `tests/unit/test_api_hardening.py::test_two_megabyte_upload_is_413`, `tests/unit/test_api_hardening.py::test_corpus_document_limit_is_409` (C23) |
 | LLM call timeout 30 s, 2 retries per provider | `llm.clients`, `Settings.llm_timeout_s` / `llm_max_retries` | `tests/unit/test_llm_client_resilience.py::test_sdk_clients_get_the_configured_timeout_and_retries` |

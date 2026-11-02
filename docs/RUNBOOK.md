@@ -33,7 +33,8 @@ error is never a refusal (C25).
 - **Response.** Check the provider's status page. Fallback needs the second provider's
   key (`VERITY_OPENAI_API_KEY`); without it the second attempt fails the same way. On
   sustained `429`, lower `VERITY_API_RATE_LIMIT_PER_MINUTE` or the number of keys.
-  Clients retry with backoff; the request id ties a client report to the log.
+  Advise API clients to retry a `503` with backoff (the response carries no
+  `Retry-After`); the request id ties a client report to the log.
 - **Variant: bad key.** `auth_error_short_circuit` then `answer_failed` with
   `error_kind=provider_auth`; no fallback by design
   (`tests/unit/test_routing.py::test_authentication_error_short_circuits`). Fix the key
@@ -84,8 +85,10 @@ machine or a cleared Hugging Face cache with network access disabled.
   judge) and rerun with an approved cap.
 - **Provider account out of credit or quota.** Verity has no notion of it; it sees the
   provider's HTTP error. A `429` is treated as unavailability (section 1); any other
-  `4xx` becomes `answer_failed` with `error_kind=provider_error`, not retried and not
-  sent to the fallback provider (`tests/unit/test_llm_client_resilience.py::test_sdk_errors_translate_by_class`).
+  `4xx` becomes `answer_failed` with `error_kind=provider_error` and is not sent to the
+  fallback provider: the router catches only authentication and unavailability errors
+  (`verity.llm.routing`; no routing test covers this case). The status-to-error mapping
+  is tested in `tests/unit/test_llm_client_resilience.py::test_sdk_errors_translate_by_class`.
   The `error` field of the log line holds the provider's message. Response: top up or
   raise the quota; no restart needed.
 - **No API spending cap.** Nothing stops `/ask` traffic from spending: watch
@@ -103,6 +106,8 @@ machine or a cleared Hugging Face cache with network access disabled.
   | `413` | body or file over 1 MiB | `tests/unit/test_api_hardening.py::test_two_megabyte_upload_is_413` |
   | `415` | extension, MIME type or content outside the allow-list | `tests/unit/test_api_hardening.py::test_disallowed_upload_type_is_415` |
   | `400` | empty file | `tests/unit/test_api_router.py::test_ingest_rejects_empty_upload` |
+  | `401` | missing or wrong `X-API-Key` | `tests/unit/test_api_hardening.py::test_missing_key_is_401` |
+  | `429` | 30 requests a minute per key, `/ask` and `/ingest` combined | `tests/unit/test_api_hardening.py::test_rate_limit_is_per_key_and_answers_429_with_retry_after` |
   | `409` | corpus at 200 documents | `tests/unit/test_api_hardening.py::test_corpus_document_limit_is_409` |
   | `422` | parser failure; `ingest_failed` warning with the traceback | `tests/unit/test_api_hardening.py::test_corrupt_pdf_is_a_generic_422_with_a_request_id` |
 
