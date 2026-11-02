@@ -51,14 +51,14 @@ no fabrication. `make demo` reproduces them locally in ~30 s.)*
 |---|---:|---|
 | **Refusal recall** | **0.800** | headline · fraction of out-of-scope questions correctly refused |
 | **Refusal precision** | **1.000** | of the refusals, fraction that were genuinely unanswerable |
-| Faithfulness (answered, n=12) | 1.000 | claim-level, judge ran on 12 answered questions |
-| Citation accuracy (answered, n=12) | 0.722 | judge ran on 12 answered questions (refusals bypass the judge) |
+| Faithfulness (answered, n=12) | 1.000 | per-question mean of claim-level judge verdicts over 12 answered questions · judge unvalidated |
+| Citation accuracy (answered, n=12) | 0.722 | per-question mean over 12 answered questions (refusals bypass the judge) · judge unvalidated |
 | Hallucination rate (answerable_and_answered, n=11) | 0.000 | ↓ better · at-risk set = answerable questions the agent answered |
 | Out-of-scope answered | 1/5 | ↓ better · questions we shipped an answer for that were unanswerable |
 | Retrieval nDCG@8 | 0.953 | deterministic (no LLM) |
 | Retrieval recall@8 | 1.000 | deterministic |
 | Retrieval precision@8 | 0.148 | k>gold ceiling; interpret with recall |
-| Latency p50 / p95 / p99 | 9374.7 ms / 32526.5 ms / 36653.1 ms | warm; cold_start `n/a` (isolated) |
+| Latency p50 / p95 / p99 | 9374.7 ms / 32526.5 ms / 36653.1 ms | no warmup: includes the first question's model loading |
 | Cost / query | $0.0122 | total $0.2713 = agent $0.1950 + judge $0.0763 |
 
 Numbers are copied verbatim from [`scorecards/live-v1.0.0.json`](scorecards/live-v1.0.0.json) (committed artefact of the single live run of record — never averaged, never re-run to nudge a number).

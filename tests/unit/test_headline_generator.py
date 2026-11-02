@@ -316,3 +316,36 @@ def test_generator_fails_loudly_without_markers(tmp_path: Path) -> None:
         generator.patch_readme(
             readme, generator.render_block(json.loads(scorecard_path.read_text()))
         )
+
+
+@pytest.mark.parametrize(
+    ("cold_start", "must_contain", "must_not_contain"),
+    [
+        (None, "no warmup", "warm;"),
+        (1234.5, "warm; cold start `1234.5 ms` measured separately", "no warmup"),
+    ],
+)
+def test_latency_row_says_whether_cold_start_is_included(
+    cold_start: float | None, must_contain: str, must_not_contain: str
+) -> None:
+    """A run without warmup (cold_start = null) must not be labelled "warm"."""
+    generator = _load_generator()
+    payload = json.loads(Path("scorecards/live-v1.0.0.json").read_text(encoding="utf-8"))
+    payload["latency_ms"]["cold_start"] = cold_start
+    latency_row = next(
+        line
+        for line in generator.render_block(payload).splitlines()
+        if line.startswith("| Latency")
+    )
+    assert must_contain in latency_row
+    assert must_not_contain not in latency_row
+
+
+def test_answer_quality_rows_state_macro_aggregation() -> None:
+    generator = _load_generator()
+    payload = json.loads(Path("scorecards/live-v1.0.0.json").read_text(encoding="utf-8"))
+    block = generator.render_block(payload)
+    faith = next(line for line in block.splitlines() if line.startswith("| Faithfulness"))
+    cit = next(line for line in block.splitlines() if line.startswith("| Citation accuracy"))
+    assert "per-question mean" in faith and "per-question mean" in cit
+    assert "claim-level, judge ran" not in faith
