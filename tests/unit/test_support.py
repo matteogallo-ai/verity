@@ -158,9 +158,9 @@ def test_a_marker_anywhere_in_the_document_distrusts_every_cited_chunk() -> None
 
 
 # The limits below are pinned so that changing them is a decision, not an accident.
-# A lexical polarity rule was measured on the five live runs (d0ca1d5, 6ec544d x3,
-# 969e1d5): it would refuse correct answers ("No, ... is explicitly prohibited"; the
-# "No." of "Amendment No. 1"), so meaning is left to the confidence scorer.
+# A lexical polarity rule was measured on five live run artefacts: it would refuse
+# correct answers ("No, ... is explicitly prohibited"; the "No." of "Amendment No. 1"),
+# so meaning is left to the confidence scorer (docs/audit/2026-11-03-neutral-audit.md).
 
 
 def test_coverage_does_not_read_negation() -> None:

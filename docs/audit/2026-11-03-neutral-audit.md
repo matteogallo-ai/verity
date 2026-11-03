@@ -32,18 +32,62 @@ was written first and seen failing.
 | # | Sev. | Finding | Outcome | Evidence |
 |---|---|---|---|---|
 | F-1 | HIGH | The judge prompt has no delimiters and no untrusted-content instruction; the test named "every prompt marks its inputs untrusted" skips it | **Confirmed. Prompt unchanged by decision, gap made visible** | This gap is recorded in `docs/THREAT_MODEL.md` (LLM01 on the evaluator). A defended prompt is a new judge version, with its own rejudge and κ, so `prompts/judge_faithfulness.prompt` stays v0.1.0 here. A strict expected failure, `test_the_judge_prompt_marks_its_inputs_untrusted`, turns red when the prompt is defended. C24 is narrowed to the answering path (9d5fd2b). |
-| F-2 | MED | No fallback when the first provider has no key | **Fixed** | Keyless providers are left out of the route, and construction fails when no provider has a key. Two tests were red before the change (a8a4def). |
+| F-2 | MED | No fallback when the first provider has no key | **Fixed** | Keyless providers are left out of the route, and construction fails when no provider has a key. Three test cases were red before the change (a8a4def). |
 | F-3 | MED | The headline predates the current pipeline; the gate's thresholds were fitted on the same 16 questions | **Fixed in the docs; measurement open** | The README open issues and the system card now say so (22364d1). A held-out measurement needs a paid run. Part C has dev/test runs of the current pipeline. |
 | F-4 | MED | The judge parser counts `"false"` as supported | **Fixed** | Verdicts must be booleans or `true`/`false`; anything else is malformed. Seven cases were red before the change (1e09bc2). |
 | F-5 | MED | The stored scorecard keeps the diluted mean; two copies of the scoped computation exist | **Fixed in Part C, not on `main`** | `77c9c75` on `fix/audit-part-c` adds `verity.eval.answer_quality` as the one definition. It depends on earlier Part C commits (`load_run`), so it was not ported alone: the cherry-pick failed to collect `test_live_artefacts.py`. |
-| F-6 | MED | A paid eval run loses everything on a judge error or a budget abort; errored spend is dropped | **Partly fixed** | A judge outage now errors its example instead of ending the run (dc9528f, test red first). The errored answers' spend is fixed in Part C (`337455c`). Still open: a budget abort persists nothing. Writing a partial artefact changes the run-store contract (a partial run must not read as a run of record), which is a design decision for the owner. |
+| F-6 | MED | A paid eval run loses everything on a judge error or a budget abort; errored spend is dropped | **Partly fixed** | A judge outage now errors its example instead of ending the run (dc9528f, test red first). The independent review caught that this first version skipped the budget check and swallowed a rejected judge key. Both are fixed (7f484c7, two tests red first): the answer's spend counts against `--budget-usd`, and a rejected key stops the run. On this branch the cost figures (`cost_per_query`) still leave out errored examples; Part C's `337455c` fixes this for agent errors and has to be reconciled with the judge-error path when the branches meet. Still open: a judge-errored example keeps only its id, not its paid answer, and a budget abort persists nothing. Both change the run-store contract (a partial run must not read as a run of record), so they are a decision for the owner. |
 | F-7 | MED | PDF/DOCX conversion blocks the event loop | **Fixed** | Model loading and conversion run in `asyncio.to_thread`. A test where a ticker gets no turn during a 0.5 s conversion was red (0 ticks) before the change (1bd174c). |
-| F-8 | MED | The support check ignores negation; its injection markers miss paraphrases and flag benign text | **Confirmed. Not fixed by a lexical rule; documented and pinned** | A polarity rule ("an answer's negation must appear in its quotes") was measured on the five live artefacts. It refused correct answers: test q-064 "No, … explicitly prohibited", and q-001, where "Amendment No. 1" reads as a negation. It also refused two out-of-scope answers (q-015, q-087). Meaning therefore stays with the confidence scorer. The module docstring states both limits, and tests pin them (a1eece9). |
+| F-8 | MED | The support check ignores negation; its injection markers miss paraphrases and flag benign text | **Confirmed. Not fixed by a lexical rule; documented and pinned** | A polarity rule was measured on the answered examples of five live artefacts (see *Polarity rule measurement* below). It refused correct answers (q-001, q-064) as well as out-of-scope ones (q-015, q-087), so meaning stays with the confidence scorer. The module docstring states both limits, and tests pin them (a1eece9). |
 | F-9 | LOW | The database URL is a plain `str` | **Fixed** | Cherry-picked from Part C `13f60ca`. The conflict in `db upgrade` was resolved without Part C's error redaction (4afb5ba). |
-| F-10 | LOW | One connection per operation; a docstring claims a pool | **Docstrings fixed; pool not added** | The docstrings now say there is no pool, and that each `/ask` opens two connections per sub-question (364ab17). Connection setup has not been measured on pgvector: the logged live runs used the in-memory store, where retrieval is about 6 % of answer time. A pool adds a dependency and a lifecycle to the API, so it waits for a measurement. |
+| F-10 | LOW | One connection per operation; a docstring claims a pool | **Docstrings fixed; pool not added** | The docstrings now say there is no pool, and that each `/ask` opens two connections per sub-question (364ab17). Connection setup has not been measured on pgvector, and a pool adds a dependency and a lifecycle to the API, so it waits for a measurement. |
 | F-11 | LOW | The methodology names per-1k prices in the wrong module | **Fixed** | 7315238 |
 | F-12 | LOW | `< /document>` escapes delimiter neutralisation | **Fixed** | Two cases were red before the change (c7e4834). |
 | F-13 | LOW | Leftover `_ = cast` lines with misleading comments | **Fixed** | ruff, mypy and vulture are clean without them (901301f). |
+
+## Independent review of the fixes
+
+A second fresh-context reviewer read this branch's diff and checked that every new test
+fails against `origin/main`. Its findings:
+
+- **HIGH**: the first judge-outage fix bypassed the budget cap and swallowed a rejected
+  judge key. Fixed in 7f484c7.
+- **MEDIUM**:
+  - a judge-errored answer is not kept in the artefact (stated under F-6);
+  - `THREAT_MODEL.md` and `SECURITY.md` still described the plain-string DSN (fixed in
+    7f484c7);
+  - the F-8 evidence was not citable from this branch (now the table below).
+- **LOW**:
+  - a miscount in F-2;
+  - model loading was not shown to leave the event loop;
+  - a duplicated docstring;
+  - a settings test that read `.env`;
+  - six copies of the integration database URL.
+
+  All fixed in 69957da, 2549f51 and this document.
+
+## Polarity rule measurement (F-8)
+
+- **Rule tested**: an answered draft is refused when its text matches
+  `\b(not|no|nor|never|neither|none|cannot|without)\b|n't\b` and none of its cited
+  quotes do.
+- **Data**: `answer_text` and `citations[].quote` of the non-refused examples in
+  `per_audit` of five run artefacts. Only the first is on `main`; the others are on
+  `fix/audit-part-c`.
+- **Cost**: no model call.
+
+| Artefact | Answered | Would be refused |
+|---|---:|---|
+| `datasets/eval/runs/live/eval_d0ca1d5_questions.json` | 12 | q-001 (answerable), q-015 (out of scope) |
+| `datasets/eval/runs/live/eval_6ec544d_dev.json` | 21 | q-001 (answerable), q-087 (out of scope) |
+| `datasets/eval/runs/noise/eval_6ec544d_dev.rerun2.json` | 20 | q-001, q-087 |
+| `datasets/eval/runs/noise/eval_6ec544d_dev.rerun3.json` | 22 | q-001, q-087 |
+| `datasets/eval/runs/live/eval_969e1d5_test.json` | 34 | q-064 (answerable) |
+
+- **q-001** "… 60 days' prior written notice, as amended by Amendment No. 1" matches on
+  "No.".
+- **q-064** "No, splitting purchases to avoid approval thresholds is explicitly
+  prohibited." is correct; its quote says "prohibited" without a negator.
 
 ## Not settled by this audit
 
@@ -51,5 +95,6 @@ was written first and seen failing.
   branch. Rejudging the same 60 claims and computing the new κ waits for the owner's
   budget decision.
 - **F-3.** No published number describes the current pipeline on held-out questions.
-- **F-6.** What a budget abort writes to disk is not decided.
+- **F-6.** What a budget abort, or an example whose judge failed, writes to disk is
+  not decided; cost figures on this branch leave errored examples out.
 - **F-10.** No connection pool.

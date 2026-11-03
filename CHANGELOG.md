@@ -41,7 +41,8 @@ follows [Semantic Versioning](https://semver.org/).
   answered `503` to every `/ask`. With no key at all, the router fails at construction.
 - PDF and DOCX conversion runs in a worker thread; it blocked every other request.
 - A judge outage during `verity eval run` errors that example instead of ending the run
-  and discarding its results.
+  and discarding its results; the example's spend still counts against `--budget-usd`,
+  and a rejected judge key stops the run.
 - Delimiter tags written with a space before the slash (`< /document>`) are neutralised.
 - `VERITY_DATABASE_URL` is held as a secret and no longer appears in printed settings.
 
