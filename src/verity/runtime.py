@@ -96,11 +96,12 @@ def build_agent(
     retriever: HybridRetriever,
     mode: AgentMode,
     tracer: Tracer | None = None,
-) -> tuple[RagAgent, str]:
+) -> tuple[RagAgent, str, RoutingClient]:
     """Wire the agent with either the scripted stub router or a real routing client.
 
-    Returns ``(agent, agent_model)``. ``agent_model`` is what actually will run
-    for every request served by this agent instance:
+    Returns ``(agent, agent_model, client)``; ``client`` is the routing client the
+    agent calls, so readiness probes the providers that serve answers. ``agent_model``
+    is what actually will run for every request served by this agent instance:
 
     - ``"stub-agent"`` for the scripted stub — the demo default when no LLM key
       is configured.
@@ -114,7 +115,7 @@ def build_agent(
         client = create_default_routing_client()
         agent_model = primary_client_identity(client)[1] or "llm-agent"
     agent = create_default_agent(retriever=retriever, client=client, tracer=tracer)
-    return agent, agent_model
+    return agent, agent_model, client
 
 
 def build_retriever(

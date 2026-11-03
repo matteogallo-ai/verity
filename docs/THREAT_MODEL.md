@@ -21,7 +21,7 @@ equal ([ADR 0006](adr/0006-api-security-baseline.md)). The parties:
 | Document text (shipped or uploaded) | nothing: it is data | any instruction it contains |
 | Question text | nothing: it is data | any instruction it contains |
 | LLM provider (Anthropic, OpenAI) | producing text | the format and truth of that text |
-| Unauthenticated network client | `/health`, `/status` (whose first call also triggers the corpus preload), `/metrics`, `/metrics/prom`, `/dashboard`, `/docs`, `/openapi.json` | `/ask`, `/ingest` |
+| Unauthenticated network client | `/health`, `/ready` (states only: `ok`, `unreachable`, `timeout`, `not used`), `/status` (whose first call also triggers the corpus preload), `/metrics`, `/metrics/prom`, `/dashboard`, `/docs`, `/openapi.json` | `/ask`, `/ingest` |
 
 ## Summary
 

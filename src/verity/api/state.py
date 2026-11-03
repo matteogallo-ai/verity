@@ -29,6 +29,8 @@ if TYPE_CHECKING:  # pragma: no cover — types only
 from verity.config import get_settings
 from verity.ingestion import LocalEmbedder
 from verity.ingestion.ids import document_id_for_uri
+from verity.llm.base import LLMClient
+from verity.llm.routing import MultiProviderRoutingClient
 from verity.observability.base import Tracer
 from verity.observability.tracer import NoOpTracer
 from verity.retrieval import CrossEncoderReranker
@@ -107,8 +109,14 @@ class AppRuntime:
             reranker=self.reranker,
             tracer=self._tracer,
         )
-        self.agent, self.agent_model = build_agent(
+        self.agent, self.agent_model, client = build_agent(
             retriever=self.retriever, mode=self._mode, tracer=self._tracer
+        )
+        # The stub agent calls no provider, so there is nothing for readiness to reach.
+        self.providers: tuple[LLMClient, ...] = (
+            client.clients
+            if self._mode == "live" and isinstance(client, MultiProviderRoutingClient)
+            else ()
         )
 
     async def preload_corpus(self) -> None:

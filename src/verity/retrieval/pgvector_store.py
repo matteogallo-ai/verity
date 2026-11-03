@@ -112,6 +112,16 @@ class PgVectorStore:
             self._schema_checked = True
         return conn
 
+    async def ping(self) -> None:
+        """One round trip to Postgres through the connection path every query uses, so
+        the first ping also checks the schema. A refused connection raises
+        :class:`StoreUnavailableError`."""
+        conn = await self._connect()
+        try:
+            await conn.execute("SELECT 1")
+        finally:
+            await conn.close()
+
     async def upsert(self, chunks: list[EmbeddedChunk]) -> None:
         """Insert or update chunks + parent documents in a single transaction.
 

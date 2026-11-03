@@ -122,3 +122,18 @@ async def test_store_refuses_an_embedding_dim_the_schema_cannot_hold(migrated_db
 async def test_store_accepts_the_schema_dimension(migrated_db: str) -> None:
     store = PgVectorStore(database_url=migrated_db, embedding_dim=384)
     assert await store.count_chunks() >= 0
+
+
+@pytest.mark.asyncio
+async def test_ping_reaches_a_migrated_database(migrated_db: str) -> None:
+    await PgVectorStore(database_url=migrated_db, embedding_dim=384).ping()
+
+
+@pytest.mark.asyncio
+async def test_ping_on_a_refused_port_raises_the_typed_store_error() -> None:
+    from verity.retrieval.pgvector_store import StoreUnavailableError
+
+    # Port 1 on loopback has no listener: the connection is refused at once.
+    store = PgVectorStore(database_url="postgresql://verity@127.0.0.1:1/verity", embedding_dim=384)
+    with pytest.raises(StoreUnavailableError):
+        await store.ping()
