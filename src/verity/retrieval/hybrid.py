@@ -27,6 +27,7 @@ from verity.observability.logging import current_trace_id
 from verity.observability.tracer import NoOpTracer
 from verity.retrieval.base import (
     Fusion,
+    ModelUnavailableError,
     Reranker,
     RetrievalUnavailableError,
     Retriever,
@@ -78,7 +79,7 @@ class HybridRetriever(Retriever):
 
         async with self._tracer.stage("retrieve.embed_query", span_trace_id) as span:
             span.set_attribute("query.length", len(query))
-            query_vec = (await self._embedder.embed([query]))[0]
+            query_vec = (await _model_call("embedder", self._embedder.embed([query])))[0]
 
         # Run dense and sparse concurrently — both are IO-bound against Postgres.
         dense_task = asyncio.create_task(
@@ -113,7 +114,9 @@ class HybridRetriever(Retriever):
             return final
 
         async with self._tracer.stage("retrieve.rerank", span_trace_id) as span:
-            reranked = await self._reranker.rerank(query, fused, top_k=min(self._rerank_k, k))
+            reranked = await _model_call(
+                "reranker", self._reranker.rerank(query, fused, top_k=min(self._rerank_k, k))
+            )
             span.record_hits(len(reranked), reranked[0].score if reranked else None)
             log.info(
                 "stage",
@@ -162,6 +165,19 @@ class HybridRetriever(Retriever):
             n_hits=len(final),
             elapsed_ms=round((time.perf_counter() - started) * 1000, 2),
         )
+
+
+async def _model_call[T](name: str, coro: Awaitable[T]) -> T:
+    """Await a local model call; any failure becomes :class:`ModelUnavailableError`.
+
+    Loading or running a model raises whatever the Hugging Face cache, torch or the OS
+    raise (``OSError``, ``RuntimeError``, ``ValueError`` …). Left untyped, it reaches
+    the API as a 500 and the agent cannot report the LLM spend already made."""
+    try:
+        return await coro
+    except Exception as exc:
+        log.error("model_failed", model=name, error=str(exc))
+        raise ModelUnavailableError(f"{name} failed: {exc}") from exc
 
 
 __all__ = ["HybridRetriever"]

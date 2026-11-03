@@ -43,6 +43,11 @@ follows [Semantic Versioning](https://semver.org/).
 - The confidence scorer read a refusal flag given as a string with `bool()`, so
   `"refused": "false"` counted as a refusal. A flag that is not a boolean now makes the
   response unparseable.
+- A failure of the local embedding or reranking model at question time (weights not in
+  the cache, out of memory) escaped the agent as a raw exception: `/ask` answered `500`,
+  the decompose call it had paid for was not counted in the key's budget, and
+  `verity eval run` stopped. It is now a typed error, `model_unavailable`, and `/ask`
+  answers `503`.
 - Re-ingesting an edited document left its old chunks in the store when the edit moved
   chunk boundaries: the stale text stayed retrievable and citable, and a quote was
   validated against text the document no longer had (claim C01). Ingestion now replaces
