@@ -201,7 +201,8 @@ The first run downloads the embedding and reranker models (~200 MB) into the
 Hugging Face cache. `make demo` needs Docker (for pgvector), Node 22 and corepack.
 
 pgvector is the default store (`VERITY_STORE`, or `--store` on the CLI); every command
-that reads the corpus first upserts it, idempotently:
+that reads the corpus first syncs it: unchanged documents are skipped, edited ones have
+their chunks replaced, and documents whose file was removed leave the index:
 
 ```bash
 docker compose up -d db                    # pgvector on :5432

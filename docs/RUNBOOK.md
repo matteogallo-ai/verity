@@ -78,8 +78,8 @@ machine or a cleared Hugging Face cache with network access disabled.
 - **Response.** Fill the cache once with network access (a command that loads both
   models, e.g. `uv run verity retrieve "warm up" --store memory`), or run the Docker
   image. No restart is needed: after a failed preload, `/ready` starts another attempt
-  (at most one per 5 s; each re-ingests the whole corpus; requests such as `/status`
-  never start one), and the process turns ready
+  (at most one per 5 s; each embeds the files not yet indexed; requests such as
+  `/status` never start one), and the process turns ready
   once every corpus file is in.
 
 ## 4. Budget exhausted

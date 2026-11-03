@@ -40,6 +40,13 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Re-ingesting an edited document left its old chunks in the store when the edit moved
+  chunk boundaries: the stale text stayed retrievable and citable, and a quote was
+  validated against text the document no longer had (claim C01). Ingestion now replaces
+  a document's chunks in one transaction, in both stores; a corpus file that was deleted
+  leaves the index with its chunks; a document whose text (SHA-256), chunks and
+  embedding model match the index is not embedded again. `verity ingest` reports
+  unchanged and removed documents.
 - An answer that fails after some LLM calls returned now reports their tokens and cost
   (it reported zero), in `Answer.usage` and in the `answer_failed` log line. Eval
   `cost.*` figures and `verity eval run --budget-usd` therefore include the spend of
