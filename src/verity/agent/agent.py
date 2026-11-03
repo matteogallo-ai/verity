@@ -344,6 +344,7 @@ def _aggregate_usage(*parts: UsageStats | None, latency_ms: float) -> UsageStats
     output_tokens = 0
     llm_calls = 0
     cost_usd = 0.0
+    retries = 0
     for part in parts:
         if part is None:
             continue
@@ -351,12 +352,14 @@ def _aggregate_usage(*parts: UsageStats | None, latency_ms: float) -> UsageStats
         output_tokens += part.output_tokens
         llm_calls += part.llm_calls
         cost_usd += part.cost_usd
+        retries += part.retries
     return UsageStats(
         input_tokens=input_tokens,
         output_tokens=output_tokens,
         llm_calls=llm_calls,
         cost_usd=cost_usd,
         latency_ms=latency_ms,
+        retries=retries,
     )
 
 

@@ -102,6 +102,10 @@ class _RaisingCreate:
     def __init__(self, error: Exception) -> None:
         self._error = error
 
+    @property
+    def with_raw_response(self) -> _RaisingCreate:
+        return self
+
     async def create(self, **_: object) -> object:
         raise self._error
 
@@ -188,3 +192,65 @@ async def test_a_failing_ping_raises_the_typed_error(
     client._client = type("SDK", (), {"models": models})()
     with pytest.raises(expected):
         await client.ping()
+
+
+_ANTHROPIC_OK = {
+    "id": "msg_1",
+    "type": "message",
+    "role": "assistant",
+    "model": "claude-sonnet-4-6",
+    "content": [{"type": "text", "text": "ok"}],
+    "stop_reason": "end_turn",
+    "stop_sequence": None,
+    "usage": {"input_tokens": 3, "output_tokens": 1},
+}
+_OPENAI_OK = {
+    "id": "c1",
+    "object": "chat.completion",
+    "created": 0,
+    "model": "gpt-4.1-mini",
+    "choices": [
+        {"index": 0, "message": {"role": "assistant", "content": "ok"}, "finish_reason": "stop"}
+    ],
+    "usage": {"prompt_tokens": 3, "completion_tokens": 1, "total_tokens": 4},
+}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("client_cls", [AnthropicClient, OpenAIClient])
+async def test_a_call_reports_the_retries_the_sdk_made(client_cls: type[Any]) -> None:
+    """SDK retries are invisible in the latency alone; a run of record whose p95 was
+    blown by retried calls must say so."""
+    import httpx
+
+    # Each SDK ships its own HTTP library; the mock transport must come from it.
+    http: Any = httpx2 if client_cls is AnthropicClient else httpx
+    replies = iter([503, 200])
+
+    def handler(_request: Any) -> Any:
+        status = next(replies)
+        if status != 200:
+            # retry-after-ms keeps the SDK's backoff to a millisecond.
+            return http.Response(status, json={}, headers={"retry-after-ms": "1"})
+        return http.Response(
+            200, json=_ANTHROPIC_OK if client_cls is AnthropicClient else _OPENAI_OK
+        )
+
+    sdk_cls = anthropic.AsyncAnthropic if client_cls is AnthropicClient else openai.AsyncOpenAI
+    client = client_cls(api_key=SecretStr("k"), settings=Settings())
+    client._client = sdk_cls(
+        api_key="k",
+        max_retries=2,
+        http_client=http.AsyncClient(transport=http.MockTransport(handler)),
+    )
+    completion = await client.complete([Message(role=Role.USER, content="hi")])
+    assert completion.text == "ok"
+    assert completion.usage.retries == 1
+
+
+def test_an_answer_sums_the_retries_of_its_calls() -> None:
+    from verity.agent.agent import _aggregate_usage
+    from verity.types import UsageStats
+
+    calls = [UsageStats(llm_calls=1, retries=r) for r in (0, 2, 1)]
+    assert _aggregate_usage(*calls, None, latency_ms=1.0).retries == 3

@@ -171,6 +171,9 @@ class UsageStats(BaseModel, frozen=True):
     llm_calls: int = 0
     cost_usd: float = 0.0
     latency_ms: float = 0.0
+    # Attempts the provider SDK retried before the call returned: their time is in
+    # ``latency_ms``, and only this count tells a retried call from a slow one.
+    retries: int = 0
 
 
 class ErrorKind(StrEnum):
