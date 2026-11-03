@@ -138,10 +138,7 @@ class Settings(BaseSettings):
 
     @property
     def has_llm_api_key(self) -> bool:
-        """True when at least one provider key is set to a non-empty value.
-
-        An empty ``VERITY_*_API_KEY=`` line (as in ``.env.example``) counts as unset.
-        """
+        """True when at least one provider key is set (see :func:`key_is_set`)."""
         return any(key_is_set(key) for key in (self.anthropic_api_key, self.openai_api_key))
 
 
