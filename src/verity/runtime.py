@@ -9,8 +9,11 @@ share a single source of truth.
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Literal
+
+import structlog
 
 from verity.agent.agent import RagAgent, create_default_agent
 from verity.agent.scripted_stub import build_stub_router
@@ -32,6 +35,8 @@ from verity.retrieval import (
     PgVectorStore,
 )
 from verity.retrieval.base import CorpusStore
+
+log = structlog.get_logger(__name__)
 
 AgentMode = Literal["stub", "live"]
 StoreKind = Literal["pgvector", "memory"]
@@ -61,7 +66,8 @@ async def ingest_corpus(
     store: CorpusStore,
     embedder: LocalEmbedder,
 ) -> IngestionResult:
-    """Run parse → chunk → embed → upsert on every source in ``corpus_dir``."""
+    """Bring the index in line with ``corpus_dir``: ingest new and edited files, skip
+    unchanged ones, and remove documents whose file left the directory."""
     pipeline = IngestionPipeline(
         parser=create_default_parser(),
         chunker=StructureAwareChunker(),
@@ -69,7 +75,30 @@ async def ingest_corpus(
         sink=store,
     )
     uris = discover_sources(str(corpus_dir))
-    return await pipeline.ingest(uris)
+    result = await pipeline.ingest(uris)
+    await prune_missing(store, corpus_dir, uris)
+    return result
+
+
+async def prune_missing(store: CorpusStore, directory: Path, present: list[str]) -> list[str]:
+    """Delete the documents ingested from files under ``directory`` that are no longer
+    among ``present``; the uris removed.
+
+    Membership is by the stored access path, so a file that still exists but failed to
+    parse keeps its last good version, and uploads and URLs are never touched. A
+    document ingested from another absolute path (another checkout) is not seen as
+    under ``directory`` and is kept."""
+    root = await asyncio.to_thread(lambda: directory.expanduser().resolve())
+    kept = set(present)
+    gone = [
+        d
+        for d in await store.list_documents()
+        if d.uri not in kept and Path(d.uri).is_absolute() and Path(d.uri).is_relative_to(root)
+    ]
+    await store.delete_documents([d.document_id for d in gone])
+    for d in gone:
+        log.info("document_removed", uri=d.uri, document_id=d.document_id)
+    return [d.uri for d in gone]
 
 
 async def ingest_uri(
@@ -86,8 +115,7 @@ async def ingest_uri(
     doc = await parser.parse(uri, raw)
     chunks = chunker.chunk(doc)
     embedded = await embedder.embed_chunks(chunks)
-    await store.upsert_documents([doc])
-    await store.upsert(embedded)
+    await store.replace_document(doc, embedded)
     return IngestionResult(documents=[doc], chunks=list(chunks))
 
 

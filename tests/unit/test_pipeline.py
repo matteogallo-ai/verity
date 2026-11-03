@@ -44,10 +44,11 @@ class _RecordingSink:
         self.documents: list = []  # type: ignore[type-arg]
         self.chunks: list[EmbeddedChunk] = []
 
-    async def upsert_documents(self, documents) -> None:  # type: ignore[no-untyped-def]
-        self.documents.extend(documents)
+    async def indexed_document(self, document_id: str) -> None:
+        return None
 
-    async def upsert(self, chunks: list[EmbeddedChunk]) -> None:
+    async def replace_document(self, document, chunks: list[EmbeddedChunk]) -> None:  # type: ignore[no-untyped-def]
+        self.documents.append(document)
         self.chunks.extend(chunks)
 
 
@@ -135,7 +136,7 @@ class _MisconfiguredSink(_RecordingSink):
         self.error = error
         self.calls = 0
 
-    async def upsert_documents(self, documents) -> None:  # type: ignore[no-untyped-def]
+    async def replace_document(self, document, chunks) -> None:  # type: ignore[no-untyped-def]
         self.calls += 1
         raise self.error
 

@@ -24,8 +24,9 @@ from urllib.parse import urlparse
 import structlog
 
 from verity.ingestion.base import Chunker, Embedder, Parser
-from verity.retrieval.base import StoreSchemaError, StoreUnavailableError
-from verity.types import Chunk, Document
+from verity.ingestion.ids import content_sha256
+from verity.retrieval.base import IndexedDocument, StoreSchemaError, StoreUnavailableError
+from verity.types import Chunk, Document, EmbeddedChunk
 
 log = structlog.get_logger(__name__)
 
@@ -33,11 +34,11 @@ _SUPPORTED_SUFFIXES = {".txt", ".md", ".markdown", ".pdf", ".docx"}
 
 
 class VectorSink(Protocol):
-    """Narrow write-side of the VectorStore the pipeline actually depends on."""
+    """Narrow write-side of the store the pipeline actually depends on."""
 
-    async def upsert_documents(self, documents: Sequence[Document]) -> None: ...
+    async def indexed_document(self, document_id: str) -> IndexedDocument | None: ...
 
-    async def upsert(self, chunks: list) -> None: ...  # type: ignore[type-arg]
+    async def replace_document(self, document: Document, chunks: list[EmbeddedChunk]) -> None: ...
 
 
 @dataclass
@@ -53,6 +54,8 @@ class IngestionResult:
     documents: list[Document] = field(default_factory=list)
     chunks: list[Chunk] = field(default_factory=list)
     failures: list[IngestionFailure] = field(default_factory=list)
+    # Documents whose text, chunks and embedding model match the index: not embedded.
+    unchanged: int = 0
     elapsed_s: float = 0.0
 
     @property
@@ -122,6 +125,13 @@ class IngestionPipeline:
                 result.failures.append(IngestionFailure(uri=uri, error=f"chunk: {exc}"))
                 continue
 
+            if self._sink is not None and await self._is_indexed(doc, chunks):
+                result.unchanged += 1
+                result.documents.append(doc)
+                result.chunks.extend(chunks)
+                log.info("unchanged", uri=uri, document_id=str(doc.id))
+                continue
+
             try:
                 embedded = await self._embedder.embed_chunks(chunks)
             except Exception as exc:
@@ -131,8 +141,9 @@ class IngestionPipeline:
 
             if self._sink is not None:
                 try:
-                    await self._sink.upsert_documents([doc])
-                    await self._sink.upsert(embedded)
+                    # Replacing, not upserting: an edit that moves chunk boundaries
+                    # changes chunk ids, and the old chunks must not stay retrievable.
+                    await self._sink.replace_document(doc, embedded)
                 except (StoreSchemaError, StoreUnavailableError):
                     raise
                 except Exception as exc:
@@ -156,6 +167,19 @@ class IngestionPipeline:
 
         result.elapsed_s = time.perf_counter() - started
         return result
+
+    async def _is_indexed(self, doc: Document, chunks: Sequence[Chunk]) -> bool:
+        """Whether the index already holds exactly this text, chunked this way and
+        embedded by this model. Chunk ids carry their spans, so a chunker change is
+        caught too."""
+        assert self._sink is not None
+        held = await self._sink.indexed_document(str(doc.id))
+        return (
+            held is not None
+            and held.content_sha256 == content_sha256(doc.text)
+            and held.chunk_ids == frozenset(str(c.id) for c in chunks)
+            and held.embedding_models == frozenset({self._embedder.model})
+        )
 
 
 __all__ = [

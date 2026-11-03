@@ -22,6 +22,7 @@ machines and CI runs.
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from urllib.parse import urlparse
 from uuid import NAMESPACE_URL, UUID, uuid5
@@ -106,3 +107,10 @@ def chunk_id_for(document_id: DocumentId, ordinal: int, char_start: int, char_en
 
 
 __all__ = ["UUID", "chunk_id_for", "document_id_for_uri", "identity_for"]
+
+
+def content_sha256(text: str) -> str:
+    """Hex SHA-256 of a document's text as UTF-8: what tells an edited document from
+    an unchanged one, since its id stays the same across edits. The Postgres store
+    computes the same digest in SQL from the stored text."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
