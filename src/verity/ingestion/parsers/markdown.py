@@ -16,7 +16,11 @@ from verity.ingestion.parsers.text import _normalize_newlines, _read_bytes
 from verity.ingestion.structure import DocumentStructure, Section
 from verity.types import Document, SourceType
 
-_ATX_HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$", re.MULTILINE)
+# The separator after ``#`` is a space or tab (CommonMark); further blanks may be any
+# whitespace but a newline. ``\s`` there let a lone ``#`` take the next paragraph as its
+# heading. The text must start with a visible character, so ``#`` followed only by
+# blanks is not a heading.
+_ATX_HEADING = re.compile(r"^(#{1,6})[ \t]+[^\S\n]*(\S.*?)[ \t]*#*[ \t]*$", re.MULTILINE)
 
 
 def _sections_from_headings(text: str) -> tuple[Section, ...]:

@@ -4,10 +4,11 @@ always a refusal (reason ``no_citation``), never an answer."""
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import pytest
 
-from tests.unit.test_agent import _seed_retriever
+from tests.unit.test_agent import _CountingStubClient, _seed_retriever
 from verity.agent.agent import create_default_agent
 from verity.agent.scorer import LLMConfidenceScorer
 from verity.agent.scripted_stub import scripted_responder
@@ -21,6 +22,7 @@ from verity.types import (
     REFUSAL_TEXT,
     Answer,
     AnswerError,
+    Completion,
     Confidence,
     ErrorKind,
     Message,
@@ -178,3 +180,30 @@ async def test_store_down_is_an_error_not_a_refusal() -> None:
     assert answer.error is not None
     assert answer.error.kind is ErrorKind.RETRIEVAL_UNAVAILABLE
     assert "store down" in answer.error.detail
+
+
+class _ScorerDownClient(_CountingStubClient):
+    """Decompose and synthesize succeed and are billed; the scorer's provider is down."""
+
+    async def complete(self, messages: list[Message], **kwargs: Any) -> Completion:
+        if "assess whether" in messages[0].content.lower():
+            raise ProviderUnavailableError("scorer provider down")
+        return await super().complete(messages, **kwargs)
+
+
+@pytest.mark.asyncio
+async def test_an_errored_answer_still_reports_the_tokens_it_spent() -> None:
+    """A spending cap counts errored answers: their usage must not read as zero."""
+    agent = create_default_agent(
+        retriever=await _seed_retriever(),
+        client=MultiProviderRoutingClient([_ScorerDownClient()]),
+    )
+
+    answer = await agent.answer(_ANSWERABLE)
+
+    assert answer.error is not None
+    assert answer.error.kind is ErrorKind.PROVIDER_UNAVAILABLE
+    assert answer.usage.llm_calls == 2
+    assert answer.usage.input_tokens == 100 + 300
+    assert answer.usage.output_tokens == 20 + 80
+    assert answer.usage.cost_usd == pytest.approx(0.010 + 0.030)

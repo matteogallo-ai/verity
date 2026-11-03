@@ -8,8 +8,11 @@ asyncio event loop.
 
 from __future__ import annotations
 
+import os
+
 import pytest
 import pytest_socket
+from hypothesis import HealthCheck, settings
 
 from verity.types import (
     Chunk,
@@ -19,6 +22,27 @@ from verity.types import (
     RetrieverKind,
     SourceType,
 )
+
+# Property tests run in the fast lane, so the default profile bounds them: the whole
+# lane must stay under 60 s. `derandomize` makes a CI failure reproducible from the
+# log alone. `thorough` is the opt-in deep search (HYPOTHESIS_PROFILE=thorough).
+# function_scoped_fixture: tmp_path and the API client are shared across the examples
+# of one test on purpose (each example builds its own state or is read-only).
+settings.register_profile(
+    "ci",
+    max_examples=50,
+    deadline=None,
+    derandomize=True,
+    print_blob=True,
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+)
+settings.register_profile(
+    "thorough",
+    max_examples=2_000,
+    deadline=None,
+    suppress_health_check=[HealthCheck.function_scoped_fixture, HealthCheck.too_slow],
+)
+settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "ci"))
 
 
 @pytest.fixture

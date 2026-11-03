@@ -29,6 +29,12 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 from verity.types import ChunkId, DocumentId
 
 _URL_SCHEMES = {"http", "https"}
+# The API's content address, ``upload://<sha256><ext>``. Read as a path it was resolved
+# against the working directory, so its id changed with the directory. Stored uploads
+# were hashed from ``upload:/<sha256><ext>``, the form that resolution gives from the
+# repo root or the container's /app; keeping that form keeps their ids, and the
+# documents table's unique uri would otherwise reject their re-upload.
+_UPLOAD_SCHEME = "upload"
 
 _repo_root_cache: Path | None = None
 
@@ -56,6 +62,8 @@ def identity_for(uri: str) -> str:
     """Return the stable identity string derived from an access URI.
 
     - ``http(s)://`` URLs are returned unchanged.
+    - ``upload://<name>`` content addresses become ``upload:/<name>``, whatever the
+      working directory.
     - ``file://`` URIs and bare filesystem paths are resolved and expressed as the
       POSIX path *relative to the repo root* — the key portability property. Files
       outside the repo root fall back to their absolute POSIX path so callers still
@@ -65,6 +73,8 @@ def identity_for(uri: str) -> str:
     parsed = urlparse(uri)
     if parsed.scheme in _URL_SCHEMES:
         return uri
+    if parsed.scheme == _UPLOAD_SCHEME:
+        return f"{_UPLOAD_SCHEME}:/{parsed.netloc}{parsed.path}"
     raw_path = parsed.path if parsed.scheme == "file" else uri
     resolved = Path(raw_path).expanduser().resolve()
     root = _find_repo_root()

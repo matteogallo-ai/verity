@@ -35,11 +35,26 @@ rejected alternatives are in [ADR 0006](docs/adr/0006-api-security-baseline.md).
   carry `principal=key-<n>`). With no key configured the server refuses to start unless
   `VERITY_API_AUTH_DISABLED=true` is set, which is for local development only
   (`tests/unit/test_api_hardening.py`).
-- **Public endpoints.** `/health`, `/status`, `/metrics`, `/metrics/prom` and
-  `/dashboard` need no key. They expose corpus file names, document counts and
+- **Public endpoints.** `/health`, `/status`, `/metrics`, `/metrics/prom`,
+  `/dashboard`, `/docs` and `/openapi.json` need no key. They expose corpus file names, document counts and
   aggregate latency and cost, never document text.
 - **Rate limit.** 30 requests per minute per key on `/ask` and `/ingest`, sliding
   window, `429` with `Retry-After`. In process: N API processes allow N × the limit.
+- **Spending budget.** `/ask` spend per key is capped at `VERITY_API_BUDGET_USD`
+  ($5 by default) over a sliding `VERITY_API_BUDGET_WINDOW_S` (3600 s), counted from
+  the cost each answer reports, including answers that fail after paying for some
+  calls. Over budget is `429` with `Retry-After` and a generic body. A request is
+  admitted while the key is under budget, so the budget can be overshot by the
+  answers in flight when it is crossed. In process: N API processes allow
+  N × the budget, and a restart resets it (`tests/unit/test_api_hardening.py`).
+- **Bounded LLM calls.** Each answer makes at most 3 LLM calls with `max_tokens`
+  256, 512 and 256, each under `VERITY_LLM_TIMEOUT_S` (30 s) and
+  `VERITY_LLM_MAX_RETRIES` (2) per provider. `verity ask` stops before any call
+  whose estimated cost (input bytes as tokens, `max_tokens` as output, the dearest
+  configured provider) would take the answer past `--budget-usd`
+  (`VERITY_ASK_BUDGET_USD`, $1 by default): exit 4, spend so far printed
+  (`tests/unit/test_budget.py`). Bytes bound tokens for OpenAI's tokenizer; for
+  Anthropic's, which is not public, it is an assumption.
 - **Input bounds.** Questions up to 2000 characters (`422`). Request bodies are checked
   on `Content-Length` before parsing (`411` without one, `413` over the limit); uploads
   up to 1 MiB (`413`).
@@ -76,5 +91,16 @@ rejected alternatives are in [ADR 0006](docs/adr/0006-api-security-baseline.md).
 | Third-party model download | **Partial** | The Docker image embeds the embedding and reranker models. Outside it, the first run downloads them from Hugging Face, and the first PDF ingestion makes docling download its layout and OCR models (~500 MB, including from ModelScope); the image does not embed those, so a PDF upload in the container fails with a generic `422`. |
 | Dependency vulnerabilities | **Partial** | Dependencies are pinned in `uv.lock` and `web/pnpm-lock.yaml`, and GitHub Actions by commit SHA. Dependabot opens one grouped update PR per week for uv, the `web/` npm packages and the actions. The `osv-scanner` CI job fails on PRs to `main` and pushes to `main` when the lockfiles resolve a package with a known vulnerability in the OSV database; the accepted exceptions, each with its reason and an expiry date, are in `osv-scanner.toml` (an unfixed `accelerate` advisory whose vulnerable functions nothing calls, and a dev-only `minimatch` advisory). CodeQL analyses the Python and TypeScript source. **Not covered:** a vulnerability not yet in the OSV database, the `python:3.12-slim` base image, and the models downloaded at run time (see the row above). Details in [`docs/security/README.md`](docs/security/README.md). |
 
-This document is updated in the same pull request as any change to the posture
-above.
+- Every key holder reads every document, and can add one that every other client then
+  retrieves, persistently on pgvector; no upload is logged with its key (LLM08, LLM04).
+- An injection paraphrased past the marker list, or a false fact stated plainly in a
+  relevant document, is not stopped (LLM01, LLM09). The eval judge prompt has no
+  untrusted-content delimiters (LLM01).
+- The Postgres DSN, password included, is a plain string in the settings; questions and
+  retrieved passages go to the LLM provider (LLM02).
+- The `/ask` spending budget is per process and resets on restart, and failed attempts
+  a provider bills are not counted (LLM10); no automated dependency vulnerability scan
+  (LLM03).
+
+This document and the threat model are updated in the same pull request as any change
+to the posture above.

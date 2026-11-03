@@ -62,6 +62,7 @@ CI job `claims` runs those tests.
 - Provider API keys held as secrets, absent from any printed settings (C20).
 - `docker compose up`: non-root image, Postgres, migrations, corpus ingestion and the API in order, smoke-tested in CI (C26).
 - API hardening: API keys on `/ask` and `/ingest`, per-key rate limit, bounded inputs, file-type allow-list, generic errors with a request ID (C23).
+- Bounded spend: per-key spending budget on `/ask`, a per-answer cap on `verity ask` checked before each LLM call, bounded `max_tokens` and timeouts (C31).
 - Prompt-injection defence: delimited, untrusted-labelled evidence, and a deterministic support check (citation coverage, cited relevance, injection markers) the model's score cannot override; adversarial eval questions (C24).
 - Provider and store outages reported as errors (HTTP 503), never as refusals (C25).
 
@@ -96,6 +97,9 @@ per-claim judge verdict) is
 [`datasets/eval/runs/live/eval_d0ca1d5_questions.json`](datasets/eval/runs/live/eval_d0ca1d5_questions.json).
 Retrieval numbers come from the in-memory store (BM25 sparse arm), which that run
 used; `verity eval run` now defaults to pgvector (`--store memory` reproduces it). Definitions: [`docs/evaluation-methodology.md`](docs/evaluation-methodology.md).
+Each proportion with its k/n and Wilson 95 % interval, the proposed SLOs, the intended
+use and the known limits: [`docs/SYSTEM_CARD.md`](docs/SYSTEM_CARD.md), generated from
+the same scorecard.
 
 ## Open issues: what the numbers do not say
 
@@ -175,7 +179,8 @@ flowchart LR
     scorecard --> readme["README results table<br/>(generated)"]
 ```
 
-Stage-by-stage description: [`docs/architecture.md`](docs/architecture.md).
+Stage-by-stage description, and what I'd do differently:
+[`docs/architecture.md`](docs/architecture.md#what-id-do-differently).
 
 ## Quickstart
 
@@ -277,5 +282,6 @@ uv run python scripts/generate_headline_results.py --check   # README ≡ scorec
 ```
 
 [`CLAUDE.md`](CLAUDE.md) is the working guide for coding agents. See
-[CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). Licensed under
+[CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), the
+[threat model](docs/THREAT_MODEL.md) and the [runbook](docs/RUNBOOK.md). Licensed under
 [MIT](LICENSE).

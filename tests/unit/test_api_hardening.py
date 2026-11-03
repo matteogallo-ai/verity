@@ -111,6 +111,94 @@ def test_rate_limiter_window_slides() -> None:
     assert limiter.hit("k") is None
 
 
+# --- spending budget -------------------------------------------------------------------
+
+
+def _bill_every_answer(client: TestClient, cost_usd: float, *, error: bool = False) -> None:
+    """Make every stub answer report ``cost_usd``; with ``error``, also fail it."""
+    from verity.types import AnswerError, ErrorKind
+
+    runtime = client.app.state.runtime  # type: ignore[attr-defined]
+    real_ask = runtime.ask
+
+    async def _billed(question: str):  # type: ignore[no-untyped-def]
+        answer = await real_ask(question)
+        update: dict[str, object] = {
+            "usage": answer.usage.model_copy(update={"cost_usd": cost_usd})
+        }
+        if error:
+            update |= {
+                "confidence": None,
+                "error": AnswerError(kind=ErrorKind.PROVIDER_UNAVAILABLE, detail="down"),
+            }
+        return answer.model_copy(update=update)
+
+    runtime.ask = _billed
+
+
+def test_spending_budget_is_per_key_and_answers_429_with_retry_after(tmp_path: Path) -> None:
+    second = "second-key-0123456789"
+    settings = _settings(api_keys=(SecretStr(_KEY), SecretStr(second)), api_budget_usd=0.05)
+    with api_app(tmp_path, settings) as c:
+        _bill_every_answer(c, 0.03)
+        c.headers["X-API-Key"] = _KEY
+        assert c.post("/ask", json={"question": _QUESTION}).status_code == 200
+        # $0.03 spent is under $0.05: admitted, and this answer takes the key over.
+        assert c.post("/ask", json={"question": _QUESTION}).status_code == 200
+        limited = c.post("/ask", json={"question": _QUESTION})
+        assert limited.status_code == 429
+        assert limited.json()["detail"] == "Spending budget exceeded."
+        assert 1 <= int(limited.headers["Retry-After"]) <= 3600
+        other = c.post("/ask", json={"question": _QUESTION}, headers={"X-API-Key": second})
+        assert other.status_code == 200
+
+
+def test_an_answer_that_errors_after_spending_counts_against_the_budget(
+    tmp_path: Path,
+) -> None:
+    with api_app(tmp_path, _settings(api_budget_usd=0.05)) as c:
+        _bill_every_answer(c, 0.06, error=True)
+        c.headers["X-API-Key"] = _KEY
+        assert c.post("/ask", json={"question": _QUESTION}).status_code == 503
+        assert c.post("/ask", json={"question": _QUESTION}).status_code == 429
+
+
+def test_spend_budget_window_slides() -> None:
+    from verity.api.guards import SpendBudget
+
+    now = [0.0]
+    budget = SpendBudget(budget_usd=1.0, window_s=3600.0, clock=lambda: now[0])
+    assert budget.exhausted("k") is None
+    budget.record("k", 0.6)
+    now[0] = 100.0
+    budget.record("k", 0.6)
+    retry = budget.exhausted("k")
+    # Under budget again once the first $0.60 leaves the window, at t=3600.
+    assert retry is not None and retry == pytest.approx(3500.0)
+    assert budget.exhausted("other") is None
+    now[0] = 3600.5
+    assert budget.exhausted("k") is None
+
+
+def test_spend_budget_retry_waits_for_as_many_entries_as_needed() -> None:
+    from verity.api.guards import SpendBudget
+
+    now = [0.0]
+    budget = SpendBudget(budget_usd=1.0, window_s=3600.0, clock=lambda: now[0])
+    for at in (0.0, 10.0, 20.0):
+        now[0] = at
+        budget.record("k", 0.5)
+    # $1.50 spent: under $1.00 only once the first two entries have expired, at t=3610.
+    assert budget.exhausted("k") == pytest.approx(3590.0)
+
+
+def test_spend_budget_rejects_a_non_positive_budget() -> None:
+    from verity.api.guards import SpendBudget
+
+    with pytest.raises(ValueError, match="positive"):
+        SpendBudget(budget_usd=0.0, window_s=60.0)
+
+
 # --- input bounds ----------------------------------------------------------------------
 
 
