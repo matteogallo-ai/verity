@@ -85,4 +85,17 @@ def first_matching(mapping: Mapping[str, Any], keys: tuple[str, ...]) -> Any:
     return None
 
 
-__all__ = ["first_json_object", "first_matching", "load_json", "parse_json_object"]
+def strict_bool(value: Any) -> bool | None:
+    """A JSON boolean, or the string ``"true"`` / ``"false"`` in any case; else ``None``.
+
+    ``bool("false")`` is ``True``, so a model that quotes its booleans would flip every
+    verdict. Other values (``0``, ``"no"``, ``null``) are refused rather than guessed.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return {"true": True, "false": False}.get(value.strip().lower())
+    return None
+
+
+__all__ = ["first_json_object", "first_matching", "load_json", "parse_json_object", "strict_bool"]
