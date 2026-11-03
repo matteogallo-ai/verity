@@ -57,9 +57,11 @@ class FakeRerankerBackend:
 
 
 @contextmanager
-def api_app(tmp_path: Path, settings: Settings, *, store: str = "memory") -> Iterator[TestClient]:
+def api_app(
+    tmp_path: Path, settings: Settings, *, store: str = "memory", agent_mode: str = "stub"
+) -> Iterator[TestClient]:
     """The app on the in-memory store unless ``store`` says otherwise: the fast lane
-    has no database."""
+    has no database. A ``live`` agent builds its provider clients but calls none."""
     settings = settings.model_copy(update={"store": store})
     with (
         patch(
@@ -74,7 +76,7 @@ def api_app(tmp_path: Path, settings: Settings, *, store: str = "memory") -> Ite
         app = create_app(
             runs_dir=tmp_path / "runs",
             corpus_dir=Path("datasets/corpus"),
-            agent_mode="stub",
+            agent_mode=agent_mode,
             cors_origins=(),
             settings=settings,
         )

@@ -13,6 +13,16 @@ follows [Semantic Versioning](https://semver.org/).
   with error kind `budget_exceeded`, exit 4, and the spend so far printed.
 - `/ask` spending budget per API key over a sliding window (`VERITY_API_BUDGET_USD`, $5;
   `VERITY_API_BUDGET_WINDOW_S`, 3600 s); over budget is `429` with `Retry-After`.
+- `GET /ready`, separate from `/health`: `503` unless the Postgres store answers and the
+  LLM providers can serve in routing order; states only in the body, causes in the log;
+  results reused for 5 s. `/health` stays liveness only.
+
+### Changed
+
+- System card SLOs are approved targets, no longer proposals. A miss is published as
+  **SLO not met** with its cause, and the p95 latency is reported cold start included and
+  warm, in separate rows, recomputed from the run's per-answer latencies. The v1.0.0 run of
+  record misses both: 32.5 s cold start included, 22.4 s warm.
 
 ### Fixed
 

@@ -25,7 +25,7 @@ src/verity/
   llm/                clients (Anthropic, OpenAI, stub), routing (fallback), prompt loader, json_output
   eval/               retrieval_metric, refusal, judge, harness, headline (scorecard v3), run_store
   observability/      tracer (OTel in-memory), logging (structlog), warmup
-  api/                server (/health, /metrics, /dashboard), router (/status, /ask, /ingest), state
+  api/                server (/health, /ready, /metrics, /dashboard), router (/status, /ask, /ingest), state
   db/                 SQL migration runner
 prompts/              *.prompt files loaded by verity.llm.prompt
 migrations/           numbered SQL files (pgvector schema)
