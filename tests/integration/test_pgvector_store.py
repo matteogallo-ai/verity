@@ -7,12 +7,12 @@ so this test runs end-to-end.
 
 from __future__ import annotations
 
-import os
 from collections.abc import Sequence
 
 import psycopg
 import pytest
 
+from tests.integration.db import database_url
 from verity.db import apply_pending
 from verity.ingestion import (
     IngestionPipeline,
@@ -50,13 +50,9 @@ class _FakeBackend:
         return self._dim
 
 
-def _database_url() -> str:
-    return os.environ.get("VERITY_DATABASE_URL", "postgresql://verity:verity@localhost:5432/verity")
-
-
 @pytest.fixture(scope="module")
 def migrated_db() -> str:
-    url = _database_url()
+    url = database_url()
     apply_pending(url)
     return url
 

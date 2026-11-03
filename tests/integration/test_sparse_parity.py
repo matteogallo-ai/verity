@@ -10,11 +10,11 @@ top-1 agreement 17/19, mean Jaccard@5 0.59, gold in top 5 11/11 for both.
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
 import pytest
 
+from tests.integration.db import database_url as _configured_url
 from verity.db import apply_pending
 from verity.ingestion.embedder import LocalEmbedder
 from verity.retrieval import InMemoryVectorStore, PgVectorStore
@@ -30,7 +30,7 @@ _K = 5
 
 @pytest.fixture(scope="module")
 def database_url() -> str:
-    url = os.environ.get("VERITY_DATABASE_URL", "postgresql://verity:verity@localhost:5432/verity")
+    url = _configured_url()
     apply_pending(url)
     return url
 
