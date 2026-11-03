@@ -87,8 +87,6 @@ class Readiness:
         probed_ready, probed = await self._probed()
         # The preload state is in memory, so it is read on every call rather than
         # cached: the process turns ready as soon as the preload ends.
-        if self._runtime.preload_state == "failed":
-            self._runtime.start_preload()
         preload = self._runtime.preload_state
         return probed_ready and preload == OK, {**probed, "preload": preload}
 
@@ -97,6 +95,10 @@ class Readiness:
             now = time.monotonic()
             if self._last is not None and now - self._last[0] < CACHE_S:
                 return self._last[1], self._last[2]
+            # A new preload attempt re-ingests the whole corpus: starting it here, with
+            # the probes, bounds attempts to one per CACHE_S however often /ready is hit.
+            if self._runtime.preload_state == "failed":
+                self._runtime.start_preload()
             store, llm = await asyncio.gather(
                 _store_state(self._runtime), _llm_state(self._runtime)
             )

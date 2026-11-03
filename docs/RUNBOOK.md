@@ -77,8 +77,9 @@ machine or a cleared Hugging Face cache with network access disabled.
   the missing cache itself is not.
 - **Response.** Fill the cache once with network access (a command that loads both
   models, e.g. `uv run verity retrieve "warm up" --store memory`), or run the Docker
-  image. No restart is needed: each `/ready` call after a failed preload starts another
-  attempt, and the process turns ready once every corpus file is in.
+  image. No restart is needed: after a failed preload, `/ready` starts another attempt
+  (at most one per 5 s; each re-ingests the whole corpus), and the process turns ready
+  once every corpus file is in.
 
 ## 4. Budget exhausted
 
@@ -100,6 +101,9 @@ machine or a cleared Hugging Face cache with network access disabled.
   when the judge failed, the answer and its citations, so they can be judged again
   without paying the agent twice
   (`tests/unit/test_incomplete_runs.py::test_an_incomplete_run_never_replaces_or_joins_the_runs_of_record`).
+  Not covered: a rejected judge key (the run stops at once, as every example would fail
+  alike), an exception that is not a provider error, or a failure to write the
+  incomplete run itself; these end the run with a traceback and no artefact.
 - **Provider account out of credit or quota.** Verity has no notion of it; it sees the
   provider's HTTP error. A `429` is treated as unavailability (section 1); any other
   `4xx` becomes `answer_failed` with `error_kind=provider_error` and is not sent to the

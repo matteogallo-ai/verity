@@ -133,7 +133,7 @@ class AppRuntime:
     async def preload_corpus(self) -> int:
         """Ingest ``corpus_dir`` until every file is in; the number of files that failed.
 
-        A file that failed is ingested again by the next call (the upsert is
+        After a failure the next call ingests the whole corpus again (the upsert is
         idempotent), so a corpus that keeps failing keeps the process not ready
         instead of serving without it."""
         async with self._lock:
@@ -152,7 +152,8 @@ class AppRuntime:
 
     def start_preload(self) -> None:
         """Ingest the corpus and load both models in the background, unless that is
-        under way or done. Called at startup, and again by readiness after a failure."""
+        under way or done. Called at startup, and by readiness after a failure, at most
+        once per readiness cache period."""
         if self.preload_state == "ok":
             return
         if self._preload_task is not None and not self._preload_task.done():

@@ -95,8 +95,8 @@ is not moved to fit the run. The p95 is reported twice, cold start included and 
 because the first answer of a process that has not loaded the embedding and reranker
 models pays that load; the run of record was such a process (`--no-warmup`). The API
 loads them before `/ready` answers `200`. Each answer records its per-stage
-wall-clock and the retries the provider SDKs made, so the latency SLOs are evaluated
-again, with that attribution, on the next run of record. Nothing enforces or alerts on these targets. How each is measured on a
+wall-clock and the retries the provider SDKs made; the run of record above predates
+both, and the latency SLO status stands until a run of record that has them. Nothing enforces or alerts on these targets. How each is measured on a
 running server, with the signals the code emits (responses: [`RUNBOOK.md`](RUNBOOK.md)):
 
 | SLO | Measured from | Caveat |

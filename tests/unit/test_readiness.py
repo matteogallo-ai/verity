@@ -232,3 +232,28 @@ def test_back_to_back_probes_reach_the_dependencies_once(tmp_path: Path) -> None
         for _ in range(5):
             assert client.get("/ready").status_code == 200
     assert calls == ["ping", "ping"]  # one store ping, one provider ping
+
+
+def test_a_failing_preload_is_retried_once_per_cache_period(tmp_path: Path) -> None:
+    """Each attempt re-ingests the whole corpus; a caller looping on the public
+    ``/ready`` must not turn that into continuous re-embedding."""
+    loads: list[str] = []
+
+    def broken_embedder(_model: str) -> FakeEmbeddingBackend:
+        loads.append("load")
+        raise OSError("model not in the cache")
+
+    def settle(client: TestClient) -> None:
+        deadline = time.monotonic() + 10
+        while client.app.state.runtime.preload_state == "loading":  # type: ignore[attr-defined]
+            assert time.monotonic() < deadline
+            time.sleep(0.01)
+
+    with api_app(tmp_path, _SETTINGS, embedder_factory=broken_embedder) as client:
+        assert client.get("/ready").status_code == 503  # starts the one retry of this period
+        settle(client)
+        after_one_retry = len(loads)
+        for _ in range(10):
+            assert client.get("/ready").status_code == 503
+            settle(client)
+    assert len(loads) == after_one_retry

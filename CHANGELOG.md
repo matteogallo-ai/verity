@@ -13,9 +13,12 @@ follows [Semantic Versioning](https://semver.org/).
   in, and a failed preload is started again by the next `/ready`. With the stub agent and
   the memory store, the first `/ask` took 3.0–3.4 s (model load) and now takes 0.08 s,
   after `/ready` turns `200` about 3.1 s from startup (three fresh processes each, warm
-  OS file cache).
+  OS file cache, measured on the owner's machine with an in-process client; the
+  numbers are not reproduced by any test).
 - Each answer records its per-stage wall-clock (`stage_ms`) and the retries the provider
-  SDKs made (`usage.retries`); both are kept per example in eval run artefacts.
+  SDKs made (`usage.retries`); both are kept per example in eval run artefacts. Retries
+  are counted on calls that succeed: a call that exhausts its retries and fails over to
+  the next provider records none.
 - `verity ask --budget-usd` (default `VERITY_ASK_BUDGET_USD`, $1): before each LLM call,
   spend so far plus that call's estimated upper cost must fit the cap, else the answer stops
   with error kind `budget_exceeded`, exit 4, and the spend so far printed.
