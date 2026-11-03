@@ -10,7 +10,7 @@ and the response. Log events are structlog lines (JSON keys `event`, `trace_id`,
 | Signal | What it tells | What it does not |
 |---|---|---|
 | `GET /health` | liveness: the process answers HTTP | nothing about Postgres, the models or the providers: it returns `200` while all three are down, so a restart policy keyed on it never restarts a healthy process for a dependency outage |
-| `GET /ready` | readiness: `200` when Postgres answers `SELECT 1` through the store's connection path (if it is the configured store; the first ping also checks the schema, so an unmigrated database or a wrong embedding dimension reads `unreachable` too) and the LLM providers can serve: they are probed in routing order with a Models API lookup (no tokens), moving on only when one is unavailable, so a rejected key or an unknown model on the first provider is `503` even if the next one answers. Otherwise `503`. Body `{"status": "ready" \| "not ready", "checks": {"store": …, "llm": …}}`, each check `ok`, `unreachable`, `timeout` (2 s per check) or `not used` (memory store, stub agent); the cause is in the `readiness_failed` / `readiness_timeout` log lines, never in the body. A result is reused for 5 s, so a caller looping on this public endpoint reaches the dependencies at most once per 5 s | whether the local models load, or whether the provider still has rate limit or credit left for completions; a recovery shows up to 5 s late |
+| `GET /ready` | readiness: `200` when the startup preload is done (every corpus file ingested, embedding and reranker models loaded), Postgres answers `SELECT 1` through the store's connection path (if it is the configured store; the first ping also checks the schema, so an unmigrated database or a wrong embedding dimension reads `unreachable` too) and the LLM providers can serve: they are probed in routing order with a Models API lookup (no tokens), moving on only when one is unavailable, so a rejected key or an unknown model on the first provider is `503` even if the next one answers. Otherwise `503`. Body `{"status": "ready" \| "not ready", "checks": {"store": …, "llm": …, "preload": …}}`; `store` and `llm` are `ok`, `unreachable`, `timeout` (2 s per check) or `not used` (memory store, stub agent), `preload` is `loading`, `ok` or `failed`; the cause is in the `readiness_failed` / `readiness_timeout` / `preload_failed` log lines, never in the body. A dependency result is reused for 5 s, so a caller looping on this public endpoint reaches the dependencies at most once per 5 s; the preload state is read on every call, and a failed preload is started again | whether the provider still has rate limit or credit left for completions; a recovery shows up to 5 s late |
 | `GET /status` | the store answers (it lists the corpus) and the boot-time provenance; `provenance.is_stub: true` means no provider key was found and answers are canned | provider health |
 | `answer_done` log line | one per answered or refused request: `decision`, `reason`, `stage_ms`, `latency_ms`, tokens, `cost_usd` | — |
 | `answer_failed` log line | one per request that could not be decided: `decision=error`, `error_kind`, `error`, the stages reached | tokens spent before the failure |
@@ -47,7 +47,7 @@ error is never a refusal (C25).
   `{"detail": {"error": "retrieval_unavailable", …}}`; `/health` stays `200`;
   `/ready` answers `503` with `"store": "unreachable"` (or `"timeout"`).
 - **Detection.** `store_unavailable` (error, with traceback) when the failure is raised
-  outside the agent, e.g. during the first request's corpus ingestion; `stage_failed`
+  outside the agent, e.g. during a request's corpus ingestion; `stage_failed`
   then `answer_failed` with `error_kind=retrieval_unavailable` inside `/ask`. Tests:
   `tests/unit/test_api_hardening.py::test_unreachable_postgres_is_a_generic_503`,
   `tests/unit/test_api_router.py::test_ask_answers_503_when_the_store_is_down`.
@@ -62,18 +62,23 @@ error is never a refusal (C25).
 Outside the Docker image (which embeds the embedding and reranker models), a fresh
 machine or a cleared Hugging Face cache with network access disabled.
 
-- **Symptom.** `/ask` answers a generic `500`. `/ingest` answers `422` "The document
-  could not be parsed." for any file: the error is blamed on the document. On first
-  start the corpus is not ingested, and `/status` lists only what Postgres already held.
-- **Detection.** At the first request, one `embed_failed` line per corpus file, with
-  `error` reading "We couldn't connect to 'https://huggingface.co' … couldn't find them
-  in the cached files" (an `OSError` from the model loader, reproduced with an empty
-  `HF_HOME`). Then `unhandled_error` with that traceback on each `/ask`, and
-  `ingest_failed` on each upload. No test exercises this cause.
+- **Symptom.** `/ready` stays `503` with `"preload": "failed"` (or `"loading"` while an
+  attempt runs); `/health` stays `200`. `/ask` answers a generic `500`. `/ingest` answers
+  `422` "The document could not be parsed." for any file: the error is blamed on the
+  document. The corpus is not ingested, and `/status` lists only what Postgres already
+  held.
+- **Detection.** At startup, one `embed_failed` line per corpus file, with `error`
+  reading "We couldn't connect to 'https://huggingface.co' … couldn't find them in the
+  cached files" (an `OSError` from the model loader, reproduced with an empty
+  `HF_HOME`), then `preload_failed` with the number of failed files. Then
+  `unhandled_error` with that traceback on each `/ask`, and `ingest_failed` on each
+  upload. The not-ready state and the retry are tested with a loader that fails once
+  (`tests/unit/test_readiness.py::test_a_failed_preload_is_not_ready_and_is_retried`);
+  the missing cache itself is not.
 - **Response.** Fill the cache once with network access (a command that loads both
   models, e.g. `uv run verity retrieve "warm up" --store memory`), or run the Docker
-  image. Then **restart**: the corpus preload is marked done even when every file failed, so the
-  running process does not retry it.
+  image. No restart is needed: each `/ready` call after a failed preload starts another
+  attempt, and the process turns ready once every corpus file is in.
 
 ## 4. Budget exhausted
 

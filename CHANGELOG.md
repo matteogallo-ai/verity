@@ -8,6 +8,12 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The API ingests the corpus and loads the embedding and reranker models at startup, in
+  the background; `/ready` reports `"preload"` and stays `503` until every corpus file is
+  in, and a failed preload is started again by the next `/ready`. With the stub agent and
+  the memory store, the first `/ask` took 3.0–3.4 s (model load) and now takes 0.08 s,
+  after `/ready` turns `200` about 3.1 s from startup (three fresh processes each, warm
+  OS file cache).
 - Each answer records its per-stage wall-clock (`stage_ms`) and the retries the provider
   SDKs made (`usage.retries`); both are kept per example in eval run artefacts.
 - `verity ask --budget-usd` (default `VERITY_ASK_BUDGET_USD`, $1): before each LLM call,

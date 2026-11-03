@@ -4,13 +4,17 @@ serve ``/ask`` (store reachable, at least one LLM provider reachable)."""
 from __future__ import annotations
 
 import asyncio
+import threading
+import time
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
+from fastapi.testclient import TestClient
+from httpx import Response
 from pydantic import SecretStr
 
-from tests.unit.api_app import api_app
+from tests.unit.api_app import FakeEmbeddingBackend, FakeRerankerBackend, api_app
 from verity.config import Settings, get_settings
 from verity.llm.base import AuthenticationError, ProviderUnavailableError
 from verity.retrieval.base import StoreUnavailableError
@@ -61,7 +65,67 @@ def test_ready_on_the_memory_store_with_the_stub_agent(tmp_path: Path) -> None:
     with api_app(tmp_path, _SETTINGS) as client:
         r = client.get("/ready")
     assert r.status_code == 200
-    assert r.json() == {"status": "ready", "checks": {"store": "not used", "llm": "not used"}}
+    assert r.json() == {
+        "status": "ready",
+        "checks": {"store": "not used", "llm": "not used", "preload": "ok"},
+    }
+
+
+def _until_ready(client: TestClient) -> Response:
+    deadline = time.monotonic() + 10
+    while (r := client.get("/ready")).status_code != 200:
+        assert time.monotonic() < deadline, r.json()
+        time.sleep(0.02)
+    return r
+
+
+def test_ready_is_503_until_the_corpus_and_models_are_loaded(tmp_path: Path) -> None:
+    """The first ``/ask`` after ``/ready`` says 200 must not pay for loading models."""
+    release = threading.Event()
+
+    def slow_embedder(_model: str) -> FakeEmbeddingBackend:
+        release.wait(10)
+        return FakeEmbeddingBackend(384)
+
+    with api_app(
+        tmp_path, _SETTINGS, embedder_factory=slow_embedder, wait_for_preload=False
+    ) as client:
+        r = client.get("/ready")
+        assert r.status_code == 503
+        assert r.json()["checks"]["preload"] == "loading"
+        assert client.get("/health").status_code == 200
+        release.set()
+        assert _until_ready(client).json()["checks"]["preload"] == "ok"
+
+
+def test_startup_loads_both_models_before_any_request(tmp_path: Path) -> None:
+    embedder = MagicMock(side_effect=lambda _m: FakeEmbeddingBackend(384))
+    reranker = MagicMock(side_effect=lambda _m: FakeRerankerBackend())
+    with api_app(tmp_path, _SETTINGS, embedder_factory=embedder, reranker_factory=reranker):
+        assert embedder.call_count == 1
+        assert reranker.call_count == 1
+
+
+def test_a_failed_preload_is_not_ready_and_is_retried(tmp_path: Path) -> None:
+    attempts: list[str] = []
+
+    def flaky_embedder(_model: str) -> FakeEmbeddingBackend:
+        attempts.append("load")
+        if len(attempts) == 1:
+            raise OSError("model not in the cache")
+        return FakeEmbeddingBackend(384)
+
+    with api_app(tmp_path, _SETTINGS, embedder_factory=flaky_embedder) as client:
+        # One corpus file failed to embed: the corpus is incomplete, so not ready.
+        assert client.app.state.runtime.preload_state == "failed"  # type: ignore[attr-defined]
+        r = client.get("/ready")
+        assert r.status_code == 503
+        assert "cache" not in r.text
+        # That call started another attempt, which loads the model this time.
+        _until_ready(client)
+        n_docs = client.get("/status").json()["corpus"]["n_documents"]
+    assert len(attempts) == 2
+    assert n_docs == len([p for p in Path("datasets/corpus").iterdir() if p.is_file()])
 
 
 def test_ready_is_503_when_postgres_is_unreachable(tmp_path: Path) -> None:
