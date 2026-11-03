@@ -170,6 +170,15 @@ def test_coverage_does_not_read_negation() -> None:
     assert citation_coverage(negated, (_cite(hit, quote),)) == 1.0
 
 
+def test_coverage_does_not_read_figures() -> None:
+    """A figure rule refused correct answers on the live runs
+    (docs/audit/2026-11-03-figure-rule-measurement.md)."""
+    quote = "Either party may terminate this Agreement with thirty (30) days' written notice."
+    hit = _hit(quote, 5.0)
+    wrong = "Either party may terminate this Agreement with ninety (90) days' written notice."
+    assert citation_coverage(wrong, (_cite(hit, quote),)) >= 0.8
+
+
 @pytest.mark.parametrize(
     ("text", "flagged"),
     [
