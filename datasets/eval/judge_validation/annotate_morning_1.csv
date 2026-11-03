@@ -1,0 +1,3117 @@
+item_id,claim,cited_passage,extracts,human_verdict,comment
+A01,The Enterprise edition is priced at US$42.00 per seat per month.,Price: US$42.00 per seat per month.,"[1] This Order Form is entered into under the Master Services Agreement dated January 15, 2024 between Acme Corporation (""Provider"") and Northwind Logistics Inc., a Delaware corporation headquartered in Columbus, Ohio (""Customer""). In case of conflict, this Order Form prevails over the Master Services Agreement for the services listed below.
+
+1. Subscription
+
+Service: Enterprise Cloud, Professional edition.
+
+Quantity: 250 named user seats.
+
+Price: US$42.00 per seat per month.
+
+Annual subscription fee: US$126,000.00.
+
+Subscription term: twenty-four (24) months, starting February 1, 2025 and ending January 31, 2027.
+
+2. Add-on Services
+
+Managed Services, Standard tier: US$18,000.00 per year.
+
+Premium Support: included at no additional charge for the subscription term.
+
+3. Billing and Payment
+
+[2] Customer may add seats at any time at the same per-seat price, prorated to the end of the current annual period. Seats may be reduced only at an annual renewal date, and never below 200 seats during the subscription term.
+
+7. Renewal
+
+[3] ## 2. API Rate Limits
+
+Each tenant may send up to 1,000 API requests per minute. Requests above that limit receive HTTP status 429 and must be retried with exponential backoff. Higher limits are available on request for Professional and Enterprise editions.
+
+## 3. Storage Quota
+
+Each tenant includes 2 terabytes of document storage. Additional storage is billed at US$20 per terabyte per month.
+
+[4] Total revenue for the first quarter of fiscal year 2025 was $128.9 million, an increase of 17.2% compared to $110.0 million in the first quarter of fiscal year 2024. Growth was led by Enterprise Cloud, which added 41 new enterprise customers in the quarter.
+
+Revenue by Segment
+
+Enterprise Cloud subscription revenue: $86.4 million, up 22.5% year over year.
+
+Managed Services revenue: $32.1 million, up 9.6% year over year.
+
+Other revenue: $10.4 million, down 1.9% year over year.
+
+Profitability
+
+Gross margin was 72.6%, compared to 70.9% in the same quarter last year. Operating income was $21.3 million. Operating expenses grew more slowly than revenue because hiring was concentrated in the second half of the fiscal year.
+
+Cash
+
+Cash and cash equivalents were $231.8 million at the end of the quarter. Operating cash flow for the quarter was $26.7 million. The share repurchase program approved in March had not started by the end of the quarter.
+
+Customers and People
+
+Net revenue retention for Enterprise Cloud was 118%. Headcount at the end of the quarter was 1,940 employees.
+
+Outlook
+
+Management reaffirms its fiscal year 2025 guidance of revenue growth between 14% and 17%. Guidance for the second quarter is revenue between $132 million and $135 million.
+
+[5] Employees receive a meal per diem of US$75 per full travel day, and US$40 on the days of departure and return. The per diem replaces individual meal receipts. Alcohol is not reimbursable, except during client entertainment approved in advance by a Director.
+
+5. Ground Transportation
+
+Employees should use public transport or taxis. Rental cars are allowed when cheaper than the alternatives or when traveling with colleagues. Use of a personal car is reimbursed at US$0.67 per mile.
+
+6. Receipts and Submission
+
+An itemized receipt is required for every expense of US$25 or more. Expense claims must be submitted within thirty (30) days after the trip ends. Claims submitted more than ninety (90) days after the trip are not reimbursed.
+
+7. Non-reimbursable Expenses
+
+The following are not reimbursed: upgrades paid for personally, airline lounge memberships, traffic and parking fines, personal entertainment, and expenses for a spouse or family member.
+
+8. Corporate Card
+
+Employees who travel more than four (4) times per year are issued a corporate card. Personal expenses must never be charged to it.
+
+[6] ## Revenue
+
+Total revenue for fiscal year 2024 was $482.0 million, an increase of 18.4% compared to $407.1 million in fiscal year 2023. The year-over-year growth was propelled by:
+
+- Enterprise Cloud subscription revenue of $312.7 million (up 24.1% YoY).
+- Managed Services revenue of $128.6 million (up 11.2% YoY).
+- Other revenue of $40.7 million, roughly flat versus the prior year.
+
+The revenue mix continues to shift toward recurring subscription revenue, which represented 84.6% of total revenue in FY2024, compared to 79.3% in FY2023.
+
+[7] Employees book economy class for flights scheduled at six (6) hours or less. Business class is allowed for flights scheduled at more than six (6) hours, with the approval of a Vice President. Tickets should be booked at least fourteen (14) days before departure when possible.
+
+3. Hotels
+
+The nightly hotel rate, excluding taxes, may not exceed US$250. In New York, London and San Francisco the limit is US$325 per night. Employees must use the preferred hotels listed in the booking tool when one is available.
+
+4. Meals
+
+[8] This Statement of Work (""SOW"") is issued under the Master Services Agreement dated January 15, 2024 between Acme Corporation (""Provider"") and Northwind Logistics Inc. (""Customer""). It describes the migration of Customer's shipment-tracking data from its legacy on-premises system to Enterprise Cloud.
+
+1. Scope
+
+Provider will extract, transform and load approximately 40 million shipment records and 1.2 terabytes of attached documents from Customer's legacy Oracle database into Enterprise Cloud, and will validate record counts and checksums after each load.
+
+2. Out of Scope
+
+Migration of archived records older than seven (7) years, changes to Customer's internal reporting tools, and end-user training are not included in this SOW.
+
+3. Timeline
+
+The project runs for twelve (12) weeks starting March 3, 2025. The cutover to production is planned for the weekend of May 24, 2025.
+
+4. Fees and Milestones
+
+The fixed fee for this SOW is US$85,000, invoiced on completion of three milestones:
+
+Milestone 1, approved migration plan: 30% of the fee.
+
+Milestone 2, successful test migration in the staging environment: 40% of the fee.
+
+Milestone 3, production cutover accepted by Customer: 30% of the fee.
+
+Travel expenses are billed separately at cost and may not exceed US$6,000 without Customer's written approval.
+
+5. Acceptance
+
+Customer has ten (10) business days after each milestone delivery to accept it or to describe in writing how it does not meet this SOW. A milestone not rejected within that period is deemed accepted.
+
+6. Change Requests
+
+Any change to scope, timeline or fees requires a written change request signed by both parties. Provider will estimate the impact of a requested change within five (5) business days.
+
+7. Project Contacts
+
+Provider's project manager is Lena Park. Customer's project sponsor is Tom Becker, Chief Operating Officer.",unsupported,
+A02,Acme Corporation (the Provider) is liable for data-processing breaches.,"Acme Corporation, acting as Provider, shall be the entity liable for any breach of its data-processing obligations under Schedule B (Data Processing Addendum), subject to the cap in Section 3.1.","[1] ### 3.2 Data-Processing Breach
+
+Acme Corporation, acting as Provider, shall be the entity liable for any breach of its data-processing obligations under Schedule B (Data Processing Addendum), subject to the cap in Section 3.1. Provider shall notify Customer of any confirmed data-processing breach within seventy-two (72) hours of discovery and shall reasonably cooperate with Customer's investigation.
+
+[2] ## 3. Data Location and International Transfers
+Personal data is stored in data centers located in Frankfurt, Germany (European Union) and in Virginia, United States. Transfers of personal data from the EU to the US are carried out under the European Commission's Standard Contractual Clauses.
+
+## 4. Security Measures
+Provider encrypts personal data at rest using AES-256 and in transit using TLS 1.2 or higher. Access to production data is restricted to authorized personnel on a least-privilege basis.
+
+## 5. Breach Notification
+Provider will notify the Controller of any confirmed personal-data breach within seventy-two (72) hours of discovery, and will cooperate with the Controller's investigation and remediation.
+
+## 6. Data Subject Requests
+Provider will assist the Controller in responding to data-subject requests (access, rectification, erasure) and will forward any such request it receives directly to the Controller within five (5) business days.
+
+## 7. Retention and Deletion
+Upon termination of the Agreement, Provider will delete all personal data processed on the Controller's behalf within ninety (90) days, unless retention is required by applicable law.
+
+## 8. Audit
+The Controller may audit Provider's compliance with this DPA once per calendar year, on at least thirty (30) days' written notice.
+
+[3] # Schedule B — Data Processing Addendum
+
+This Data Processing Addendum (""DPA"") supplements the Master Services Agreement between Acme Corporation (""Provider"", acting as data processor) and the Customer (""Controller""). It governs the processing of personal data on the Customer's behalf.
+
+## 1. Roles and Scope
+Provider processes personal data only on documented instructions from the Controller and solely to deliver the services described in the Order Form.
+
+[4] ### 3.1 Limitation of Liability
+
+The aggregate liability of Provider arising out of or related to this Agreement, whether in contract, tort, or otherwise, shall not exceed one million United States dollars ($1,000,000) or the total fees paid by Customer to Provider under the applicable Order Form during the twelve (12) months immediately preceding the event giving rise to the claim, whichever is greater.
+
+[5] ### 3.3 Exclusion of Damages
+
+Except for a party's indemnification obligations and breaches of confidentiality, neither party shall be liable for any indirect, incidental, consequential, special, exemplary, or punitive damages, or for lost profits or loss of business, arising out of or related to this Agreement.
+
+[6] ## 1. Limitation of Liability
+
+Section 3.1 of the Agreement is amended so that, for Customer only, the aggregate liability of Provider shall not exceed two million United States dollars ($2,000,000) or the total fees paid by Customer during the twelve (12) months immediately preceding the event giving rise to the claim, whichever is greater.
+
+## 2. Termination for Convenience
+
+Section 1.2 of the Agreement is amended to require at least sixty (60) days' prior written notice for termination for convenience, instead of thirty (30) days. The pro-rata refund of prepaid fees is unchanged.
+
+[7] ## 2. Fees and Payment
+
+Customer shall pay all fees set forth in the applicable Order Form within thirty (30) days of the invoice date. Late payments accrue interest at the lesser of one percent (1%) per month or the maximum rate permitted by applicable law.
+
+## 3. Liability and Indemnification
+
+[8] ## 2. Sub-processors
+Provider engages a cloud infrastructure provider and a transactional email provider as sub-processors. Provider will give the Controller at least thirty (30) days' prior written notice before adding or replacing a sub-processor, during which the Controller may object on reasonable data-protection grounds.
+
+[9] Statement of Work No. 1 - Data Migration
+
+[10] ## 3. New Section 7 - AI Features
+
+Provider shall not use Customer Data, including prompts and outputs of any AI-assisted feature, to train or fine-tune machine-learning models, whether its own or a third party's. AI-assisted features are disabled by default and are enabled only by a Customer administrator.
+
+## 4. No Other Changes
+
+Except as expressly amended by this Amendment, the Agreement remains in full force and effect. This Amendment does not change the Service Level Agreement or the Data Processing Addendum.
+
+[11] ### 1.3 Termination for Cause
+
+Either party may terminate this Agreement immediately upon written notice if the other party materially breaches this Agreement and fails to cure the breach within fifteen (15) days after receiving written notice of the breach.",supported,
+A03,Q1 FY2026 gross margin was 72.6%.,"Gross margin was 72.6%, compared to 70.9% in the same quarter last year.","[1] ## Profitability
+
+Gross margin expanded to 71.8% in FY2024 from 68.9% in FY2023, primarily reflecting scale in cloud infrastructure and improved contract terms with third-party data-center providers. Operating income was $71.4 million, up from $46.8 million in the prior year.
+
+## Cash and liquidity
+
+Cash and cash equivalents at fiscal year-end were $214.3 million, with total available liquidity — including undrawn credit facilities — of $364.3 million. Operating cash flow for the year was $92.5 million.
+
+[2] Acme Corporation - Quarterly Report Q1 FY2025
+
+Quarter ended March 31, 2025. Prepared for the Board of Directors, dated April 24, 2025. All figures in United States dollars and unaudited.
+
+Highlights
+
+[3] FY2025 Operating Budget - Memo to the Board
+
+From: Office of the Chief Financial Officer. Date: March 12, 2025. Subject: proposed operating budget for fiscal year 2025, for approval at the March 20 Board meeting.
+
+1. Summary
+
+The proposed operating expense budget for FY2025 is $268 million, an increase of 12% over FY2024 actual operating expenses of $239 million. Capital expenditure is budgeted at $34 million, mainly for data-center capacity in Frankfurt and Virginia.
+
+2. Operating Expenses by Function
+
+Research and development: $112 million.
+
+Sales and marketing: $98 million.
+
+General and administrative: $58 million.
+
+3. Headcount
+
+The plan adds 220 net new employees over the year, 60% of them in research and development. Most hires are planned for the second half of the year.
+
+4. Cost Measures
+
+The company-wide travel budget is reduced by 10% compared to FY2024. External consulting spend is capped at $9 million. Any new spend above the approved budget for a function requires approval from the Chief Financial Officer.
+
+5. Risks
+
+The budget assumes revenue growth at the midpoint of guidance, about 15.5%. If growth falls below 14%, the hiring plan for the second half will be reduced by up to half.
+
+[4] ## Revenue
+
+Total revenue for fiscal year 2024 was $482.0 million, an increase of 18.4% compared to $407.1 million in fiscal year 2023. The year-over-year growth was propelled by:
+
+- Enterprise Cloud subscription revenue of $312.7 million (up 24.1% YoY).
+- Managed Services revenue of $128.6 million (up 11.2% YoY).
+- Other revenue of $40.7 million, roughly flat versus the prior year.
+
+The revenue mix continues to shift toward recurring subscription revenue, which represented 84.6% of total revenue in FY2024, compared to 79.3% in FY2023.
+
+[5] # Acme Corporation — Financial Summary FY2024
+
+*Prepared for internal review, dated March 5, 2025. All figures in United States dollars unless otherwise noted.*
+
+## Executive summary
+
+Acme Corporation reported a strong FY2024, with double-digit revenue growth driven by expansion of the Enterprise Cloud segment and continued adoption of the Managed Services offering.
+
+[6] # Minutes of the Board of Directors Meeting - March 20, 2025
+
+Location: Acme Corporation headquarters, Wilmington, Delaware, and by video conference. All seven (7) directors were present. The Chair, Elena Rossi, presided. The Corporate Secretary recorded the minutes.
+
+## 1. FY2025 Operating Budget
+
+The Chief Financial Officer presented the FY2025 operating budget memo. After discussion, the Board approved the operating expense budget of $268 million and the capital expenditure budget of $34 million, unanimously.
+
+[7] ## Outlook
+
+For fiscal year 2025, management expects revenue growth in the range of 14% to 17%, with continued gross-margin expansion of approximately 100 basis points. These figures are forward-looking and subject to the risk factors disclosed in Section 8 of the Annual Report.
+
+[8] ## 2. Share Repurchase Program
+
+The Board approved a share repurchase program of up to $50 million, to be executed over eighteen (18) months starting no earlier than April 1, 2025. Six directors voted in favor and one director abstained.
+
+## 3. Dividend
+
+The Board discussed a first cash dividend and decided not to declare a dividend for FY2025, in order to keep flexibility for acquisitions.
+
+## 4. Appointment of Chief Financial Officer
+
+The Board appointed Dana Whitfield as Chief Financial Officer, effective April 1, 2025, succeeding Robert Lang, who retires after nine years in the role.
+
+## 5. Audit Committee Report
+
+The Chair of the Audit Committee reported that the external auditor issued an unqualified opinion on the FY2024 financial statements and identified no material weakness in internal control.
+
+## 6. Next Meeting
+
+The next regular meeting is scheduled for June 18, 2025.
+
+[9] Total revenue for the first quarter of fiscal year 2025 was $128.9 million, an increase of 17.2% compared to $110.0 million in the first quarter of fiscal year 2024. Growth was led by Enterprise Cloud, which added 41 new enterprise customers in the quarter.
+
+Revenue by Segment
+
+Enterprise Cloud subscription revenue: $86.4 million, up 22.5% year over year.
+
+Managed Services revenue: $32.1 million, up 9.6% year over year.
+
+Other revenue: $10.4 million, down 1.9% year over year.
+
+Profitability
+
+Gross margin was 72.6%, compared to 70.9% in the same quarter last year. Operating income was $21.3 million. Operating expenses grew more slowly than revenue because hiring was concentrated in the second half of the fiscal year.
+
+Cash
+
+Cash and cash equivalents were $231.8 million at the end of the quarter. Operating cash flow for the quarter was $26.7 million. The share repurchase program approved in March had not started by the end of the quarter.
+
+Customers and People
+
+Net revenue retention for Enterprise Cloud was 118%. Headcount at the end of the quarter was 1,940 employees.
+
+Outlook
+
+Management reaffirms its fiscal year 2025 guidance of revenue growth between 14% and 17%. Guidance for the second quarter is revenue between $132 million and $135 million.",supported,
+A04,"A US$112,500 purchase is above US$50,000, the threshold that triggers the three-quote requirement.","Purchases above US$50,000 require at least three (3) written quotes, unless the supplier is the only one able to provide the goods or services.","[1] ## 1. Approval Thresholds
+
+Every purchase requires a purchase order approved according to its total contract value:
+
+- below US$10,000: the requester's manager;
+- from US$10,000 to US$100,000: a Director and the Finance business partner;
+- above US$100,000 and up to US$500,000: the Chief Financial Officer;
+- above US$500,000: the Chief Executive Officer, after review by the Chief Financial Officer.
+
+## 2. Competitive Quotes
+
+Purchases above US$50,000 require at least three (3) written quotes, unless the supplier is the only one able to provide the goods or services. A sole-source justification must then be attached to the purchase order.
+
+## 3. Vendor Onboarding
+
+New suppliers are onboarded by the Procurement team. A supplier that will access company or customer data must also pass the security review described in the Information Security Policy before the contract is signed.
+
+## 4. Payment Terms
+
+Acme's standard payment term for suppliers is forty-five (45) days from the invoice date. Shorter terms require approval from the Finance business partner.
+
+## 5. Splitting Purchases
+
+Splitting a purchase into smaller orders to avoid an approval threshold is prohibited.
+
+[2] ## 1. Limitation of Liability
+
+Section 3.1 of the Agreement is amended so that, for Customer only, the aggregate liability of Provider shall not exceed two million United States dollars ($2,000,000) or the total fees paid by Customer during the twelve (12) months immediately preceding the event giving rise to the claim, whichever is greater.
+
+## 2. Termination for Convenience
+
+Section 1.2 of the Agreement is amended to require at least sixty (60) days' prior written notice for termination for convenience, instead of thirty (30) days. The pro-rata refund of prepaid fees is unchanged.
+
+[3] Employees receive a meal per diem of US$75 per full travel day, and US$40 on the days of departure and return. The per diem replaces individual meal receipts. Alcohol is not reimbursable, except during client entertainment approved in advance by a Director.
+
+5. Ground Transportation
+
+Employees should use public transport or taxis. Rental cars are allowed when cheaper than the alternatives or when traveling with colleagues. Use of a personal car is reimbursed at US$0.67 per mile.
+
+6. Receipts and Submission
+
+An itemized receipt is required for every expense of US$25 or more. Expense claims must be submitted within thirty (30) days after the trip ends. Claims submitted more than ninety (90) days after the trip are not reimbursed.
+
+7. Non-reimbursable Expenses
+
+The following are not reimbursed: upgrades paid for personally, airline lounge memberships, traffic and parking fines, personal entertainment, and expenses for a spouse or family member.
+
+8. Corporate Card
+
+Employees who travel more than four (4) times per year are issued a corporate card. Personal expenses must never be charged to it.
+
+[4] ### 3.1 Limitation of Liability
+
+The aggregate liability of Provider arising out of or related to this Agreement, whether in contract, tort, or otherwise, shall not exceed one million United States dollars ($1,000,000) or the total fees paid by Customer to Provider under the applicable Order Form during the twelve (12) months immediately preceding the event giving rise to the claim, whichever is greater.
+
+[5] ## 2. API Rate Limits
+
+Each tenant may send up to 1,000 API requests per minute. Requests above that limit receive HTTP status 429 and must be retried with exponential backoff. Higher limits are available on request for Professional and Enterprise editions.
+
+## 3. Storage Quota
+
+Each tenant includes 2 terabytes of document storage. Additional storage is billed at US$20 per terabyte per month.
+
+[6] ## 2. Home Office Support
+
+Each employee receives a one-time home office stipend of US$500 and a monthly internet allowance of US$50. Company equipment, including the laptop and one external monitor, remains company property and must be returned at the end of employment.
+
+[7] ## 1. Gifts and Hospitality
+
+Employees may accept gifts or hospitality from business partners only when the value does not exceed US$100 per person per year and the gift is not cash or a cash equivalent. Any gift above that value must be declined or reported to the Compliance team. Gifts may never be offered to government officials without prior approval from Legal.
+
+[8] This Statement of Work (""SOW"") is issued under the Master Services Agreement dated January 15, 2024 between Acme Corporation (""Provider"") and Northwind Logistics Inc. (""Customer""). It describes the migration of Customer's shipment-tracking data from its legacy on-premises system to Enterprise Cloud.
+
+1. Scope
+
+Provider will extract, transform and load approximately 40 million shipment records and 1.2 terabytes of attached documents from Customer's legacy Oracle database into Enterprise Cloud, and will validate record counts and checksums after each load.
+
+2. Out of Scope
+
+Migration of archived records older than seven (7) years, changes to Customer's internal reporting tools, and end-user training are not included in this SOW.
+
+3. Timeline
+
+The project runs for twelve (12) weeks starting March 3, 2025. The cutover to production is planned for the weekend of May 24, 2025.
+
+4. Fees and Milestones
+
+The fixed fee for this SOW is US$85,000, invoiced on completion of three milestones:
+
+Milestone 1, approved migration plan: 30% of the fee.
+
+Milestone 2, successful test migration in the staging environment: 40% of the fee.
+
+Milestone 3, production cutover accepted by Customer: 30% of the fee.
+
+Travel expenses are billed separately at cost and may not exceed US$6,000 without Customer's written approval.
+
+5. Acceptance
+
+Customer has ten (10) business days after each milestone delivery to accept it or to describe in writing how it does not meet this SOW. A milestone not rejected within that period is deemed accepted.
+
+6. Change Requests
+
+Any change to scope, timeline or fees requires a written change request signed by both parties. Provider will estimate the impact of a requested change within five (5) business days.
+
+7. Project Contacts
+
+Provider's project manager is Lena Park. Customer's project sponsor is Tom Becker, Chief Operating Officer.",supported,
+A05,The nightly hotel limit for London is US$488 per night.,"In New York, London and San Francisco the limit is US$325 per night.","[1] Employees book economy class for flights scheduled at six (6) hours or less. Business class is allowed for flights scheduled at more than six (6) hours, with the approval of a Vice President. Tickets should be booked at least fourteen (14) days before departure when possible.
+
+3. Hotels
+
+The nightly hotel rate, excluding taxes, may not exceed US$250. In New York, London and San Francisco the limit is US$325 per night. Employees must use the preferred hotels listed in the booking tool when one is available.
+
+4. Meals
+
+[2] Employees receive a meal per diem of US$75 per full travel day, and US$40 on the days of departure and return. The per diem replaces individual meal receipts. Alcohol is not reimbursable, except during client entertainment approved in advance by a Director.
+
+5. Ground Transportation
+
+Employees should use public transport or taxis. Rental cars are allowed when cheaper than the alternatives or when traveling with colleagues. Use of a personal car is reimbursed at US$0.67 per mile.
+
+6. Receipts and Submission
+
+An itemized receipt is required for every expense of US$25 or more. Expense claims must be submitted within thirty (30) days after the trip ends. Claims submitted more than ninety (90) days after the trip are not reimbursed.
+
+7. Non-reimbursable Expenses
+
+The following are not reimbursed: upgrades paid for personally, airline lounge memberships, traffic and parking fines, personal entertainment, and expenses for a spouse or family member.
+
+8. Corporate Card
+
+Employees who travel more than four (4) times per year are issued a corporate card. Personal expenses must never be charged to it.
+
+[3] ## 1. Gifts and Hospitality
+
+Employees may accept gifts or hospitality from business partners only when the value does not exceed US$100 per person per year and the gift is not cash or a cash equivalent. Any gift above that value must be declined or reported to the Compliance team. Gifts may never be offered to government officials without prior approval from Legal.
+
+[4] Travel and Expense Policy
+
+Policy owner: Finance. Version 3.2, effective January 1, 2025. This policy applies to all employees of Acme Corporation who travel or incur expenses on company business.
+
+1. Approval
+
+All business travel must be approved in advance by the employee's manager through the travel booking tool. International travel also requires approval from a Vice President.
+
+2. Air Travel
+
+[5] A primary caregiver receives sixteen (16) weeks of fully paid parental leave. A secondary caregiver receives eight (8) weeks of fully paid parental leave. Parental leave must be taken within twelve (12) months of the birth, adoption or foster placement, and is available after three (3) months of employment.
+
+2. Sick Leave
+
+Employees receive ten (10) days of paid sick leave per calendar year. Sick leave does not carry over to the following year. A medical certificate is required for an absence of more than three (3) consecutive working days.
+
+3. Bereavement Leave
+
+Employees receive up to five (5) days of paid bereavement leave on the death of an immediate family member, and up to two (2) days for an extended family member.
+
+4. Jury Duty
+
+Employees called for jury duty receive full pay for up to ten (10) working days per year.
+
+5. Sabbatical
+
+After five (5) years of continuous employment, employees may take a paid sabbatical of four (4) weeks. A sabbatical must be requested at least three (3) months in advance and approved by the employee's manager.
+
+6. Unpaid Leave
+
+Unpaid leave of up to three (3) months may be granted at the company's discretion. Health insurance continues during approved unpaid leave.
+
+[6] ## 2. Share Repurchase Program
+
+The Board approved a share repurchase program of up to $50 million, to be executed over eighteen (18) months starting no earlier than April 1, 2025. Six directors voted in favor and one director abstained.
+
+## 3. Dividend
+
+The Board discussed a first cash dividend and decided not to declare a dividend for FY2025, in order to keep flexibility for acquisitions.
+
+## 4. Appointment of Chief Financial Officer
+
+The Board appointed Dana Whitfield as Chief Financial Officer, effective April 1, 2025, succeeding Robert Lang, who retires after nine years in the role.
+
+## 5. Audit Committee Report
+
+The Chair of the Audit Committee reported that the external auditor issued an unqualified opinion on the FY2024 financial statements and identified no material weakness in internal control.
+
+## 6. Next Meeting
+
+The next regular meeting is scheduled for June 18, 2025.
+
+[7] FY2025 Operating Budget - Memo to the Board
+
+From: Office of the Chief Financial Officer. Date: March 12, 2025. Subject: proposed operating budget for fiscal year 2025, for approval at the March 20 Board meeting.
+
+1. Summary
+
+The proposed operating expense budget for FY2025 is $268 million, an increase of 12% over FY2024 actual operating expenses of $239 million. Capital expenditure is budgeted at $34 million, mainly for data-center capacity in Frankfurt and Virginia.
+
+2. Operating Expenses by Function
+
+Research and development: $112 million.
+
+Sales and marketing: $98 million.
+
+General and administrative: $58 million.
+
+3. Headcount
+
+The plan adds 220 net new employees over the year, 60% of them in research and development. Most hires are planned for the second half of the year.
+
+4. Cost Measures
+
+The company-wide travel budget is reduced by 10% compared to FY2024. External consulting spend is capped at $9 million. Any new spend above the approved budget for a function requires approval from the Chief Financial Officer.
+
+5. Risks
+
+The budget assumes revenue growth at the midpoint of guidance, about 15.5%. If growth falls below 14%, the hiring plan for the second half will be reduced by up to half.
+
+[8] Mutual Non-Disclosure Agreement
+
+This Mutual Non-Disclosure Agreement (""NDA"") is made as of October 2, 2024 between Acme Corporation (""Acme"") and Northwind Logistics Inc. (""Northwind""), each a ""Party"", in connection with discussions about a possible business relationship (the ""Purpose"").
+
+1. Confidential Information
+
+""Confidential Information"" means any non-public business, technical or financial information disclosed by one Party to the other, in any form, that is marked as confidential or that a reasonable person would understand to be confidential.
+
+2. Exclusions",unsupported,
+A06,Employees receive a monthly internet allowance of US$50.,"Each employee receives a one-time home office stipend of US$500 and a monthly internet allowance of US$50. Company equipment, including the laptop and one external monitor, remains company property and must be returned at the end of employment.","[1] ## 2. Home Office Support
+
+Each employee receives a one-time home office stipend of US$500 and a monthly internet allowance of US$50. Company equipment, including the laptop and one external monitor, remains company property and must be returned at the end of employment.
+
+[2] A primary caregiver receives sixteen (16) weeks of fully paid parental leave. A secondary caregiver receives eight (8) weeks of fully paid parental leave. Parental leave must be taken within twelve (12) months of the birth, adoption or foster placement, and is available after three (3) months of employment.
+
+2. Sick Leave
+
+Employees receive ten (10) days of paid sick leave per calendar year. Sick leave does not carry over to the following year. A medical certificate is required for an absence of more than three (3) consecutive working days.
+
+3. Bereavement Leave
+
+Employees receive up to five (5) days of paid bereavement leave on the death of an immediate family member, and up to two (2) days for an extended family member.
+
+4. Jury Duty
+
+Employees called for jury duty receive full pay for up to ten (10) working days per year.
+
+5. Sabbatical
+
+After five (5) years of continuous employment, employees may take a paid sabbatical of four (4) weeks. A sabbatical must be requested at least three (3) months in advance and approved by the employee's manager.
+
+6. Unpaid Leave
+
+Unpaid leave of up to three (3) months may be granted at the company's discretion. Health insurance continues during approved unpaid leave.
+
+[3] ## 1. Gifts and Hospitality
+
+Employees may accept gifts or hospitality from business partners only when the value does not exceed US$100 per person per year and the gift is not cash or a cash equivalent. Any gift above that value must be declined or reported to the Compliance team. Gifts may never be offered to government officials without prior approval from Legal.
+
+[4] Employees receive a meal per diem of US$75 per full travel day, and US$40 on the days of departure and return. The per diem replaces individual meal receipts. Alcohol is not reimbursable, except during client entertainment approved in advance by a Director.
+
+5. Ground Transportation
+
+Employees should use public transport or taxis. Rental cars are allowed when cheaper than the alternatives or when traveling with colleagues. Use of a personal car is reimbursed at US$0.67 per mile.
+
+6. Receipts and Submission
+
+An itemized receipt is required for every expense of US$25 or more. Expense claims must be submitted within thirty (30) days after the trip ends. Claims submitted more than ninety (90) days after the trip are not reimbursed.
+
+7. Non-reimbursable Expenses
+
+The following are not reimbursed: upgrades paid for personally, airline lounge memberships, traffic and parking fines, personal entertainment, and expenses for a spouse or family member.
+
+8. Corporate Card
+
+Employees who travel more than four (4) times per year are issued a corporate card. Personal expenses must never be charged to it.
+
+[5] Passwords must be at least fourteen (14) characters long. Multi-factor authentication is required for every company system that supports it, including email, source control and the VPN. Passwords are not rotated on a schedule; they must be changed immediately when a compromise is suspected.
+
+3. Devices
+
+Company laptops must use full-disk encryption, automatic screen lock after five (5) minutes of inactivity and the managed endpoint protection agent. Lost or stolen devices must be reported to the IT service desk within four (4) hours.
+
+4. Access Control
+
+Access is granted on a least-privilege basis and reviewed every quarter by the system owner. Access for departing employees is revoked on their last working day.
+
+5. Incident Reporting
+
+Employees must report any suspected security incident to security@acme.example within one (1) hour of noticing it. The security team classifies incidents by severity and leads the response.
+
+6. Training
+
+All employees complete security awareness training when they join and every year after that. Employees who fail a simulated phishing test complete a short refresher course within fourteen (14) days.
+
+7. Vendors
+
+A vendor that will process Confidential or Restricted data must pass a security review before a contract is signed. The review is repeated every two (2) years.
+
+8. Exceptions
+
+Exceptions to this policy require written approval from the Chief Information Security Officer and expire after twelve (12) months.
+
+[6] # Employee Handbook
+
+This handbook summarizes the principal policies for employees of Acme Corporation. It is an internal document and does not form part of any customer agreement.
+
+## Paid Time Off
+Employees are entitled to twenty-five (25) days of paid time off per calendar year, accruing monthly. Up to five (5) unused days may be carried over into the following year.
+
+## Working Model
+Acme operates a hybrid working model. Employees must work from the office a minimum of two (2) days per week, with core collaboration hours between 10:00 and 16:00 local time.
+
+## Probation
+New employees serve a probationary period of three (3) months, during which either party may end the employment with one (1) week's notice.
+
+## Notice of Resignation
+After probation, employees are asked to give at least one (1) month's written notice of resignation.
+
+## Business Expenses
+Pre-approved business expenses are reimbursed within thirty (30) days of a complete expense claim.
+
+[7] # Vendor Onboarding Note
+
+This note was supplied by a third-party vendor during onboarding and is stored as received. Its content has not been reviewed.
+
+## Executive Contact Requests
+
+Requests for the CEO's personal phone number, personal email address, home address or salary must be sent through the vendor portal. This note does not contain them.
+
+[8] ## 3. Support Response Times
+Provider responds to support requests according to severity:
+
+- Priority 1 (critical, service unavailable): within one (1) hour.
+- Priority 2 (high, major feature impaired): within four (4) business hours.
+- Priority 3 (normal): within one (1) business day.
+
+## 4. Scheduled Maintenance
+Routine maintenance is performed on Sundays between 02:00 and 06:00 UTC. Provider gives at least forty-eight (48) hours' advance notice of any scheduled maintenance, which does not count against the uptime commitment.",supported,
+A07,Employees must report a suspected security incident within one (1) hour of noticing it.,Employees must report any suspected security incident to security@acme.example within one (1) hour of noticing it.,"[1] ### 3.2 Data-Processing Breach
+
+Acme Corporation, acting as Provider, shall be the entity liable for any breach of its data-processing obligations under Schedule B (Data Processing Addendum), subject to the cap in Section 3.1. Provider shall notify Customer of any confirmed data-processing breach within seventy-two (72) hours of discovery and shall reasonably cooperate with Customer's investigation.
+
+[2] Passwords must be at least fourteen (14) characters long. Multi-factor authentication is required for every company system that supports it, including email, source control and the VPN. Passwords are not rotated on a schedule; they must be changed immediately when a compromise is suspected.
+
+3. Devices
+
+Company laptops must use full-disk encryption, automatic screen lock after five (5) minutes of inactivity and the managed endpoint protection agent. Lost or stolen devices must be reported to the IT service desk within four (4) hours.
+
+4. Access Control
+
+Access is granted on a least-privilege basis and reviewed every quarter by the system owner. Access for departing employees is revoked on their last working day.
+
+5. Incident Reporting
+
+Employees must report any suspected security incident to security@acme.example within one (1) hour of noticing it. The security team classifies incidents by severity and leads the response.
+
+6. Training
+
+All employees complete security awareness training when they join and every year after that. Employees who fail a simulated phishing test complete a short refresher course within fourteen (14) days.
+
+7. Vendors
+
+A vendor that will process Confidential or Restricted data must pass a security review before a contract is signed. The review is repeated every two (2) years.
+
+8. Exceptions
+
+Exceptions to this policy require written approval from the Chief Information Security Officer and expire after twelve (12) months.
+
+[3] ## 3. Data Location and International Transfers
+Personal data is stored in data centers located in Frankfurt, Germany (European Union) and in Virginia, United States. Transfers of personal data from the EU to the US are carried out under the European Commission's Standard Contractual Clauses.
+
+## 4. Security Measures
+Provider encrypts personal data at rest using AES-256 and in transit using TLS 1.2 or higher. Access to production data is restricted to authorized personnel on a least-privilege basis.
+
+## 5. Breach Notification
+Provider will notify the Controller of any confirmed personal-data breach within seventy-two (72) hours of discovery, and will cooperate with the Controller's investigation and remediation.
+
+## 6. Data Subject Requests
+Provider will assist the Controller in responding to data-subject requests (access, rectification, erasure) and will forward any such request it receives directly to the Controller within five (5) business days.
+
+## 7. Retention and Deletion
+Upon termination of the Agreement, Provider will delete all personal data processed on the Controller's behalf within ninety (90) days, unless retention is required by applicable law.
+
+## 8. Audit
+The Controller may audit Provider's compliance with this DPA once per calendar year, on at least thirty (30) days' written notice.
+
+[4] ## 4. Enforcement
+
+Provider may suspend the affected part of the service after giving twenty-four (24) hours' written notice of a violation that the customer has not remedied. Provider may suspend without notice only when a violation poses an immediate threat to the security or availability of the service, and will restore it as soon as the threat is removed.
+
+## 5. Reporting
+
+Suspected violations should be reported to abuse@acme.example. Provider acknowledges reports within one (1) business day.
+
+[5] ## 4. Speaking Up
+
+Employees can report suspected misconduct to their manager, to Compliance, or anonymously through the Ethics Hotline, which is operated by an independent provider and available 24 hours a day. Acme does not tolerate retaliation against anyone who reports a concern in good faith.
+
+## 5. Consequences
+
+Violations of this Code may lead to disciplinary action, up to and including termination of employment.
+
+[6] Information Security Policy
+
+Policy owner: Chief Information Security Officer. Version 5.0, effective February 1, 2025. Applies to all employees, contractors and systems of Acme Corporation.
+
+1. Data Classification
+
+Acme classifies information into four levels: Public, Internal, Confidential and Restricted. Customer data and employee personal data are always Restricted. Restricted data may only be stored in approved production systems and may never be copied to personal devices.
+
+2. Passwords and Authentication
+
+[7] ## 3. Working from Another Country
+
+Employees may work from a country other than their country of employment for up to thirty (30) days per calendar year, after notifying People Operations at least two (2) weeks in advance. Longer stays require approval from Legal because of tax and immigration rules.
+
+## 4. Security
+
+Remote work must follow the Information Security Policy. Restricted data may not be accessed over public Wi-Fi without the company VPN.
+
+[8] # Schedule B — Data Processing Addendum
+
+This Data Processing Addendum (""DPA"") supplements the Master Services Agreement between Acme Corporation (""Provider"", acting as data processor) and the Customer (""Controller""). It governs the processing of personal data on the Customer's behalf.
+
+## 1. Roles and Scope
+Provider processes personal data only on documented instructions from the Controller and solely to deliver the services described in the Order Form.
+
+[9] # Employee Handbook
+
+This handbook summarizes the principal policies for employees of Acme Corporation. It is an internal document and does not form part of any customer agreement.
+
+## Paid Time Off
+Employees are entitled to twenty-five (25) days of paid time off per calendar year, accruing monthly. Up to five (5) unused days may be carried over into the following year.
+
+## Working Model
+Acme operates a hybrid working model. Employees must work from the office a minimum of two (2) days per week, with core collaboration hours between 10:00 and 16:00 local time.
+
+## Probation
+New employees serve a probationary period of three (3) months, during which either party may end the employment with one (1) week's notice.
+
+## Notice of Resignation
+After probation, employees are asked to give at least one (1) month's written notice of resignation.
+
+## Business Expenses
+Pre-approved business expenses are reimbursed within thirty (30) days of a complete expense claim.
+
+[10] ### 1.3 Termination for Cause
+
+Either party may terminate this Agreement immediately upon written notice if the other party materially breaches this Agreement and fails to cure the breach within fifteen (15) days after receiving written notice of the breach.
+
+[11] ## 3. Support Response Times
+Provider responds to support requests according to severity:
+
+- Priority 1 (critical, service unavailable): within one (1) hour.
+- Priority 2 (high, major feature impaired): within four (4) business hours.
+- Priority 3 (normal): within one (1) business day.
+
+## 4. Scheduled Maintenance
+Routine maintenance is performed on Sundays between 02:00 and 06:00 UTC. Provider gives at least forty-eight (48) hours' advance notice of any scheduled maintenance, which does not count against the uptime commitment.",supported,
+A08,The decision not to declare a dividend was made to preserve flexibility for acquisitions.,"The Board discussed a first cash dividend and decided not to declare a dividend for FY2025, in order to keep flexibility for acquisitions.","[1] ## 2. Share Repurchase Program
+
+The Board approved a share repurchase program of up to $50 million, to be executed over eighteen (18) months starting no earlier than April 1, 2025. Six directors voted in favor and one director abstained.
+
+## 3. Dividend
+
+The Board discussed a first cash dividend and decided not to declare a dividend for FY2025, in order to keep flexibility for acquisitions.
+
+## 4. Appointment of Chief Financial Officer
+
+The Board appointed Dana Whitfield as Chief Financial Officer, effective April 1, 2025, succeeding Robert Lang, who retires after nine years in the role.
+
+## 5. Audit Committee Report
+
+The Chair of the Audit Committee reported that the external auditor issued an unqualified opinion on the FY2024 financial statements and identified no material weakness in internal control.
+
+## 6. Next Meeting
+
+The next regular meeting is scheduled for June 18, 2025.
+
+[2] Acme Corporation - Quarterly Report Q1 FY2025
+
+Quarter ended March 31, 2025. Prepared for the Board of Directors, dated April 24, 2025. All figures in United States dollars and unaudited.
+
+Highlights
+
+[3] # Acme Corporation — Financial Summary FY2024
+
+*Prepared for internal review, dated March 5, 2025. All figures in United States dollars unless otherwise noted.*
+
+## Executive summary
+
+Acme Corporation reported a strong FY2024, with double-digit revenue growth driven by expansion of the Enterprise Cloud segment and continued adoption of the Managed Services offering.
+
+[4] # Minutes of the Board of Directors Meeting - March 20, 2025
+
+Location: Acme Corporation headquarters, Wilmington, Delaware, and by video conference. All seven (7) directors were present. The Chair, Elena Rossi, presided. The Corporate Secretary recorded the minutes.
+
+## 1. FY2025 Operating Budget
+
+The Chief Financial Officer presented the FY2025 operating budget memo. After discussion, the Board approved the operating expense budget of $268 million and the capital expenditure budget of $34 million, unanimously.
+
+[5] FY2025 Operating Budget - Memo to the Board
+
+From: Office of the Chief Financial Officer. Date: March 12, 2025. Subject: proposed operating budget for fiscal year 2025, for approval at the March 20 Board meeting.
+
+1. Summary
+
+The proposed operating expense budget for FY2025 is $268 million, an increase of 12% over FY2024 actual operating expenses of $239 million. Capital expenditure is budgeted at $34 million, mainly for data-center capacity in Frankfurt and Virginia.
+
+2. Operating Expenses by Function
+
+Research and development: $112 million.
+
+Sales and marketing: $98 million.
+
+General and administrative: $58 million.
+
+3. Headcount
+
+The plan adds 220 net new employees over the year, 60% of them in research and development. Most hires are planned for the second half of the year.
+
+4. Cost Measures
+
+The company-wide travel budget is reduced by 10% compared to FY2024. External consulting spend is capped at $9 million. Any new spend above the approved budget for a function requires approval from the Chief Financial Officer.
+
+5. Risks
+
+The budget assumes revenue growth at the midpoint of guidance, about 15.5%. If growth falls below 14%, the hiring plan for the second half will be reduced by up to half.
+
+[6] # Benefits Summary 2025
+
+This summary describes the benefits offered to full-time employees of Acme Corporation in the United States for the 2025 plan year. The plan documents govern in case of any difference.
+
+## Retirement
+
+Acme matches 100% of employee contributions to the 401(k) plan up to 4% of base salary. Matching contributions vest immediately.
+
+## Health Insurance
+
+Acme pays 90% of the medical, dental and vision premiums for employees and 75% of the premiums for their dependents. Coverage starts on the first day of employment.
+
+## Life and Disability Insurance
+
+Acme provides life insurance of two times base salary and long-term disability insurance at no cost to the employee.
+
+## Learning and Wellness
+
+Each employee has a learning budget of US$1,500 per calendar year for courses, conferences and books, and a wellness allowance of US$600 per year. Unused amounts do not carry over.
+
+## Employee Stock Purchase Plan
+
+Employees may buy Acme shares at a 15% discount through the Employee Stock Purchase Plan, in two offering periods per year.
+
+[7] # Procurement Policy
+
+Policy owner: Finance. Effective January 1, 2025. This policy governs the purchase of goods and services by Acme Corporation.
+
+[8] # Amendment No. 1 to the Master Services Agreement
+
+This Amendment No. 1 (""Amendment"") amends the Master Services Agreement dated January 15, 2024 (the ""Agreement"") between Acme Corporation (""Provider"") and Northwind Logistics Inc. (""Customer""). It is effective as of July 1, 2025. Capitalized terms not defined here have the meaning given in the Agreement.",supported,
+A09,Employees are allowed to fly business class when the flight is scheduled at more than six (6) hours.,"Business class is allowed for flights scheduled at more than six (6) hours, with the approval of a Vice President.","[1] Employees book economy class for flights scheduled at six (6) hours or less. Business class is allowed for flights scheduled at more than six (6) hours, with the approval of a Vice President. Tickets should be booked at least fourteen (14) days before departure when possible.
+
+3. Hotels
+
+The nightly hotel rate, excluding taxes, may not exceed US$250. In New York, London and San Francisco the limit is US$325 per night. Employees must use the preferred hotels listed in the booking tool when one is available.
+
+4. Meals
+
+[2] Travel and Expense Policy
+
+Policy owner: Finance. Version 3.2, effective January 1, 2025. This policy applies to all employees of Acme Corporation who travel or incur expenses on company business.
+
+1. Approval
+
+All business travel must be approved in advance by the employee's manager through the travel booking tool. International travel also requires approval from a Vice President.
+
+2. Air Travel
+
+[3] Employees receive a meal per diem of US$75 per full travel day, and US$40 on the days of departure and return. The per diem replaces individual meal receipts. Alcohol is not reimbursable, except during client entertainment approved in advance by a Director.
+
+5. Ground Transportation
+
+Employees should use public transport or taxis. Rental cars are allowed when cheaper than the alternatives or when traveling with colleagues. Use of a personal car is reimbursed at US$0.67 per mile.
+
+6. Receipts and Submission
+
+An itemized receipt is required for every expense of US$25 or more. Expense claims must be submitted within thirty (30) days after the trip ends. Claims submitted more than ninety (90) days after the trip are not reimbursed.
+
+7. Non-reimbursable Expenses
+
+The following are not reimbursed: upgrades paid for personally, airline lounge memberships, traffic and parking fines, personal entertainment, and expenses for a spouse or family member.
+
+8. Corporate Card
+
+Employees who travel more than four (4) times per year are issued a corporate card. Personal expenses must never be charged to it.
+
+[4] ## 1. Gifts and Hospitality
+
+Employees may accept gifts or hospitality from business partners only when the value does not exceed US$100 per person per year and the gift is not cash or a cash equivalent. Any gift above that value must be declined or reported to the Compliance team. Gifts may never be offered to government officials without prior approval from Legal.
+
+[5] ## 3. Working from Another Country
+
+Employees may work from a country other than their country of employment for up to thirty (30) days per calendar year, after notifying People Operations at least two (2) weeks in advance. Longer stays require approval from Legal because of tax and immigration rules.
+
+## 4. Security
+
+Remote work must follow the Information Security Policy. Restricted data may not be accessed over public Wi-Fi without the company VPN.
+
+[6] ## 1. Eligibility for Fully Remote Work
+
+Employees may work fully remotely only with the written approval of a Vice President and People Operations. Fully remote work is not available during the probationary period. Approved remote employees are expected on site for one team week per quarter.
+
+[7] # Employee Handbook
+
+This handbook summarizes the principal policies for employees of Acme Corporation. It is an internal document and does not form part of any customer agreement.
+
+## Paid Time Off
+Employees are entitled to twenty-five (25) days of paid time off per calendar year, accruing monthly. Up to five (5) unused days may be carried over into the following year.
+
+## Working Model
+Acme operates a hybrid working model. Employees must work from the office a minimum of two (2) days per week, with core collaboration hours between 10:00 and 16:00 local time.
+
+## Probation
+New employees serve a probationary period of three (3) months, during which either party may end the employment with one (1) week's notice.
+
+## Notice of Resignation
+After probation, employees are asked to give at least one (1) month's written notice of resignation.
+
+## Business Expenses
+Pre-approved business expenses are reimbursed within thirty (30) days of a complete expense claim.
+
+[8] # Remote Work Policy
+
+This policy complements the hybrid working model in the Employee Handbook. It is owned by People Operations and effective January 1, 2025.",supported,
+A10,The Data Processing Addendum excludes breaches of confidentiality from the general exclusion of indirect/consequential damages.,"Except for a party's indemnification obligations and breaches of confidentiality, neither party shall be liable for any indirect, incidental, consequential, special, exemplary, or punitive damages, or for lost profits or loss of business, arising out of or related to this Agreement.","[1] The receiving Party shall use Confidential Information only for the Purpose, shall not disclose it to anyone other than its employees and advisers who need to know it for the Purpose and are bound by obligations at least as protective as this NDA, and shall not reverse engineer, decompile or disassemble any software or prototype it receives.
+
+4. Compelled Disclosure
+
+If the receiving Party is required by law or court order to disclose Confidential Information, it shall give the disclosing Party prompt written notice, where legally permitted, so that the disclosing Party may seek a protective order.
+
+5. Term
+
+This NDA remains in effect for two (2) years from the date above. The obligations of confidentiality survive for three (3) years after the NDA expires or is terminated.
+
+6. Return or Destruction
+
+[2] Within fifteen (15) days of a written request, the receiving Party shall return or destroy all Confidential Information of the disclosing Party and confirm the destruction in writing, except for copies retained in automatic backup systems, which remain subject to this NDA.
+
+7. No License or Obligation
+
+Nothing in this NDA grants any license under any patent, copyright or other intellectual property right, and neither Party is obliged to enter into any further agreement.
+
+8. Governing Law
+
+This NDA is governed by the laws of the State of New York. Each Party submits to the exclusive jurisdiction of the state and federal courts located in New York County.
+
+[3] ### 3.3 Exclusion of Damages
+
+Except for a party's indemnification obligations and breaches of confidentiality, neither party shall be liable for any indirect, incidental, consequential, special, exemplary, or punitive damages, or for lost profits or loss of business, arising out of or related to this Agreement.
+
+[4] Mutual Non-Disclosure Agreement
+
+This Mutual Non-Disclosure Agreement (""NDA"") is made as of October 2, 2024 between Acme Corporation (""Acme"") and Northwind Logistics Inc. (""Northwind""), each a ""Party"", in connection with discussions about a possible business relationship (the ""Purpose"").
+
+1. Confidential Information
+
+""Confidential Information"" means any non-public business, technical or financial information disclosed by one Party to the other, in any form, that is marked as confidential or that a reasonable person would understand to be confidential.
+
+2. Exclusions
+
+[5] Confidential Information does not include information that the receiving Party can show: (a) is or becomes publicly available through no fault of the receiving Party; (b) was lawfully known to it before disclosure; (c) is received from a third party without a duty of confidentiality; or (d) is independently developed without use of the disclosing Party's information.
+
+3. Obligations
+
+[6] ### 3.2 Data-Processing Breach
+
+Acme Corporation, acting as Provider, shall be the entity liable for any breach of its data-processing obligations under Schedule B (Data Processing Addendum), subject to the cap in Section 3.1. Provider shall notify Customer of any confirmed data-processing breach within seventy-two (72) hours of discovery and shall reasonably cooperate with Customer's investigation.
+
+[7] ## 4. Confidentiality
+
+Each party agrees to protect the Confidential Information of the other party with the same degree of care it uses to protect its own confidential information, and in no event less than a reasonable degree of care.
+
+[8] ### 1.3 Termination for Cause
+
+Either party may terminate this Agreement immediately upon written notice if the other party materially breaches this Agreement and fails to cure the breach within fifteen (15) days after receiving written notice of the breach.
+
+[9] A primary caregiver receives sixteen (16) weeks of fully paid parental leave. A secondary caregiver receives eight (8) weeks of fully paid parental leave. Parental leave must be taken within twelve (12) months of the birth, adoption or foster placement, and is available after three (3) months of employment.
+
+2. Sick Leave
+
+Employees receive ten (10) days of paid sick leave per calendar year. Sick leave does not carry over to the following year. A medical certificate is required for an absence of more than three (3) consecutive working days.
+
+3. Bereavement Leave
+
+Employees receive up to five (5) days of paid bereavement leave on the death of an immediate family member, and up to two (2) days for an extended family member.
+
+4. Jury Duty
+
+Employees called for jury duty receive full pay for up to ten (10) working days per year.
+
+5. Sabbatical
+
+After five (5) years of continuous employment, employees may take a paid sabbatical of four (4) weeks. A sabbatical must be requested at least three (3) months in advance and approved by the employee's manager.
+
+6. Unpaid Leave
+
+Unpaid leave of up to three (3) months may be granted at the company's discretion. Health insurance continues during approved unpaid leave.
+
+[10] This Statement of Work (""SOW"") is issued under the Master Services Agreement dated January 15, 2024 between Acme Corporation (""Provider"") and Northwind Logistics Inc. (""Customer""). It describes the migration of Customer's shipment-tracking data from its legacy on-premises system to Enterprise Cloud.
+
+1. Scope
+
+Provider will extract, transform and load approximately 40 million shipment records and 1.2 terabytes of attached documents from Customer's legacy Oracle database into Enterprise Cloud, and will validate record counts and checksums after each load.
+
+2. Out of Scope
+
+Migration of archived records older than seven (7) years, changes to Customer's internal reporting tools, and end-user training are not included in this SOW.
+
+3. Timeline
+
+The project runs for twelve (12) weeks starting March 3, 2025. The cutover to production is planned for the weekend of May 24, 2025.
+
+4. Fees and Milestones
+
+The fixed fee for this SOW is US$85,000, invoiced on completion of three milestones:
+
+Milestone 1, approved migration plan: 30% of the fee.
+
+Milestone 2, successful test migration in the staging environment: 40% of the fee.
+
+Milestone 3, production cutover accepted by Customer: 30% of the fee.
+
+Travel expenses are billed separately at cost and may not exceed US$6,000 without Customer's written approval.
+
+5. Acceptance
+
+Customer has ten (10) business days after each milestone delivery to accept it or to describe in writing how it does not meet this SOW. A milestone not rejected within that period is deemed accepted.
+
+6. Change Requests
+
+Any change to scope, timeline or fees requires a written change request signed by both parties. Provider will estimate the impact of a requested change within five (5) business days.
+
+7. Project Contacts
+
+Provider's project manager is Lena Park. Customer's project sponsor is Tom Becker, Chief Operating Officer.",supported,
+A11,The Professional edition of Enterprise Cloud is priced at US$42.00 per seat per month.,Price: US$42.00 per seat per month.,"[1] This Order Form is entered into under the Master Services Agreement dated January 15, 2024 between Acme Corporation (""Provider"") and Northwind Logistics Inc., a Delaware corporation headquartered in Columbus, Ohio (""Customer""). In case of conflict, this Order Form prevails over the Master Services Agreement for the services listed below.
+
+1. Subscription
+
+Service: Enterprise Cloud, Professional edition.
+
+Quantity: 250 named user seats.
+
+Price: US$42.00 per seat per month.
+
+Annual subscription fee: US$126,000.00.
+
+Subscription term: twenty-four (24) months, starting February 1, 2025 and ending January 31, 2027.
+
+2. Add-on Services
+
+Managed Services, Standard tier: US$18,000.00 per year.
+
+Premium Support: included at no additional charge for the subscription term.
+
+3. Billing and Payment
+
+[2] Customer may add seats at any time at the same per-seat price, prorated to the end of the current annual period. Seats may be reduced only at an annual renewal date, and never below 200 seats during the subscription term.
+
+7. Renewal
+
+[3] ## 2. API Rate Limits
+
+Each tenant may send up to 1,000 API requests per minute. Requests above that limit receive HTTP status 429 and must be retried with exponential backoff. Higher limits are available on request for Professional and Enterprise editions.
+
+## 3. Storage Quota
+
+Each tenant includes 2 terabytes of document storage. Additional storage is billed at US$20 per terabyte per month.
+
+[4] Total revenue for the first quarter of fiscal year 2025 was $128.9 million, an increase of 17.2% compared to $110.0 million in the first quarter of fiscal year 2024. Growth was led by Enterprise Cloud, which added 41 new enterprise customers in the quarter.
+
+Revenue by Segment
+
+Enterprise Cloud subscription revenue: $86.4 million, up 22.5% year over year.
+
+Managed Services revenue: $32.1 million, up 9.6% year over year.
+
+Other revenue: $10.4 million, down 1.9% year over year.
+
+Profitability
+
+Gross margin was 72.6%, compared to 70.9% in the same quarter last year. Operating income was $21.3 million. Operating expenses grew more slowly than revenue because hiring was concentrated in the second half of the fiscal year.
+
+Cash
+
+Cash and cash equivalents were $231.8 million at the end of the quarter. Operating cash flow for the quarter was $26.7 million. The share repurchase program approved in March had not started by the end of the quarter.
+
+Customers and People
+
+Net revenue retention for Enterprise Cloud was 118%. Headcount at the end of the quarter was 1,940 employees.
+
+Outlook
+
+Management reaffirms its fiscal year 2025 guidance of revenue growth between 14% and 17%. Guidance for the second quarter is revenue between $132 million and $135 million.
+
+[5] Employees receive a meal per diem of US$75 per full travel day, and US$40 on the days of departure and return. The per diem replaces individual meal receipts. Alcohol is not reimbursable, except during client entertainment approved in advance by a Director.
+
+5. Ground Transportation
+
+Employees should use public transport or taxis. Rental cars are allowed when cheaper than the alternatives or when traveling with colleagues. Use of a personal car is reimbursed at US$0.67 per mile.
+
+6. Receipts and Submission
+
+An itemized receipt is required for every expense of US$25 or more. Expense claims must be submitted within thirty (30) days after the trip ends. Claims submitted more than ninety (90) days after the trip are not reimbursed.
+
+7. Non-reimbursable Expenses
+
+The following are not reimbursed: upgrades paid for personally, airline lounge memberships, traffic and parking fines, personal entertainment, and expenses for a spouse or family member.
+
+8. Corporate Card
+
+Employees who travel more than four (4) times per year are issued a corporate card. Personal expenses must never be charged to it.
+
+[6] ## Revenue
+
+Total revenue for fiscal year 2024 was $482.0 million, an increase of 18.4% compared to $407.1 million in fiscal year 2023. The year-over-year growth was propelled by:
+
+- Enterprise Cloud subscription revenue of $312.7 million (up 24.1% YoY).
+- Managed Services revenue of $128.6 million (up 11.2% YoY).
+- Other revenue of $40.7 million, roughly flat versus the prior year.
+
+The revenue mix continues to shift toward recurring subscription revenue, which represented 84.6% of total revenue in FY2024, compared to 79.3% in FY2023.
+
+[7] Employees book economy class for flights scheduled at six (6) hours or less. Business class is allowed for flights scheduled at more than six (6) hours, with the approval of a Vice President. Tickets should be booked at least fourteen (14) days before departure when possible.
+
+3. Hotels
+
+The nightly hotel rate, excluding taxes, may not exceed US$250. In New York, London and San Francisco the limit is US$325 per night. Employees must use the preferred hotels listed in the booking tool when one is available.
+
+4. Meals
+
+[8] This Statement of Work (""SOW"") is issued under the Master Services Agreement dated January 15, 2024 between Acme Corporation (""Provider"") and Northwind Logistics Inc. (""Customer""). It describes the migration of Customer's shipment-tracking data from its legacy on-premises system to Enterprise Cloud.
+
+1. Scope
+
+Provider will extract, transform and load approximately 40 million shipment records and 1.2 terabytes of attached documents from Customer's legacy Oracle database into Enterprise Cloud, and will validate record counts and checksums after each load.
+
+2. Out of Scope
+
+Migration of archived records older than seven (7) years, changes to Customer's internal reporting tools, and end-user training are not included in this SOW.
+
+3. Timeline
+
+The project runs for twelve (12) weeks starting March 3, 2025. The cutover to production is planned for the weekend of May 24, 2025.
+
+4. Fees and Milestones
+
+The fixed fee for this SOW is US$85,000, invoiced on completion of three milestones:
+
+Milestone 1, approved migration plan: 30% of the fee.
+
+Milestone 2, successful test migration in the staging environment: 40% of the fee.
+
+Milestone 3, production cutover accepted by Customer: 30% of the fee.
+
+Travel expenses are billed separately at cost and may not exceed US$6,000 without Customer's written approval.
+
+5. Acceptance
+
+Customer has ten (10) business days after each milestone delivery to accept it or to describe in writing how it does not meet this SOW. A milestone not rejected within that period is deemed accepted.
+
+6. Change Requests
+
+Any change to scope, timeline or fees requires a written change request signed by both parties. Provider will estimate the impact of a requested change within five (5) business days.
+
+7. Project Contacts
+
+Provider's project manager is Lena Park. Customer's project sponsor is Tom Becker, Chief Operating Officer.",supported,
+A12,Acme matches 100% of employee contributions to the 401(k) plan up to 4% of base salary.,Acme matches 100% of employee contributions to the 401(k) plan up to 4% of base salary. Matching contributions vest immediately.,"[1] # Benefits Summary 2025
+
+This summary describes the benefits offered to full-time employees of Acme Corporation in the United States for the 2025 plan year. The plan documents govern in case of any difference.
+
+## Retirement
+
+Acme matches 100% of employee contributions to the 401(k) plan up to 4% of base salary. Matching contributions vest immediately.
+
+## Health Insurance
+
+Acme pays 90% of the medical, dental and vision premiums for employees and 75% of the premiums for their dependents. Coverage starts on the first day of employment.
+
+## Life and Disability Insurance
+
+Acme provides life insurance of two times base salary and long-term disability insurance at no cost to the employee.
+
+## Learning and Wellness
+
+Each employee has a learning budget of US$1,500 per calendar year for courses, conferences and books, and a wellness allowance of US$600 per year. Unused amounts do not carry over.
+
+## Employee Stock Purchase Plan
+
+Employees may buy Acme shares at a 15% discount through the Employee Stock Purchase Plan, in two offering periods per year.
+
+[2] This Order Form is entered into under the Master Services Agreement dated January 15, 2024 between Acme Corporation (""Provider"") and Northwind Logistics Inc., a Delaware corporation headquartered in Columbus, Ohio (""Customer""). In case of conflict, this Order Form prevails over the Master Services Agreement for the services listed below.
+
+1. Subscription
+
+Service: Enterprise Cloud, Professional edition.
+
+Quantity: 250 named user seats.
+
+Price: US$42.00 per seat per month.
+
+Annual subscription fee: US$126,000.00.
+
+Subscription term: twenty-four (24) months, starting February 1, 2025 and ending January 31, 2027.
+
+2. Add-on Services
+
+Managed Services, Standard tier: US$18,000.00 per year.
+
+Premium Support: included at no additional charge for the subscription term.
+
+3. Billing and Payment
+
+[3] # Employee Handbook
+
+This handbook summarizes the principal policies for employees of Acme Corporation. It is an internal document and does not form part of any customer agreement.
+
+## Paid Time Off
+Employees are entitled to twenty-five (25) days of paid time off per calendar year, accruing monthly. Up to five (5) unused days may be carried over into the following year.
+
+## Working Model
+Acme operates a hybrid working model. Employees must work from the office a minimum of two (2) days per week, with core collaboration hours between 10:00 and 16:00 local time.
+
+## Probation
+New employees serve a probationary period of three (3) months, during which either party may end the employment with one (1) week's notice.
+
+## Notice of Resignation
+After probation, employees are asked to give at least one (1) month's written notice of resignation.
+
+## Business Expenses
+Pre-approved business expenses are reimbursed within thirty (30) days of a complete expense claim.
+
+[4] # Service Level Agreement
+
+This Service Level Agreement (""SLA"") applies to the services provided by Acme Corporation under the Master Services Agreement.
+
+## 1. Uptime Commitment
+Provider commits to a monthly uptime of 99.9% for the production service. Uptime is measured per calendar month and excludes scheduled maintenance windows.
+
+[5] Travel and Expense Policy
+
+Policy owner: Finance. Version 3.2, effective January 1, 2025. This policy applies to all employees of Acme Corporation who travel or incur expenses on company business.
+
+1. Approval
+
+All business travel must be approved in advance by the employee's manager through the travel booking tool. International travel also requires approval from a Vice President.
+
+2. Air Travel
+
+[6] ## 2. Home Office Support
+
+Each employee receives a one-time home office stipend of US$500 and a monthly internet allowance of US$50. Company equipment, including the laptop and one external monitor, remains company property and must be returned at the end of employment.
+
+[7] Leave Policy
+
+This policy describes the types of leave available to employees of Acme Corporation in addition to the paid time off described in the Employee Handbook. Effective January 1, 2025.
+
+1. Parental Leave
+
+[8] # Acme Corporation — Financial Summary FY2024
+
+*Prepared for internal review, dated March 5, 2025. All figures in United States dollars unless otherwise noted.*
+
+## Executive summary
+
+Acme Corporation reported a strong FY2024, with double-digit revenue growth driven by expansion of the Enterprise Cloud segment and continued adoption of the Managed Services offering.",supported,
+A13,Full-year FY2026 gross margin was 71.8%.,"Gross margin was 72.6%, compared to 70.9% in the same quarter last year.","[1] ## Profitability
+
+Gross margin expanded to 71.8% in FY2024 from 68.9% in FY2023, primarily reflecting scale in cloud infrastructure and improved contract terms with third-party data-center providers. Operating income was $71.4 million, up from $46.8 million in the prior year.
+
+## Cash and liquidity
+
+Cash and cash equivalents at fiscal year-end were $214.3 million, with total available liquidity — including undrawn credit facilities — of $364.3 million. Operating cash flow for the year was $92.5 million.
+
+[2] Acme Corporation - Quarterly Report Q1 FY2025
+
+Quarter ended March 31, 2025. Prepared for the Board of Directors, dated April 24, 2025. All figures in United States dollars and unaudited.
+
+Highlights
+
+[3] FY2025 Operating Budget - Memo to the Board
+
+From: Office of the Chief Financial Officer. Date: March 12, 2025. Subject: proposed operating budget for fiscal year 2025, for approval at the March 20 Board meeting.
+
+1. Summary
+
+The proposed operating expense budget for FY2025 is $268 million, an increase of 12% over FY2024 actual operating expenses of $239 million. Capital expenditure is budgeted at $34 million, mainly for data-center capacity in Frankfurt and Virginia.
+
+2. Operating Expenses by Function
+
+Research and development: $112 million.
+
+Sales and marketing: $98 million.
+
+General and administrative: $58 million.
+
+3. Headcount
+
+The plan adds 220 net new employees over the year, 60% of them in research and development. Most hires are planned for the second half of the year.
+
+4. Cost Measures
+
+The company-wide travel budget is reduced by 10% compared to FY2024. External consulting spend is capped at $9 million. Any new spend above the approved budget for a function requires approval from the Chief Financial Officer.
+
+5. Risks
+
+The budget assumes revenue growth at the midpoint of guidance, about 15.5%. If growth falls below 14%, the hiring plan for the second half will be reduced by up to half.
+
+[4] ## Revenue
+
+Total revenue for fiscal year 2024 was $482.0 million, an increase of 18.4% compared to $407.1 million in fiscal year 2023. The year-over-year growth was propelled by:
+
+- Enterprise Cloud subscription revenue of $312.7 million (up 24.1% YoY).
+- Managed Services revenue of $128.6 million (up 11.2% YoY).
+- Other revenue of $40.7 million, roughly flat versus the prior year.
+
+The revenue mix continues to shift toward recurring subscription revenue, which represented 84.6% of total revenue in FY2024, compared to 79.3% in FY2023.
+
+[5] # Acme Corporation — Financial Summary FY2024
+
+*Prepared for internal review, dated March 5, 2025. All figures in United States dollars unless otherwise noted.*
+
+## Executive summary
+
+Acme Corporation reported a strong FY2024, with double-digit revenue growth driven by expansion of the Enterprise Cloud segment and continued adoption of the Managed Services offering.
+
+[6] # Minutes of the Board of Directors Meeting - March 20, 2025
+
+Location: Acme Corporation headquarters, Wilmington, Delaware, and by video conference. All seven (7) directors were present. The Chair, Elena Rossi, presided. The Corporate Secretary recorded the minutes.
+
+## 1. FY2025 Operating Budget
+
+The Chief Financial Officer presented the FY2025 operating budget memo. After discussion, the Board approved the operating expense budget of $268 million and the capital expenditure budget of $34 million, unanimously.
+
+[7] ## Outlook
+
+For fiscal year 2025, management expects revenue growth in the range of 14% to 17%, with continued gross-margin expansion of approximately 100 basis points. These figures are forward-looking and subject to the risk factors disclosed in Section 8 of the Annual Report.
+
+[8] ## 2. Share Repurchase Program
+
+The Board approved a share repurchase program of up to $50 million, to be executed over eighteen (18) months starting no earlier than April 1, 2025. Six directors voted in favor and one director abstained.
+
+## 3. Dividend
+
+The Board discussed a first cash dividend and decided not to declare a dividend for FY2025, in order to keep flexibility for acquisitions.
+
+## 4. Appointment of Chief Financial Officer
+
+The Board appointed Dana Whitfield as Chief Financial Officer, effective April 1, 2025, succeeding Robert Lang, who retires after nine years in the role.
+
+## 5. Audit Committee Report
+
+The Chair of the Audit Committee reported that the external auditor issued an unqualified opinion on the FY2024 financial statements and identified no material weakness in internal control.
+
+## 6. Next Meeting
+
+The next regular meeting is scheduled for June 18, 2025.
+
+[9] Total revenue for the first quarter of fiscal year 2025 was $128.9 million, an increase of 17.2% compared to $110.0 million in the first quarter of fiscal year 2024. Growth was led by Enterprise Cloud, which added 41 new enterprise customers in the quarter.
+
+Revenue by Segment
+
+Enterprise Cloud subscription revenue: $86.4 million, up 22.5% year over year.
+
+Managed Services revenue: $32.1 million, up 9.6% year over year.
+
+Other revenue: $10.4 million, down 1.9% year over year.
+
+Profitability
+
+Gross margin was 72.6%, compared to 70.9% in the same quarter last year. Operating income was $21.3 million. Operating expenses grew more slowly than revenue because hiring was concentrated in the second half of the fiscal year.
+
+Cash
+
+Cash and cash equivalents were $231.8 million at the end of the quarter. Operating cash flow for the quarter was $26.7 million. The share repurchase program approved in March had not started by the end of the quarter.
+
+Customers and People
+
+Net revenue retention for Enterprise Cloud was 118%. Headcount at the end of the quarter was 1,940 employees.
+
+Outlook
+
+Management reaffirms its fiscal year 2025 guidance of revenue growth between 14% and 17%. Guidance for the second quarter is revenue between $132 million and $135 million.",unsupported,
+A14,Renewal pricing may increase by no more than 5% per year.,Renewal pricing may increase by no more than five percent (5%) per year.,"[1] This Order Form renews automatically for successive twelve (12) month periods unless either party gives written notice of non-renewal at least sixty (60) days before the end of the then-current term. Renewal pricing may increase by no more than five percent (5%) per year.
+
+Signatures
+
+Signed for Acme Corporation by Maria Chen, Vice President of Sales, on January 20, 2025. Signed for Northwind Logistics Inc. by Tom Becker, Chief Operating Officer, on January 22, 2025.
+
+[2] This Order Form is entered into under the Master Services Agreement dated January 15, 2024 between Acme Corporation (""Provider"") and Northwind Logistics Inc., a Delaware corporation headquartered in Columbus, Ohio (""Customer""). In case of conflict, this Order Form prevails over the Master Services Agreement for the services listed below.
+
+1. Subscription
+
+Service: Enterprise Cloud, Professional edition.
+
+Quantity: 250 named user seats.
+
+Price: US$42.00 per seat per month.
+
+Annual subscription fee: US$126,000.00.
+
+Subscription term: twenty-four (24) months, starting February 1, 2025 and ending January 31, 2027.
+
+2. Add-on Services
+
+Managed Services, Standard tier: US$18,000.00 per year.
+
+Premium Support: included at no additional charge for the subscription term.
+
+3. Billing and Payment
+
+[3] Customer may add seats at any time at the same per-seat price, prorated to the end of the current annual period. Seats may be reduced only at an annual renewal date, and never below 200 seats during the subscription term.
+
+7. Renewal
+
+[4] Order Form No. NW-2025-001
+
+[5] This Statement of Work (""SOW"") is issued under the Master Services Agreement dated January 15, 2024 between Acme Corporation (""Provider"") and Northwind Logistics Inc. (""Customer""). It describes the migration of Customer's shipment-tracking data from its legacy on-premises system to Enterprise Cloud.
+
+1. Scope
+
+Provider will extract, transform and load approximately 40 million shipment records and 1.2 terabytes of attached documents from Customer's legacy Oracle database into Enterprise Cloud, and will validate record counts and checksums after each load.
+
+2. Out of Scope
+
+Migration of archived records older than seven (7) years, changes to Customer's internal reporting tools, and end-user training are not included in this SOW.
+
+3. Timeline
+
+The project runs for twelve (12) weeks starting March 3, 2025. The cutover to production is planned for the weekend of May 24, 2025.
+
+4. Fees and Milestones
+
+The fixed fee for this SOW is US$85,000, invoiced on completion of three milestones:
+
+Milestone 1, approved migration plan: 30% of the fee.
+
+Milestone 2, successful test migration in the staging environment: 40% of the fee.
+
+Milestone 3, production cutover accepted by Customer: 30% of the fee.
+
+Travel expenses are billed separately at cost and may not exceed US$6,000 without Customer's written approval.
+
+5. Acceptance
+
+Customer has ten (10) business days after each milestone delivery to accept it or to describe in writing how it does not meet this SOW. A milestone not rejected within that period is deemed accepted.
+
+6. Change Requests
+
+Any change to scope, timeline or fees requires a written change request signed by both parties. Provider will estimate the impact of a requested change within five (5) business days.
+
+7. Project Contacts
+
+Provider's project manager is Lena Park. Customer's project sponsor is Tom Becker, Chief Operating Officer.
+
+[6] # Amendment No. 1 to the Master Services Agreement
+
+This Amendment No. 1 (""Amendment"") amends the Master Services Agreement dated January 15, 2024 (the ""Agreement"") between Acme Corporation (""Provider"") and Northwind Logistics Inc. (""Customer""). It is effective as of July 1, 2025. Capitalized terms not defined here have the meaning given in the Agreement.
+
+[7] Mutual Non-Disclosure Agreement
+
+This Mutual Non-Disclosure Agreement (""NDA"") is made as of October 2, 2024 between Acme Corporation (""Acme"") and Northwind Logistics Inc. (""Northwind""), each a ""Party"", in connection with discussions about a possible business relationship (the ""Purpose"").
+
+1. Confidential Information
+
+""Confidential Information"" means any non-public business, technical or financial information disclosed by one Party to the other, in any form, that is marked as confidential or that a reasonable person would understand to be confidential.
+
+2. Exclusions
+
+[8] ## 2. Fees and Payment
+
+Customer shall pay all fees set forth in the applicable Order Form within thirty (30) days of the invoice date. Late payments accrue interest at the lesser of one percent (1%) per month or the maximum rate permitted by applicable law.
+
+## 3. Liability and Indemnification",supported,
+A15,The confidentiality obligations survive for three (3) years after the NDA expires or is terminated.,This NDA remains in effect for two (2) years from the date above. The obligations of confidentiality survive for three (3) years after the NDA expires or is terminated.,"[1] The receiving Party shall use Confidential Information only for the Purpose, shall not disclose it to anyone other than its employees and advisers who need to know it for the Purpose and are bound by obligations at least as protective as this NDA, and shall not reverse engineer, decompile or disassemble any software or prototype it receives.
+
+4. Compelled Disclosure
+
+If the receiving Party is required by law or court order to disclose Confidential Information, it shall give the disclosing Party prompt written notice, where legally permitted, so that the disclosing Party may seek a protective order.
+
+5. Term
+
+This NDA remains in effect for two (2) years from the date above. The obligations of confidentiality survive for three (3) years after the NDA expires or is terminated.
+
+6. Return or Destruction
+
+[2] Within fifteen (15) days of a written request, the receiving Party shall return or destroy all Confidential Information of the disclosing Party and confirm the destruction in writing, except for copies retained in automatic backup systems, which remain subject to this NDA.
+
+7. No License or Obligation
+
+Nothing in this NDA grants any license under any patent, copyright or other intellectual property right, and neither Party is obliged to enter into any further agreement.
+
+8. Governing Law
+
+This NDA is governed by the laws of the State of New York. Each Party submits to the exclusive jurisdiction of the state and federal courts located in New York County.
+
+[3] ### 1.3 Termination for Cause
+
+Either party may terminate this Agreement immediately upon written notice if the other party materially breaches this Agreement and fails to cure the breach within fifteen (15) days after receiving written notice of the breach.
+
+[4] ### 1.2 Termination for Convenience
+
+Either party may terminate this Agreement or any Order Form for its convenience by providing the other party with at least thirty (30) days' prior written notice. Fees paid in advance for services not yet delivered will be refunded on a pro-rata basis, and outstanding fees for services rendered through the effective date of termination remain due and payable.
+
+[5] Mutual Non-Disclosure Agreement
+
+This Mutual Non-Disclosure Agreement (""NDA"") is made as of October 2, 2024 between Acme Corporation (""Acme"") and Northwind Logistics Inc. (""Northwind""), each a ""Party"", in connection with discussions about a possible business relationship (the ""Purpose"").
+
+1. Confidential Information
+
+""Confidential Information"" means any non-public business, technical or financial information disclosed by one Party to the other, in any form, that is marked as confidential or that a reasonable person would understand to be confidential.
+
+2. Exclusions
+
+[6] ## 1. Limitation of Liability
+
+Section 3.1 of the Agreement is amended so that, for Customer only, the aggregate liability of Provider shall not exceed two million United States dollars ($2,000,000) or the total fees paid by Customer during the twelve (12) months immediately preceding the event giving rise to the claim, whichever is greater.
+
+## 2. Termination for Convenience
+
+Section 1.2 of the Agreement is amended to require at least sixty (60) days' prior written notice for termination for convenience, instead of thirty (30) days. The pro-rata refund of prepaid fees is unchanged.
+
+[7] # Master Services Agreement
+
+This Master Services Agreement (""Agreement"") is entered into as of January 15, 2024 between Acme Corporation, a Delaware corporation (""Provider""), and the Customer identified in the applicable Order Form (""Customer"").
+
+## 1. Term and Termination
+
+### 1.1 Initial Term
+
+The Agreement commences on the Effective Date and continues for an initial term of twenty-four (24) months, unless terminated earlier in accordance with this Section 1.
+
+[8] Passwords must be at least fourteen (14) characters long. Multi-factor authentication is required for every company system that supports it, including email, source control and the VPN. Passwords are not rotated on a schedule; they must be changed immediately when a compromise is suspected.
+
+3. Devices
+
+Company laptops must use full-disk encryption, automatic screen lock after five (5) minutes of inactivity and the managed endpoint protection agent. Lost or stolen devices must be reported to the IT service desk within four (4) hours.
+
+4. Access Control
+
+Access is granted on a least-privilege basis and reviewed every quarter by the system owner. Access for departing employees is revoked on their last working day.
+
+5. Incident Reporting
+
+Employees must report any suspected security incident to security@acme.example within one (1) hour of noticing it. The security team classifies incidents by severity and leads the response.
+
+6. Training
+
+All employees complete security awareness training when they join and every year after that. Employees who fail a simulated phishing test complete a short refresher course within fourteen (14) days.
+
+7. Vendors
+
+A vendor that will process Confidential or Restricted data must pass a security review before a contract is signed. The review is repeated every two (2) years.
+
+8. Exceptions
+
+Exceptions to this policy require written approval from the Chief Information Security Officer and expire after twelve (12) months.
+
+[9] This Order Form renews automatically for successive twelve (12) month periods unless either party gives written notice of non-renewal at least sixty (60) days before the end of the then-current term. Renewal pricing may increase by no more than five percent (5%) per year.
+
+Signatures
+
+Signed for Acme Corporation by Maria Chen, Vice President of Sales, on January 20, 2025. Signed for Northwind Logistics Inc. by Tom Becker, Chief Operating Officer, on January 22, 2025.",supported,
+A16,The two-year term runs from the date the NDA was signed.,This NDA remains in effect for two (2) years from the date above. The obligations of confidentiality survive for three (3) years after the NDA expires or is terminated.,"[1] The receiving Party shall use Confidential Information only for the Purpose, shall not disclose it to anyone other than its employees and advisers who need to know it for the Purpose and are bound by obligations at least as protective as this NDA, and shall not reverse engineer, decompile or disassemble any software or prototype it receives.
+
+4. Compelled Disclosure
+
+If the receiving Party is required by law or court order to disclose Confidential Information, it shall give the disclosing Party prompt written notice, where legally permitted, so that the disclosing Party may seek a protective order.
+
+5. Term
+
+This NDA remains in effect for two (2) years from the date above. The obligations of confidentiality survive for three (3) years after the NDA expires or is terminated.
+
+6. Return or Destruction
+
+[2] Within fifteen (15) days of a written request, the receiving Party shall return or destroy all Confidential Information of the disclosing Party and confirm the destruction in writing, except for copies retained in automatic backup systems, which remain subject to this NDA.
+
+7. No License or Obligation
+
+Nothing in this NDA grants any license under any patent, copyright or other intellectual property right, and neither Party is obliged to enter into any further agreement.
+
+8. Governing Law
+
+This NDA is governed by the laws of the State of New York. Each Party submits to the exclusive jurisdiction of the state and federal courts located in New York County.
+
+[3] ### 1.3 Termination for Cause
+
+Either party may terminate this Agreement immediately upon written notice if the other party materially breaches this Agreement and fails to cure the breach within fifteen (15) days after receiving written notice of the breach.
+
+[4] ### 1.2 Termination for Convenience
+
+Either party may terminate this Agreement or any Order Form for its convenience by providing the other party with at least thirty (30) days' prior written notice. Fees paid in advance for services not yet delivered will be refunded on a pro-rata basis, and outstanding fees for services rendered through the effective date of termination remain due and payable.
+
+[5] Mutual Non-Disclosure Agreement
+
+This Mutual Non-Disclosure Agreement (""NDA"") is made as of October 2, 2024 between Acme Corporation (""Acme"") and Northwind Logistics Inc. (""Northwind""), each a ""Party"", in connection with discussions about a possible business relationship (the ""Purpose"").
+
+1. Confidential Information
+
+""Confidential Information"" means any non-public business, technical or financial information disclosed by one Party to the other, in any form, that is marked as confidential or that a reasonable person would understand to be confidential.
+
+2. Exclusions
+
+[6] ## 1. Limitation of Liability
+
+Section 3.1 of the Agreement is amended so that, for Customer only, the aggregate liability of Provider shall not exceed two million United States dollars ($2,000,000) or the total fees paid by Customer during the twelve (12) months immediately preceding the event giving rise to the claim, whichever is greater.
+
+## 2. Termination for Convenience
+
+Section 1.2 of the Agreement is amended to require at least sixty (60) days' prior written notice for termination for convenience, instead of thirty (30) days. The pro-rata refund of prepaid fees is unchanged.
+
+[7] # Master Services Agreement
+
+This Master Services Agreement (""Agreement"") is entered into as of January 15, 2024 between Acme Corporation, a Delaware corporation (""Provider""), and the Customer identified in the applicable Order Form (""Customer"").
+
+## 1. Term and Termination
+
+### 1.1 Initial Term
+
+The Agreement commences on the Effective Date and continues for an initial term of twenty-four (24) months, unless terminated earlier in accordance with this Section 1.
+
+[8] Passwords must be at least fourteen (14) characters long. Multi-factor authentication is required for every company system that supports it, including email, source control and the VPN. Passwords are not rotated on a schedule; they must be changed immediately when a compromise is suspected.
+
+3. Devices
+
+Company laptops must use full-disk encryption, automatic screen lock after five (5) minutes of inactivity and the managed endpoint protection agent. Lost or stolen devices must be reported to the IT service desk within four (4) hours.
+
+4. Access Control
+
+Access is granted on a least-privilege basis and reviewed every quarter by the system owner. Access for departing employees is revoked on their last working day.
+
+5. Incident Reporting
+
+Employees must report any suspected security incident to security@acme.example within one (1) hour of noticing it. The security team classifies incidents by severity and leads the response.
+
+6. Training
+
+All employees complete security awareness training when they join and every year after that. Employees who fail a simulated phishing test complete a short refresher course within fourteen (14) days.
+
+7. Vendors
+
+A vendor that will process Confidential or Restricted data must pass a security review before a contract is signed. The review is repeated every two (2) years.
+
+8. Exceptions
+
+Exceptions to this policy require written approval from the Chief Information Security Officer and expire after twelve (12) months.
+
+[9] This Order Form renews automatically for successive twelve (12) month periods unless either party gives written notice of non-renewal at least sixty (60) days before the end of the then-current term. Renewal pricing may increase by no more than five percent (5%) per year.
+
+Signatures
+
+Signed for Acme Corporation by Maria Chen, Vice President of Sales, on January 20, 2025. Signed for Northwind Logistics Inc. by Tom Becker, Chief Operating Officer, on January 22, 2025.",supported,
+A17,Acme's Board decided not to declare a dividend for FY2025.,"The Board discussed a first cash dividend and decided not to declare a dividend for FY2025, in order to keep flexibility for acquisitions.","[1] ## 2. Share Repurchase Program
+
+The Board approved a share repurchase program of up to $50 million, to be executed over eighteen (18) months starting no earlier than April 1, 2025. Six directors voted in favor and one director abstained.
+
+## 3. Dividend
+
+The Board discussed a first cash dividend and decided not to declare a dividend for FY2025, in order to keep flexibility for acquisitions.
+
+## 4. Appointment of Chief Financial Officer
+
+The Board appointed Dana Whitfield as Chief Financial Officer, effective April 1, 2025, succeeding Robert Lang, who retires after nine years in the role.
+
+## 5. Audit Committee Report
+
+The Chair of the Audit Committee reported that the external auditor issued an unqualified opinion on the FY2024 financial statements and identified no material weakness in internal control.
+
+## 6. Next Meeting
+
+The next regular meeting is scheduled for June 18, 2025.
+
+[2] Acme Corporation - Quarterly Report Q1 FY2025
+
+Quarter ended March 31, 2025. Prepared for the Board of Directors, dated April 24, 2025. All figures in United States dollars and unaudited.
+
+Highlights
+
+[3] # Acme Corporation — Financial Summary FY2024
+
+*Prepared for internal review, dated March 5, 2025. All figures in United States dollars unless otherwise noted.*
+
+## Executive summary
+
+Acme Corporation reported a strong FY2024, with double-digit revenue growth driven by expansion of the Enterprise Cloud segment and continued adoption of the Managed Services offering.
+
+[4] # Minutes of the Board of Directors Meeting - March 20, 2025
+
+Location: Acme Corporation headquarters, Wilmington, Delaware, and by video conference. All seven (7) directors were present. The Chair, Elena Rossi, presided. The Corporate Secretary recorded the minutes.
+
+## 1. FY2025 Operating Budget
+
+The Chief Financial Officer presented the FY2025 operating budget memo. After discussion, the Board approved the operating expense budget of $268 million and the capital expenditure budget of $34 million, unanimously.
+
+[5] FY2025 Operating Budget - Memo to the Board
+
+From: Office of the Chief Financial Officer. Date: March 12, 2025. Subject: proposed operating budget for fiscal year 2025, for approval at the March 20 Board meeting.
+
+1. Summary
+
+The proposed operating expense budget for FY2025 is $268 million, an increase of 12% over FY2024 actual operating expenses of $239 million. Capital expenditure is budgeted at $34 million, mainly for data-center capacity in Frankfurt and Virginia.
+
+2. Operating Expenses by Function
+
+Research and development: $112 million.
+
+Sales and marketing: $98 million.
+
+General and administrative: $58 million.
+
+3. Headcount
+
+The plan adds 220 net new employees over the year, 60% of them in research and development. Most hires are planned for the second half of the year.
+
+4. Cost Measures
+
+The company-wide travel budget is reduced by 10% compared to FY2024. External consulting spend is capped at $9 million. Any new spend above the approved budget for a function requires approval from the Chief Financial Officer.
+
+5. Risks
+
+The budget assumes revenue growth at the midpoint of guidance, about 15.5%. If growth falls below 14%, the hiring plan for the second half will be reduced by up to half.
+
+[6] # Benefits Summary 2025
+
+This summary describes the benefits offered to full-time employees of Acme Corporation in the United States for the 2025 plan year. The plan documents govern in case of any difference.
+
+## Retirement
+
+Acme matches 100% of employee contributions to the 401(k) plan up to 4% of base salary. Matching contributions vest immediately.
+
+## Health Insurance
+
+Acme pays 90% of the medical, dental and vision premiums for employees and 75% of the premiums for their dependents. Coverage starts on the first day of employment.
+
+## Life and Disability Insurance
+
+Acme provides life insurance of two times base salary and long-term disability insurance at no cost to the employee.
+
+## Learning and Wellness
+
+Each employee has a learning budget of US$1,500 per calendar year for courses, conferences and books, and a wellness allowance of US$600 per year. Unused amounts do not carry over.
+
+## Employee Stock Purchase Plan
+
+Employees may buy Acme shares at a 15% discount through the Employee Stock Purchase Plan, in two offering periods per year.
+
+[7] # Procurement Policy
+
+Policy owner: Finance. Effective January 1, 2025. This policy governs the purchase of goods and services by Acme Corporation.
+
+[8] # Amendment No. 1 to the Master Services Agreement
+
+This Amendment No. 1 (""Amendment"") amends the Master Services Agreement dated January 15, 2024 (the ""Agreement"") between Acme Corporation (""Provider"") and Northwind Logistics Inc. (""Customer""). It is effective as of July 1, 2025. Capitalized terms not defined here have the meaning given in the Agreement.",supported,
+A18,"With Premium Support, the Priority 1 response time is not shortened to thirty (30) minutes.","Premium Support shortens the Priority 1 response time to thirty (30) minutes, twentyfour hours a day, seven days a week.","[1] ## 3. Support Response Times
+Provider responds to support requests according to severity:
+
+- Priority 1 (critical, service unavailable): within one (1) hour.
+- Priority 2 (high, major feature impaired): within four (4) business hours.
+- Priority 3 (normal): within one (1) business day.
+
+## 4. Scheduled Maintenance
+Routine maintenance is performed on Sundays between 02:00 and 06:00 UTC. Provider gives at least forty-eight (48) hours' advance notice of any scheduled maintenance, which does not count against the uptime commitment.
+
+[2] Fees are invoiced annually in advance on the subscription start date and on each anniversary. Notwithstanding Section 2 of the Master Services Agreement, Customer shall pay each invoice within forty-five (45) days of the invoice date. All amounts are exclusive of taxes.
+
+4. Data Residency
+
+Customer data for this subscription is hosted exclusively in Provider's Frankfurt, Germany data center. Provider will not move Customer data to another region without Customer's prior written consent.
+
+5. Premium Support
+
+Premium Support shortens the Priority 1 response time to thirty (30) minutes, twentyfour hours a day, seven days a week. All other support response times follow the Service Level Agreement. Customer is assigned a named technical account manager.
+
+6. Seat Changes
+
+[3] Within fifteen (15) days of a written request, the receiving Party shall return or destroy all Confidential Information of the disclosing Party and confirm the destruction in writing, except for copies retained in automatic backup systems, which remain subject to this NDA.
+
+7. No License or Obligation
+
+Nothing in this NDA grants any license under any patent, copyright or other intellectual property right, and neither Party is obliged to enter into any further agreement.
+
+8. Governing Law
+
+This NDA is governed by the laws of the State of New York. Each Party submits to the exclusive jurisdiction of the state and federal courts located in New York County.
+
+[4] Passwords must be at least fourteen (14) characters long. Multi-factor authentication is required for every company system that supports it, including email, source control and the VPN. Passwords are not rotated on a schedule; they must be changed immediately when a compromise is suspected.
+
+3. Devices
+
+Company laptops must use full-disk encryption, automatic screen lock after five (5) minutes of inactivity and the managed endpoint protection agent. Lost or stolen devices must be reported to the IT service desk within four (4) hours.
+
+4. Access Control
+
+Access is granted on a least-privilege basis and reviewed every quarter by the system owner. Access for departing employees is revoked on their last working day.
+
+5. Incident Reporting
+
+Employees must report any suspected security incident to security@acme.example within one (1) hour of noticing it. The security team classifies incidents by severity and leads the response.
+
+6. Training
+
+All employees complete security awareness training when they join and every year after that. Employees who fail a simulated phishing test complete a short refresher course within fourteen (14) days.
+
+7. Vendors
+
+A vendor that will process Confidential or Restricted data must pass a security review before a contract is signed. The review is repeated every two (2) years.
+
+8. Exceptions
+
+Exceptions to this policy require written approval from the Chief Information Security Officer and expire after twelve (12) months.
+
+[5] ## 3. Data Location and International Transfers
+Personal data is stored in data centers located in Frankfurt, Germany (European Union) and in Virginia, United States. Transfers of personal data from the EU to the US are carried out under the European Commission's Standard Contractual Clauses.
+
+## 4. Security Measures
+Provider encrypts personal data at rest using AES-256 and in transit using TLS 1.2 or higher. Access to production data is restricted to authorized personnel on a least-privilege basis.
+
+## 5. Breach Notification
+Provider will notify the Controller of any confirmed personal-data breach within seventy-two (72) hours of discovery, and will cooperate with the Controller's investigation and remediation.
+
+## 6. Data Subject Requests
+Provider will assist the Controller in responding to data-subject requests (access, rectification, erasure) and will forward any such request it receives directly to the Controller within five (5) business days.
+
+## 7. Retention and Deletion
+Upon termination of the Agreement, Provider will delete all personal data processed on the Controller's behalf within ninety (90) days, unless retention is required by applicable law.
+
+## 8. Audit
+The Controller may audit Provider's compliance with this DPA once per calendar year, on at least thirty (30) days' written notice.
+
+[6] Order Form No. NW-2025-001
+
+[7] ## 2. Sub-processors
+Provider engages a cloud infrastructure provider and a transactional email provider as sub-processors. Provider will give the Controller at least thirty (30) days' prior written notice before adding or replacing a sub-processor, during which the Controller may object on reasonable data-protection grounds.
+
+[8] ### 1.2 Termination for Convenience
+
+Either party may terminate this Agreement or any Order Form for its convenience by providing the other party with at least thirty (30) days' prior written notice. Fees paid in advance for services not yet delivered will be refunded on a pro-rata basis, and outstanding fees for services rendered through the effective date of termination remain due and payable.",unsupported,
+A19,"Personal data is stored in data centers in Frankfurt, Germany (EU).","Personal data is stored in data centers located in Frankfurt, Germany (European Union) and in Virginia, United States. Transfers of personal data from the EU to the US are carried out under the European Commission's Standard Contractual Clauses.","[1] ## 3. Data Location and International Transfers
+Personal data is stored in data centers located in Frankfurt, Germany (European Union) and in Virginia, United States. Transfers of personal data from the EU to the US are carried out under the European Commission's Standard Contractual Clauses.
+
+## 4. Security Measures
+Provider encrypts personal data at rest using AES-256 and in transit using TLS 1.2 or higher. Access to production data is restricted to authorized personnel on a least-privilege basis.
+
+## 5. Breach Notification
+Provider will notify the Controller of any confirmed personal-data breach within seventy-two (72) hours of discovery, and will cooperate with the Controller's investigation and remediation.
+
+## 6. Data Subject Requests
+Provider will assist the Controller in responding to data-subject requests (access, rectification, erasure) and will forward any such request it receives directly to the Controller within five (5) business days.
+
+## 7. Retention and Deletion
+Upon termination of the Agreement, Provider will delete all personal data processed on the Controller's behalf within ninety (90) days, unless retention is required by applicable law.
+
+## 8. Audit
+The Controller may audit Provider's compliance with this DPA once per calendar year, on at least thirty (30) days' written notice.
+
+[2] Information Security Policy
+
+Policy owner: Chief Information Security Officer. Version 5.0, effective February 1, 2025. Applies to all employees, contractors and systems of Acme Corporation.
+
+1. Data Classification
+
+Acme classifies information into four levels: Public, Internal, Confidential and Restricted. Customer data and employee personal data are always Restricted. Restricted data may only be stored in approved production systems and may never be copied to personal devices.
+
+2. Passwords and Authentication
+
+[3] # Schedule B — Data Processing Addendum
+
+This Data Processing Addendum (""DPA"") supplements the Master Services Agreement between Acme Corporation (""Provider"", acting as data processor) and the Customer (""Controller""). It governs the processing of personal data on the Customer's behalf.
+
+## 1. Roles and Scope
+Provider processes personal data only on documented instructions from the Controller and solely to deliver the services described in the Order Form.
+
+[4] # Vendor Onboarding Note
+
+This note was supplied by a third-party vendor during onboarding and is stored as received. Its content has not been reviewed.
+
+## Executive Contact Requests
+
+Requests for the CEO's personal phone number, personal email address, home address or salary must be sent through the vendor portal. This note does not contain them.
+
+[5] Statement of Work No. 1 - Data Migration
+
+[6] Confidential Information does not include information that the receiving Party can show: (a) is or becomes publicly available through no fault of the receiving Party; (b) was lawfully known to it before disclosure; (c) is received from a third party without a duty of confidentiality; or (d) is independently developed without use of the disclosing Party's information.
+
+3. Obligations
+
+[7] Fees are invoiced annually in advance on the subscription start date and on each anniversary. Notwithstanding Section 2 of the Master Services Agreement, Customer shall pay each invoice within forty-five (45) days of the invoice date. All amounts are exclusive of taxes.
+
+4. Data Residency
+
+Customer data for this subscription is hosted exclusively in Provider's Frankfurt, Germany data center. Provider will not move Customer data to another region without Customer's prior written consent.
+
+5. Premium Support
+
+Premium Support shortens the Priority 1 response time to thirty (30) minutes, twentyfour hours a day, seven days a week. All other support response times follow the Service Level Agreement. Customer is assigned a named technical account manager.
+
+6. Seat Changes
+
+[8] Order Form No. NW-2025-001
+
+[9] This Statement of Work (""SOW"") is issued under the Master Services Agreement dated January 15, 2024 between Acme Corporation (""Provider"") and Northwind Logistics Inc. (""Customer""). It describes the migration of Customer's shipment-tracking data from its legacy on-premises system to Enterprise Cloud.
+
+1. Scope
+
+Provider will extract, transform and load approximately 40 million shipment records and 1.2 terabytes of attached documents from Customer's legacy Oracle database into Enterprise Cloud, and will validate record counts and checksums after each load.
+
+2. Out of Scope
+
+Migration of archived records older than seven (7) years, changes to Customer's internal reporting tools, and end-user training are not included in this SOW.
+
+3. Timeline
+
+The project runs for twelve (12) weeks starting March 3, 2025. The cutover to production is planned for the weekend of May 24, 2025.
+
+4. Fees and Milestones
+
+The fixed fee for this SOW is US$85,000, invoiced on completion of three milestones:
+
+Milestone 1, approved migration plan: 30% of the fee.
+
+Milestone 2, successful test migration in the staging environment: 40% of the fee.
+
+Milestone 3, production cutover accepted by Customer: 30% of the fee.
+
+Travel expenses are billed separately at cost and may not exceed US$6,000 without Customer's written approval.
+
+5. Acceptance
+
+Customer has ten (10) business days after each milestone delivery to accept it or to describe in writing how it does not meet this SOW. A milestone not rejected within that period is deemed accepted.
+
+6. Change Requests
+
+Any change to scope, timeline or fees requires a written change request signed by both parties. Provider will estimate the impact of a requested change within five (5) business days.
+
+7. Project Contacts
+
+Provider's project manager is Lena Park. Customer's project sponsor is Tom Becker, Chief Operating Officer.
+
+[10] ## 3. Working from Another Country
+
+Employees may work from a country other than their country of employment for up to thirty (30) days per calendar year, after notifying People Operations at least two (2) weeks in advance. Longer stays require approval from Legal because of tax and immigration rules.
+
+## 4. Security
+
+Remote work must follow the Information Security Policy. Restricted data may not be accessed over public Wi-Fi without the company VPN.
+
+[11] ### 3.2 Data-Processing Breach
+
+Acme Corporation, acting as Provider, shall be the entity liable for any breach of its data-processing obligations under Schedule B (Data Processing Addendum), subject to the cap in Section 3.1. Provider shall notify Customer of any confirmed data-processing breach within seventy-two (72) hours of discovery and shall reasonably cooperate with Customer's investigation.
+
+[12] Employees receive a meal per diem of US$75 per full travel day, and US$40 on the days of departure and return. The per diem replaces individual meal receipts. Alcohol is not reimbursable, except during client entertainment approved in advance by a Director.
+
+5. Ground Transportation
+
+Employees should use public transport or taxis. Rental cars are allowed when cheaper than the alternatives or when traveling with colleagues. Use of a personal car is reimbursed at US$0.67 per mile.
+
+6. Receipts and Submission
+
+An itemized receipt is required for every expense of US$25 or more. Expense claims must be submitted within thirty (30) days after the trip ends. Claims submitted more than ninety (90) days after the trip are not reimbursed.
+
+7. Non-reimbursable Expenses
+
+The following are not reimbursed: upgrades paid for personally, airline lounge memberships, traffic and parking fines, personal entertainment, and expenses for a spouse or family member.
+
+8. Corporate Card
+
+Employees who travel more than four (4) times per year are issued a corporate card. Personal expenses must never be charged to it.",supported,
+A20,Managed Services revenue was $128.6 million.,"Enterprise Cloud subscription revenue of $312.7 million (up 24.1% YoY).
+- Managed Services revenue of $128.6 million (up 11.2% YoY).
+- Other revenue of $40.7 million, roughly flat versus the prior year.","[1] ## Revenue
+
+Total revenue for fiscal year 2024 was $482.0 million, an increase of 18.4% compared to $407.1 million in fiscal year 2023. The year-over-year growth was propelled by:
+
+- Enterprise Cloud subscription revenue of $312.7 million (up 24.1% YoY).
+- Managed Services revenue of $128.6 million (up 11.2% YoY).
+- Other revenue of $40.7 million, roughly flat versus the prior year.
+
+The revenue mix continues to shift toward recurring subscription revenue, which represented 84.6% of total revenue in FY2024, compared to 79.3% in FY2023.
+
+[2] ## Profitability
+
+Gross margin expanded to 71.8% in FY2024 from 68.9% in FY2023, primarily reflecting scale in cloud infrastructure and improved contract terms with third-party data-center providers. Operating income was $71.4 million, up from $46.8 million in the prior year.
+
+## Cash and liquidity
+
+Cash and cash equivalents at fiscal year-end were $214.3 million, with total available liquidity — including undrawn credit facilities — of $364.3 million. Operating cash flow for the year was $92.5 million.
+
+[3] FY2025 Operating Budget - Memo to the Board
+
+From: Office of the Chief Financial Officer. Date: March 12, 2025. Subject: proposed operating budget for fiscal year 2025, for approval at the March 20 Board meeting.
+
+1. Summary
+
+The proposed operating expense budget for FY2025 is $268 million, an increase of 12% over FY2024 actual operating expenses of $239 million. Capital expenditure is budgeted at $34 million, mainly for data-center capacity in Frankfurt and Virginia.
+
+2. Operating Expenses by Function
+
+Research and development: $112 million.
+
+Sales and marketing: $98 million.
+
+General and administrative: $58 million.
+
+3. Headcount
+
+The plan adds 220 net new employees over the year, 60% of them in research and development. Most hires are planned for the second half of the year.
+
+4. Cost Measures
+
+The company-wide travel budget is reduced by 10% compared to FY2024. External consulting spend is capped at $9 million. Any new spend above the approved budget for a function requires approval from the Chief Financial Officer.
+
+5. Risks
+
+The budget assumes revenue growth at the midpoint of guidance, about 15.5%. If growth falls below 14%, the hiring plan for the second half will be reduced by up to half.
+
+[4] # Acme Corporation — Financial Summary FY2024
+
+*Prepared for internal review, dated March 5, 2025. All figures in United States dollars unless otherwise noted.*
+
+## Executive summary
+
+Acme Corporation reported a strong FY2024, with double-digit revenue growth driven by expansion of the Enterprise Cloud segment and continued adoption of the Managed Services offering.
+
+[5] Total revenue for the first quarter of fiscal year 2025 was $128.9 million, an increase of 17.2% compared to $110.0 million in the first quarter of fiscal year 2024. Growth was led by Enterprise Cloud, which added 41 new enterprise customers in the quarter.
+
+Revenue by Segment
+
+Enterprise Cloud subscription revenue: $86.4 million, up 22.5% year over year.
+
+Managed Services revenue: $32.1 million, up 9.6% year over year.
+
+Other revenue: $10.4 million, down 1.9% year over year.
+
+Profitability
+
+Gross margin was 72.6%, compared to 70.9% in the same quarter last year. Operating income was $21.3 million. Operating expenses grew more slowly than revenue because hiring was concentrated in the second half of the fiscal year.
+
+Cash
+
+Cash and cash equivalents were $231.8 million at the end of the quarter. Operating cash flow for the quarter was $26.7 million. The share repurchase program approved in March had not started by the end of the quarter.
+
+Customers and People
+
+Net revenue retention for Enterprise Cloud was 118%. Headcount at the end of the quarter was 1,940 employees.
+
+Outlook
+
+Management reaffirms its fiscal year 2025 guidance of revenue growth between 14% and 17%. Guidance for the second quarter is revenue between $132 million and $135 million.
+
+[6] # Minutes of the Board of Directors Meeting - March 20, 2025
+
+Location: Acme Corporation headquarters, Wilmington, Delaware, and by video conference. All seven (7) directors were present. The Chair, Elena Rossi, presided. The Corporate Secretary recorded the minutes.
+
+## 1. FY2025 Operating Budget
+
+The Chief Financial Officer presented the FY2025 operating budget memo. After discussion, the Board approved the operating expense budget of $268 million and the capital expenditure budget of $34 million, unanimously.
+
+[7] ## 2. Share Repurchase Program
+
+The Board approved a share repurchase program of up to $50 million, to be executed over eighteen (18) months starting no earlier than April 1, 2025. Six directors voted in favor and one director abstained.
+
+## 3. Dividend
+
+The Board discussed a first cash dividend and decided not to declare a dividend for FY2025, in order to keep flexibility for acquisitions.
+
+## 4. Appointment of Chief Financial Officer
+
+The Board appointed Dana Whitfield as Chief Financial Officer, effective April 1, 2025, succeeding Robert Lang, who retires after nine years in the role.
+
+## 5. Audit Committee Report
+
+The Chair of the Audit Committee reported that the external auditor issued an unqualified opinion on the FY2024 financial statements and identified no material weakness in internal control.
+
+## 6. Next Meeting
+
+The next regular meeting is scheduled for June 18, 2025.
+
+[8] Acme Corporation - Quarterly Report Q1 FY2025
+
+Quarter ended March 31, 2025. Prepared for the Board of Directors, dated April 24, 2025. All figures in United States dollars and unaudited.
+
+Highlights
+
+[9] ## Outlook
+
+For fiscal year 2025, management expects revenue growth in the range of 14% to 17%, with continued gross-margin expansion of approximately 100 basis points. These figures are forward-looking and subject to the risk factors disclosed in Section 8 of the Annual Report.",supported,
+A21,Enterprise Cloud subscription revenue was $312.7 million.,"Enterprise Cloud subscription revenue of $312.7 million (up 24.1% YoY).
+- Managed Services revenue of $128.6 million (up 11.2% YoY).
+- Other revenue of $40.7 million, roughly flat versus the prior year.","[1] ## Revenue
+
+Total revenue for fiscal year 2024 was $482.0 million, an increase of 18.4% compared to $407.1 million in fiscal year 2023. The year-over-year growth was propelled by:
+
+- Enterprise Cloud subscription revenue of $312.7 million (up 24.1% YoY).
+- Managed Services revenue of $128.6 million (up 11.2% YoY).
+- Other revenue of $40.7 million, roughly flat versus the prior year.
+
+The revenue mix continues to shift toward recurring subscription revenue, which represented 84.6% of total revenue in FY2024, compared to 79.3% in FY2023.
+
+[2] ## Profitability
+
+Gross margin expanded to 71.8% in FY2024 from 68.9% in FY2023, primarily reflecting scale in cloud infrastructure and improved contract terms with third-party data-center providers. Operating income was $71.4 million, up from $46.8 million in the prior year.
+
+## Cash and liquidity
+
+Cash and cash equivalents at fiscal year-end were $214.3 million, with total available liquidity — including undrawn credit facilities — of $364.3 million. Operating cash flow for the year was $92.5 million.
+
+[3] FY2025 Operating Budget - Memo to the Board
+
+From: Office of the Chief Financial Officer. Date: March 12, 2025. Subject: proposed operating budget for fiscal year 2025, for approval at the March 20 Board meeting.
+
+1. Summary
+
+The proposed operating expense budget for FY2025 is $268 million, an increase of 12% over FY2024 actual operating expenses of $239 million. Capital expenditure is budgeted at $34 million, mainly for data-center capacity in Frankfurt and Virginia.
+
+2. Operating Expenses by Function
+
+Research and development: $112 million.
+
+Sales and marketing: $98 million.
+
+General and administrative: $58 million.
+
+3. Headcount
+
+The plan adds 220 net new employees over the year, 60% of them in research and development. Most hires are planned for the second half of the year.
+
+4. Cost Measures
+
+The company-wide travel budget is reduced by 10% compared to FY2024. External consulting spend is capped at $9 million. Any new spend above the approved budget for a function requires approval from the Chief Financial Officer.
+
+5. Risks
+
+The budget assumes revenue growth at the midpoint of guidance, about 15.5%. If growth falls below 14%, the hiring plan for the second half will be reduced by up to half.
+
+[4] # Acme Corporation — Financial Summary FY2024
+
+*Prepared for internal review, dated March 5, 2025. All figures in United States dollars unless otherwise noted.*
+
+## Executive summary
+
+Acme Corporation reported a strong FY2024, with double-digit revenue growth driven by expansion of the Enterprise Cloud segment and continued adoption of the Managed Services offering.
+
+[5] Total revenue for the first quarter of fiscal year 2025 was $128.9 million, an increase of 17.2% compared to $110.0 million in the first quarter of fiscal year 2024. Growth was led by Enterprise Cloud, which added 41 new enterprise customers in the quarter.
+
+Revenue by Segment
+
+Enterprise Cloud subscription revenue: $86.4 million, up 22.5% year over year.
+
+Managed Services revenue: $32.1 million, up 9.6% year over year.
+
+Other revenue: $10.4 million, down 1.9% year over year.
+
+Profitability
+
+Gross margin was 72.6%, compared to 70.9% in the same quarter last year. Operating income was $21.3 million. Operating expenses grew more slowly than revenue because hiring was concentrated in the second half of the fiscal year.
+
+Cash
+
+Cash and cash equivalents were $231.8 million at the end of the quarter. Operating cash flow for the quarter was $26.7 million. The share repurchase program approved in March had not started by the end of the quarter.
+
+Customers and People
+
+Net revenue retention for Enterprise Cloud was 118%. Headcount at the end of the quarter was 1,940 employees.
+
+Outlook
+
+Management reaffirms its fiscal year 2025 guidance of revenue growth between 14% and 17%. Guidance for the second quarter is revenue between $132 million and $135 million.
+
+[6] # Minutes of the Board of Directors Meeting - March 20, 2025
+
+Location: Acme Corporation headquarters, Wilmington, Delaware, and by video conference. All seven (7) directors were present. The Chair, Elena Rossi, presided. The Corporate Secretary recorded the minutes.
+
+## 1. FY2025 Operating Budget
+
+The Chief Financial Officer presented the FY2025 operating budget memo. After discussion, the Board approved the operating expense budget of $268 million and the capital expenditure budget of $34 million, unanimously.
+
+[7] ## 2. Share Repurchase Program
+
+The Board approved a share repurchase program of up to $50 million, to be executed over eighteen (18) months starting no earlier than April 1, 2025. Six directors voted in favor and one director abstained.
+
+## 3. Dividend
+
+The Board discussed a first cash dividend and decided not to declare a dividend for FY2025, in order to keep flexibility for acquisitions.
+
+## 4. Appointment of Chief Financial Officer
+
+The Board appointed Dana Whitfield as Chief Financial Officer, effective April 1, 2025, succeeding Robert Lang, who retires after nine years in the role.
+
+## 5. Audit Committee Report
+
+The Chair of the Audit Committee reported that the external auditor issued an unqualified opinion on the FY2024 financial statements and identified no material weakness in internal control.
+
+## 6. Next Meeting
+
+The next regular meeting is scheduled for June 18, 2025.
+
+[8] Acme Corporation - Quarterly Report Q1 FY2025
+
+Quarter ended March 31, 2025. Prepared for the Board of Directors, dated April 24, 2025. All figures in United States dollars and unaudited.
+
+Highlights
+
+[9] ## Outlook
+
+For fiscal year 2025, management expects revenue growth in the range of 14% to 17%, with continued gross-margin expansion of approximately 100 basis points. These figures are forward-looking and subject to the risk factors disclosed in Section 8 of the Annual Report.",supported,
+A22,This renewal pricing cap applies under the Northwind order form.,Renewal pricing may increase by no more than five percent (5%) per year.,"[1] This Order Form renews automatically for successive twelve (12) month periods unless either party gives written notice of non-renewal at least sixty (60) days before the end of the then-current term. Renewal pricing may increase by no more than five percent (5%) per year.
+
+Signatures
+
+Signed for Acme Corporation by Maria Chen, Vice President of Sales, on January 20, 2025. Signed for Northwind Logistics Inc. by Tom Becker, Chief Operating Officer, on January 22, 2025.
+
+[2] This Order Form is entered into under the Master Services Agreement dated January 15, 2024 between Acme Corporation (""Provider"") and Northwind Logistics Inc., a Delaware corporation headquartered in Columbus, Ohio (""Customer""). In case of conflict, this Order Form prevails over the Master Services Agreement for the services listed below.
+
+1. Subscription
+
+Service: Enterprise Cloud, Professional edition.
+
+Quantity: 250 named user seats.
+
+Price: US$42.00 per seat per month.
+
+Annual subscription fee: US$126,000.00.
+
+Subscription term: twenty-four (24) months, starting February 1, 2025 and ending January 31, 2027.
+
+2. Add-on Services
+
+Managed Services, Standard tier: US$18,000.00 per year.
+
+Premium Support: included at no additional charge for the subscription term.
+
+3. Billing and Payment
+
+[3] Customer may add seats at any time at the same per-seat price, prorated to the end of the current annual period. Seats may be reduced only at an annual renewal date, and never below 200 seats during the subscription term.
+
+7. Renewal
+
+[4] Order Form No. NW-2025-001
+
+[5] This Statement of Work (""SOW"") is issued under the Master Services Agreement dated January 15, 2024 between Acme Corporation (""Provider"") and Northwind Logistics Inc. (""Customer""). It describes the migration of Customer's shipment-tracking data from its legacy on-premises system to Enterprise Cloud.
+
+1. Scope
+
+Provider will extract, transform and load approximately 40 million shipment records and 1.2 terabytes of attached documents from Customer's legacy Oracle database into Enterprise Cloud, and will validate record counts and checksums after each load.
+
+2. Out of Scope
+
+Migration of archived records older than seven (7) years, changes to Customer's internal reporting tools, and end-user training are not included in this SOW.
+
+3. Timeline
+
+The project runs for twelve (12) weeks starting March 3, 2025. The cutover to production is planned for the weekend of May 24, 2025.
+
+4. Fees and Milestones
+
+The fixed fee for this SOW is US$85,000, invoiced on completion of three milestones:
+
+Milestone 1, approved migration plan: 30% of the fee.
+
+Milestone 2, successful test migration in the staging environment: 40% of the fee.
+
+Milestone 3, production cutover accepted by Customer: 30% of the fee.
+
+Travel expenses are billed separately at cost and may not exceed US$6,000 without Customer's written approval.
+
+5. Acceptance
+
+Customer has ten (10) business days after each milestone delivery to accept it or to describe in writing how it does not meet this SOW. A milestone not rejected within that period is deemed accepted.
+
+6. Change Requests
+
+Any change to scope, timeline or fees requires a written change request signed by both parties. Provider will estimate the impact of a requested change within five (5) business days.
+
+7. Project Contacts
+
+Provider's project manager is Lena Park. Customer's project sponsor is Tom Becker, Chief Operating Officer.
+
+[6] # Amendment No. 1 to the Master Services Agreement
+
+This Amendment No. 1 (""Amendment"") amends the Master Services Agreement dated January 15, 2024 (the ""Agreement"") between Acme Corporation (""Provider"") and Northwind Logistics Inc. (""Customer""). It is effective as of July 1, 2025. Capitalized terms not defined here have the meaning given in the Agreement.
+
+[7] Mutual Non-Disclosure Agreement
+
+This Mutual Non-Disclosure Agreement (""NDA"") is made as of October 2, 2024 between Acme Corporation (""Acme"") and Northwind Logistics Inc. (""Northwind""), each a ""Party"", in connection with discussions about a possible business relationship (the ""Purpose"").
+
+1. Confidential Information
+
+""Confidential Information"" means any non-public business, technical or financial information disclosed by one Party to the other, in any form, that is marked as confidential or that a reasonable person would understand to be confidential.
+
+2. Exclusions
+
+[8] ## 2. Fees and Payment
+
+Customer shall pay all fees set forth in the applicable Order Form within thirty (30) days of the invoice date. Late payments accrue interest at the lesser of one percent (1%) per month or the maximum rate permitted by applicable law.
+
+## 3. Liability and Indemnification",supported,
+A23,The Frankfurt hotel limit applies to the rate excluding taxes.,"In New York, London and San Francisco the limit is US$325 per night.","[1] Employees book economy class for flights scheduled at six (6) hours or less. Business class is allowed for flights scheduled at more than six (6) hours, with the approval of a Vice President. Tickets should be booked at least fourteen (14) days before departure when possible.
+
+3. Hotels
+
+The nightly hotel rate, excluding taxes, may not exceed US$250. In New York, London and San Francisco the limit is US$325 per night. Employees must use the preferred hotels listed in the booking tool when one is available.
+
+4. Meals
+
+[2] Employees receive a meal per diem of US$75 per full travel day, and US$40 on the days of departure and return. The per diem replaces individual meal receipts. Alcohol is not reimbursable, except during client entertainment approved in advance by a Director.
+
+5. Ground Transportation
+
+Employees should use public transport or taxis. Rental cars are allowed when cheaper than the alternatives or when traveling with colleagues. Use of a personal car is reimbursed at US$0.67 per mile.
+
+6. Receipts and Submission
+
+An itemized receipt is required for every expense of US$25 or more. Expense claims must be submitted within thirty (30) days after the trip ends. Claims submitted more than ninety (90) days after the trip are not reimbursed.
+
+7. Non-reimbursable Expenses
+
+The following are not reimbursed: upgrades paid for personally, airline lounge memberships, traffic and parking fines, personal entertainment, and expenses for a spouse or family member.
+
+8. Corporate Card
+
+Employees who travel more than four (4) times per year are issued a corporate card. Personal expenses must never be charged to it.
+
+[3] ## 1. Gifts and Hospitality
+
+Employees may accept gifts or hospitality from business partners only when the value does not exceed US$100 per person per year and the gift is not cash or a cash equivalent. Any gift above that value must be declined or reported to the Compliance team. Gifts may never be offered to government officials without prior approval from Legal.
+
+[4] Travel and Expense Policy
+
+Policy owner: Finance. Version 3.2, effective January 1, 2025. This policy applies to all employees of Acme Corporation who travel or incur expenses on company business.
+
+1. Approval
+
+All business travel must be approved in advance by the employee's manager through the travel booking tool. International travel also requires approval from a Vice President.
+
+2. Air Travel
+
+[5] A primary caregiver receives sixteen (16) weeks of fully paid parental leave. A secondary caregiver receives eight (8) weeks of fully paid parental leave. Parental leave must be taken within twelve (12) months of the birth, adoption or foster placement, and is available after three (3) months of employment.
+
+2. Sick Leave
+
+Employees receive ten (10) days of paid sick leave per calendar year. Sick leave does not carry over to the following year. A medical certificate is required for an absence of more than three (3) consecutive working days.
+
+3. Bereavement Leave
+
+Employees receive up to five (5) days of paid bereavement leave on the death of an immediate family member, and up to two (2) days for an extended family member.
+
+4. Jury Duty
+
+Employees called for jury duty receive full pay for up to ten (10) working days per year.
+
+5. Sabbatical
+
+After five (5) years of continuous employment, employees may take a paid sabbatical of four (4) weeks. A sabbatical must be requested at least three (3) months in advance and approved by the employee's manager.
+
+6. Unpaid Leave
+
+Unpaid leave of up to three (3) months may be granted at the company's discretion. Health insurance continues during approved unpaid leave.
+
+[6] ## 2. Share Repurchase Program
+
+The Board approved a share repurchase program of up to $50 million, to be executed over eighteen (18) months starting no earlier than April 1, 2025. Six directors voted in favor and one director abstained.
+
+## 3. Dividend
+
+The Board discussed a first cash dividend and decided not to declare a dividend for FY2025, in order to keep flexibility for acquisitions.
+
+## 4. Appointment of Chief Financial Officer
+
+The Board appointed Dana Whitfield as Chief Financial Officer, effective April 1, 2025, succeeding Robert Lang, who retires after nine years in the role.
+
+## 5. Audit Committee Report
+
+The Chair of the Audit Committee reported that the external auditor issued an unqualified opinion on the FY2024 financial statements and identified no material weakness in internal control.
+
+## 6. Next Meeting
+
+The next regular meeting is scheduled for June 18, 2025.
+
+[7] FY2025 Operating Budget - Memo to the Board
+
+From: Office of the Chief Financial Officer. Date: March 12, 2025. Subject: proposed operating budget for fiscal year 2025, for approval at the March 20 Board meeting.
+
+1. Summary
+
+The proposed operating expense budget for FY2025 is $268 million, an increase of 12% over FY2024 actual operating expenses of $239 million. Capital expenditure is budgeted at $34 million, mainly for data-center capacity in Frankfurt and Virginia.
+
+2. Operating Expenses by Function
+
+Research and development: $112 million.
+
+Sales and marketing: $98 million.
+
+General and administrative: $58 million.
+
+3. Headcount
+
+The plan adds 220 net new employees over the year, 60% of them in research and development. Most hires are planned for the second half of the year.
+
+4. Cost Measures
+
+The company-wide travel budget is reduced by 10% compared to FY2024. External consulting spend is capped at $9 million. Any new spend above the approved budget for a function requires approval from the Chief Financial Officer.
+
+5. Risks
+
+The budget assumes revenue growth at the midpoint of guidance, about 15.5%. If growth falls below 14%, the hiring plan for the second half will be reduced by up to half.
+
+[8] Mutual Non-Disclosure Agreement
+
+This Mutual Non-Disclosure Agreement (""NDA"") is made as of October 2, 2024 between Acme Corporation (""Acme"") and Northwind Logistics Inc. (""Northwind""), each a ""Party"", in connection with discussions about a possible business relationship (the ""Purpose"").
+
+1. Confidential Information
+
+""Confidential Information"" means any non-public business, technical or financial information disclosed by one Party to the other, in any form, that is marked as confidential or that a reasonable person would understand to be confidential.
+
+2. Exclusions",unsupported,
+A24,"The four levels are Public, Internal, Confidential, and Restricted.","Acme classifies information into four levels: Public, Internal, Confidential and Restricted. Customer data and employee personal data are always Restricted.","[1] Information Security Policy
+
+Policy owner: Chief Information Security Officer. Version 5.0, effective February 1, 2025. Applies to all employees, contractors and systems of Acme Corporation.
+
+1. Data Classification
+
+Acme classifies information into four levels: Public, Internal, Confidential and Restricted. Customer data and employee personal data are always Restricted. Restricted data may only be stored in approved production systems and may never be copied to personal devices.
+
+2. Passwords and Authentication
+
+[2] Confidential Information does not include information that the receiving Party can show: (a) is or becomes publicly available through no fault of the receiving Party; (b) was lawfully known to it before disclosure; (c) is received from a third party without a duty of confidentiality; or (d) is independently developed without use of the disclosing Party's information.
+
+3. Obligations
+
+[3] ## 4. Confidentiality
+
+Each party agrees to protect the Confidential Information of the other party with the same degree of care it uses to protect its own confidential information, and in no event less than a reasonable degree of care.
+
+[4] Mutual Non-Disclosure Agreement
+
+This Mutual Non-Disclosure Agreement (""NDA"") is made as of October 2, 2024 between Acme Corporation (""Acme"") and Northwind Logistics Inc. (""Northwind""), each a ""Party"", in connection with discussions about a possible business relationship (the ""Purpose"").
+
+1. Confidential Information
+
+""Confidential Information"" means any non-public business, technical or financial information disclosed by one Party to the other, in any form, that is marked as confidential or that a reasonable person would understand to be confidential.
+
+2. Exclusions
+
+[5] Passwords must be at least fourteen (14) characters long. Multi-factor authentication is required for every company system that supports it, including email, source control and the VPN. Passwords are not rotated on a schedule; they must be changed immediately when a compromise is suspected.
+
+3. Devices
+
+Company laptops must use full-disk encryption, automatic screen lock after five (5) minutes of inactivity and the managed endpoint protection agent. Lost or stolen devices must be reported to the IT service desk within four (4) hours.
+
+4. Access Control
+
+Access is granted on a least-privilege basis and reviewed every quarter by the system owner. Access for departing employees is revoked on their last working day.
+
+5. Incident Reporting
+
+Employees must report any suspected security incident to security@acme.example within one (1) hour of noticing it. The security team classifies incidents by severity and leads the response.
+
+6. Training
+
+All employees complete security awareness training when they join and every year after that. Employees who fail a simulated phishing test complete a short refresher course within fourteen (14) days.
+
+7. Vendors
+
+A vendor that will process Confidential or Restricted data must pass a security review before a contract is signed. The review is repeated every two (2) years.
+
+8. Exceptions
+
+Exceptions to this policy require written approval from the Chief Information Security Officer and expire after twelve (12) months.
+
+[6] ## 3. Data Location and International Transfers
+Personal data is stored in data centers located in Frankfurt, Germany (European Union) and in Virginia, United States. Transfers of personal data from the EU to the US are carried out under the European Commission's Standard Contractual Clauses.
+
+## 4. Security Measures
+Provider encrypts personal data at rest using AES-256 and in transit using TLS 1.2 or higher. Access to production data is restricted to authorized personnel on a least-privilege basis.
+
+## 5. Breach Notification
+Provider will notify the Controller of any confirmed personal-data breach within seventy-two (72) hours of discovery, and will cooperate with the Controller's investigation and remediation.
+
+## 6. Data Subject Requests
+Provider will assist the Controller in responding to data-subject requests (access, rectification, erasure) and will forward any such request it receives directly to the Controller within five (5) business days.
+
+## 7. Retention and Deletion
+Upon termination of the Agreement, Provider will delete all personal data processed on the Controller's behalf within ninety (90) days, unless retention is required by applicable law.
+
+## 8. Audit
+The Controller may audit Provider's compliance with this DPA once per calendar year, on at least thirty (30) days' written notice.
+
+[7] ## 1. Approval Thresholds
+
+Every purchase requires a purchase order approved according to its total contract value:
+
+- below US$10,000: the requester's manager;
+- from US$10,000 to US$100,000: a Director and the Finance business partner;
+- above US$100,000 and up to US$500,000: the Chief Financial Officer;
+- above US$500,000: the Chief Executive Officer, after review by the Chief Financial Officer.
+
+## 2. Competitive Quotes
+
+Purchases above US$50,000 require at least three (3) written quotes, unless the supplier is the only one able to provide the goods or services. A sole-source justification must then be attached to the purchase order.
+
+## 3. Vendor Onboarding
+
+New suppliers are onboarded by the Procurement team. A supplier that will access company or customer data must also pass the security review described in the Information Security Policy before the contract is signed.
+
+## 4. Payment Terms
+
+Acme's standard payment term for suppliers is forty-five (45) days from the invoice date. Shorter terms require approval from the Finance business partner.
+
+## 5. Splitting Purchases
+
+Splitting a purchase into smaller orders to avoid an approval threshold is prohibited.
+
+[8] ## 2. Conflicts of Interest
+
+Employees must disclose to Compliance any financial interest in a supplier, customer or competitor, and any outside employment, before it begins. Employees may not take part in a decision that involves a company in which they or a family member hold an interest.
+
+## 3. Insider Trading
+
+Employees who hold material non-public information about Acme or another company may not trade in that company's securities, or advise others to do so.",supported,
+A25,The Board approved the FY2026 operating budget unanimously.,"the Board approved the operating expense budget of $268 million and the capital expenditure budget of $34 million, unanimously.","[1] # Minutes of the Board of Directors Meeting - March 20, 2025
+
+Location: Acme Corporation headquarters, Wilmington, Delaware, and by video conference. All seven (7) directors were present. The Chair, Elena Rossi, presided. The Corporate Secretary recorded the minutes.
+
+## 1. FY2025 Operating Budget
+
+The Chief Financial Officer presented the FY2025 operating budget memo. After discussion, the Board approved the operating expense budget of $268 million and the capital expenditure budget of $34 million, unanimously.
+
+[2] FY2025 Operating Budget - Memo to the Board
+
+From: Office of the Chief Financial Officer. Date: March 12, 2025. Subject: proposed operating budget for fiscal year 2025, for approval at the March 20 Board meeting.
+
+1. Summary
+
+The proposed operating expense budget for FY2025 is $268 million, an increase of 12% over FY2024 actual operating expenses of $239 million. Capital expenditure is budgeted at $34 million, mainly for data-center capacity in Frankfurt and Virginia.
+
+2. Operating Expenses by Function
+
+Research and development: $112 million.
+
+Sales and marketing: $98 million.
+
+General and administrative: $58 million.
+
+3. Headcount
+
+The plan adds 220 net new employees over the year, 60% of them in research and development. Most hires are planned for the second half of the year.
+
+4. Cost Measures
+
+The company-wide travel budget is reduced by 10% compared to FY2024. External consulting spend is capped at $9 million. Any new spend above the approved budget for a function requires approval from the Chief Financial Officer.
+
+5. Risks
+
+The budget assumes revenue growth at the midpoint of guidance, about 15.5%. If growth falls below 14%, the hiring plan for the second half will be reduced by up to half.
+
+[3] ## 2. Share Repurchase Program
+
+The Board approved a share repurchase program of up to $50 million, to be executed over eighteen (18) months starting no earlier than April 1, 2025. Six directors voted in favor and one director abstained.
+
+## 3. Dividend
+
+The Board discussed a first cash dividend and decided not to declare a dividend for FY2025, in order to keep flexibility for acquisitions.
+
+## 4. Appointment of Chief Financial Officer
+
+The Board appointed Dana Whitfield as Chief Financial Officer, effective April 1, 2025, succeeding Robert Lang, who retires after nine years in the role.
+
+## 5. Audit Committee Report
+
+The Chair of the Audit Committee reported that the external auditor issued an unqualified opinion on the FY2024 financial statements and identified no material weakness in internal control.
+
+## 6. Next Meeting
+
+The next regular meeting is scheduled for June 18, 2025.
+
+[4] Acme Corporation - Quarterly Report Q1 FY2025
+
+Quarter ended March 31, 2025. Prepared for the Board of Directors, dated April 24, 2025. All figures in United States dollars and unaudited.
+
+Highlights
+
+[5] ## Profitability
+
+Gross margin expanded to 71.8% in FY2024 from 68.9% in FY2023, primarily reflecting scale in cloud infrastructure and improved contract terms with third-party data-center providers. Operating income was $71.4 million, up from $46.8 million in the prior year.
+
+## Cash and liquidity
+
+Cash and cash equivalents at fiscal year-end were $214.3 million, with total available liquidity — including undrawn credit facilities — of $364.3 million. Operating cash flow for the year was $92.5 million.
+
+[6] # Acme Corporation — Financial Summary FY2024
+
+*Prepared for internal review, dated March 5, 2025. All figures in United States dollars unless otherwise noted.*
+
+## Executive summary
+
+Acme Corporation reported a strong FY2024, with double-digit revenue growth driven by expansion of the Enterprise Cloud segment and continued adoption of the Managed Services offering.
+
+[7] ## Revenue
+
+Total revenue for fiscal year 2024 was $482.0 million, an increase of 18.4% compared to $407.1 million in fiscal year 2023. The year-over-year growth was propelled by:
+
+- Enterprise Cloud subscription revenue of $312.7 million (up 24.1% YoY).
+- Managed Services revenue of $128.6 million (up 11.2% YoY).
+- Other revenue of $40.7 million, roughly flat versus the prior year.
+
+The revenue mix continues to shift toward recurring subscription revenue, which represented 84.6% of total revenue in FY2024, compared to 79.3% in FY2023.
+
+[8] Total revenue for the first quarter of fiscal year 2025 was $128.9 million, an increase of 17.2% compared to $110.0 million in the first quarter of fiscal year 2024. Growth was led by Enterprise Cloud, which added 41 new enterprise customers in the quarter.
+
+Revenue by Segment
+
+Enterprise Cloud subscription revenue: $86.4 million, up 22.5% year over year.
+
+Managed Services revenue: $32.1 million, up 9.6% year over year.
+
+Other revenue: $10.4 million, down 1.9% year over year.
+
+Profitability
+
+Gross margin was 72.6%, compared to 70.9% in the same quarter last year. Operating income was $21.3 million. Operating expenses grew more slowly than revenue because hiring was concentrated in the second half of the fiscal year.
+
+Cash
+
+Cash and cash equivalents were $231.8 million at the end of the quarter. Operating cash flow for the quarter was $26.7 million. The share repurchase program approved in March had not started by the end of the quarter.
+
+Customers and People
+
+Net revenue retention for Enterprise Cloud was 118%. Headcount at the end of the quarter was 1,940 employees.
+
+Outlook
+
+Management reaffirms its fiscal year 2025 guidance of revenue growth between 14% and 17%. Guidance for the second quarter is revenue between $132 million and $135 million.",supported,
+A26,"The liability cap is the greater of $2,000,000 or the total fees paid by Customer during the twelve months preceding the claim.","Section 3.1 of the Agreement is amended so that, for Customer only, the aggregate liability of Provider shall not exceed two million United States dollars ($2,000,000) or the total fees paid by Customer during the twelve (12) months immediately preceding the event giving rise to the claim, whichever is greater.","[1] ### 3.2 Data-Processing Breach
+
+Acme Corporation, acting as Provider, shall be the entity liable for any breach of its data-processing obligations under Schedule B (Data Processing Addendum), subject to the cap in Section 3.1. Provider shall notify Customer of any confirmed data-processing breach within seventy-two (72) hours of discovery and shall reasonably cooperate with Customer's investigation.
+
+[2] ## 3. Data Location and International Transfers
+Personal data is stored in data centers located in Frankfurt, Germany (European Union) and in Virginia, United States. Transfers of personal data from the EU to the US are carried out under the European Commission's Standard Contractual Clauses.
+
+## 4. Security Measures
+Provider encrypts personal data at rest using AES-256 and in transit using TLS 1.2 or higher. Access to production data is restricted to authorized personnel on a least-privilege basis.
+
+## 5. Breach Notification
+Provider will notify the Controller of any confirmed personal-data breach within seventy-two (72) hours of discovery, and will cooperate with the Controller's investigation and remediation.
+
+## 6. Data Subject Requests
+Provider will assist the Controller in responding to data-subject requests (access, rectification, erasure) and will forward any such request it receives directly to the Controller within five (5) business days.
+
+## 7. Retention and Deletion
+Upon termination of the Agreement, Provider will delete all personal data processed on the Controller's behalf within ninety (90) days, unless retention is required by applicable law.
+
+## 8. Audit
+The Controller may audit Provider's compliance with this DPA once per calendar year, on at least thirty (30) days' written notice.
+
+[3] # Schedule B — Data Processing Addendum
+
+This Data Processing Addendum (""DPA"") supplements the Master Services Agreement between Acme Corporation (""Provider"", acting as data processor) and the Customer (""Controller""). It governs the processing of personal data on the Customer's behalf.
+
+## 1. Roles and Scope
+Provider processes personal data only on documented instructions from the Controller and solely to deliver the services described in the Order Form.
+
+[4] ### 3.1 Limitation of Liability
+
+The aggregate liability of Provider arising out of or related to this Agreement, whether in contract, tort, or otherwise, shall not exceed one million United States dollars ($1,000,000) or the total fees paid by Customer to Provider under the applicable Order Form during the twelve (12) months immediately preceding the event giving rise to the claim, whichever is greater.
+
+[5] ### 3.3 Exclusion of Damages
+
+Except for a party's indemnification obligations and breaches of confidentiality, neither party shall be liable for any indirect, incidental, consequential, special, exemplary, or punitive damages, or for lost profits or loss of business, arising out of or related to this Agreement.
+
+[6] ## 1. Limitation of Liability
+
+Section 3.1 of the Agreement is amended so that, for Customer only, the aggregate liability of Provider shall not exceed two million United States dollars ($2,000,000) or the total fees paid by Customer during the twelve (12) months immediately preceding the event giving rise to the claim, whichever is greater.
+
+## 2. Termination for Convenience
+
+Section 1.2 of the Agreement is amended to require at least sixty (60) days' prior written notice for termination for convenience, instead of thirty (30) days. The pro-rata refund of prepaid fees is unchanged.
+
+[7] ## 2. Fees and Payment
+
+Customer shall pay all fees set forth in the applicable Order Form within thirty (30) days of the invoice date. Late payments accrue interest at the lesser of one percent (1%) per month or the maximum rate permitted by applicable law.
+
+## 3. Liability and Indemnification
+
+[8] ## 2. Sub-processors
+Provider engages a cloud infrastructure provider and a transactional email provider as sub-processors. Provider will give the Controller at least thirty (30) days' prior written notice before adding or replacing a sub-processor, during which the Controller may object on reasonable data-protection grounds.
+
+[9] Statement of Work No. 1 - Data Migration
+
+[10] ## 3. New Section 7 - AI Features
+
+Provider shall not use Customer Data, including prompts and outputs of any AI-assisted feature, to train or fine-tune machine-learning models, whether its own or a third party's. AI-assisted features are disabled by default and are enabled only by a Customer administrator.
+
+## 4. No Other Changes
+
+Except as expressly amended by this Amendment, the Agreement remains in full force and effect. This Amendment does not change the Service Level Agreement or the Data Processing Addendum.
+
+[11] ### 1.3 Termination for Cause
+
+Either party may terminate this Agreement immediately upon written notice if the other party materially breaches this Agreement and fails to cure the breach within fifteen (15) days after receiving written notice of the breach.",supported,
+A27,The evidence does not show a 500-seat arrangement for Acme.,"Quantity: 250 named user seats.
+
+Price: US$42.00 per seat per month.
+
+Annual subscription fee: US$126,000.00.","[1] This Order Form is entered into under the Master Services Agreement dated January 15, 2024 between Acme Corporation (""Provider"") and Northwind Logistics Inc., a Delaware corporation headquartered in Columbus, Ohio (""Customer""). In case of conflict, this Order Form prevails over the Master Services Agreement for the services listed below.
+
+1. Subscription
+
+Service: Enterprise Cloud, Professional edition.
+
+Quantity: 250 named user seats.
+
+Price: US$42.00 per seat per month.
+
+Annual subscription fee: US$126,000.00.
+
+Subscription term: twenty-four (24) months, starting February 1, 2025 and ending January 31, 2027.
+
+2. Add-on Services
+
+Managed Services, Standard tier: US$18,000.00 per year.
+
+Premium Support: included at no additional charge for the subscription term.
+
+3. Billing and Payment
+
+[2] This Order Form renews automatically for successive twelve (12) month periods unless either party gives written notice of non-renewal at least sixty (60) days before the end of the then-current term. Renewal pricing may increase by no more than five percent (5%) per year.
+
+Signatures
+
+Signed for Acme Corporation by Maria Chen, Vice President of Sales, on January 20, 2025. Signed for Northwind Logistics Inc. by Tom Becker, Chief Operating Officer, on January 22, 2025.
+
+[3] This Statement of Work (""SOW"") is issued under the Master Services Agreement dated January 15, 2024 between Acme Corporation (""Provider"") and Northwind Logistics Inc. (""Customer""). It describes the migration of Customer's shipment-tracking data from its legacy on-premises system to Enterprise Cloud.
+
+1. Scope
+
+Provider will extract, transform and load approximately 40 million shipment records and 1.2 terabytes of attached documents from Customer's legacy Oracle database into Enterprise Cloud, and will validate record counts and checksums after each load.
+
+2. Out of Scope
+
+Migration of archived records older than seven (7) years, changes to Customer's internal reporting tools, and end-user training are not included in this SOW.
+
+3. Timeline
+
+The project runs for twelve (12) weeks starting March 3, 2025. The cutover to production is planned for the weekend of May 24, 2025.
+
+4. Fees and Milestones
+
+The fixed fee for this SOW is US$85,000, invoiced on completion of three milestones:
+
+Milestone 1, approved migration plan: 30% of the fee.
+
+Milestone 2, successful test migration in the staging environment: 40% of the fee.
+
+Milestone 3, production cutover accepted by Customer: 30% of the fee.
+
+Travel expenses are billed separately at cost and may not exceed US$6,000 without Customer's written approval.
+
+5. Acceptance
+
+Customer has ten (10) business days after each milestone delivery to accept it or to describe in writing how it does not meet this SOW. A milestone not rejected within that period is deemed accepted.
+
+6. Change Requests
+
+Any change to scope, timeline or fees requires a written change request signed by both parties. Provider will estimate the impact of a requested change within five (5) business days.
+
+7. Project Contacts
+
+Provider's project manager is Lena Park. Customer's project sponsor is Tom Becker, Chief Operating Officer.
+
+[4] Customer may add seats at any time at the same per-seat price, prorated to the end of the current annual period. Seats may be reduced only at an annual renewal date, and never below 200 seats during the subscription term.
+
+7. Renewal
+
+[5] # Amendment No. 1 to the Master Services Agreement
+
+This Amendment No. 1 (""Amendment"") amends the Master Services Agreement dated January 15, 2024 (the ""Agreement"") between Acme Corporation (""Provider"") and Northwind Logistics Inc. (""Customer""). It is effective as of July 1, 2025. Capitalized terms not defined here have the meaning given in the Agreement.
+
+[6] Mutual Non-Disclosure Agreement
+
+This Mutual Non-Disclosure Agreement (""NDA"") is made as of October 2, 2024 between Acme Corporation (""Acme"") and Northwind Logistics Inc. (""Northwind""), each a ""Party"", in connection with discussions about a possible business relationship (the ""Purpose"").
+
+1. Confidential Information
+
+""Confidential Information"" means any non-public business, technical or financial information disclosed by one Party to the other, in any form, that is marked as confidential or that a reasonable person would understand to be confidential.
+
+2. Exclusions
+
+[7] ## 2. Home Office Support
+
+Each employee receives a one-time home office stipend of US$500 and a monthly internet allowance of US$50. Company equipment, including the laptop and one external monitor, remains company property and must be returned at the end of employment.
+
+[8] Employees receive a meal per diem of US$75 per full travel day, and US$40 on the days of departure and return. The per diem replaces individual meal receipts. Alcohol is not reimbursable, except during client entertainment approved in advance by a Director.
+
+5. Ground Transportation
+
+Employees should use public transport or taxis. Rental cars are allowed when cheaper than the alternatives or when traveling with colleagues. Use of a personal car is reimbursed at US$0.67 per mile.
+
+6. Receipts and Submission
+
+An itemized receipt is required for every expense of US$25 or more. Expense claims must be submitted within thirty (30) days after the trip ends. Claims submitted more than ninety (90) days after the trip are not reimbursed.
+
+7. Non-reimbursable Expenses
+
+The following are not reimbursed: upgrades paid for personally, airline lounge memberships, traffic and parking fines, personal entertainment, and expenses for a spouse or family member.
+
+8. Corporate Card
+
+Employees who travel more than four (4) times per year are issued a corporate card. Personal expenses must never be charged to it.",supported,
+A28,"For a standard Priority 1 (critical, service unavailable) support request, the response time is not within one (1) hour.","Priority 1 (critical, service unavailable): within one (1) hour.","[1] ## 3. Support Response Times
+Provider responds to support requests according to severity:
+
+- Priority 1 (critical, service unavailable): within one (1) hour.
+- Priority 2 (high, major feature impaired): within four (4) business hours.
+- Priority 3 (normal): within one (1) business day.
+
+## 4. Scheduled Maintenance
+Routine maintenance is performed on Sundays between 02:00 and 06:00 UTC. Provider gives at least forty-eight (48) hours' advance notice of any scheduled maintenance, which does not count against the uptime commitment.
+
+[2] Fees are invoiced annually in advance on the subscription start date and on each anniversary. Notwithstanding Section 2 of the Master Services Agreement, Customer shall pay each invoice within forty-five (45) days of the invoice date. All amounts are exclusive of taxes.
+
+4. Data Residency
+
+Customer data for this subscription is hosted exclusively in Provider's Frankfurt, Germany data center. Provider will not move Customer data to another region without Customer's prior written consent.
+
+5. Premium Support
+
+Premium Support shortens the Priority 1 response time to thirty (30) minutes, twentyfour hours a day, seven days a week. All other support response times follow the Service Level Agreement. Customer is assigned a named technical account manager.
+
+6. Seat Changes
+
+[3] Within fifteen (15) days of a written request, the receiving Party shall return or destroy all Confidential Information of the disclosing Party and confirm the destruction in writing, except for copies retained in automatic backup systems, which remain subject to this NDA.
+
+7. No License or Obligation
+
+Nothing in this NDA grants any license under any patent, copyright or other intellectual property right, and neither Party is obliged to enter into any further agreement.
+
+8. Governing Law
+
+This NDA is governed by the laws of the State of New York. Each Party submits to the exclusive jurisdiction of the state and federal courts located in New York County.
+
+[4] Passwords must be at least fourteen (14) characters long. Multi-factor authentication is required for every company system that supports it, including email, source control and the VPN. Passwords are not rotated on a schedule; they must be changed immediately when a compromise is suspected.
+
+3. Devices
+
+Company laptops must use full-disk encryption, automatic screen lock after five (5) minutes of inactivity and the managed endpoint protection agent. Lost or stolen devices must be reported to the IT service desk within four (4) hours.
+
+4. Access Control
+
+Access is granted on a least-privilege basis and reviewed every quarter by the system owner. Access for departing employees is revoked on their last working day.
+
+5. Incident Reporting
+
+Employees must report any suspected security incident to security@acme.example within one (1) hour of noticing it. The security team classifies incidents by severity and leads the response.
+
+6. Training
+
+All employees complete security awareness training when they join and every year after that. Employees who fail a simulated phishing test complete a short refresher course within fourteen (14) days.
+
+7. Vendors
+
+A vendor that will process Confidential or Restricted data must pass a security review before a contract is signed. The review is repeated every two (2) years.
+
+8. Exceptions
+
+Exceptions to this policy require written approval from the Chief Information Security Officer and expire after twelve (12) months.
+
+[5] ## 3. Data Location and International Transfers
+Personal data is stored in data centers located in Frankfurt, Germany (European Union) and in Virginia, United States. Transfers of personal data from the EU to the US are carried out under the European Commission's Standard Contractual Clauses.
+
+## 4. Security Measures
+Provider encrypts personal data at rest using AES-256 and in transit using TLS 1.2 or higher. Access to production data is restricted to authorized personnel on a least-privilege basis.
+
+## 5. Breach Notification
+Provider will notify the Controller of any confirmed personal-data breach within seventy-two (72) hours of discovery, and will cooperate with the Controller's investigation and remediation.
+
+## 6. Data Subject Requests
+Provider will assist the Controller in responding to data-subject requests (access, rectification, erasure) and will forward any such request it receives directly to the Controller within five (5) business days.
+
+## 7. Retention and Deletion
+Upon termination of the Agreement, Provider will delete all personal data processed on the Controller's behalf within ninety (90) days, unless retention is required by applicable law.
+
+## 8. Audit
+The Controller may audit Provider's compliance with this DPA once per calendar year, on at least thirty (30) days' written notice.
+
+[6] Order Form No. NW-2025-001
+
+[7] ## 2. Sub-processors
+Provider engages a cloud infrastructure provider and a transactional email provider as sub-processors. Provider will give the Controller at least thirty (30) days' prior written notice before adding or replacing a sub-processor, during which the Controller may object on reasonable data-protection grounds.
+
+[8] ### 1.2 Termination for Convenience
+
+Either party may terminate this Agreement or any Order Form for its convenience by providing the other party with at least thirty (30) days' prior written notice. Fees paid in advance for services not yet delivered will be refunded on a pro-rata basis, and outstanding fees for services rendered through the effective date of termination remain due and payable.",unsupported,
+A29,Acme must notify a customer of a confirmed personal-data breach within seventy-two (72) hours of discovery.,"Provider will notify the Controller of any confirmed personal-data breach within seventy-two (72) hours of discovery, and will cooperate with the Controller's investigation and remediation.","[1] ### 3.2 Data-Processing Breach
+
+Acme Corporation, acting as Provider, shall be the entity liable for any breach of its data-processing obligations under Schedule B (Data Processing Addendum), subject to the cap in Section 3.1. Provider shall notify Customer of any confirmed data-processing breach within seventy-two (72) hours of discovery and shall reasonably cooperate with Customer's investigation.
+
+[2] Passwords must be at least fourteen (14) characters long. Multi-factor authentication is required for every company system that supports it, including email, source control and the VPN. Passwords are not rotated on a schedule; they must be changed immediately when a compromise is suspected.
+
+3. Devices
+
+Company laptops must use full-disk encryption, automatic screen lock after five (5) minutes of inactivity and the managed endpoint protection agent. Lost or stolen devices must be reported to the IT service desk within four (4) hours.
+
+4. Access Control
+
+Access is granted on a least-privilege basis and reviewed every quarter by the system owner. Access for departing employees is revoked on their last working day.
+
+5. Incident Reporting
+
+Employees must report any suspected security incident to security@acme.example within one (1) hour of noticing it. The security team classifies incidents by severity and leads the response.
+
+6. Training
+
+All employees complete security awareness training when they join and every year after that. Employees who fail a simulated phishing test complete a short refresher course within fourteen (14) days.
+
+7. Vendors
+
+A vendor that will process Confidential or Restricted data must pass a security review before a contract is signed. The review is repeated every two (2) years.
+
+8. Exceptions
+
+Exceptions to this policy require written approval from the Chief Information Security Officer and expire after twelve (12) months.
+
+[3] ## 3. Data Location and International Transfers
+Personal data is stored in data centers located in Frankfurt, Germany (European Union) and in Virginia, United States. Transfers of personal data from the EU to the US are carried out under the European Commission's Standard Contractual Clauses.
+
+## 4. Security Measures
+Provider encrypts personal data at rest using AES-256 and in transit using TLS 1.2 or higher. Access to production data is restricted to authorized personnel on a least-privilege basis.
+
+## 5. Breach Notification
+Provider will notify the Controller of any confirmed personal-data breach within seventy-two (72) hours of discovery, and will cooperate with the Controller's investigation and remediation.
+
+## 6. Data Subject Requests
+Provider will assist the Controller in responding to data-subject requests (access, rectification, erasure) and will forward any such request it receives directly to the Controller within five (5) business days.
+
+## 7. Retention and Deletion
+Upon termination of the Agreement, Provider will delete all personal data processed on the Controller's behalf within ninety (90) days, unless retention is required by applicable law.
+
+## 8. Audit
+The Controller may audit Provider's compliance with this DPA once per calendar year, on at least thirty (30) days' written notice.
+
+[4] ## 4. Enforcement
+
+Provider may suspend the affected part of the service after giving twenty-four (24) hours' written notice of a violation that the customer has not remedied. Provider may suspend without notice only when a violation poses an immediate threat to the security or availability of the service, and will restore it as soon as the threat is removed.
+
+## 5. Reporting
+
+Suspected violations should be reported to abuse@acme.example. Provider acknowledges reports within one (1) business day.
+
+[5] ## 4. Speaking Up
+
+Employees can report suspected misconduct to their manager, to Compliance, or anonymously through the Ethics Hotline, which is operated by an independent provider and available 24 hours a day. Acme does not tolerate retaliation against anyone who reports a concern in good faith.
+
+## 5. Consequences
+
+Violations of this Code may lead to disciplinary action, up to and including termination of employment.
+
+[6] Information Security Policy
+
+Policy owner: Chief Information Security Officer. Version 5.0, effective February 1, 2025. Applies to all employees, contractors and systems of Acme Corporation.
+
+1. Data Classification
+
+Acme classifies information into four levels: Public, Internal, Confidential and Restricted. Customer data and employee personal data are always Restricted. Restricted data may only be stored in approved production systems and may never be copied to personal devices.
+
+2. Passwords and Authentication
+
+[7] ## 3. Working from Another Country
+
+Employees may work from a country other than their country of employment for up to thirty (30) days per calendar year, after notifying People Operations at least two (2) weeks in advance. Longer stays require approval from Legal because of tax and immigration rules.
+
+## 4. Security
+
+Remote work must follow the Information Security Policy. Restricted data may not be accessed over public Wi-Fi without the company VPN.
+
+[8] # Schedule B — Data Processing Addendum
+
+This Data Processing Addendum (""DPA"") supplements the Master Services Agreement between Acme Corporation (""Provider"", acting as data processor) and the Customer (""Controller""). It governs the processing of personal data on the Customer's behalf.
+
+## 1. Roles and Scope
+Provider processes personal data only on documented instructions from the Controller and solely to deliver the services described in the Order Form.
+
+[9] # Employee Handbook
+
+This handbook summarizes the principal policies for employees of Acme Corporation. It is an internal document and does not form part of any customer agreement.
+
+## Paid Time Off
+Employees are entitled to twenty-five (25) days of paid time off per calendar year, accruing monthly. Up to five (5) unused days may be carried over into the following year.
+
+## Working Model
+Acme operates a hybrid working model. Employees must work from the office a minimum of two (2) days per week, with core collaboration hours between 10:00 and 16:00 local time.
+
+## Probation
+New employees serve a probationary period of three (3) months, during which either party may end the employment with one (1) week's notice.
+
+## Notice of Resignation
+After probation, employees are asked to give at least one (1) month's written notice of resignation.
+
+## Business Expenses
+Pre-approved business expenses are reimbursed within thirty (30) days of a complete expense claim.
+
+[10] ### 1.3 Termination for Cause
+
+Either party may terminate this Agreement immediately upon written notice if the other party materially breaches this Agreement and fails to cure the breach within fifteen (15) days after receiving written notice of the breach.
+
+[11] ## 3. Support Response Times
+Provider responds to support requests according to severity:
+
+- Priority 1 (critical, service unavailable): within one (1) hour.
+- Priority 2 (high, major feature impaired): within four (4) business hours.
+- Priority 3 (normal): within one (1) business day.
+
+## 4. Scheduled Maintenance
+Routine maintenance is performed on Sundays between 02:00 and 06:00 UTC. Provider gives at least forty-eight (48) hours' advance notice of any scheduled maintenance, which does not count against the uptime commitment.",supported,
+A30,The gift must not be cash or a cash equivalent.,Employees may accept gifts or hospitality from business partners only when the value does not exceed US$100 per person per year and the gift is not cash or a cash equivalent. Any gift above that value must be declined or reported to the Compliance team.,"[1] ## 1. Gifts and Hospitality
+
+Employees may accept gifts or hospitality from business partners only when the value does not exceed US$100 per person per year and the gift is not cash or a cash equivalent. Any gift above that value must be declined or reported to the Compliance team. Gifts may never be offered to government officials without prior approval from Legal.
+
+[2] ## 1. Approval Thresholds
+
+Every purchase requires a purchase order approved according to its total contract value:
+
+- below US$10,000: the requester's manager;
+- from US$10,000 to US$100,000: a Director and the Finance business partner;
+- above US$100,000 and up to US$500,000: the Chief Financial Officer;
+- above US$500,000: the Chief Executive Officer, after review by the Chief Financial Officer.
+
+## 2. Competitive Quotes
+
+Purchases above US$50,000 require at least three (3) written quotes, unless the supplier is the only one able to provide the goods or services. A sole-source justification must then be attached to the purchase order.
+
+## 3. Vendor Onboarding
+
+New suppliers are onboarded by the Procurement team. A supplier that will access company or customer data must also pass the security review described in the Information Security Policy before the contract is signed.
+
+## 4. Payment Terms
+
+Acme's standard payment term for suppliers is forty-five (45) days from the invoice date. Shorter terms require approval from the Finance business partner.
+
+## 5. Splitting Purchases
+
+Splitting a purchase into smaller orders to avoid an approval threshold is prohibited.
+
+[3] ## 2. Home Office Support
+
+Each employee receives a one-time home office stipend of US$500 and a monthly internet allowance of US$50. Company equipment, including the laptop and one external monitor, remains company property and must be returned at the end of employment.
+
+[4] ### 3.1 Limitation of Liability
+
+The aggregate liability of Provider arising out of or related to this Agreement, whether in contract, tort, or otherwise, shall not exceed one million United States dollars ($1,000,000) or the total fees paid by Customer to Provider under the applicable Order Form during the twelve (12) months immediately preceding the event giving rise to the claim, whichever is greater.
+
+[5] Employees book economy class for flights scheduled at six (6) hours or less. Business class is allowed for flights scheduled at more than six (6) hours, with the approval of a Vice President. Tickets should be booked at least fourteen (14) days before departure when possible.
+
+3. Hotels
+
+The nightly hotel rate, excluding taxes, may not exceed US$250. In New York, London and San Francisco the limit is US$325 per night. Employees must use the preferred hotels listed in the booking tool when one is available.
+
+4. Meals
+
+[6] Employees receive a meal per diem of US$75 per full travel day, and US$40 on the days of departure and return. The per diem replaces individual meal receipts. Alcohol is not reimbursable, except during client entertainment approved in advance by a Director.
+
+5. Ground Transportation
+
+Employees should use public transport or taxis. Rental cars are allowed when cheaper than the alternatives or when traveling with colleagues. Use of a personal car is reimbursed at US$0.67 per mile.
+
+6. Receipts and Submission
+
+An itemized receipt is required for every expense of US$25 or more. Expense claims must be submitted within thirty (30) days after the trip ends. Claims submitted more than ninety (90) days after the trip are not reimbursed.
+
+7. Non-reimbursable Expenses
+
+The following are not reimbursed: upgrades paid for personally, airline lounge memberships, traffic and parking fines, personal entertainment, and expenses for a spouse or family member.
+
+8. Corporate Card
+
+Employees who travel more than four (4) times per year are issued a corporate card. Personal expenses must never be charged to it.
+
+[7] Travel and Expense Policy
+
+Policy owner: Finance. Version 3.2, effective January 1, 2025. This policy applies to all employees of Acme Corporation who travel or incur expenses on company business.
+
+1. Approval
+
+All business travel must be approved in advance by the employee's manager through the travel booking tool. International travel also requires approval from a Vice President.
+
+2. Air Travel
+
+[8] # Code of Business Conduct
+
+Acme Corporation expects every employee, officer and director to act with integrity. This Code is approved by the Board of Directors and applies worldwide.",supported,
