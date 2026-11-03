@@ -4,9 +4,10 @@ Only the primitives live here: upsert, dense_search, sparse_search, get_chunks.
 Fusion and rerank live in :mod:`verity.retrieval.hybrid`.
 
 Connection model: every operation opens its own :class:`psycopg.AsyncConnection` and
-closes it on return. That is enough for the ingestion CLI and the retrieval
-scorecard; under concurrent load, a :class:`psycopg_pool.AsyncConnectionPool` behind
-``_connect`` would avoid one connection setup per call without touching callers.
+closes it on return, and there is no pool. The API uses this store by default, so each
+``/ask`` opens two connections per sub-question (dense and sparse search run
+concurrently). A :class:`psycopg_pool.AsyncConnectionPool` behind ``_connect`` would
+remove that setup cost without touching callers; it has not been measured as needed.
 """
 
 from __future__ import annotations

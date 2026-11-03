@@ -1,4 +1,4 @@
-"""Database helpers: migrations runner + connection pool."""
+"""Database helpers: the migrations runner. Connections are opened per operation."""
 
 from __future__ import annotations
 
