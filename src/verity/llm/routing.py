@@ -83,12 +83,12 @@ def create_default_routing_client(
 ) -> MultiProviderRoutingClient:
     """Build a RoutingClient honouring ``settings.provider_order``.
 
-    Providers with no key configured are still constructed — the SDK client fails at
-    request time and the routing loop falls back to the next. This is intentional: a
-    misconfiguration surfaces as a runtime error the first time an LLM call is made,
-    not silently at process start.
+    A provider with no key is left out: its SDK fails before any request with an error
+    the routing loop does not fall back on, so keeping it would make a one-key
+    deployment refuse every question. With no key at all, construction fails here
+    rather than on the first question.
     """
-    from verity.config import get_settings
+    from verity.config import get_settings, key_is_set
     from verity.llm.clients import AnthropicClient, OpenAIClient
     from verity.types import Provider
 
@@ -96,11 +96,15 @@ def create_default_routing_client(
     clients: list[LLMClient] = []
     for provider in settings.provider_order:
         if provider is Provider.ANTHROPIC and include_anthropic:
-            clients.append(AnthropicClient(api_key=settings.anthropic_api_key))
-        elif provider is Provider.OPENAI and include_openai:
+            if key_is_set(settings.anthropic_api_key):
+                clients.append(AnthropicClient(api_key=settings.anthropic_api_key))
+        elif provider is Provider.OPENAI and include_openai and key_is_set(settings.openai_api_key):
             clients.append(OpenAIClient(api_key=settings.openai_api_key))
     if not clients:
-        raise LLMError("No providers configured; check settings.provider_order")
+        raise LLMError(
+            "No provider in settings.provider_order has an API key; set "
+            "VERITY_ANTHROPIC_API_KEY or VERITY_OPENAI_API_KEY"
+        )
     return MultiProviderRoutingClient(clients)
 
 

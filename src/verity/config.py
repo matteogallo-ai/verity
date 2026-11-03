@@ -141,10 +141,12 @@ class Settings(BaseSettings):
 
         An empty ``VERITY_*_API_KEY=`` line (as in ``.env.example``) counts as unset.
         """
-        return any(
-            key is not None and key.get_secret_value()
-            for key in (self.anthropic_api_key, self.openai_api_key)
-        )
+        return any(key_is_set(key) for key in (self.anthropic_api_key, self.openai_api_key))
+
+
+def key_is_set(key: SecretStr | None) -> bool:
+    """An empty ``VERITY_*_API_KEY=`` line (as in ``.env.example``) counts as unset."""
+    return key is not None and bool(key.get_secret_value())
 
 
 @lru_cache(maxsize=1)

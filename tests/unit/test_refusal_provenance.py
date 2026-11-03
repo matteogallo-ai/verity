@@ -25,6 +25,7 @@ from verity.agent.scorer import LLMConfidenceScorer
 from verity.agent.scripted_stub import build_stub_router, scripted_responder
 from verity.agent.synthesizer import CitedSynthesizer, SynthesisResult
 from verity.api.state import AppRuntime
+from verity.config import get_settings
 from verity.ingestion import (
     IngestionPipeline,
     StructureAwareChunker,
@@ -174,11 +175,15 @@ async def test_refusal_falls_back_to_preferred_routing_decision() -> None:
     )
 
 
-def test_api_provenance_for_none_answer_labels_unknown_honestly() -> None:
+def test_api_provenance_for_none_answer_labels_unknown_honestly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """When an Answer arrives with no provider_used (manually built, e.g. by an
     external caller or a future degraded path), ``provenance_for`` must NOT
     silently claim the boot-time default. It labels ``agent_model="unknown"``
     and preserves ``is_stub`` from the process mode as the only honest signal."""
+    monkeypatch.setenv("VERITY_ANTHROPIC_API_KEY", "sk-ant-test")
+    get_settings.cache_clear()
     runtime = AppRuntime(mode="live", corpus_dir=Path("/tmp/does-not-exist"), store="memory")
     unknown_answer = Answer(
         query="q",

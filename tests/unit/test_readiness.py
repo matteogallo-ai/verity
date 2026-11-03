@@ -11,7 +11,7 @@ import pytest
 from pydantic import SecretStr
 
 from tests.unit.api_app import api_app
-from verity.config import Settings
+from verity.config import Settings, get_settings
 from verity.llm.base import AuthenticationError, ProviderUnavailableError
 from verity.retrieval.base import StoreUnavailableError
 
@@ -20,6 +20,14 @@ _SETTINGS = Settings(api_keys=(SecretStr(_KEY),))
 _STORE_PING = "verity.retrieval.pgvector_store.PgVectorStore.ping"
 _ANTHROPIC_PING = "verity.llm.clients.AnthropicClient.ping"
 _OPENAI_PING = "verity.llm.clients.OpenAIClient.ping"
+
+
+@pytest.fixture(autouse=True)
+def _provider_keys(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Live mode builds its router only from providers with a key; no ping goes out."""
+    monkeypatch.setenv("VERITY_ANTHROPIC_API_KEY", "sk-ant-test")
+    monkeypatch.setenv("VERITY_OPENAI_API_KEY", "sk-test")
+    get_settings.cache_clear()
 
 
 async def _ok(*_a: object) -> None:
