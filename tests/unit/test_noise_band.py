@@ -38,7 +38,7 @@ def _run(created: str, faithfulness: float) -> dict[str, Any]:
             "refusal_precision": 0.5,
             "refusal_recall": 1.0,
         },
-        "retrieval": {"ndcg_at_k": 0.9, "recall_at_k": 1.0, "precision_at_k": 0.2},
+        "retrieval": {"k": 8, "ndcg_at_k": 0.9, "recall_at_k": 1.0, "precision_at_k": 0.2},
         "latency": {"p50_ms": 1.0, "p95_ms": 2.0, "p99_ms": 3.0},
         "cold_start_ms": 4.0,
         "cost_per_query_usd": 0.01,
@@ -51,6 +51,7 @@ def _run(created: str, faithfulness: float) -> dict[str, Any]:
         "prompt_sha256": {"synthesize": "p"},
         "confidence_threshold": 0.55,
         "scorecard": scorecard,
+        "per_audit": [{"example_id": "q-1", "agent_model_used": "a"}],
     }
 
 
@@ -67,11 +68,20 @@ def test_the_range_is_max_minus_min_over_the_runs() -> None:
 
 @pytest.mark.parametrize(
     ("field", "value"),
-    [("prompt_sha256", {"synthesize": "other"}), ("judge_model", "other"), ("dataset_sha256", "x")],
+    [
+        ("prompt_sha256", {"synthesize": "other"}),
+        ("judge_model", "other"),
+        ("agent_model", "other"),
+        ("embedding_model", "other"),
+        ("confidence_threshold", 0.6),
+        ("dataset_sha256", "x"),
+    ],
 )
 def test_runs_that_differ_in_anything_but_sampling_are_refused(field: str, value: Any) -> None:
     other = _run("t2", 1.0)
     other[field] = value
+    if field == "agent_model":  # every answer of that run was served by its model
+        other["per_audit"][0]["agent_model_used"] = value
     with pytest.raises(SystemExit, match=field):
         _module().summarise([("r1", _run("t1", 0.9)), ("r2", other)])
 
@@ -112,3 +122,26 @@ def test_the_rendered_block_says_n_is_a_minimum() -> None:
     module = _module()
     block = module.render_block(json.loads(module.SUMMARY.read_text()))
     assert "n=3 runs is a minimum" in block
+
+
+def test_a_run_with_another_k_is_refused() -> None:
+    other = _run("t2", 1.0)
+    other["scorecard"]["retrieval"]["k"] = 5
+    with pytest.raises(SystemExit, match="retrieval k"):
+        _module().summarise([("r1", _run("t1", 0.9)), ("r2", other)])
+
+
+def test_a_run_with_errored_examples_is_refused() -> None:
+    """Its means would cover a different subset of questions than the other runs'."""
+    other = _run("t2", 1.0)
+    other["scorecard"]["errored_example_ids"] = ["q-1"]
+    with pytest.raises(SystemExit, match="errored"):
+        _module().summarise([("r1", _run("t1", 0.9)), ("r2", other)])
+
+
+def test_an_answer_served_by_a_fallback_model_is_refused() -> None:
+    """Routing stamps the provider that served each answer; a fallback mixes models."""
+    other = _run("t2", 1.0)
+    other["per_audit"][0]["agent_model_used"] = "fallback-model"
+    with pytest.raises(SystemExit, match="fallback-model"):
+        _module().summarise([("r1", _run("t1", 0.9)), ("r2", other)])
