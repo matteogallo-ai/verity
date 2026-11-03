@@ -257,3 +257,19 @@ def test_a_failing_preload_is_retried_once_per_cache_period(tmp_path: Path) -> N
             assert client.get("/ready").status_code == 503
             settle(client)
     assert len(loads) == after_one_retry
+
+
+def test_requests_do_not_re_ingest_a_corpus_that_failed(tmp_path: Path) -> None:
+    """``/status`` is public: if each call re-ingested a failing corpus, anyone could
+    keep the process embedding. Only the bounded readiness retry starts an attempt."""
+    loads: list[str] = []
+
+    def broken_embedder(_model: str) -> FakeEmbeddingBackend:
+        loads.append("load")
+        raise OSError("model not in the cache")
+
+    with api_app(tmp_path, _SETTINGS, embedder_factory=broken_embedder) as client:
+        after_startup = len(loads)
+        for _ in range(3):
+            assert client.get("/status").status_code == 200
+    assert len(loads) == after_startup

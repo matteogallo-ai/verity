@@ -101,6 +101,7 @@ class AppRuntime:
         self._lock = asyncio.Lock()
         self._ingest_lock = asyncio.Lock()
         self._preloaded = False
+        self._attempted = False
         self.preload_state: PreloadState = "loading"
         self._preload_task: asyncio.Task[None] | None = None
 
@@ -130,15 +131,17 @@ class AppRuntime:
             else ()
         )
 
-    async def preload_corpus(self) -> int:
-        """Ingest ``corpus_dir`` until every file is in; the number of files that failed.
+    async def preload_corpus(self, *, retry: bool = False) -> int:
+        """Ingest ``corpus_dir``; the number of files that failed.
 
-        After a failure the next call ingests the whole corpus again (the upsert is
-        idempotent), so a corpus that keeps failing keeps the process not ready
-        instead of serving without it."""
+        Requests call this without ``retry`` and ingest only if no attempt was made
+        yet: ``/status`` is public, so a failing corpus must not be re-ingested per
+        request. Only the preload retries (``retry=True``), ingesting the whole corpus
+        again (the upsert is idempotent), at the pace readiness sets."""
         async with self._lock:
-            if self._preloaded:
+            if self._preloaded or (self._attempted and not retry):
                 return 0
+            self._attempted = True
             if not self._corpus_dir.exists():
                 self._preloaded = True
                 return 0
@@ -164,7 +167,7 @@ class AppRuntime:
     async def _preload(self) -> None:
         started = time.perf_counter()
         try:
-            failed_files = await self.preload_corpus()
+            failed_files = await self.preload_corpus(retry=True)
             if failed_files:
                 self.preload_state = "failed"
                 _log.error("preload_failed", failed_files=failed_files)
