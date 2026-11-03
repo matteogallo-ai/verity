@@ -78,6 +78,23 @@ def test_load_json_bounds_depth_not_size(siblings: int, depth: int) -> None:
     assert load_json(text) == json.loads(text)
 
 
+@given(st.integers(2, 63))
+def test_load_json_counts_depth_regained_after_a_closed_sibling(before: int) -> None:
+    """A closed ``[]`` gives back exactly one level: what follows still counts from the
+    real depth, so a branch that reaches 65 levels after it is rejected."""
+    after = 65 - before
+    text = "[" * before + "[]," + "[" * after + "1" + "]" * (after + before)
+    with pytest.raises(ValueError, match="nested deeper"):
+        load_json(text)
+
+
+def test_load_json_counts_brackets_not_other_characters() -> None:
+    letters = "X" * 100
+    assert load_json(f'"{letters}"') == letters
+    with pytest.raises(ValueError, match="nested deeper"):
+        load_json(f'["{letters}",' + "[" * 64 + "1" + "]" * 65)
+
+
 @given(_completions())
 def test_parse_json_object_returns_a_dict_or_none(text: str) -> None:
     parsed = parse_json_object(text)

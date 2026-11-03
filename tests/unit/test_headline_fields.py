@@ -35,13 +35,32 @@ def _all_judged(result: HarnessResult) -> HarnessResult:
     return dataclasses.replace(result, per_audit=audit, per_refusal=refusal, judge_stamps=stamps)
 
 
-@pytest.mark.parametrize("variant", ["with_refusals", "all_judged"])
+def _one_refusal(result: HarnessResult) -> HarnessResult:
+    """Every example judged but the first, which the agent refused."""
+    judged = _all_judged(result)
+    audit = list(judged.per_audit)
+    audit[0] = audit[0].model_copy(update={"refused": True, "judge_claims": None})
+    refusal = list(judged.per_refusal)
+    refusal[0] = dataclasses.replace(refusal[0], observed_refused=True)
+    stamps = list(judged.judge_stamps)
+    stamps[0] = dataclasses.replace(stamps[0], provider=None, model=None)
+    return dataclasses.replace(judged, per_audit=audit, per_refusal=refusal, judge_stamps=stamps)
+
+
+_VARIANTS = {
+    "with_refusals": _fixture_result,
+    "all_judged": lambda: _all_judged(_fixture_result()),
+    "one_refusal": lambda: _one_refusal(_fixture_result()),
+}
+
+
+@pytest.mark.parametrize("variant", sorted(_VARIANTS))
 def test_a_persisted_run_rebuilds_the_headline_of_the_fresh_result(
     variant: str, tmp_path: Path
 ) -> None:
     """Single-provider run: the EvalRun path must publish exactly what the fresh path
     publishes, so regenerating a scorecard from the audit trail changes nothing."""
-    result = _fixture_result() if variant == "with_refusals" else _all_judged(_fixture_result())
+    result = _VARIANTS[variant]()
     dataset = tmp_path / "questions.jsonl"
     dataset.write_text('{"id": "q-001"}\n', encoding="utf-8")
     fresh = build_headline_dict(result, dataset_path=dataset)
@@ -53,6 +72,12 @@ def test_a_persisted_run_rebuilds_the_headline_of_the_fresh_result(
     )
     assert rebuilt == fresh
     assert fresh["dataset"]["sha256"] is not None
+
+
+def test_a_persisted_run_without_cost_inputs_reports_zero_cost() -> None:
+    """The EvalRun does not carry costs; omitting them must not invent any."""
+    cost = build_headline_dict_from_eval_run(_fixture_result().as_eval_run())["cost"]
+    assert (cost["agent_usd"], cost["judge_usd"], cost["total_usd"]) == (0.0, 0.0, 0.0)
 
 
 def test_every_scorecard_field_is_copied_verbatim() -> None:
@@ -122,6 +147,7 @@ def test_answers_without_provider_and_runs_without_judge_stamps_are_summarised()
         ([], "unknown"),
         ([(None, None), ("anthropic", "")], "unknown"),
         ([("anthropic", "m")], "m (1/1)"),
+        ([("anthropic", "m"), ("anthropic", "")], "m (1/1)"),
         ([("anthropic", "m"), ("openai", "n"), ("anthropic", "m")], "m (2/3), n (1/3)"),
     ],
 )
@@ -138,6 +164,7 @@ def test_agent_stamps_count_only_named_models(
         ([("anthropic", "m")], 1, "m (1/1)"),
         ([("anthropic", "m"), ("openai", "n")], 2, "m (1/2), n (1/2)"),
         ([("anthropic", "m"), (None, None)], 2, "m (1/2 answered — 1 refusals bypass the judge)"),
+        ([("anthropic", "m"), ("anthropic", "")], 1, "m (1/1)"),
     ],
 )
 def test_judge_stamps_name_the_refusals_that_bypassed_the_judge(
@@ -162,9 +189,12 @@ def test_headline_refusal_pair_is_zero_when_undefined() -> None:
 # --- write_headline_scorecard ---------------------------------------------------------
 
 
-def _stub(result: HarnessResult, *, judge_only: bool = False) -> HarnessResult:
-    if judge_only:
+def _stub(result: HarnessResult, *, only: str | None = None) -> HarnessResult:
+    if only == "judge":
         return dataclasses.replace(result, judge_model="stub-judge-v1")
+    if only == "agent":
+        # Mixed case: the check is case-insensitive on either side.
+        return dataclasses.replace(result, agent_model="Stub-Agent")
     return dataclasses.replace(result, agent_model="stub-agent", judge_model="stub-judge-v1")
 
 
@@ -179,8 +209,8 @@ def test_the_file_is_the_sorted_two_space_json_of_the_headline(tmp_path: Path) -
     assert path.read_text(encoding="utf-8") == json.dumps(expected, indent=2, sort_keys=True)
 
 
-@pytest.mark.parametrize("judge_only", [False, True])
-def test_a_stub_run_cannot_overwrite_a_live_scorecard(tmp_path: Path, judge_only: bool) -> None:
+@pytest.mark.parametrize("only", [None, "judge", "agent"])
+def test_a_stub_run_cannot_overwrite_a_live_scorecard(tmp_path: Path, only: str | None) -> None:
     path = write_headline_scorecard(_fixture_result(), tmp_path / "live.json")
     before = path.read_text(encoding="utf-8")
     message = (
@@ -190,7 +220,7 @@ def test_a_stub_run_cannot_overwrite_a_live_scorecard(tmp_path: Path, judge_only
         "Pass allow_overwrite=True if this is intentional."
     )
     with pytest.raises(StubOverwritesLiveScorecardError, match=f"^{re.escape(message)}$"):
-        write_headline_scorecard(_stub(_fixture_result(), judge_only=judge_only), path)
+        write_headline_scorecard(_stub(_fixture_result(), only=only), path)
     assert path.read_text(encoding="utf-8") == before
 
 

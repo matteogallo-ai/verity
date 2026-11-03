@@ -67,6 +67,17 @@ class TestJsonOutput:
             ('["x", "y"]', '["x", "y"]'),
             ("no json here", ""),
             ("} before {", ""),
+            # Bracket edges: a closer with no opener, the smallest slices, an opener at
+            # index 1, nested arrays (first opener, last closer), an object opener
+            # without a closer still reaching the array fallback.
+            ("a}", ""),
+            ("a]", ""),
+            ("{}", "{}"),
+            ("[]", "[]"),
+            ("x[1] y", "[1]"),
+            ("x [1, [2]] y", "[1, [2]]"),
+            ("[[1], 2]", "[[1], 2]"),
+            ("{ [1]", "[1]"),
         ],
     )
     def test_first_json_object(self, text: str, expected: str) -> None:
