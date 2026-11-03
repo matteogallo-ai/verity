@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -407,6 +409,42 @@ def test_eval_run_with_errored_examples_exits_six(
         return await original(self, question)
 
     monkeypatch.setattr(RagAgent, "answer", _first_fails)
-    result = runner.invoke(app, ["eval", "run", "--ci", "--runs-dir", str(tmp_path)])
+    headline = tmp_path / "headline.json"
+    result = runner.invoke(
+        app,
+        ["eval", "run", "--ci", "--runs-dir", str(tmp_path), "--scorecard-json", str(headline)],
+    )
     assert result.exit_code == 6, result.output
     assert "errored" in result.output
+    # Kept for its paid examples, under a name that never stands as the run of record.
+    assert [p.name for p in tmp_path.glob("eval_*.json") if ".incomplete-" not in p.name] == []
+    assert len(list(tmp_path.glob("eval_*.incomplete-*.json"))) == 1
+    assert not headline.exists()
+
+
+def test_a_budget_abort_persists_what_was_paid(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from verity.eval import AgentEvaluator, BudgetExceededError
+    from verity.types import IncompleteReason
+
+    original = AgentEvaluator.run
+
+    async def _aborts(self: AgentEvaluator, *args: object, **kwargs: object) -> object:
+        done = await original(self, *args, **kwargs)  # type: ignore[arg-type]
+        partial = replace(
+            done,
+            scorecard=done.scorecard.model_copy(
+                update={"incomplete_reason": IncompleteReason.BUDGET_EXCEEDED}
+            ),
+        )
+        raise BudgetExceededError("Aborted after q-x", result=partial)
+
+    monkeypatch.setattr(AgentEvaluator, "run", _aborts)
+    result = runner.invoke(app, ["eval", "run", "--ci", "--no-warmup", "--runs-dir", str(tmp_path)])
+    assert result.exit_code == 4, result.output
+    saved = list(tmp_path.glob("eval_*.incomplete-*.json"))
+    assert len(saved) == 1, result.output
+    run = json.loads(saved[0].read_text(encoding="utf-8"))
+    assert run["scorecard"]["incomplete_reason"] == IncompleteReason.BUDGET_EXCEEDED.value
+    assert run["per_audit"]

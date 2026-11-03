@@ -8,6 +8,8 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Each answer records its per-stage wall-clock (`stage_ms`) and the retries the provider
+  SDKs made (`usage.retries`); both are kept per example in eval run artefacts.
 - `verity ask --budget-usd` (default `VERITY_ASK_BUDGET_USD`, $1): before each LLM call,
   spend so far plus that call's estimated upper cost must fit the cap, else the answer stops
   with error kind `budget_exceeded`, exit 4, and the spend so far printed.
@@ -43,6 +45,12 @@ follows [Semantic Versioning](https://semver.org/).
 - A judge outage during `verity eval run` errors that example instead of ending the run
   and discarding its results; the example's spend still counts against `--budget-usd`,
   and a rejected judge key stops the run.
+- A paid eval run that stops at `--budget-usd` (exit 4) or loses examples to an outage
+  (exit 6) writes an incomplete run, `eval_<sha>_<dataset>.incomplete-<time>.json`, with
+  every paid example, errored ones included; it previously persisted nothing on a budget
+  abort, kept only the ids of errored examples, and wrote the headline for a run with
+  errors. Incomplete runs never overwrite a file and are left out of `eval compare`.
+  Errored examples count against the cap and in the printed total.
 - Delimiter tags written with a space before the slash (`< /document>`) are neutralised.
 - `VERITY_DATABASE_URL` is held as a secret and no longer appears in printed settings.
 

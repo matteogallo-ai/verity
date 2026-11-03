@@ -79,12 +79,22 @@ machine or a cleared Hugging Face cache with network access disabled.
 
 - **Eval run cap.** `verity eval run --budget-usd X` stops after the question whose
   cumulative agent + judge cost exceeds `X` (`eval.harness.BudgetExceededError`): the
-  console prints "Aborted after q-…: cumulative cost $… exceeded budget cap $…" and the
-  command exits `4`. Nothing is persisted, so the spend of the partial run buys no
-  artefact. The cap is checked after each question, so the overshoot is up to one
-  question's cost. No test covers the cap. Response: re-estimate the cost
-  (question count × the per-answer cost in [`SYSTEM_CARD.md`](SYSTEM_CARD.md), plus the
-  judge) and rerun with an approved cap.
+  console prints "Aborted after q-…: cumulative cost $… exceeded budget cap $…", then the
+  path of the incomplete run and the total spend, and the command exits `4`. Errored
+  examples count against the cap. The cap is checked after each question, so the
+  overshoot is up to one question's cost
+  (`tests/unit/test_incomplete_runs.py::test_a_budget_abort_carries_every_example_paid_so_far`).
+  Response: re-estimate the cost (question count × the per-answer cost in
+  [`SYSTEM_CARD.md`](SYSTEM_CARD.md), plus the judge) and rerun with an approved cap.
+- **Incomplete runs.** A run stopped by the cap, or with errored examples (agent or judge
+  outage, exit `6`), is written to
+  `eval_<sha>_<dataset>.incomplete-<UTC time>.json` next to the runs of record. It never
+  overwrites a file, `verity eval compare` ignores it, and no headline scorecard is
+  written for it. It holds every paid example: scored ones in `per_audit`, the others in
+  `errored` with the failed stage, the error kind, their usage and stage timings, and,
+  when the judge failed, the answer and its citations, so they can be judged again
+  without paying the agent twice
+  (`tests/unit/test_incomplete_runs.py::test_an_incomplete_run_never_replaces_or_joins_the_runs_of_record`).
 - **Provider account out of credit or quota.** Verity has no notion of it; it sees the
   provider's HTTP error. A `429` is treated as unavailability (section 1); any other
   `4xx` becomes `answer_failed` with `error_kind=provider_error` and is not sent to the
