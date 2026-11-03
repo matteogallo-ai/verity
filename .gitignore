@@ -36,3 +36,7 @@ out/
 # (datasets/eval/runs/live/) are artefacts of record.
 /datasets/eval/runs/eval_*.json
 /datasets/eval/runs/retrieval_*.json
+
+# Hypothesis example database and mutmut working copy
+.hypothesis/
+mutants/

@@ -112,7 +112,29 @@ def test_binary_metric_scores_one_example() -> None:
     assert isinstance(result, RetrievalMetrics)
     assert result.precision_at_k == 0.5
     assert result.recall_at_k == 1.0
+    # The gold chunk sits at rank 1: DCG = 1/log2(3), ideal DCG = 1.
+    assert result.ndcg_at_k == pytest.approx(1 / math.log2(3))
     assert result.k == 2
+
+
+def test_k_of_one_scores_the_top_hit_only() -> None:
+    assert precision_at_k(["g", "x"], {"g"}, 1) == 1.0
+    assert recall_at_k(["g", "x"], {"g", "h"}, 1) == 0.5
+    assert ndcg_at_k(["x", "g"], {"g"}, 1) == 0.0
+
+
+def test_a_non_positive_k_scores_zero_even_with_relevant_hits() -> None:
+    # A negative slice bound would otherwise count every hit but the last.
+    for k in (0, -1):
+        assert precision_at_k(["g", "x"], {"g"}, k) == 0.0
+        assert recall_at_k(["g", "x"], {"g"}, k) == 0.0
+        assert ndcg_at_k(["g", "x"], {"g"}, k) == 0.0
+
+
+@pytest.mark.parametrize(("metric", "name"), [(recall_at_k, "recall@k"), (ndcg_at_k, "nDCG@k")])
+def test_an_empty_gold_set_names_the_undefined_metric(metric, name) -> None:  # type: ignore[no-untyped-def]
+    with pytest.raises(ValueError, match=f"^{name} is undefined when the gold set is empty$"):
+        metric(["a"], set(), 3)
 
 
 def test_macro_average_is_mean_of_per_example() -> None:

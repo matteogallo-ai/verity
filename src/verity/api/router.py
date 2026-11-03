@@ -15,7 +15,13 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 
 from verity import __version__
-from verity.api.guards import UploadRejectedError, check_upload, require_api_key
+from verity.api.guards import (
+    SpendBudget,
+    UploadRejectedError,
+    check_upload,
+    require_api_key,
+    retry_after_header,
+)
 from verity.api.models import (
     AskResponse,
     CorpusSummary,
@@ -77,7 +83,7 @@ async def ingest_endpoint(
 ) -> IngestResponse:
     """Ingest one uploaded file into the configured store.
 
-    The document id is ``uuid5(NAMESPACE_URL, "upload://<sha256><ext>")``: the same
+    The document id is ``uuid5(NAMESPACE_URL, "upload:/<sha256><ext>")``: the same
     bytes with the same extension always yield the same id, whatever the file name
     or machine. The extension is kept because it selects the parser.
 
@@ -128,8 +134,12 @@ async def ingest_endpoint(
     )
 
 
-@router.post("/ask", response_model=AskResponse, dependencies=[Depends(require_api_key)])
-async def ask_endpoint(request: Request, body: AskRequest) -> AskResponse:
+@router.post("/ask", response_model=AskResponse)
+async def ask_endpoint(
+    request: Request,
+    body: AskRequest,
+    principal: Annotated[str, Depends(require_api_key)],
+) -> AskResponse:
     """One agent turn. Returns the full :class:`AnswerView` + the
     :class:`Provenance` **derived per-request** from the synthesizer's actual
     :class:`Completion` via :meth:`AppRuntime.provenance_for`. Provenance is
@@ -141,8 +151,20 @@ async def ask_endpoint(request: Request, body: AskRequest) -> AskResponse:
     limit = cast(Settings, request.app.state.settings).api_max_question_chars
     if len(body.question) > limit:
         raise HTTPException(status_code=422, detail=f"question exceeds {limit} characters.")
+    budget: SpendBudget = request.app.state.spend_budget
+    retry_after = budget.exhausted(principal)
+    if retry_after is not None:
+        # 429, not 402: the budget refills as the window slides, which is what
+        # Retry-After expresses; 402 has no standard semantics clients act on.
+        raise HTTPException(
+            status_code=429,
+            detail="Spending budget exceeded.",
+            headers=retry_after_header(retry_after),
+        )
     await runtime.preload_corpus()
     answer = await runtime.ask(body.question)
+    # Before the error check: a failed answer may have paid for its first calls.
+    budget.record(principal, answer.usage.cost_usd)
     if answer.error is not None:
         # An outage is a 503, never a refusal and never a 500. The detail stays in
         # the logs (bound to trace_id by the agent); the client gets the id only.

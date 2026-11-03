@@ -109,7 +109,8 @@ generate.
   (e.g. pydantic `SecretStr`).
 - Any paid model call without a cost estimate and explicit approval.
 - Commits over ~400 changed lines (lockfiles and generated artefacts excluded).
-- Pushing, tagging or publishing: the human does that.
+- Pushing to main, force-pushing, tagging or publishing: the human does that. Pushing a work
+  branch and opening a PR is allowed; GitHub rulesets protect main and release tags.
 
 ### Report format (end of every work unit, in French for Matteo)
 1. What changed, point by point. 2. Evidence: commands + outputs. 3. Audit findings disproved,
