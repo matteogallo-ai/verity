@@ -40,6 +40,9 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- The confidence scorer read a refusal flag given as a string with `bool()`, so
+  `"refused": "false"` counted as a refusal. A flag that is not a boolean now makes the
+  response unparseable.
 - An answer that fails after some LLM calls returned now reports their tokens and cost
   (it reported zero), in `Answer.usage` and in the `answer_failed` log line. Eval
   `cost.*` figures and `verity eval run --budget-usd` therefore include the spend of
@@ -65,6 +68,12 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+- `/status` requires `X-API-Key`: it lists every corpus file name and the models in use.
+  `/health` and `/ready` remain the public probes. The CI smoke script sends the key.
+- Failed key attempts are limited per client address (`VERITY_API_AUTH_FAILURES_PER_MINUTE`,
+  10), then `429` with `Retry-After`, checked before the key is compared. At most 10,000
+  addresses are tracked. Behind a reverse proxy, uvicorn must trust its forwarded headers
+  (SECURITY.md).
 - Dependencies with known advisories upgraded: Python (pillow 13.0.0, urllib3 2.8.0,
   docling 2.145.0, filelock, certifi, opentelemetry, setuptools) and web (next
   15.5.28, vitest 4.1.12, vite 6.4.5, eslint 9.39.5, postcss 8.5.32 via override).

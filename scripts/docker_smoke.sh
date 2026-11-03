@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Smoke test of the Compose stack: build, bring up db → migrate → ingest → app, then
-# check /health, a non-empty corpus on /status, 401 without a key and one stub /ask.
+# check /health, a non-empty corpus on /status (with the key), 401 without a key and one
+# stub /ask.
 # Used by the CI `docker` job; runnable locally. No provider key: the agent is the stub.
 set -euo pipefail
 
@@ -21,7 +22,7 @@ docker compose -p "$project" up --build -d --wait
 curl -fsS "$base/health"
 echo
 
-curl -fsS "$base/status" | python3 -c '
+curl -fsS "$base/status" -H "X-API-Key: $key" | python3 -c '
 import json, sys
 corpus = json.load(sys.stdin)["corpus"]
 assert corpus["n_documents"] > 0 and corpus["n_chunks"] > 0, corpus

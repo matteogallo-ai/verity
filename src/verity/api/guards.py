@@ -25,24 +25,53 @@ _ANONYMOUS = "anonymous"
 class RateLimiter:
     """Sliding-window limit of ``limit`` hits per ``window_s`` seconds, per principal.
 
-    Principals are configured keys (plus ``anonymous`` when auth is disabled), so the
-    number of buckets is bounded by configuration, not by client behaviour.
+    Keyed by configured keys, the number of buckets is bounded by configuration. Keyed
+    by client address, it is not, so ``max_principals`` caps it: expired buckets go
+    first, then the oldest. A client that controls more addresses than the cap can
+    reset its own count; the cap bounds memory, it does not stop a distributed guesser.
     """
 
     def __init__(
-        self, *, limit: int, window_s: float, clock: Callable[[], float] = time.monotonic
+        self,
+        *,
+        limit: int,
+        window_s: float,
+        clock: Callable[[], float] = time.monotonic,
+        max_principals: int | None = None,
     ) -> None:
         self._limit = limit
         self._window_s = window_s
         self._clock = clock
+        self._max_principals = max_principals
         self._hits: dict[str, deque[float]] = {}
+
+    def __len__(self) -> int:
+        return len(self._hits)
+
+    def _live(self, hits: deque[float], now: float) -> deque[float]:
+        while hits and hits[0] <= now - self._window_s:
+            hits.popleft()
+        return hits
+
+    def _evict(self, now: float) -> None:
+        for principal in [p for p, hits in self._hits.items() if not self._live(hits, now)]:
+            del self._hits[principal]
+        while self._max_principals is not None and len(self._hits) >= self._max_principals:
+            del self._hits[next(iter(self._hits))]
+
+    def blocked(self, principal: str) -> float | None:
+        """Like :meth:`hit` without recording: ``None`` while a slot is free."""
+        now = self._clock()
+        hits = self._live(self._hits.get(principal, deque()), now)
+        return hits[0] + self._window_s - now if len(hits) >= self._limit else None
 
     def hit(self, principal: str) -> float | None:
         """Record one hit. ``None`` when allowed, else the seconds until a slot frees."""
         now = self._clock()
-        hits = self._hits.setdefault(principal, deque())
-        while hits and hits[0] <= now - self._window_s:
-            hits.popleft()
+        cap = self._max_principals
+        if principal not in self._hits and cap is not None and len(self._hits) >= cap:
+            self._evict(now)
+        hits = self._live(self._hits.setdefault(principal, deque()), now)
         if len(hits) >= self._limit:
             return hits[0] + self._window_s - now
         hits.append(now)
@@ -121,13 +150,29 @@ async def require_api_key(request: Request) -> str:
     Returns the principal (``key-<n>`` or ``anonymous``), bound on the log context.
     The key itself is never logged. Async on purpose: FastAPI runs a sync dependency
     in a worker thread, whose context-variable binding the handler would not see.
+
+    Failed attempts are limited per client address, checked before the key so a
+    blocked client cannot tell a right guess from a wrong one. Behind a reverse proxy
+    every request comes from the proxy's address unless uvicorn trusts its forwarded
+    headers (``--proxy-headers --forwarded-allow-ips``), and one guesser would then
+    block every client.
     """
     settings: Settings = request.app.state.settings
     if settings.api_auth_disabled:
         principal = _ANONYMOUS
     else:
+        client = request.client.host if request.client else "unknown"
+        failures: RateLimiter = request.app.state.auth_failures
+        wait = failures.blocked(client)
+        if wait is not None:
+            raise HTTPException(
+                status_code=429,
+                detail="Too many failed key attempts.",
+                headers=retry_after_header(wait),
+            )
         found = _principal_for(request.headers.get("x-api-key"), settings)
         if found is None:
+            failures.hit(client)
             raise HTTPException(status_code=401, detail="Missing or invalid X-API-Key.")
         principal = found
     limiter: RateLimiter = request.app.state.rate_limiter

@@ -30,14 +30,20 @@ isolation model.
 Stated as the code behaves, each with the test that pins it. The design and the
 rejected alternatives are in [ADR 0006](docs/adr/0006-api-security-baseline.md).
 
-- **Authentication.** `/ask` and `/ingest` require `X-API-Key`; keys come from
+- **Authentication.** `/status`, `/ask` and `/ingest` require `X-API-Key`; keys come from
   `VERITY_API_KEYS` (held as `SecretStr`, compared in constant time, never logged; logs
   carry `principal=key-<n>`). With no key configured the server refuses to start unless
   `VERITY_API_AUTH_DISABLED=true` is set, which is for local development only
   (`tests/unit/test_api_hardening.py`).
-- **Public endpoints.** `/health`, `/ready`, `/status`, `/metrics`, `/metrics/prom`,
-  `/dashboard`, `/docs` and `/openapi.json` need no key. They expose corpus file names, document counts and
-  aggregate latency and cost, never document text.
+- **Public endpoints.** `/health`, `/ready`, `/metrics`, `/metrics/prom`, `/dashboard`,
+  `/docs` and `/openapi.json` need no key. They expose readiness states and aggregate
+  latency and cost, never document names or text. `/status`, which lists the corpus file
+  names and the models in use, needs a key.
+- **Failed key attempts.** 10 wrong or missing keys per minute per client address, then
+  `429` with `Retry-After`, checked before the key is compared. Behind a reverse proxy,
+  run uvicorn with `--proxy-headers --forwarded-allow-ips=<proxy>`; otherwise every
+  client shares the proxy's address and one guesser blocks them all. At most 10,000
+  addresses are tracked; a client with more addresses than that can reset its count.
 - **Rate limit.** 30 requests per minute per key on `/ask` and `/ingest`, sliding
   window, `429` with `Retry-After`. In process: N API processes allow N × the limit.
 - **Spending budget.** `/ask` spend per key is capped at `VERITY_API_BUDGET_USD`
