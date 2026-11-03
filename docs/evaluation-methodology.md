@@ -80,8 +80,9 @@ predates that measurement and does not claim it.
 - **Latency** p50 / p95 / p99 of the end-to-end `agent.answer` wall clock. With
   `--no-warmup` (the v1.0.0 run) the first question's model loading is included and
   `cold_start` is `null`; with warmup, cold start is measured separately.
-- **Cost / query** in USD from token counts × the per-1k prices set in
-  `verity.llm.clients`.
+- **Cost / query** in USD from token counts × the per-million-token list prices in
+  `DEFAULT_MODEL_PRICES` (`verity.config`), overridable with `VERITY_MODEL_PRICES`; not
+  from provider invoices.
 
 ## Judge reliability
 
