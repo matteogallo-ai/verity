@@ -425,3 +425,109 @@ def test_kappa_rejects_a_duplicated_row(tmp_path: Path, monkeypatch: pytest.Monk
         writer.writeheader()
         writer.writerows(other)
     assert mod.main(["kappa"]) == 1
+
+
+# --- adjudication ----------------------------------------------------------------------
+
+
+def _annotated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[ModuleType, dict, list]:  # type: ignore[type-arg]
+    """Blind-annotated validation: the human accepts two perturbed claims (the judge
+    accepts the first and rejects the second) and every real claim."""
+    mod = _module(tmp_path, monkeypatch)
+    monkeypatch.setattr(mod, "ADJUDICATION", tmp_path / "out" / "adjudication.csv")
+    monkeypatch.setattr(mod, "ADJUDICATED", tmp_path / "out" / "adjudicated.json")
+    assert mod.main(["export", str(_save_run(tmp_path))]) == 0
+    key = json.loads(mod.KEY.read_text())["items"]
+    perturbed = sorted(i for i, v in key.items() if v["origin"] == "perturbed")
+    mod.REJUDGED.write_text(
+        json.dumps({"verdicts": {i: {"verdict": U if n else S} for n, i in enumerate(perturbed)}})
+    )
+    for path in mod.CSV_FILES:
+        with path.open(newline="", encoding="utf-8") as fh:
+            rows = list(csv.DictReader(fh))
+        for r in rows:
+            i = r["item_id"]
+            r["human_verdict"] = S if key[i]["origin"] == "real" or i in perturbed[:2] else U
+        with path.open("w", newline="", encoding="utf-8") as fh:
+            writer = csv.DictWriter(fh, fieldnames=list(rows[0]))
+            writer.writeheader()
+            writer.writerows(rows)
+    assert mod.main(["kappa"]) == 0
+    return mod, key, perturbed
+
+
+def _decide(mod: ModuleType, decisions: dict[str, tuple[str, str]]) -> None:
+    with mod.ADJUDICATION.open(newline="", encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+    for r in rows:
+        r["adjudicated_verdict"], r["reason"] = decisions[r["item_id"]]
+    with mod.ADJUDICATION.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=mod.ADJ_COLUMNS)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def test_adjudication_lists_disagreements_and_perturbed_claims_judged_true(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mod, key, perturbed = _annotated(tmp_path, monkeypatch)
+    assert mod.main(["adjudication-export"]) == 0
+    with mod.ADJUDICATION.open(newline="", encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+    real_rejected = [i for i, v in key.items() if v["origin"] == "real" and v["judge_verdict"] == U]
+    assert sorted(r["item_id"] for r in rows) == sorted([*perturbed[:2], *real_rejected])
+    assert list(rows[0]) == mod.ADJ_COLUMNS
+    assert all(r["adjudicated_verdict"] == "" and r["reason"] == "" for r in rows)
+    # Origin and kind are never written to the adjudication file.
+    assert "perturbed" not in mod.ADJUDICATION.read_text()
+    assert mod.main(["adjudication-export"]) == 1  # never overwrites decisions
+
+
+def test_adjudicated_result_is_separate_and_never_touches_the_blind_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mod, key, perturbed = _annotated(tmp_path, monkeypatch)
+    blind_files = [*mod.CSV_FILES, mod.RESULT, mod.FINAL_CSV, mod.KEY, mod.REJUDGED]
+    before = {p: p.read_bytes() for p in blind_files}
+    assert mod.main(["adjudication-export"]) == 0
+    with mod.ADJUDICATION.open(newline="", encoding="utf-8") as fh:
+        ids = [r["item_id"] for r in csv.DictReader(fh)]
+    # Perturbed #0 stays true, perturbed #1 was the annotator's miss; the real claim
+    # the judge rejected is confirmed supported.
+    decisions = {i: (S, "reads the same as the passage") for i in ids}
+    decisions[perturbed[1]] = (U, "the figure differs from the passage")
+    _decide(mod, decisions)
+    assert mod.main(["adjudicated"]) == 0
+    assert {p: p.read_bytes() for p in blind_files} == before
+    adj = json.loads(mod.ADJUDICATED.read_text())["adjudication"]
+    assert adj["n_adjudicated"] == len(ids) and adj["n_changed"] == 1
+    cats = adj["perturbed_judged_true_blind"]
+    assert (cats["n"], cats[mod.STAYS_TRUE], cats[mod.ANNOTATOR_ERROR]) == (2, 1, 1)
+    items = {e["item_id"]: e for e in adj["items"]}
+    assert items[perturbed[1]]["blind"] == S and items[perturbed[1]]["adjudicated"] == U
+    sens = json.loads(mod.ADJUDICATED.read_text())["sensitivity"]
+    assert sens["human_unsupported"]["k"] == 3  # was 2 blind
+
+
+@pytest.mark.parametrize("hole", ["verdict", "reason", "blind"])
+def test_adjudicated_refuses_a_missing_decision_reason_or_an_altered_blind_label(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, hole: str
+) -> None:
+    mod, _, _ = _annotated(tmp_path, monkeypatch)
+    assert mod.main(["adjudication-export"]) == 0
+    with mod.ADJUDICATION.open(newline="", encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+    for r in rows:
+        r["adjudicated_verdict"], r["reason"] = S, "ok"
+    if hole == "verdict":
+        rows[0]["adjudicated_verdict"] = ""
+    elif hole == "reason":
+        rows[0]["reason"] = "  "
+    else:
+        rows[0]["blind_verdict"] = U if rows[0]["blind_verdict"] == S else S
+    with mod.ADJUDICATION.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=mod.ADJ_COLUMNS)
+        writer.writeheader()
+        writer.writerows(rows)
+    assert mod.main(["adjudicated"]) == 1
+    assert not mod.ADJUDICATED.exists()

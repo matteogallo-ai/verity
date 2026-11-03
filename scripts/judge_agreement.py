@@ -11,6 +11,11 @@ sensitivity on the perturbed ones, and Cohen's κ on the mixed set.
     # 4. a human fills `human_verdict` (supported / unsupported) in both CSVs
     # 5. sensitivity on the perturbed claims, κ on all 60, the final CSV
     uv run python scripts/judge_agreement.py kappa
+    # 6. disagreements and perturbed claims judged true, with both verdicts shown,
+    #    decided one by one (scripts/annotate.py --adjudicate), then measured apart;
+    #    the blind labels and agreement.json are never rewritten
+    uv run python scripts/judge_agreement.py adjudication-export
+    uv run python scripts/judge_agreement.py adjudicated
 
 Why perturbed claims: the judge marked 161 of the 164 live claims supported, so on a
 sample of real claims its labels are almost all "supported" and κ is undefined or
@@ -63,6 +68,19 @@ KEY = OUT_DIR / "judge_key.json"
 REJUDGED = OUT_DIR / "perturbed_verdicts.json"
 FINAL_CSV = OUT_DIR / "claims_annotated.csv"
 RESULT = OUT_DIR / "agreement.json"
+ADJUDICATION = OUT_DIR / "adjudication.csv"
+ADJUDICATED = OUT_DIR / "agreement_adjudicated.json"
+ADJ_COLUMNS = [
+    "item_id",
+    "claim",
+    "cited_passage",
+    "extracts",
+    "blind_verdict",
+    "judge_verdict",
+    "adjudicated_verdict",
+    "reason",
+]
+STAYS_TRUE, ANNOTATOR_ERROR = "perturbation stays true", "annotator error"
 
 SEED = 20261102
 N_REAL = 40
@@ -430,26 +448,23 @@ def _agreement(pairs: Sequence[tuple[str, str]]) -> dict[str, Any]:
     }
 
 
-def kappa() -> int:
+def _inputs() -> tuple[dict[str, Any], dict[str, str | None], list[dict[str, str]]] | str:
+    """The key, the judge's verdict per item and the blind rows, or why they are unusable."""
     key = json.loads(KEY.read_text(encoding="utf-8"))["items"]
     if not REJUDGED.is_file():
-        print(f"{_rel(REJUDGED)} missing: run `rejudge` first", file=sys.stderr)
-        return 1
+        return f"{_rel(REJUDGED)} missing: run `rejudge` first"
     rejudged = json.loads(REJUDGED.read_text(encoding="utf-8"))["verdicts"]
     rows = _read_annotations()
     unknown = [r["item_id"] for r in rows if r["item_id"] not in key]
     ids = [r["item_id"] for r in rows]
     if unknown or len(ids) != len(set(ids)) or set(ids) != set(key):
-        print(
-            f"the CSVs and {_rel(KEY)} do not match: {', '.join(unknown) or 'duplicate or missing ids'}",
-            file=sys.stderr,
+        return (
+            f"the CSVs and {_rel(KEY)} do not match: "
+            f"{', '.join(unknown) or 'duplicate or missing ids'}"
         )
-        return 1
     bad = [r["item_id"] for r in rows if r["human_verdict"].strip().lower() not in LABELS]
     if bad:
-        print(f"human_verdict must be one of {LABELS}; fix: {', '.join(bad)}", file=sys.stderr)
-        return 1
-    human = {r["item_id"]: r["human_verdict"].strip().lower() for r in rows}
+        return f"human_verdict must be one of {LABELS}; fix: {', '.join(bad)}"
     judge: dict[str, str | None] = {
         i: (
             rejudged.get(i, {}).get("verdict")
@@ -458,6 +473,13 @@ def kappa() -> int:
         )
         for i, item in key.items()
     }
+    return key, judge, rows
+
+
+def measure(
+    key: dict[str, Any], judge: dict[str, str | None], human: dict[str, str]
+) -> dict[str, Any]:
+    """Agreement, specificity and sensitivity of ``judge`` against ``human`` labels."""
     missing = sorted(i for i, v in judge.items() if v is None)
     pairs = [(j, human[i]) for i in sorted(key) if (j := judge[i]) is not None]
     real_pairs = [
@@ -471,7 +493,7 @@ def kappa() -> int:
     for kind in Kind:
         ids = [i for i in judged if key[i]["kind"] == kind]
         by_kind[kind] = _proportion(sum(1 for i in ids if judge[i] == LABELS[1]), len(ids))
-    result = {
+    return {
         # (1) how many false claims the judge catches, on its own and among those
         # the human also found unsupported (a perturbation can leave a claim true).
         "sensitivity": {
@@ -505,6 +527,16 @@ def kappa() -> int:
         ],
         "judge_without_verdict": missing,
     }
+
+
+def kappa() -> int:
+    inputs = _inputs()
+    if isinstance(inputs, str):
+        print(inputs, file=sys.stderr)
+        return 1
+    key, judge, rows = inputs
+    human = {r["item_id"]: r["human_verdict"].strip().lower() for r in rows}
+    result = measure(key, judge, human)
     with FINAL_CSV.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.writer(fh)
         writer.writerow(
@@ -528,6 +560,109 @@ def kappa() -> int:
     return 0
 
 
+def _to_adjudicate(
+    key: dict[str, Any], judge: dict[str, str | None], human: dict[str, str]
+) -> list[str]:
+    """Every disagreement, plus every perturbed claim the annotator judged true: those
+    are categorised after adjudication, and some of them the judge accepted too."""
+    disagree = {i for i in key if judge[i] is not None and judge[i] != human[i]}
+    perturbed_true = {
+        i for i, item in key.items() if item["origin"] == "perturbed" and human[i] == LABELS[0]
+    }
+    return sorted(disagree | perturbed_true)
+
+
+def adjudication_export() -> int:
+    if ADJUDICATION.exists():
+        print(
+            f"{_rel(ADJUDICATION)} exists: it may hold decisions; not overwritten", file=sys.stderr
+        )
+        return 1
+    inputs = _inputs()
+    if isinstance(inputs, str):
+        print(inputs, file=sys.stderr)
+        return 1
+    key, judge, rows = inputs
+    human = {r["item_id"]: r["human_verdict"].strip().lower() for r in rows}
+    by_id = {r["item_id"]: r for r in rows}
+    ids = _to_adjudicate(key, judge, human)
+    with ADJUDICATION.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.writer(fh)
+        writer.writerow(ADJ_COLUMNS)
+        for i in ids:
+            r = by_id[i]
+            writer.writerow(
+                [i, r["claim"], r["cited_passage"], r["extracts"], human[i], judge[i] or "", "", ""]
+            )
+    print(f"{len(ids)} claims to adjudicate in {_rel(ADJUDICATION)}")
+    return 0
+
+
+def adjudicated() -> int:
+    """Measure the judge against the adjudicated labels. Writes only ADJUDICATED: the
+    blind labels and agreement.json stay the published result of record."""
+    inputs = _inputs()
+    if isinstance(inputs, str):
+        print(inputs, file=sys.stderr)
+        return 1
+    key, judge, rows = inputs
+    blind = {r["item_id"]: r["human_verdict"].strip().lower() for r in rows}
+    with ADJUDICATION.open(newline="", encoding="utf-8") as fh:
+        decisions = list(csv.DictReader(fh))
+    expected = _to_adjudicate(key, judge, blind)
+    if sorted(d["item_id"] for d in decisions) != expected:
+        print(f"{_rel(ADJUDICATION)} does not list the claims to adjudicate", file=sys.stderr)
+        return 1
+    bad = [
+        d["item_id"]
+        for d in decisions
+        if d["adjudicated_verdict"].strip().lower() not in LABELS
+        or not d["reason"].strip()
+        or d["blind_verdict"] != blind[d["item_id"]]
+    ]
+    if bad:
+        print(
+            f"verdict, reason or blind label missing or altered: {', '.join(bad)}", file=sys.stderr
+        )
+        return 1
+    final = dict(blind)
+    log = []
+    for d in sorted(decisions, key=lambda d: d["item_id"]):
+        i, verdict = d["item_id"], d["adjudicated_verdict"].strip().lower()
+        final[i] = verdict
+        item = key[i]
+        entry = {
+            "item_id": i,
+            "origin": item["origin"],
+            "kind": item["kind"],
+            "blind": blind[i],
+            "judge": judge[i],
+            "adjudicated": verdict,
+            "changed": verdict != blind[i],
+            "reason": d["reason"].strip(),
+        }
+        if item["origin"] == "perturbed" and blind[i] == LABELS[0]:
+            entry["category"] = STAYS_TRUE if verdict == LABELS[0] else ANNOTATOR_ERROR
+        log.append(entry)
+    result = measure(key, judge, final)
+    categories = [e["category"] for e in log if "category" in e]
+    result["adjudication"] = {
+        "n_adjudicated": len(log),
+        "n_changed": sum(1 for e in log if e["changed"]),
+        "perturbed_judged_true_blind": {
+            "n": len(categories),
+            STAYS_TRUE: categories.count(STAYS_TRUE),
+            ANNOTATOR_ERROR: categories.count(ANNOTATOR_ERROR),
+        },
+        "items": log,
+        "note": "adjudicated with the judge's verdict visible, by the annotator of the "
+        "blind labels; the blind result (agreement.json) is the result of record",
+    }
+    ADJUDICATED.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps(result["adjudication"], indent=2, sort_keys=True))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -539,6 +674,8 @@ def main(argv: list[str] | None = None) -> int:
     rj = sub.add_parser("rejudge")
     rj.add_argument("--budget-usd", type=float, required=True)
     sub.add_parser("kappa")
+    sub.add_parser("adjudication-export")
+    sub.add_parser("adjudicated")
     args = parser.parse_args(argv)
     if args.command == "export":
         return export(args.runs)
@@ -546,6 +683,10 @@ def main(argv: list[str] | None = None) -> int:
         return estimate()
     if args.command == "rejudge":
         return rejudge(args.budget_usd)
+    if args.command == "adjudication-export":
+        return adjudication_export()
+    if args.command == "adjudicated":
+        return adjudicated()
     return kappa()
 
 
