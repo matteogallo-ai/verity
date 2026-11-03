@@ -66,6 +66,7 @@ CI job `claims` runs those tests.
 - API hardening: API keys on `/ask` and `/ingest`, per-key rate limit, failed-key throttling, bounded inputs, file-type allow-list, generic errors with a request ID (C23).
 - Prompt-injection defence: delimited, untrusted-labelled evidence, and a deterministic support check (citation coverage, cited relevance, injection markers) the model's score cannot override; adversarial eval questions (C24).
 - Provider and store outages reported as errors (HTTP 503), never as refusals (C25).
+- Judge validated against blind human labels on 60 claims, real and perturbed to be false: κ, agreement, specificity and sensitivity with n and intervals, generated from a pinned artefact (C27).
 
 ## Measured results
 
@@ -76,10 +77,10 @@ CI job `claims` runs those tests.
 |---|---:|---|
 | **Refusal recall** | **0.850** | unanswerable questions refused / unanswerable: 17/20 · 95 % CI [0.640, 0.948] · threshold 0 |
 | **Refusal precision** | **0.773** | refusals that were unanswerable / refusals: 17/22 · 95 % CI [0.566, 0.899] |
-| Faithfulness, per question | 0.990 | mean over 34 judged answers · judge unvalidated |
-| Faithfulness, per claim | 0.991 | pooled over claims: 108/109 · 95 % CI [0.950, 0.998] · judge unvalidated |
-| Citation accuracy, per question | 0.968 | mean over 34 judged answers · judge unvalidated |
-| Citation accuracy, per claim | 0.963 | pooled over claims: 105/109 · 95 % CI [0.909, 0.986] · judge unvalidated |
+| Faithfulness, per question | 0.990 | mean over 34 judged answers · judge κ 0.71 vs blind human (n=60) |
+| Faithfulness, per claim | 0.991 | pooled over claims: 108/109 · 95 % CI [0.950, 0.998] · judge κ 0.71 vs blind human (n=60) |
+| Citation accuracy, per question | 0.968 | mean over 34 judged answers · judge κ 0.71 vs blind human (n=60) |
+| Citation accuracy, per claim | 0.963 | pooled over claims: 105/109 · 95 % CI [0.909, 0.986] · judge κ 0.71 vs blind human (n=60) |
 | Hallucination rate | 0.000 | ↓ better · answers with an unsupported claim / answered answerable questions: 0/31 · 95 % CI [0.000, 0.110] |
 | Unanswerable answered | 3/20 | ↓ better · an answer shipped where the corpus has none: 3/20 · 95 % CI [0.052, 0.360] |
 | Retrieval nDCG@8 | 0.929 | deterministic (no LLM) |
@@ -114,6 +115,32 @@ The run used the in-memory store (BM25 sparse arm); `verity eval run` defaults t
 pgvector (`--store memory` reproduces it). Definitions:
 [`docs/evaluation-methodology.md`](docs/evaluation-methodology.md).
 
+## Judge validation
+
+The answer-quality rows above are judged by a model. Its agreement with blind human
+labels is the result of record; an adjudication of the disagreements, published
+separately, does not replace it.
+
+<!-- JUDGE:START -->
+Judge `claude-opus-5-5` against **blind human labels**, the reference: 60 claims labelled without origin or judge verdict, 40 real claims from the test run and 20 claims perturbed to be false (one number, date, negation or entity changed).
+
+| Measure | Value | n · notes |
+|---|---|---|
+| Cohen's κ, all claims | 0.71 | 60 claims · observed agreement 0.883 (53/60 · 95 % CI [0.778, 0.942]) · 46 supported / 14 unsupported by the human |
+| Cohen's κ, real claims only | 0.48 | 40 claims · observed agreement 0.950 (38/40 · 95 % CI [0.835, 0.986]) · **fragile**: only 1 of 40 claims is in the smaller human class, so one or two disagreements move κ widely |
+| Judge specificity on real claims (human: supported) | 0.949 | 37/39 · 95 % CI [0.831, 0.986] |
+| Sensitivity: perturbed claims the judge finds unsupported (**upper bound**) | 0.800 | 16/20 · 95 % CI [0.584, 0.919] · by kind: date 5/5 · entity 3/5 · negation 5/5 · number 3/5 |
+| … among perturbed claims the human finds unsupported | 0.923 | 12/13 · 95 % CI [0.667, 0.986] |
+| Perturbed claims the human finds unsupported | 0.650 | 13/20 · 95 % CI [0.433, 0.819] |
+
+Disagreements: the judge rejects 6 claims the human accepts and accepts 1 the human rejects. Notes from the artefact:
+
+- kappa has no Wilson interval: it is not a proportion; with 60 items it is uncertain by itself.
+- a perturbed claim counts as detected if any sub-claim the judge made of it is unsupported, even outside the changed span: sensitivity is an upper bound (per-claim detail in perturbed_verdicts.json).
+
+Generated from [`datasets/eval/judge_validation/agreement.json`](datasets/eval/judge_validation/agreement.json) (`scripts/render_judge_validation.py --check`); the labels and the key are pinned in `datasets/eval/judge_validation/SHA256SUMS`.
+<!-- JUDGE:END -->
+
 ## Open issues: what the numbers do not say
 
 - **The threshold decides nothing on this data.** Every refusal above has a
@@ -135,10 +162,12 @@ pgvector (`--store memory` reproduces it). Definitions:
   every answer in one bin. Isotonic and Platt maps fitted on dev hold one
   unanswerable example and do not fix it (ECE 0.097 and 0.091). The score is the
   scorer model's self-report.
-- **The judge is not yet validated against humans.** It is `claude-opus-5-5`, a
-  different Claude model from the agent (`claude-sonnet-4-6`), not a different
-  family. Its sensitivity on claims perturbed to be false and Cohen's κ against
-  blind human labels on 60 claims (`scripts/judge_agreement.py`) are pending.
+- **The judge is validated on 60 claims by one annotator, and is a Claude model.**
+  It is `claude-opus-5-5`, a different model from the agent (`claude-sonnet-4-6`),
+  not a different family. κ against the owner's blind labels and the sensitivity on
+  perturbed claims are under "Judge validation"; κ on real claims alone rests on one
+  human-unsupported claim and is fragile. One annotator gives no inter-annotator
+  agreement.
 - **n = 56 is small.** The 95 % Wilson intervals in the table show how little it
   pins down: no hallucination in the sample does not rule out a rate up to the
   interval's upper bound.
@@ -155,7 +184,7 @@ Not implemented, or implemented without a test. Each item is a `roadmap` row in
 
 - Web-page ingestion: the trafilatura parser exists but no test exercises it (C30).
 - Calibrated refusal: the measured test ECE (0.116) does not support it (C21).
-- A judge validated against human labels, from a different model family (C27).
+- A judge from a different model family, and a second human annotator (C32).
 
 ## Architecture
 

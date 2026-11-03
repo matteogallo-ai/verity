@@ -45,6 +45,9 @@ jobs:
       - name: README results block matches the committed scorecard
         run: uv run python scripts/generate_headline_results.py --check
 
+      - name: README judge-validation block matches its artefact
+        run: uv run python scripts/render_judge_validation.py --check
+
       - name: PDF and DOCX corpus documents match their Markdown sources
         run: uv run python scripts/build_corpus_documents.py --check
 

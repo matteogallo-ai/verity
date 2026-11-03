@@ -28,6 +28,7 @@ from verity.eval.run_store import load_run
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SCORECARD = REPO_ROOT / "scorecards" / "live-v1.1.0.json"
 DEFAULT_README = REPO_ROOT / "README.md"
+VALIDATION = REPO_ROOT / "datasets" / "eval" / "judge_validation"
 START = "<!-- RESULTS:START -->"
 END = "<!-- RESULTS:END -->"
 
@@ -69,7 +70,28 @@ def _usd(value: float | None) -> str:
     return "not recorded" if value is None else f"${value:.4f}"
 
 
-def render_block(data: dict[str, Any], *, scorecard_path: Path = DEFAULT_SCORECARD) -> str:
+def judge_label(judge_model: str, validation_dir: Path = VALIDATION) -> str:
+    """How the answer-quality rows qualify their judge: validated only when the blind
+    agreement artefact exists and was measured on this very judge model."""
+    agreement, rejudged = (
+        validation_dir / "agreement.json",
+        validation_dir / "perturbed_verdicts.json",
+    )
+    if not (agreement.is_file() and rejudged.is_file()):
+        return "judge unvalidated"
+    validated_model = json.loads(rejudged.read_text(encoding="utf-8"))["judge_model"]
+    if judge_model.split()[0] != validated_model:
+        return "judge unvalidated"
+    mixed = json.loads(agreement.read_text(encoding="utf-8"))["agreement_mixed"]
+    return f"judge κ {mixed['cohen_kappa']:.2f} vs blind human (n={mixed['n_claims']})"
+
+
+def render_block(
+    data: dict[str, Any],
+    *,
+    scorecard_path: Path = DEFAULT_SCORECARD,
+    judge: str = "judge unvalidated",
+) -> str:
     """Return the Markdown block to insert between the RESULTS markers."""
     prov = data["provenance"]
     cost = data["cost"]
@@ -117,11 +139,11 @@ def render_block(data: dict[str, Any], *, scorecard_path: Path = DEFAULT_SCORECA
         macro, micro = ans[key]["macro"], ans[key]["micro"]
         lines.append(
             f"| {label}, per question | {_fmt(macro['value'])} | "
-            f"mean over {macro['n_questions']} judged answers · judge unvalidated |"
+            f"mean over {macro['n_questions']} judged answers · {judge} |"
         )
         lines.append(
             f"| {label}, per claim | {_fmt(micro['value'])} | pooled over claims: "
-            f"{_ci(micro['k'], micro['n_claims'], micro['ci95_wilson'])} · judge unvalidated |"
+            f"{_ci(micro['k'], micro['n_claims'], micro['ci95_wilson'])} · {judge} |"
         )
     hall = ans["hallucination_rate"]
     lines.append(
@@ -246,7 +268,14 @@ def main(argv: list[str] | None = None) -> int:
 
     scorecard_text = _dump(payload)
     current = args.readme.read_text(encoding="utf-8")
-    rendered = render_readme(current, render_block(payload, scorecard_path=args.scorecard))
+    rendered = render_readme(
+        current,
+        render_block(
+            payload,
+            scorecard_path=args.scorecard,
+            judge=judge_label(payload["provenance"]["judge_model"]),
+        ),
+    )
     stale = []
     if existing is None or _dump(existing) != scorecard_text:
         stale.append(str(args.scorecard))

@@ -179,7 +179,8 @@ model different from the agent's (`VERITY_JUDGE_ANTHROPIC_MODEL`, default
 `claude-opus-5-5`). It has a single client and no fallback, so the model named in the
 scorecard is the one that judged; a judge equal to the agent's model stops the run.
 Whatever the judge, Cohen's κ against human labels is required before its numbers are
-published as validated; until then the README marks them "judge unvalidated". κ alone
+published as validated; until then the README marks them "judge unvalidated", and
+`scripts/generate_headline_results.py` names κ only for the model it was measured on. κ alone
 cannot validate this judge: it marked 161 of the 164 live claims supported, so on a
 sample of real claims its labels are almost all "supported" and κ is undefined or
 rests on one or two items. The
@@ -196,7 +197,15 @@ live run, where the judge split the whole answer; a perturbed claim is judged al
 and counts as detected if any sub-claim the judge makes of it is unsupported, so
 sensitivity is an upper bound. κ on real claims only and the judge's specificity on
 them are published next to the mixed κ. κ is not a proportion and has no Wilson
-interval. v1.1.0
+interval. The owner labelled the 60 claims blind in one pass, with a terminal tool
+that reads only the annotation CSVs; those labels are the
+reference and are published as labelled, pinned with the key in
+`datasets/eval/judge_validation/SHA256SUMS`. κ on real claims alone is marked fragile
+when the smaller human class holds fewer than five claims. The disagreements, and
+the perturbed claims the annotator judged true, are adjudicated afterwards with the
+judge's verdict visible; that adjudication is published in its own files and README
+section and never rewrites the blind labels or `agreement.json`. One annotator gives
+no inter-annotator agreement. v1.1.0
 was judged by `claude-opus-5-5` (no OpenAI key was available), a different Claude
 model from the agent, not a different family. Claim-level verdicts are
 stored per example in the run artefact so disagreements can be inspected.
@@ -211,8 +220,7 @@ embedding model ids) under `datasets/eval/runs/` (live runs under `runs/live/`).
 
 - a scorecard without a git SHA;
 - a headline number computed on stub output (CI mode);
-- answer-quality numbers without a judge–human agreement figure (true of v1.0.0, and
-  of v1.1.0 until κ is published);
+- answer-quality numbers without a judge–human agreement figure (true of v1.0.0);
 - refusal recall reported without refusal precision;
 - a threshold tuned and reported on the same examples (true of v1.0.0, which predates
   the dev/test split);

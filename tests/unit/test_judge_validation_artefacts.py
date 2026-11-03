@@ -29,7 +29,7 @@ def _pinned() -> dict[str, str]:
 
 
 def test_every_blind_result_is_pinned() -> None:
-    assert BLIND <= set(_pinned())
+    assert set(_pinned()) >= BLIND
 
 
 @pytest.mark.parametrize("name", sorted(_pinned()))
