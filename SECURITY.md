@@ -7,6 +7,11 @@
 | 1.0.x | yes |
 | < 1.0 | no |
 
+Security fixes, including dependency upgrades, go to `main` and ship in the next 1.0.x
+patch release. v1.0.1 resolves dependencies with known advisories that `main` has
+upgraded (see `CHANGELOG.md`, Unreleased); until a release contains them, build from
+`main`.
+
 ## Reporting a vulnerability
 
 Use GitHub's private reporting:
@@ -88,8 +93,9 @@ deployment:
 - The Postgres DSN, password included, is a plain string in the settings; questions and
   retrieved passages go to the LLM provider (LLM02).
 - The `/ask` spending budget is per process and resets on restart, and failed attempts
-  a provider bills are not counted (LLM10); no automated dependency vulnerability scan
-  (LLM03).
+  a provider bills are not counted (LLM10). The dependency scan misses advisories not
+  yet in the OSV database, the base image and the models downloaded at run time
+  (LLM03; [`docs/security/README.md`](docs/security/README.md)).
 
 This document and the threat model are updated in the same pull request as any change
 to the posture above.

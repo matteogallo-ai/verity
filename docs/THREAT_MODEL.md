@@ -30,7 +30,7 @@ equal ([ADR 0006](adr/0006-api-security-baseline.md)). The parties:
 | [LLM08 Vector and embedding weaknesses](#llm08-vector-and-embedding-weaknesses) | yes | partial: write access gated, no read isolation |
 | [LLM01 Prompt injection](#llm01-prompt-injection) | yes | partial: serving path tested; eval judge prompt undefended |
 | [LLM02 Sensitive information disclosure](#llm02-sensitive-information-disclosure) | yes | partial |
-| [LLM03 Supply chain](#llm03-supply-chain) | yes | partial, no test |
+| [LLM03 Supply chain](#llm03-supply-chain) | yes | partial: lockfiles scanned in CI; base image and run-time models not |
 | [LLM04 Data and model poisoning](#llm04-data-and-model-poisoning) | data: yes; model: no | partial |
 | [LLM05 Improper output handling](#llm05-improper-output-handling) | yes | mitigated on the server; UI rendering untested |
 | [LLM06 Excessive agency](#llm06-excessive-agency) | no tools | not applicable beyond a fixed pipeline |
@@ -171,7 +171,11 @@ agent's log lines carry decision, stages, tokens and cost, not the question (no 
 **Applies.** Python and npm dependencies, two local models from Hugging Face, docling's
 layout and OCR models, and two hosted LLM APIs.
 
-**Mitigation.** Dependencies are pinned in `uv.lock` and `web/pnpm-lock.yaml`. The
+**Mitigation.** Dependencies are pinned in `uv.lock` and `web/pnpm-lock.yaml`, and
+GitHub Actions by commit SHA. Dependabot opens grouped weekly updates. The
+`osv-scanner` CI job fails when a lockfile resolves a package with a known OSV
+advisory, apart from the dated exceptions in `osv-scanner.toml`; CodeQL analyses the
+Python and TypeScript source ([`docs/security/README.md`](security/README.md)). The
 Docker image embeds the embedding and reranker models and runs with
 `HF_HUB_OFFLINE=1` (no test) as an unprivileged user
 (`tests/unit/test_container.py::test_runtime_stage_runs_as_an_unprivileged_user`, C26).
@@ -180,7 +184,8 @@ The fast test lane cannot open a network socket
 Provider SDK call signatures are tested against the pinned SDKs
 (`tests/unit/test_llm_sdk_schema.py`, C15).
 
-**Not stopped.** No automated vulnerability scan of the lockfiles. Outside the image
+**Not stopped.** An advisory not yet in the OSV database, and the `python:3.12-slim`
+base image, which no job scans. Outside the image
 the models are fetched by name with no pinned revision
 (`ingestion.embedder._default_backend_factory`, `retrieval.reranker._default_backend_factory`).
 The first PDF ingestion makes docling download its models (~500 MB), including from
