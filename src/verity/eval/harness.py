@@ -293,6 +293,7 @@ class AgentEvaluator(Evaluator):
                     ),
                     answer_metrics=answer_metrics,
                     usage=answer.usage,
+                    stage_ms=answer.stage_ms,
                 )
             )
 

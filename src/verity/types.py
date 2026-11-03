@@ -215,6 +215,9 @@ class Answer(BaseModel, frozen=True):
     trace_id: TraceId = Field(default_factory=new_id)
     provider_used: Provider | None = None
     model_used: str | None = None
+    # Wall-clock of each agent stage that ran, in ms, so a slow answer can be explained
+    # from the eval artefact instead of from logs that are not kept.
+    stage_ms: dict[str, float] = Field(default_factory=dict)
 
     @model_validator(mode="before")
     @classmethod
@@ -396,6 +399,7 @@ class PerExampleAudit(BaseModel, frozen=True):
     judge_claims: tuple[ClaimVerdict, ...] | None = None
     answer_metrics: AnswerMetrics
     usage: UsageStats = Field(default_factory=UsageStats)
+    stage_ms: dict[str, float] = Field(default_factory=dict)
 
 
 class EvalRun(BaseModel, frozen=True):

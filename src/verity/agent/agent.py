@@ -228,6 +228,7 @@ class RagAgent(Agent):
                 trace_id=trace_id,
                 provider_used=provider_used,
                 model_used=model_used,
+                stage_ms=dict(stage_ms),
             )
 
         return Answer(
@@ -240,6 +241,7 @@ class RagAgent(Agent):
             trace_id=trace_id,
             provider_used=provider_used,
             model_used=model_used,
+            stage_ms=dict(stage_ms),
         )
 
     async def _collect_hits(self, sub_questions: list[str]) -> list[RetrievalHit]:
@@ -312,6 +314,7 @@ def _error_answer(
         error=AnswerError(kind=kind, detail=f"{type(exc).__name__}: {exc}"),
         usage=usage,
         trace_id=trace_id,
+        stage_ms=dict(stage_ms),
     )
 
 

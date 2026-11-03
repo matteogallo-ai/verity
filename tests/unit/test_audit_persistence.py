@@ -242,6 +242,25 @@ async def test_run_store_round_trip_preserves_every_audit_field(tmp_path: Path) 
         assert back.usage == original.usage
 
 
+_STAGES = {"agent.decompose", "agent.retrieve", "agent.synthesize", "agent.confidence"}
+
+
+@pytest.mark.asyncio
+async def test_every_audit_record_keeps_its_stage_timings(tmp_path: Path) -> None:
+    """A latency miss is attributable from the artefact alone: without per-stage time,
+    a slow answer in a run of record can never be explained after the fact."""
+    result, _ = await _run_stub_harness()
+    store = FileRunStore(tmp_path)
+    store.save(result.as_eval_run())
+    reloaded = store.latest("questions")
+    assert reloaded is not None
+    for audit in reloaded.per_audit:
+        assert set(audit.stage_ms) == _STAGES
+        # The stages cover the answer's wall-clock: nothing slow hides between them.
+        # Each value is rounded to 0.01 ms, so four stages can sum 0.02 ms over it.
+        assert -0.05 <= audit.usage.latency_ms - sum(audit.stage_ms.values()) < 5.0
+
+
 def test_pre_v1_persisted_runs_load_without_per_audit(tmp_path: Path) -> None:
     """Backwards compat: a persisted run WITHOUT a ``per_audit`` key must load
     cleanly with an empty ``per_audit`` tuple. Guards against a future audit-
