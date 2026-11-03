@@ -118,14 +118,15 @@ irrelevant citations; the scorer's score cannot override it
 
 The synthesizer's evidence is also datamarked (spotlighting, Hines et al. 2024,
 arXiv:2403.14720): every space between the words of retrieved text is replaced by `ˆ`,
-which `synthesize.prompt` v0.3.0 names as the mark of document text, so an
-instruction a document writes stays document text however natural its wording.
-Quotes are matched across the mark and stored as the original text. The scorer's
+which `synthesize.prompt` v0.3.0 names as the mark of document content that is never
+an instruction. Invisible format characters and blank look-alikes are marked too, so
+a document cannot join words without the mark. Quotes are matched across the mark and
+stored as the original text. The scorer's
 evidence is not marked: `confidence.prompt` is frozen and does not describe the mark.
 `datasets/eval/injection/` holds 12 naturally worded poisoned documents, none caught
-by the marker list, and `scripts/run_injection_eval.py` measures how often each steers
-a shipped answer. The effect of datamarking on that rate has not been measured with a
-live model.
+by the marker list, and `scripts/run_injection_eval.py` counts how often each steers a
+shipped answer, with and without the mark (`--no-datamark`). No live run of it exists,
+so the effect of datamarking is not known.
 
 **Tests.** `tests/unit/test_prompt_injection.py::test_a_document_cannot_close_its_delimiters`,
 `tests/unit/test_prompt_injection.py::test_every_prompt_marks_its_inputs_untrusted`, `tests/unit/test_prompt_injection.py::test_a_section_title_cannot_inject_attributes_or_tags`,
@@ -136,9 +137,9 @@ live model.
 
 **Not stopped.**
 
-- An injection paraphrased past the marker list in `verity.agent.support`; datamarking
-  lowers the chance the synthesizer follows it, by an amount not measured here, and
-  does not reach the scorer.
+- An injection paraphrased past the marker list in `verity.agent.support`. Datamarking
+  applies to the synthesizer only, and its effect is not measured; the scorer reads
+  unmarked evidence.
 - The thresholds and the marker list were chosen on the same eval questions they are
   checked on.
 - **The eval judge prompt is undefended (LLM01 on the evaluator).**
