@@ -4,7 +4,7 @@
 
 | Control | Where | What it does |
 |---|---|---|
-| Dependabot | `.github/dependabot.yml` | Weekly version updates for uv (`uv.lock`), npm in `web/` (`web/pnpm-lock.yaml`) and GitHub Actions: minor and patch bumps in one grouped PR per ecosystem, each major bump in its own PR. |
+| Dependabot | `.github/dependabot.yml` | Weekly version updates for uv (`uv.lock`), npm in `web/` (`web/pnpm-lock.yaml`) and GitHub Actions: minor and patch bumps in one grouped PR per ecosystem, each major bump in its own PR, read and merged or closed on its own. |
 | OSV-Scanner | `osv-scanner` job in `.github/workflows/ci.yml` | Fails on PRs to `main` and pushes to `main` when `uv.lock` or `web/pnpm-lock.yaml` resolves a package with a known vulnerability in the OSV database. The scanner image is pinned by digest. Accepted exceptions, each with a reason and an expiry date, are in `osv-scanner.toml`. |
 | CodeQL | `.github/workflows/codeql.yml` | Static analysis of Python and TypeScript on PRs to `main`, pushes to `main` and weekly. |
 | Pinned actions | every workflow | Each action is referenced by full commit SHA with a `# vX.Y.Z` comment; Dependabot moves both. |
