@@ -97,7 +97,7 @@ per-claim judge verdict) is
 [`datasets/eval/runs/live/eval_d0ca1d5_questions.json`](datasets/eval/runs/live/eval_d0ca1d5_questions.json).
 Retrieval numbers come from the in-memory store (BM25 sparse arm), which that run
 used; `verity eval run` now defaults to pgvector (`--store memory` reproduces it). Definitions: [`docs/evaluation-methodology.md`](docs/evaluation-methodology.md).
-Each proportion with its k/n and Wilson 95 % interval, the proposed SLOs, the intended
+Each proportion with its k/n and Wilson 95 % interval, the approved SLOs and whether the run meets them, the intended
 use and the known limits: [`docs/SYSTEM_CARD.md`](docs/SYSTEM_CARD.md), generated from
 the same scorecard.
 

@@ -270,17 +270,56 @@ def _performance_rows(data: dict[str, Any]) -> list[str]:
     return rows
 
 
-def _against(measured: float | None, target: float) -> str:
+def _against(measured: float | None, target: float, cause: str) -> str:
+    """``met`` / ``not measured`` / a miss with its cause: a missed target is published
+    as missed, never re-targeted."""
     if measured is None:
         return "not measured"
-    return "within target" if measured <= target else "over target"
+    return "met" if measured <= target else f"**SLO not met**: {cause}"
+
+
+def _latency_slo_rows(latency: dict[str, Any], n: int, approved: str) -> list[str]:
+    """Cold-start-included and warm p95 as separate rows. A run with a warmup times the
+    first answer apart (``cold_start``) and its p95 is warm; a run without one has a
+    single p95 that includes model loading and no way to take it out again."""
+    target = f"≤ {SLO_P95_LATENCY_MS:,.0f} ms ({approved})"
+    p95 = float(latency["p95"])
+    cold_start = latency.get("cold_start")
+    if cold_start is None:
+        cause = (
+            "the run had no warmup, so model loading on the first answer is in the "
+            f"sample, and at n={n} the p95 sits between the two slowest answers; the "
+            "scorecard keeps no per-answer latencies to say which answers those were"
+        )
+        cold_cells = (
+            f"{_fmt_ms(p95)} (n={n}, no warmup: includes model loading)",
+            _against(p95, SLO_P95_LATENCY_MS, cause),
+        )
+        warm_cells = (
+            "not measured: the run had no warmup and keeps no per-answer latencies",
+            "not measured",
+        )
+    else:
+        cold_cells = (
+            "not measured as one sample: the first answer after boot, timed apart, "
+            f"took {_fmt_ms(float(cold_start))}",
+            "not measured",
+        )
+        warm_cause = "the scorecard keeps no per-answer latencies; the eval artefact does"
+        warm_cells = (
+            f"{_fmt_ms(p95)} (n={n}, after one warmup answer)",
+            _against(p95, SLO_P95_LATENCY_MS, warm_cause),
+        )
+    return [
+        f"| p95 latency of one answer, cold start included | {target} | "
+        f"{cold_cells[0]} | {cold_cells[1]} |",
+        f"| p95 latency of one answer, warm (cold start excluded) | {target} | "
+        f"{warm_cells[0]} | {warm_cells[1]} |",
+    ]
 
 
 def _slo_rows(data: dict[str, Any]) -> list[str]:
     n = data["dataset"]["n_questions"]
-    latency = data["latency_ms"]
-    warm = "no warmup: includes model loading" if latency.get("cold_start") is None else "warm"
-    p95 = float(latency["p95"])
     errored = data.get("sample_sizes", {}).get("n_errored")
     error_rate = errored / n if errored is not None and n else None
     if errored is None:
@@ -289,16 +328,26 @@ def _slo_rows(data: dict[str, Any]) -> list[str]:
         count, interval = _count_and_interval(errored, n)
         error_cell = f"{_fmt(error_rate)} ({count}, 95 % CI {interval})"
     per_query = float(data["cost"]["per_query_usd"])
-    proposed = "proposed, pending owner approval"
+    approved = "approved"
     return [
-        f"| p95 latency of one answer | ≤ {SLO_P95_LATENCY_MS:,.0f} ms ({proposed}) | "
-        f"{_fmt_ms(p95)} (n={n}, {warm}) | {_against(p95, SLO_P95_LATENCY_MS)} |",
+        *_latency_slo_rows(data["latency_ms"], n, approved),
         f"| Error rate (requests answered with neither an answer nor a refusal) | "
-        f"≤ {SLO_ERROR_RATE:.0%} ({proposed}) | "
-        f"{error_cell} | {_against(error_rate, SLO_ERROR_RATE)} |",
+        f"≤ {SLO_ERROR_RATE:.0%} ({approved}) | "
+        f"{error_cell} | "
+        + _against(
+            error_rate,
+            SLO_ERROR_RATE,
+            f"{errored} of {n} requests errored; the scorecard does not record why",
+        )
+        + " |",
         f"| Cost per answer (agent calls; the judge is eval-only) | "
-        f"≤ ${SLO_COST_PER_REQUEST_USD:.2f} ({proposed}) | ${per_query:.4f} (mean, n={n}) | "
-        f"{_against(per_query, SLO_COST_PER_REQUEST_USD)} |",
+        f"≤ ${SLO_COST_PER_REQUEST_USD:.2f} ({approved}) | ${per_query:.4f} (mean, n={n}) | "
+        + _against(
+            per_query,
+            SLO_COST_PER_REQUEST_USD,
+            "the scorecard records the mean only, not which answers cost most",
+        )
+        + " |",
     ]
 
 

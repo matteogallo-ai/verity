@@ -81,15 +81,19 @@ Source: [`scorecards/live-v1.0.0.json`](../scorecards/live-v1.0.0.json) · commi
 
 | SLO | Target | Measured on the run of record | Status |
 |---|---|---|---|
-| p95 latency of one answer | ≤ 15,000 ms (proposed, pending owner approval) | 32526.5 ms (n=16, no warmup: includes model loading) | over target |
-| Error rate (requests answered with neither an answer nor a refusal) | ≤ 1% (proposed, pending owner approval) | not recorded by this scorecard | not measured |
-| Cost per answer (agent calls; the judge is eval-only) | ≤ $0.02 (proposed, pending owner approval) | $0.0122 (mean, n=16) | within target |
+| p95 latency of one answer, cold start included | ≤ 15,000 ms (approved) | 32526.5 ms (n=16, no warmup: includes model loading) | **SLO not met**: the run had no warmup, so model loading on the first answer is in the sample, and at n=16 the p95 sits between the two slowest answers; the scorecard keeps no per-answer latencies to say which answers those were |
+| p95 latency of one answer, warm (cold start excluded) | ≤ 15,000 ms (approved) | not measured: the run had no warmup and keeps no per-answer latencies | not measured |
+| Error rate (requests answered with neither an answer nor a refusal) | ≤ 1% (approved) | not recorded by this scorecard | not measured |
+| Cost per answer (agent calls; the judge is eval-only) | ≤ $0.02 (approved) | $0.0122 (mean, n=16) | met |
 <!-- SYSTEM-CARD:END -->
 
 ## Service level objectives
 
-The targets in the second table above are proposals from the implementer, **pending
-owner approval**; nothing enforces or alerts on them. How each is measured on a
+The targets in the second table above are approved by the owner. A run that misses
+one is published as **SLO not met** with the cause the scorecard supports; the target
+is not moved to fit the run. The p95 is reported twice, cold start included and warm,
+because the first answer after boot loads the embedding and reranker models.
+Nothing enforces or alerts on these targets. How each is measured on a
 running server, with the signals the code emits (responses: [`RUNBOOK.md`](RUNBOOK.md)):
 
 | SLO | Measured from | Caveat |

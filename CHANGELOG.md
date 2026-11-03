@@ -14,6 +14,12 @@ follows [Semantic Versioning](https://semver.org/).
 - `/ask` spending budget per API key over a sliding window (`VERITY_API_BUDGET_USD`, $5;
   `VERITY_API_BUDGET_WINDOW_S`, 3600 s); over budget is `429` with `Retry-After`.
 
+### Changed
+
+- System card SLOs are approved targets, no longer proposals. A miss is published as
+  **SLO not met** with its cause, and the p95 latency is reported cold start included and
+  warm, in separate rows. The v1.0.0 run of record misses the p95 target (32.5 s, no warmup).
+
 ### Fixed
 
 - An answer that fails after some LLM calls returned now reports their tokens and cost
