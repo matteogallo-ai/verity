@@ -223,10 +223,8 @@ def test_arrow_keys_never_act_as_commands(tmp_path: Path) -> None:
     session = mod.load(path)
     stream = iter("\x1b[B\x1b[C\x1b[A\x1b[D\x1bOB\x1b[3~")
     keys = list(mod.keys_from(lambda: next(stream, "")))
-    assert keys == []
-    for key in "BCbc":  # upper case is not lower-cased into a command
-        if key in "BC":
-            assert mod.step(session, key, _no_input)
+    assert keys == []  # Down ends in "B", Right in "C": swallowed before step()
+    mod.run(session, keys, _no_input, lambda _s: None)
     assert session.index == 1
 
 
@@ -335,3 +333,135 @@ def test_render_on_completion_reports_the_count(tmp_path: Path) -> None:
 def test_typographic_apostrophe_negations_are_highlighted() -> None:
     mod = _module()
     assert f"{mod.YELLOW}doesn\u2019t{mod.RESET}" in mod.highlight("It doesn\u2019t apply.")
+
+
+# --- back on a finished file, review mode --------------------------------------------
+
+
+@pytest.mark.parametrize("key", ["b", "B"])
+def test_back_works_on_a_fully_annotated_file_whatever_the_case(tmp_path: Path, key: str) -> None:
+    # Caps Lock or Shift sends "B": on the finished screen it used to do nothing.
+    mod = _module()
+    path = _csv(tmp_path, ["supported", "unsupported", "supported"])
+    session = mod.load(path)
+    assert session.index == 3
+    mod.step(session, key, _no_input)
+    assert session.index == 2
+    mod.step(session, key.swapcase(), _no_input)
+    assert session.index == 1
+
+
+def _main(mod: ModuleType, monkeypatch: pytest.MonkeyPatch, args: list[str], keys: str) -> int:
+    monkeypatch.setattr(mod, "_terminal_keys", lambda: iter(keys))
+    code: int = mod.main(args)
+    return code
+
+
+def test_review_starts_at_claim_one_and_shows_the_current_verdict(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    mod = _module()
+    path = _csv(tmp_path, ["supported", "unsupported", "supported"])
+    assert _main(mod, monkeypatch, ["--review", str(path)], "q") == 0
+    screen = _plain(capsys.readouterr().out)
+    assert "REVIEW   1/3" in screen and "Current verdict: supported" in screen
+
+
+def test_review_enter_keeps_and_s_u_replace_each_saved(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mod = _module()
+    path = _csv(tmp_path, ["supported", "unsupported", "supported"])
+    session = mod.load(path)
+    session.review, session.index = True, 0
+    mod.step(session, "\n", _no_input)  # keep claim 1
+    assert session.index == 1 and _rows(path)[0]["human_verdict"] == "supported"
+    mod.step(session, "s", _no_input)  # replace claim 2, saved at once
+    assert [r["human_verdict"] for r in _rows(path)] == ["supported", "supported", "supported"]
+    mod.step(session, "\r", _no_input)
+    assert session.index == 3
+
+
+def test_enter_never_skips_an_unanswered_claim(tmp_path: Path) -> None:
+    mod = _module()
+    session = mod.load(_csv(tmp_path, ["", ""]))
+    mod.step(session, "\n", _no_input)
+    assert session.index == 0
+
+
+def test_from_jumps_to_claim_n(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    mod = _module()
+    path = _csv(tmp_path, ["supported", "unsupported", "supported", "supported"])
+    assert _main(mod, monkeypatch, ["--review", "--from", "3", str(path)], "u") == 0
+    assert [r["human_verdict"] for r in _rows(path)][2] == "unsupported"
+    assert "REVIEW   3/4" in _plain(capsys.readouterr().out)
+
+
+@pytest.mark.parametrize("start", ["0", "5"])
+def test_from_out_of_range_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, start: str
+) -> None:
+    mod = _module()
+    path = _csv(tmp_path, ["", "", "", ""])
+    before = path.read_bytes()
+    assert _main(mod, monkeypatch, ["--from", start, str(path)], "s") == 2
+    assert path.read_bytes() == before
+
+
+@pytest.mark.parametrize("args", [["--review"], ["--review", "--from", "2"], []])
+def test_every_mode_opens_only_the_csv_it_was_given(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, args: list[str]
+) -> None:
+    mod = _module()
+    path = _csv(tmp_path, ["supported", "unsupported", ""])
+    (tmp_path / "judge_key.json").write_text('{"A01": {"origin": "perturbed"}}')
+    (tmp_path / "perturbed_verdicts.json").write_text("{}")
+    opened: list[str] = []
+    real_open, real_os_open, real_read_bytes = builtins.open, os.open, Path.read_bytes
+
+    def spy_open(file: Any, *a: Any, **k: Any) -> Any:
+        if not isinstance(file, int):
+            opened.append(os.path.basename(str(file)))
+        return real_open(file, *a, **k)
+
+    def spy_os_open(file: Any, *a: Any, **k: Any) -> int:
+        opened.append(os.path.basename(str(file)))
+        return real_os_open(file, *a, **k)
+
+    def spy_read_bytes(self: Path) -> bytes:
+        opened.append(self.name)
+        return real_read_bytes(self)
+
+    monkeypatch.setattr(builtins, "open", spy_open)
+    monkeypatch.setattr(io, "open", spy_open)
+    monkeypatch.setattr(os, "open", spy_os_open)
+    monkeypatch.setattr(Path, "read_bytes", spy_read_bytes)
+    monkeypatch.setattr(Path, "read_text", lambda *_a, **_k: pytest.fail("read_text called"))
+    monkeypatch.setattr(os, "listdir", lambda *_a, **_k: pytest.fail("listdir called"))
+    monkeypatch.setattr(Path, "iterdir", lambda *_a, **_k: pytest.fail("iterdir called"))
+    monkeypatch.setattr(Path, "glob", lambda *_a, **_k: pytest.fail("glob called"))
+    assert _main(mod, monkeypatch, [*args, str(path)], "\nsubeu\nq") == 0
+
+    assert path.name in opened
+    temporaries = [n for n in opened if n != path.name]
+    assert all(n.endswith(".tmp") and n.startswith("tmp") for n in temporaries), temporaries
+
+
+def test_review_screens_show_no_origin_id_or_extra_column(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    mod = _module()
+    path = tmp_path / "leaky.csv"
+    with path.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.writer(fh)
+        writer.writerow([*COLUMNS, "origin", "kind", "judge_verdict"])
+        writer.writerow(
+            ["A01", "Claim one.", "Passage.", "[1] Ex", "supported", "perturbed", "date", "x"]
+        )
+        writer.writerow(["A02", "Claim two.", "Passage.", "[1] Ex", "unsupported", "real", "", "y"])
+    assert _main(mod, monkeypatch, ["--review", str(path)], "e\nbsq") == 0
+    text = _plain(capsys.readouterr().out).lower()
+    for word in ("perturb", "origin", "real", "judge", "date", "kind", "a01", "a02"):
+        assert word not in text, word

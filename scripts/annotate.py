@@ -1,10 +1,14 @@
 """Annotate one judge-validation CSV in the terminal, one claim at a time.
 
     uv run python scripts/annotate.py datasets/eval/judge_validation/annotate_morning_1.csv
+    uv run python scripts/annotate.py --review [--from N] <csv>
 
-Keys (one keystroke, no Enter): s supported · u unsupported · c comment · e show or
-hide the full extracts · b back · q quit (Ctrl-C quits too). The CSV is rewritten
-after every answer, and a new session starts at the first claim without a verdict.
+Keys (one keystroke, no Enter, either case): s supported · u unsupported · c comment ·
+e show or hide the full extracts · b back · q quit (Ctrl-C quits too). Enter keeps the
+current verdict and moves on. The CSV is rewritten after every change, and a new
+session starts at the first claim without a verdict. ``--review`` starts at claim 1
+(or N with ``--from N``) and walks every claim, answered or not, showing the current
+verdict; s/u replace it, Enter keeps it.
 
 Blind by construction: the tool reads the CSV it is given and nothing else, and shows
 only the claim, its cited passage, the extracts and what the annotator typed; neither
@@ -14,6 +18,7 @@ annotation CSV, so the answer key cannot be opened by mistake.
 
 from __future__ import annotations
 
+import argparse
 import contextlib
 import csv
 import os
@@ -63,6 +68,7 @@ class Session:
     newline: str
     index: int = 0
     show_extracts: bool = False
+    review: bool = False
 
     @property
     def done(self) -> int:
@@ -123,16 +129,19 @@ def render(session: Session) -> str:
     if session.index >= total:
         return f"{CLEAR}{session.done}/{total} annotated. b back · q quit\n"
     row = session.rows[session.index]
+    mode = "REVIEW   " if session.review else ""
     lines = [
         CLEAR,
-        f"{session.index + 1}/{total}   ({session.done} annotated)\n\n",
+        f"{mode}{session.index + 1}/{total}   ({session.done} annotated)\n\n",
         f"{BOLD}{sanitize(row['claim'])}{RESET}\n\n",
         f"Cited passage:\n{highlight(row['cited_passage'])}\n\n",
     ]
     if session.show_extracts:
         lines.append(f"Extracts:\n{highlight(row['extracts'])}\n\n")
     if row["human_verdict"]:
-        lines.append(f"Current verdict: {row['human_verdict']}\n")
+        lines.append(f"Current verdict: {row['human_verdict']} (Enter keeps it)\n")
+    elif session.review:
+        lines.append("Current verdict: none\n")
     if row[COMMENT]:
         lines.append(f"Comment: {sanitize(row[COMMENT])}\n")
     lines.append("\ns supported · u unsupported · c comment · e extracts · b back · q quit\n")
@@ -141,6 +150,9 @@ def render(session: Session) -> str:
 
 def step(session: Session, key: str, ask: Callable[[str], str]) -> bool:
     """Apply one keystroke. Returns False when the user quits."""
+    # Shift or Caps Lock must not disable a command; escape sequences, whose final
+    # letter could otherwise act as one, never reach this point (see keys_from).
+    key = key.lower()
     if key == "q":
         return False
     if key == "b":
@@ -161,6 +173,10 @@ def step(session: Session, key: str, ask: Callable[[str], str]) -> bool:
         save(session)
     elif key == "e":
         session.show_extracts = not session.show_extracts
+    elif key in ("\r", "\n") and row["human_verdict"]:
+        # Keeps an existing verdict; an unanswered claim is never skipped silently.
+        session.index += 1
+        session.show_extracts = False
     return True
 
 
@@ -214,12 +230,30 @@ def _ask(prompt: str) -> str:
         return ""
 
 
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="annotate.py", description=__doc__, formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument("csv", type=Path)
+    parser.add_argument("--review", action="store_true", help="walk every claim from claim 1")
+    parser.add_argument("--from", dest="start", type=int, metavar="N", help="start at claim N")
+    return parser
+
+
 def main(argv: list[str] | None = None) -> int:
-    args = sys.argv[1:] if argv is None else argv
-    if len(args) != 1:
-        print(__doc__, file=sys.stderr)
-        return 2
-    session = load(Path(args[0]))
+    try:
+        args = _parser().parse_args(sys.argv[1:] if argv is None else argv)
+    except SystemExit as err:
+        return int(err.code or 0)
+    session = load(args.csv)
+    if args.review:
+        session.review = True
+        session.index = 0
+    if args.start is not None:
+        if not 1 <= args.start <= len(session.rows):
+            print(f"--from must be between 1 and {len(session.rows)}", file=sys.stderr)
+            return 2
+        session.index = args.start - 1
 
     def out(text: str) -> None:
         sys.stdout.write(text)
