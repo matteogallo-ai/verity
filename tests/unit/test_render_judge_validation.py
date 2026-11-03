@@ -54,12 +54,22 @@ def _agreement(judge_unsup_human_sup: int = 6, human_unsup_real: int = 1) -> dic
     }
 
 
+def _prov() -> Any:
+    return _load("render_judge_validation").Provenance(
+        real_by_run={"eval_6ec544d_dev.json": 16, "eval_969e1d5_test.json": 24},
+        perturbed=20,
+        prompt_version="0.1.0",
+        prompt_sha256="2c5f8eca49baa80fc89288c8ceafdc832a5ab3d442dbe601d5e065be40bb1bde",
+        exposed_to_injection=4,
+    )
+
+
 def test_the_committed_readme_matches_the_agreement_artefact() -> None:
     assert _load("render_judge_validation").main(["--check"]) == 0
 
 
 def test_blind_figures_are_rendered_with_n_and_the_upper_bound_note() -> None:
-    block = _load("render_judge_validation").render_block(_agreement(), "claude-opus-5-5")
+    block = _load("render_judge_validation").render_block(_agreement(), "claude-opus-5-5", _prov())
     assert "| Cohen's κ, all claims | 0.71 | 60 claims" in block
     assert "53/60" in block and "16/20" in block and "**upper bound**" in block
     assert "date 5/5 · number 3/5" in block
@@ -68,7 +78,7 @@ def test_blind_figures_are_rendered_with_n_and_the_upper_bound_note() -> None:
 
 def test_kappa_on_a_class_of_fewer_than_five_is_marked_fragile() -> None:
     mod = _load("render_judge_validation")
-    block = mod.render_block(_agreement(human_unsup_real=1), "m")
+    block = mod.render_block(_agreement(human_unsup_real=1), "m", _prov())
     real_row = next(line for line in block.splitlines() if "real claims only" in line)
     assert "**fragile**: only 1 of 40 claims is" in real_row
     mixed_row = next(line for line in block.splitlines() if "all claims" in line)
@@ -104,3 +114,41 @@ def test_judge_label_names_kappa_only_for_the_validated_model(tmp_path: Path) ->
     assert gen.judge_label("claude-opus-5-5", folder) == "judge κ 0.71 vs blind human (n=60)"
     assert gen.judge_label("gpt-4.1", folder) == "judge unvalidated"
     assert gen.judge_label("claude-opus-5-5", tmp_path / "absent") == "judge unvalidated"
+
+
+def test_kappa_is_attached_to_the_judge_prompt_version_it_was_measured_on() -> None:
+    block = _load("render_judge_validation").render_block(_agreement(), "m", _prov())
+    assert "judge prompt v0.1.0" in block
+    assert "`2c5f8eca49ba`" in block
+    assert "a changed judge prompt is a new judge and needs its own κ" in block
+
+
+def test_the_block_says_robustness_to_injection_is_not_measured() -> None:
+    block = _load("render_judge_validation").render_block(_agreement(), "m", _prov())
+    line = next(x for x in block.splitlines() if "injection" in x)
+    assert "not measured" in line
+    assert "4 of the 60 claims" in line
+    assert "THREAT_MODEL.md#llm01-prompt-injection" in line
+
+
+def test_real_claims_are_counted_per_run_they_come_from() -> None:
+    block = _load("render_judge_validation").render_block(_agreement(), "m", _prov())
+    assert "40 real claims (16 from the dev run, 24 from the test run)" in block
+    assert "from the test run and" not in block
+
+
+def test_the_committed_provenance_matches_the_runs_and_the_key() -> None:
+    prov = _load("render_judge_validation").provenance()
+    assert prov.real_by_run == {"eval_6ec544d_dev.json": 16, "eval_969e1d5_test.json": 24}
+    assert prov.perturbed == 20
+    assert prov.prompt_version == "0.1.0"
+    assert prov.exposed_to_injection == 4
+
+
+def test_a_changed_judge_prompt_refuses_to_render(tmp_path: Path) -> None:
+    """κ measured with one prompt must not be published under another."""
+    mod = _load("render_judge_validation")
+    changed = tmp_path / "judge_faithfulness.prompt"
+    changed.write_text(mod.JUDGE_PROMPT.read_text().replace("@version 0.1.0", "@version 0.2.0"))
+    with pytest.raises(SystemExit, match="changed since"):
+        mod.provenance(prompt=changed)

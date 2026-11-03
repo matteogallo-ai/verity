@@ -11,20 +11,82 @@ labels are the reference, and nothing in the block is typed by hand.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import re
 import sys
+from collections import Counter
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from verity.ingestion.ids import document_id_for_uri
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VALIDATION = REPO_ROOT / "datasets" / "eval" / "judge_validation"
 AGREEMENT = VALIDATION / "agreement.json"
 REJUDGED = VALIDATION / "perturbed_verdicts.json"
+KEY = VALIDATION / "judge_key.json"
+JUDGE_PROMPT = REPO_ROOT / "prompts" / "judge_faithfulness.prompt"
+# The corpus note written to carry an injection (adversarial eval): a claim whose answer
+# retrieved it put that text, undelimited, in front of the v0.1.0 judge.
+INJECTED_DOCUMENT = "datasets/corpus/vendor_onboarding_note.md"
 README = REPO_ROOT / "README.md"
 START, END = "<!-- JUDGE:START -->", "<!-- JUDGE:END -->"
 # Below this many items in the smaller human class, one or two disagreements move κ
 # far enough that its value says little: the figure is published as fragile.
 FRAGILE_BELOW = 5
+
+
+@dataclass(frozen=True)
+class Provenance:
+    """Where the validated claims came from and which judge prompt judged them."""
+
+    real_by_run: dict[str, int]
+    perturbed: int
+    prompt_version: str
+    prompt_sha256: str
+    exposed_to_injection: int
+
+
+def provenance(key: Path = KEY, prompt: Path = JUDGE_PROMPT) -> Provenance:
+    """Read from the key and the runs it points at. Refuses when the judge prompt on disk
+    is not the one the runs recorded: κ belongs to the prompt that was measured."""
+    items = list(json.loads(key.read_text(encoding="utf-8"))["items"].values())
+    runs = {
+        path: json.loads((REPO_ROOT / path).read_text(encoding="utf-8"))
+        for path in sorted({item["run"] for item in items})
+    }
+    measured = {run["prompt_sha256"]["judge_faithfulness"] for run in runs.values()}
+    if len(measured) != 1:
+        raise SystemExit(f"the validated runs used different judge prompts: {sorted(measured)}")
+    sha = measured.pop()
+    text = prompt.read_text(encoding="utf-8")
+    if hashlib.sha256(text.encode("utf-8")).hexdigest() != sha:
+        raise SystemExit(
+            f"{prompt.name} changed since κ was measured (runs recorded {sha[:12]}); "
+            "a new judge prompt needs its own rejudge and κ"
+        )
+    version = re.search(r"^@version (\S+)$", text, re.MULTILINE)
+    if version is None:
+        raise SystemExit(f"{prompt.name} has no @version line")
+    injected = str(document_id_for_uri(INJECTED_DOCUMENT))
+    audits = {path: {a["example_id"]: a for a in run["per_audit"]} for path, run in runs.items()}
+    exposed = sum(
+        any(
+            hit["chunk"]["document_id"] == injected
+            for hit in audits[item["run"]][item["source_claim"].split("/")[1]]["hits_used"]
+        )
+        for item in items
+    )
+    real = Counter(Path(item["run"]).name for item in items if item["origin"] == "real")
+    return Provenance(
+        real_by_run=dict(sorted(real.items())),
+        perturbed=sum(item["origin"] == "perturbed" for item in items),
+        prompt_version=version.group(1),
+        prompt_sha256=sha,
+        exposed_to_injection=exposed,
+    )
 
 
 def _ci(p: dict[str, Any]) -> str:
@@ -63,17 +125,28 @@ def _kappa_row(label: str, agreement: dict[str, Any]) -> str:
     )
 
 
-def render_block(result: dict[str, Any], judge_model: str) -> str:
+def _real_origin(prov: Provenance) -> str:
+    split = {"6ec544d_dev": "dev", "969e1d5_test": "test"}
+    parts = []
+    for run, n in prov.real_by_run.items():
+        stem = run.removeprefix("eval_").removesuffix(".json")
+        parts.append(f"{n} from the {split.get(stem, stem)} run")
+    return f"{sum(prov.real_by_run.values())} real claims ({', '.join(parts)})"
+
+
+def render_block(result: dict[str, Any], judge_model: str, prov: Provenance) -> str:
     s = result["sensitivity"]
     by_kind = " · ".join(f"{k} {v['k']}/{v['n']}" for k, v in sorted(s["by_kind"].items()))
     mixed, real = result["agreement_mixed"], result["agreement_real_only"]
     c = mixed["confusion"]
     lines = [
-        f"Judge `{judge_model}` against **blind human labels**, the reference: "
-        f"{mixed['n_claims']} claims labelled without origin or judge verdict, "
-        f"{real['n_claims']} real claims from the test run and "
+        f"Judge `{judge_model}` with judge prompt v{prov.prompt_version} "
+        f"(`prompts/judge_faithfulness.prompt`, sha256 `{prov.prompt_sha256[:12]}`) against "
+        f"**blind human labels**, the reference: {mixed['n_claims']} claims labelled without "
+        f"origin or judge verdict, {_real_origin(prov)} and "
         f"{s['judge_detected']['n']} claims perturbed to be false "
-        "(one number, date, negation or entity changed).",
+        "(one number, date, negation or entity changed). The κ below belongs to this "
+        "prompt version: a changed judge prompt is a new judge and needs its own κ.",
         "",
         "| Measure | Value | n · notes |",
         "|---|---|---|",
@@ -95,6 +168,12 @@ def render_block(result: dict[str, Any], judge_model: str) -> str:
         "rejects. Notes from the artefact:",
         "",
         *(f"- {note}." for note in result["notes"]),
+        f"- robustness to injected content is not measured: judge prompt "
+        f"v{prov.prompt_version} puts the retrieved text in front of the judge without "
+        "delimiters or an untrusted-content instruction "
+        "([THREAT_MODEL](docs/THREAT_MODEL.md#llm01-prompt-injection)), and only "
+        f"{prov.exposed_to_injection} of the {mixed['n_claims']} claims had the corpus note "
+        "written to carry an injection in the judge's context.",
         "",
         "Generated from "
         "[`datasets/eval/judge_validation/agreement.json`](datasets/eval/judge_validation/agreement.json) "
@@ -119,7 +198,7 @@ def main(argv: list[str] | None = None) -> int:
     result = json.loads(AGREEMENT.read_text(encoding="utf-8"))
     judge_model = json.loads(REJUDGED.read_text(encoding="utf-8"))["judge_model"]
     current = args.readme.read_text(encoding="utf-8")
-    rendered = replace_block(current, render_block(result, judge_model))
+    rendered = replace_block(current, render_block(result, judge_model, provenance()))
     if args.check:
         if rendered != current:
             print(f"out of date: {args.readme} — run without --check", file=sys.stderr)

@@ -122,7 +122,7 @@ labels is the result of record; an adjudication of the disagreements, published
 separately, does not replace it.
 
 <!-- JUDGE:START -->
-Judge `claude-opus-5-5` against **blind human labels**, the reference: 60 claims labelled without origin or judge verdict, 40 real claims from the test run and 20 claims perturbed to be false (one number, date, negation or entity changed).
+Judge `claude-opus-5-5` with judge prompt v0.1.0 (`prompts/judge_faithfulness.prompt`, sha256 `2c5f8eca49ba`) against **blind human labels**, the reference: 60 claims labelled without origin or judge verdict, 40 real claims (16 from the dev run, 24 from the test run) and 20 claims perturbed to be false (one number, date, negation or entity changed). The κ below belongs to this prompt version: a changed judge prompt is a new judge and needs its own κ.
 
 | Measure | Value | n · notes |
 |---|---|---|
@@ -137,6 +137,7 @@ Disagreements: the judge rejects 6 claims the human accepts and accepts 1 the hu
 
 - kappa has no Wilson interval: it is not a proportion; with 60 items it is uncertain by itself.
 - a perturbed claim counts as detected if any sub-claim the judge made of it is unsupported, even outside the changed span: sensitivity is an upper bound (per-claim detail in perturbed_verdicts.json).
+- robustness to injected content is not measured: judge prompt v0.1.0 puts the retrieved text in front of the judge without delimiters or an untrusted-content instruction ([THREAT_MODEL](docs/THREAT_MODEL.md#llm01-prompt-injection)), and only 4 of the 60 claims had the corpus note written to carry an injection in the judge's context.
 
 Generated from [`datasets/eval/judge_validation/agreement.json`](datasets/eval/judge_validation/agreement.json) (`scripts/render_judge_validation.py --check`); the labels and the key are pinned in `datasets/eval/judge_validation/SHA256SUMS`.
 <!-- JUDGE:END -->
