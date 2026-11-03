@@ -4,9 +4,10 @@ Only the primitives live here: upsert, dense_search, sparse_search, get_chunks.
 Fusion and rerank live in :mod:`verity.retrieval.hybrid`.
 
 Connection model: every operation opens its own :class:`psycopg.AsyncConnection` and
-closes it on return. That is enough for the ingestion CLI and the retrieval
-scorecard; under concurrent load, a :class:`psycopg_pool.AsyncConnectionPool` behind
-``_connect`` would avoid one connection setup per call without touching callers.
+closes it on return, and there is no pool. The API uses this store by default, so each
+``/ask`` opens two connections per sub-question (dense and sparse search run
+concurrently). A :class:`psycopg_pool.AsyncConnectionPool` behind ``_connect`` would
+remove that setup cost without touching callers; it has not been measured as needed.
 """
 
 from __future__ import annotations
@@ -88,7 +89,7 @@ class PgVectorStore:
         self, database_url: str | None = None, *, embedding_dim: int | None = None
     ) -> None:
         settings = get_settings()
-        self._url = database_url or settings.database_url
+        self._url = database_url or settings.database_url.get_secret_value()
         self._embedding_dim = embedding_dim if embedding_dim is not None else settings.embedding_dim
         self._schema_checked = False
 

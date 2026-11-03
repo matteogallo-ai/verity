@@ -19,6 +19,8 @@ Zero LLM cost, zero key.
 
 from __future__ import annotations
 
+import pytest
+
 from verity.agent.decomposer import _parse_sub_questions
 from verity.agent.scorer import _parse_confidence
 from verity.agent.synthesizer import _parse_synth_output
@@ -185,6 +187,36 @@ class TestJudgeParserRealShapes:
         """No claims → the judge can't score → return None so the caller
         surfaces the failure honestly rather than reporting 0/0."""
         assert _parse_judge_output('{"claims": []}') is None
+
+    @pytest.mark.parametrize(
+        ("supported", "citation_ok", "expected"),
+        [('"false"', '"false"', (0, 0)), ('"TRUE"', '" false "', (1, 0))],
+    )
+    def test_verdicts_written_as_strings_keep_their_meaning(
+        self, supported: str, citation_ok: str, expected: tuple[int, int]
+    ) -> None:
+        """A model that quotes its booleans must not have "false" counted as supported:
+        that drift would raise the published faithfulness instead of lowering it."""
+        text = f'{{"claims": [{{"claim": "x", "supported": {supported}, "citation_ok": {citation_ok}}}]}}'
+        result = _parse_judge_output(text)
+        assert result is not None
+        _, supported_n, citation_ok_n, _ = result
+        assert (supported_n, citation_ok_n) == expected
+
+    @pytest.mark.parametrize(
+        "entry",
+        [
+            '{"claim": "x", "supported": 0, "citation_ok": true}',
+            '{"claim": "x", "supported": "no", "citation_ok": true}',
+            '{"claim": "x", "supported": true, "citation_ok": "yes"}',
+            '{"claim": "x", "supported": null, "citation_ok": true}',
+            '{"claim": "x", "citation_ok": true}',
+        ],
+    )
+    def test_a_verdict_that_is_not_a_boolean_is_malformed(self, entry: str) -> None:
+        """Guessing what 0, "no" or a missing key means would score a claim on a
+        guess; a malformed reply already scores the example 0 and is visible."""
+        assert _parse_judge_output(f'{{"claims": [{entry}]}}') is None
 
     def test_prose_wrapped_and_fenced(self) -> None:
         text = 'Assessment:\n\n```json\n{"claims": [{"claim":"x","supported":true,"citation_ok":true}]}\n```'

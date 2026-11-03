@@ -48,7 +48,7 @@ API (`/ask`, `/ingest`, `/status`) and a Next.js UI. Each shipped capability is 
 |---|---|---|
 | `datasets/corpus/` | 6 Markdown documents: an MSA, a DPA, an SLA, an employee handbook, an FY2024 financial summary (all naming a company "Acme Corporation"), and `vendor_onboarding_note.md`, an adversarial document with injected instructions | MIT, with the repository; their origin is not documented in the repository |
 | `datasets/eval/questions.jsonl` | 19 labelled questions: 11 answerable, 8 out-of-scope, 3 of those adversarial; gold chunk ids for every answerable one | MIT, with the repository |
-| Run of record | `datasets/eval/runs/live/eval_d0ca1d5_questions.json` and the scorecard below; q-001 to q-016 over the first 5 documents (it predates the adversarial document) | MIT, with the repository |
+| Run of record | `datasets/eval/runs/live/eval_d0ca1d5_questions.json` and the scorecard below; q-001 to q-016 over the first 5 documents (it predates the adversarial document, the deterministic support check and the delimited prompts) | MIT, with the repository |
 | Embedding model | `BAAI/bge-small-en-v1.5`, 384 dimensions, run locally | MIT (its model card) |
 | Reranker | `cross-encoder/ms-marco-MiniLM-L-6-v2`, run locally | stated on its model card; not vendored here |
 | Generation | `claude-sonnet-4-6` through the Anthropic API, `gpt-4.1-mini` as fallback | the providers' API terms; question and retrieved passages are sent to them |

@@ -107,6 +107,11 @@ the same scorecard.
 - **n = 16 is a method check, not a benchmark.** 16 questions over 5 documents; one
   question moves refusal recall by 0.2. There is no dev/test split: the 0.55
   threshold was set by hand and is reported on the same examples.
+- **The numbers predate the current answering pipeline.** The run of record
+  (`d0ca1d5`, 2026-09-07) ran before the deterministic support check and the
+  delimited, untrusted-labelled prompts. The support check's two thresholds were
+  chosen on these same 16 questions, so they cannot measure its false-refusal cost,
+  and no live run of the current code is published here.
 - **The judge is unvalidated.** It is the same model as the agent
   (`claude-sonnet-4-6`) and its agreement with human labels has not been measured.
 - **Citation accuracy is a per-question mean.** Aggregated per claim instead, the

@@ -8,11 +8,11 @@ recall is a real number computed over the 5 out-of-scope questions.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
 
+from tests.integration.db import database_url
 from verity.agent.agent import create_default_agent
 from verity.agent.scripted_stub import build_stub_router
 from verity.config import get_settings
@@ -39,13 +39,9 @@ CORPUS_DIR = REPO_ROOT / "datasets" / "corpus"
 DATASET_PATH = REPO_ROOT / "datasets" / "eval" / "questions.jsonl"
 
 
-def _database_url() -> str:
-    return os.environ.get("VERITY_DATABASE_URL", get_settings().database_url)
-
-
 @pytest.fixture(scope="module")
 def seeded_retriever() -> HybridRetriever:
-    url = _database_url()
+    url = database_url()
     apply_pending(url)
     store = PgVectorStore(database_url=url)
     embedder = LocalEmbedder()

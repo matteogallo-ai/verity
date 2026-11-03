@@ -84,7 +84,7 @@ def ingest(
     parser = create_default_parser()
     chunker = StructureAwareChunker()
     embedder = LocalEmbedder()
-    sink = None if dry_run else PgVectorStore(settings.database_url)
+    sink = None if dry_run else PgVectorStore(settings.database_url.get_secret_value())
 
     console.print(
         f"[cyan]Ingesting[/cyan] {len(uris)} source(s) with model "
@@ -120,9 +120,9 @@ def db_upgrade() -> None:
     """Apply pending database migrations (idempotent)."""
     from verity.db import apply_pending, list_applied
 
-    settings = get_settings()
-    applied = apply_pending(settings.database_url)
-    total = list_applied(settings.database_url)
+    database_url = get_settings().database_url.get_secret_value()
+    applied = apply_pending(database_url)
+    total = list_applied(database_url)
     if applied:
         console.print(f"[green]Applied {len(applied)} migration(s):[/green] {', '.join(applied)}")
     else:

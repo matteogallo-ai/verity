@@ -22,7 +22,9 @@ from verity.types import RetrievalHit
 NO_EVIDENCE = "<evidence>\n(no evidence available)\n</evidence>"
 
 # Every element name the prompts use to delimit untrusted text.
-_TAG_RE = re.compile(r"<(?=/?\s*(?:evidence|document|question|draft_answer)\b)", re.IGNORECASE)
+# Whitespace is allowed on both sides of the slash: a model reading "< /document>" may
+# still take it for the closing tag.
+_TAG_RE = re.compile(r"<(?=\s*/?\s*(?:evidence|document|question|draft_answer)\b)", re.IGNORECASE)
 
 
 def neutralise(text: str) -> str:

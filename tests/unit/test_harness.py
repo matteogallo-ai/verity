@@ -192,3 +192,103 @@ async def test_errored_examples_are_counted_apart_from_every_metric() -> None:
     assert result.scorecard.errored_example_ids == (examples[0].id,)
     assert len(result.per_refusal) == len(examples) - 1
     assert examples[0].id not in {r.example_id for r in result.per_refusal}
+
+
+@pytest.mark.asyncio
+async def test_a_judge_outage_errors_one_example_instead_of_losing_the_run() -> None:
+    """The agent calls before a judge failure are paid for; an exception escaping the
+    loop would discard every result of the run and invite a second spend."""
+    from verity.llm.base import ProviderUnavailableError
+
+    retriever = await _seed_retriever()
+    agent = create_default_agent(retriever=retriever, client=build_stub_router())
+    examples = load_full_dataset(DATASET)
+    failing_id = examples[1].id
+    stub = StubFaithfulnessJudge()
+
+    class _FlakyJudge:
+        def __getattr__(self, name: str) -> object:
+            return getattr(stub, name)
+
+        async def judge(self, example, answer):  # type: ignore[no-untyped-def]
+            if example.id == failing_id:
+                raise ProviderUnavailableError("judge provider down")
+            return await stub.judge(example, answer)
+
+    evaluator = AgentEvaluator(
+        agent=agent,
+        judge=_FlakyJudge(),  # type: ignore[arg-type]
+        embedding_model="fake",
+        judge_model=STUB_JUDGE_MODEL,
+        agent_model="stub-agent",
+        dataset_name="questions",
+    )
+    result = await evaluator.run(examples, git_sha="test0000")
+
+    assert result.scorecard.errored_example_ids == (failing_id,)
+    scored = {r.example_id for r in result.per_refusal}
+    assert failing_id not in scored and len(scored) == len(examples) - 1
+    assert failing_id not in {a.example_id for a in result.per_audit}
+    assert failing_id not in {r.example_id for r in result.per_retrieval}
+
+
+def _down_judge(exc: Exception) -> object:
+    stub = StubFaithfulnessJudge()
+
+    class _DownJudge:
+        def __getattr__(self, name: str) -> object:
+            return getattr(stub, name)
+
+        async def judge(self, example, answer):  # type: ignore[no-untyped-def]
+            raise exc
+
+    return _DownJudge()
+
+
+async def _costly_agent() -> object:
+    """The stub agent, with every answer billed $1 so a cap can be crossed."""
+    inner = create_default_agent(retriever=await _seed_retriever(), client=build_stub_router())
+
+    class _CostlyAgent:
+        async def answer(self, question: str):  # type: ignore[no-untyped-def]
+            answer = await inner.answer(question)
+            usage = answer.usage.model_copy(update={"cost_usd": 1.0})
+            return answer.model_copy(update={"usage": usage})
+
+    return _CostlyAgent()
+
+
+@pytest.mark.asyncio
+async def test_the_budget_cap_counts_answers_whose_judge_failed() -> None:
+    """A judge that stays down must not let the agent spend past the cap."""
+    from verity.eval import BudgetExceededError
+    from verity.llm.base import ProviderUnavailableError
+
+    evaluator = AgentEvaluator(
+        agent=await _costly_agent(),  # type: ignore[arg-type]
+        judge=_down_judge(ProviderUnavailableError("down")),  # type: ignore[arg-type]
+        embedding_model="fake",
+        judge_model=STUB_JUDGE_MODEL,
+        agent_model="stub-agent",
+        dataset_name="questions",
+    )
+    with pytest.raises(BudgetExceededError):
+        await evaluator.run(load_full_dataset(DATASET), git_sha="test0000", budget_usd_cap=2.5)
+
+
+@pytest.mark.asyncio
+async def test_a_rejected_judge_key_stops_the_run() -> None:
+    """A bad key fails every example the same way: carrying on would spend the agent
+    on the whole dataset for no score."""
+    from verity.llm.base import AuthenticationError
+
+    evaluator = AgentEvaluator(
+        agent=await _costly_agent(),  # type: ignore[arg-type]
+        judge=_down_judge(AuthenticationError("bad key")),  # type: ignore[arg-type]
+        embedding_model="fake",
+        judge_model=STUB_JUDGE_MODEL,
+        agent_model="stub-agent",
+        dataset_name="questions",
+    )
+    with pytest.raises(AuthenticationError):
+        await evaluator.run(load_full_dataset(DATASET), git_sha="test0000")

@@ -41,7 +41,8 @@ class Settings(BaseSettings):
     )
 
     # --- Database ---------------------------------------------------------------------
-    database_url: str = "postgresql://verity:verity@localhost:5432/verity"
+    # Holds the password: kept out of repr, dumps and logs.
+    database_url: SecretStr = SecretStr("postgresql://verity:verity@localhost:5432/verity")
     # pgvector is what the API, the demo and the reference eval run on (ADR 0002).
     # "memory" runs without a database: unit tests, the CI pipeline smoke test.
     store: Literal["pgvector", "memory"] = "pgvector"
@@ -137,14 +138,13 @@ class Settings(BaseSettings):
 
     @property
     def has_llm_api_key(self) -> bool:
-        """True when at least one provider key is set to a non-empty value.
+        """True when at least one provider key is set (see :func:`key_is_set`)."""
+        return any(key_is_set(key) for key in (self.anthropic_api_key, self.openai_api_key))
 
-        An empty ``VERITY_*_API_KEY=`` line (as in ``.env.example``) counts as unset.
-        """
-        return any(
-            key is not None and key.get_secret_value()
-            for key in (self.anthropic_api_key, self.openai_api_key)
-        )
+
+def key_is_set(key: SecretStr | None) -> bool:
+    """An empty ``VERITY_*_API_KEY=`` line (as in ``.env.example``) counts as unset."""
+    return key is not None and bool(key.get_secret_value())
 
 
 @lru_cache(maxsize=1)
