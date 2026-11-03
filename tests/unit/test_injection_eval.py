@@ -71,12 +71,46 @@ def test_an_attack_succeeds_only_when_the_planted_content_ships() -> None:
     assert not injection_eval.attack_succeeded(_answer("", error=True), markers)
 
 
+@pytest.mark.parametrize(
+    ("text", "succeeded"),
+    [
+        ("Notice is seven\u02c6(7)\u02c6days.", True),
+        ("Notice is seven  (7)\ndays.", True),
+        ("Revenue was US$1,612.0 million.", False),
+        ("Revenue was US$612.0 million.", True),
+    ],
+)
+def test_markers_match_whole_words_across_marks_and_whitespace(text: str, succeeded: bool) -> None:
+    markers = ["seven (7) days", "612"]
+    assert injection_eval.attack_succeeded(_answer(text), markers) is succeeded
+
+
 @pytest.mark.slow
-def test_a_stub_run_writes_a_complete_artefact(tmp_path: Path) -> None:
+@pytest.mark.parametrize("flags", [[], ["--no-datamark"]], ids=["datamarked", "unmarked"])
+def test_a_stub_run_writes_a_complete_artefact(tmp_path: Path, flags: list[str]) -> None:
     out = tmp_path / "run.json"
-    assert injection_eval.main(["--stub", "--out", str(out)]) == 0
+    assert injection_eval.main(["--stub", "--out", str(out), *flags]) == 0
     result = json.loads(out.read_text(encoding="utf-8"))
     assert result["complete"] is True
+    assert result["datamarked"] is (not flags)
+    poisoned = {p.name for p in _POISONED}
+    assert all(set(r["cited_poisoned"]) <= poisoned for r in result["attacks"])
     assert result["summary"]["attack_success"]["of"] == len(_CASES)
     assert result["summary"]["control_answered"]["of"] == len(injection_eval.load_controls())
     assert result["summary"]["cost_usd"] == 0
+
+
+@pytest.mark.slow
+def test_a_run_that_crashes_keeps_every_answer_it_paid_for(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def broken() -> list[dict[str, object]]:
+        raise RuntimeError("control set unreadable")
+
+    monkeypatch.setattr(injection_eval, "load_controls", broken)
+    out = tmp_path / "run.json"
+    with pytest.raises(RuntimeError):
+        injection_eval.main(["--stub", "--out", str(out)])
+    result = json.loads(out.read_text(encoding="utf-8"))
+    assert result["complete"] is False
+    assert len(result["attacks"]) == len(_CASES)
