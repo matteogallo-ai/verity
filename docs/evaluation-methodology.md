@@ -58,7 +58,7 @@ and had no split, so its threshold was tuned and reported on the same examples.
 
 ## Metrics as computed
 
-### Retrieval (deterministic, no LLM)
+### Retrieval (scored without an LLM)
 Computed by `verity.eval.retrieval_metric` on the final fused + reranked list, over
 answerable examples only (`relevant_chunk_ids` is empty for out-of-scope ones):
 - **precision@k** = |retrieved ∩ gold| / min(k, |retrieved|) (0 when nothing is retrieved);
@@ -67,7 +67,10 @@ answerable examples only (`relevant_chunk_ids` is empty for out-of-scope ones):
 
 Each example has 1-2 gold chunks, so precision@8 cannot exceed 0.25; read it with
 recall. Per-stage results (dense, sparse, fused, reranked) are not scored; the
-traces record each stage's latency and hit count only.
+traces record each stage's latency and hit count only. The scoring is deterministic,
+but the list it scores is not: it holds the hits retrieved for the sub-questions the
+LLM decomposer writes, so a rerun can retrieve different chunks (run-to-run noise
+below).
 
 ### Answer quality (LLM judge)
 The judge (`prompts/judge_faithfulness.prompt`) splits each non-refused answer into
@@ -110,6 +113,35 @@ in at 1.0 (citation accuracy 0.7917 over 16 questions) while the headline exclud
 them (0.722 over 12 judged answers). Run artefacts in `datasets/eval/runs/live/` are
 immutable (pinned in `SHA256SUMS`); figures recomputed under the current definition
 are in `<artefact>.recomputed.json`, written by `scripts/recompute_live_aggregates.py`.
+
+### Run-to-run noise
+
+The agent and the judge sample from LLMs, so a rerun of the same commit on the same
+questions does not give the same figures. The range below is how far each figure moved
+across reruns of the v1.1.0 dev run; the published figures stay those of the run of
+record.
+
+<!-- NOISE:START -->
+Commit `6ec544d`, `dev` split (n=39), 3 live runs with the same prompts, models and threshold. The first is the run of record; the others are reruns.
+
+| Metric | Run 1 | Run 2 | Run 3 | Min | Max | Range |
+|---|---:|---:|---:|---:|---:|---:|
+| Faithfulness, per-question mean (judge) | 0.960 | 1.000 | 1.000 | 0.960 | 1.000 | 0.040 |
+| Citation accuracy, per-question mean (judge) | 0.939 | 0.973 | 0.944 | 0.939 | 0.973 | 0.034 |
+| Hallucination rate (judge) | 0.100 | 0.000 | 0.000 | 0.000 | 0.100 | 0.100 |
+| Refusal precision | 0.667 | 0.632 | 0.706 | 0.632 | 0.706 | 0.074 |
+| Refusal recall | 0.923 | 0.923 | 0.923 | 0.923 | 0.923 | 0.000 |
+| Retrieval nDCG@8 | 0.912 | 0.920 | 0.912 | 0.912 | 0.920 | 0.008 |
+| Retrieval recall@8 | 0.968 | 0.987 | 0.968 | 0.968 | 0.987 | 0.019 |
+| Retrieval precision@8 | 0.154 | 0.159 | 0.154 | 0.154 | 0.159 | 0.005 |
+| Latency p50 (ms, warm) | 4964 | 4841 | 5223 | 4841 | 5223 | 381 |
+| Latency p95 (ms, warm) | 8644 | 8265 | 7901 | 7901 | 8644 | 743 |
+| Latency p99 (ms, warm) | 10055 | 8795 | 8036 | 8036 | 10055 | 2018 |
+| Cold start (ms) | 10178 | 9131 | 8357 | 8357 | 10178 | 1821 |
+| Cost per query (USD, agent) | 0.0118 | 0.0116 | 0.0120 | 0.0116 | 0.0120 | 0.0003 |
+
+n=3 runs is a minimum, not a sample size: the range is a lower bound on the run-to-run spread, with no interval. A difference between two versions smaller than this range is not evidence of a change. Generated from [`datasets/eval/runs/noise/noise_band_6ec544d_dev.json`](../datasets/eval/runs/noise/noise_band_6ec544d_dev.json) by `scripts/noise_band.py --check`; the reruns are pinned in `datasets/eval/runs/noise/SHA256SUMS`.
+<!-- NOISE:END -->
 
 ### Refusal (deterministic over the agent's decisions)
 A confusion matrix over `answerable` vs `refused`, computed in `verity.eval.refusal`:
