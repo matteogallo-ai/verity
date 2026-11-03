@@ -149,6 +149,13 @@ def test_a_changed_judge_prompt_refuses_to_render(tmp_path: Path) -> None:
     """κ measured with one prompt must not be published under another."""
     mod = _load("render_judge_validation")
     changed = tmp_path / "judge_faithfulness.prompt"
-    changed.write_text(mod.JUDGE_PROMPT.read_text().replace("@version 0.1.0", "@version 0.2.0"))
+    changed.write_text(mod.JUDGE_PROMPT.read_text() + "\n# any edit makes a new judge\n")
     with pytest.raises(SystemExit, match="changed since"):
         mod.provenance(prompt=changed)
+
+
+def test_the_injection_count_does_not_depend_on_the_working_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    assert _load("render_judge_validation").provenance().exposed_to_injection == 4

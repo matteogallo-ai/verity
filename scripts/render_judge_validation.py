@@ -70,7 +70,9 @@ def provenance(key: Path = KEY, prompt: Path = JUDGE_PROMPT) -> Provenance:
     version = re.search(r"^@version (\S+)$", text, re.MULTILINE)
     if version is None:
         raise SystemExit(f"{prompt.name} has no @version line")
-    injected = str(document_id_for_uri(INJECTED_DOCUMENT))
+    # identity_for resolves a relative path against the working directory, so the
+    # path is anchored at the repo root: ingestion ids corpus files by absolute path.
+    injected = str(document_id_for_uri(str(REPO_ROOT / INJECTED_DOCUMENT)))
     audits = {path: {a["example_id"]: a for a in run["per_audit"]} for path, run in runs.items()}
     exposed = sum(
         any(
