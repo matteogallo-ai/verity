@@ -8,6 +8,7 @@ Everything here is deterministic and in process: one API process serves one tena
 from __future__ import annotations
 
 import hmac
+import ipaddress
 import math
 import time
 from collections import deque
@@ -29,6 +30,7 @@ class RateLimiter:
     by client address, it is not, so ``max_principals`` caps it: expired buckets go
     first, then the oldest. A client that controls more addresses than the cap can
     reset its own count; the cap bounds memory, it does not stop a distributed guesser.
+    When the cap is reached with no expired bucket, the oldest-created tenth goes.
     """
 
     def __init__(
@@ -56,8 +58,11 @@ class RateLimiter:
     def _evict(self, now: float) -> None:
         for principal in [p for p, hits in self._hits.items() if not self._live(hits, now)]:
             del self._hits[principal]
-        while self._max_principals is not None and len(self._hits) >= self._max_principals:
-            del self._hits[next(iter(self._hits))]
+        if self._max_principals is not None and len(self._hits) >= self._max_principals:
+            # A tenth at once, so a client cycling addresses at the cap does not cost a
+            # full scan on every request.
+            for principal in list(self._hits)[: max(1, self._max_principals // 10)]:
+                del self._hits[principal]
 
     def blocked(self, principal: str) -> float | None:
         """Like :meth:`hit` without recording: ``None`` while a slot is free."""
@@ -129,6 +134,21 @@ def retry_after_header(seconds: float) -> dict[str, str]:
     return {"Retry-After": str(max(1, math.ceil(seconds)))}
 
 
+def client_bucket(host: str) -> str:
+    """The failed-attempt bucket of a client address: the address itself for IPv4, its
+    /64 for IPv6, which one host usually holds whole. A value that is not an address
+    (a test client, a Unix socket) is its own bucket."""
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return host
+    if isinstance(address, ipaddress.IPv6Address):
+        if address.ipv4_mapped is not None:
+            return str(address.ipv4_mapped)
+        return str(ipaddress.ip_network(f"{address}/64", strict=False))
+    return str(address)
+
+
 def _principal_for(supplied: str | None, settings: Settings) -> str | None:
     """The configured key ``supplied`` matches, by index; ``None`` if none does.
 
@@ -161,7 +181,7 @@ async def require_api_key(request: Request) -> str:
     if settings.api_auth_disabled:
         principal = _ANONYMOUS
     else:
-        client = request.client.host if request.client else "unknown"
+        client = client_bucket(request.client.host if request.client else "unknown")
         failures: RateLimiter = request.app.state.auth_failures
         wait = failures.blocked(client)
         if wait is not None:
@@ -246,6 +266,7 @@ __all__ = [
     "SpendBudget",
     "UploadRejectedError",
     "check_upload",
+    "client_bucket",
     "require_api_key",
     "retry_after_header",
 ]

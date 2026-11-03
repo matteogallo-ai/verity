@@ -39,12 +39,17 @@ rejected alternatives are in [ADR 0006](docs/adr/0006-api-security-baseline.md).
   `/docs` and `/openapi.json` need no key. They expose readiness states and aggregate
   latency and cost, never document names or text. `/status`, which lists the corpus file
   names and the models in use, needs a key.
-- **Failed key attempts.** 10 wrong or missing keys per minute per client address, then
-  `429` with `Retry-After`, checked before the key is compared. Behind a reverse proxy,
-  run uvicorn with `--proxy-headers --forwarded-allow-ips=<proxy>`; otherwise every
-  client shares the proxy's address and one guesser blocks them all. At most 10,000
-  addresses are tracked; a client with more addresses than that can reset its count.
-- **Rate limit.** 30 requests per minute per key on `/ask` and `/ingest`, sliding
+- **Failed key attempts.** 10 wrong or missing keys per minute per client address (per
+  /64 for IPv6), then `429` with `Retry-After`, checked before the key is compared. The
+  limit slows one client; long random keys are what makes guessing infeasible. At most
+  10,000 addresses are tracked, so a client with more addresses than that can reset its
+  count, and N API processes allow N × the limit. The address is the TCP peer unless
+  uvicorn trusts the proxy that forwards it, set with `FORWARDED_ALLOW_IPS=<proxy ip>`
+  (`verity serve` passes no value, so uvicorn reads that variable). Under
+  `docker compose` with no such setting, every client reaches the container from the
+  Docker gateway: the limit is then shared, and one client with a wrong key blocks the
+  others for up to a minute.
+- **Rate limit.** 30 requests per minute per key on `/status`, `/ask` and `/ingest`, sliding
   window, `429` with `Retry-After`. In process: N API processes allow N × the limit.
 - **Spending budget.** `/ask` spend per key is capped at `VERITY_API_BUDGET_USD`
   ($5 by default) over a sliding `VERITY_API_BUDGET_WINDOW_S` (3600 s), counted from

@@ -107,6 +107,14 @@ def test_rate_limit_is_per_key_and_answers_429_with_retry_after(tmp_path: Path) 
         assert other.status_code == 200
 
 
+def test_status_counts_toward_the_per_key_rate_limit(tmp_path: Path) -> None:
+    with api_app(tmp_path, _settings(api_rate_limit_per_minute=2)) as c:
+        c.headers["X-API-Key"] = _KEY
+        assert c.get("/status").status_code == 200
+        assert c.get("/status").status_code == 200
+        assert c.post("/ask", json={"question": _QUESTION}).status_code == 429
+
+
 def test_rate_limiter_window_slides() -> None:
     now = [0.0]
     limiter = RateLimiter(limit=2, window_s=60.0, clock=lambda: now[0])
@@ -153,6 +161,36 @@ def test_rate_limiter_memory_is_bounded() -> None:
     now[0] = 61.0
     limiter.hit("10.9.9.9")
     assert len(limiter) == 1
+
+
+def test_eviction_drops_expired_buckets_before_a_live_one() -> None:
+    now = [0.0]
+    limiter = RateLimiter(limit=1, window_s=60.0, clock=lambda: now[0], max_principals=3)
+    limiter.hit("old-1")
+    limiter.hit("old-2")
+    now[0] = 50.0
+    limiter.hit("blocked")
+    now[0] = 70.0
+    limiter.hit("new")
+    assert limiter.blocked("blocked") is not None
+
+
+@pytest.mark.parametrize(
+    ("first", "second", "shared"),
+    [
+        ("2001:db8::1", "2001:db8::ffff:1", True),
+        ("2001:db8::1", "2001:db8:0:1::1", False),
+        ("192.0.2.1", "192.0.2.2", False),
+        ("::ffff:192.0.2.1", "192.0.2.1", True),
+        ("testclient", "testclient", True),
+    ],
+)
+def test_failed_attempts_are_counted_per_ipv6_64(first: str, second: str, shared: bool) -> None:
+    """One IPv6 host usually holds a whole /64: counted per address, it would get ten
+    attempts per address."""
+    from verity.api.guards import client_bucket
+
+    assert (client_bucket(first) == client_bucket(second)) is shared
 
 
 # --- spending budget -------------------------------------------------------------------

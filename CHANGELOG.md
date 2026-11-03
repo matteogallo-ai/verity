@@ -70,8 +70,8 @@ follows [Semantic Versioning](https://semver.org/).
 
 - `/status` requires `X-API-Key`: it lists every corpus file name and the models in use.
   `/health` and `/ready` remain the public probes. The CI smoke script sends the key.
-- Failed key attempts are limited per client address (`VERITY_API_AUTH_FAILURES_PER_MINUTE`,
-  10), then `429` with `Retry-After`, checked before the key is compared. At most 10,000
+- Failed key attempts are limited per client address, per /64 for IPv6
+  (`VERITY_API_AUTH_FAILURES_PER_MINUTE`, 10), then `429` with `Retry-After`, checked before the key is compared. At most 10,000
   addresses are tracked. Behind a reverse proxy, uvicorn must trust its forwarded headers
   (SECURITY.md).
 - Dependencies with known advisories upgraded: Python (pillow 13.0.0, urllib3 2.8.0,
