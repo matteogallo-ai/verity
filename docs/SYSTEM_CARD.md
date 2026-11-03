@@ -81,8 +81,8 @@ Source: [`scorecards/live-v1.0.0.json`](../scorecards/live-v1.0.0.json) · commi
 
 | SLO | Target | Measured on the run of record | Status |
 |---|---|---|---|
-| p95 latency of one answer, cold start included | ≤ 15,000 ms (approved) | 32526.5 ms (n=16, no warmup: includes model loading) | **SLO not met**: the run had no warmup, so model loading on the first answer is in the sample, and at n=16 the p95 sits between the two slowest answers; the scorecard keeps no per-answer latencies to say which answers those were |
-| p95 latency of one answer, warm (cold start excluded) | ≤ 15,000 ms (approved) | not measured: the run had no warmup and keeps no per-answer latencies | not measured |
+| p95 latency of one answer, cold start included | ≤ 15,000 ms (approved) | 32526.5 ms (n=16, no warmup: the first answer loads the models) | **SLO not met**: answers over 15,000 ms: q-003 37684.8 ms, q-001 30807.0 ms (first answer, model loading), q-006 15863.9 ms; the run recorded no per-stage timings or retries, so the time of q-003, q-006 is not attributed |
+| p95 latency of one answer, warm (cold start excluded) | ≤ 15,000 ms (approved) | 22410.1 ms (n=15, first answer left out) | **SLO not met**: answers over 15,000 ms: q-003 37684.8 ms, q-006 15863.9 ms; the run recorded no per-stage timings or retries, so the time of q-003, q-006 is not attributed |
 | Error rate (requests answered with neither an answer nor a refusal) | ≤ 1% (approved) | not recorded by this scorecard | not measured |
 | Cost per answer (agent calls; the judge is eval-only) | ≤ $0.02 (approved) | $0.0122 (mean, n=16) | met |
 <!-- SYSTEM-CARD:END -->

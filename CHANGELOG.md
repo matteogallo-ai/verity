@@ -18,7 +18,8 @@ follows [Semantic Versioning](https://semver.org/).
 
 - System card SLOs are approved targets, no longer proposals. A miss is published as
   **SLO not met** with its cause, and the p95 latency is reported cold start included and
-  warm, in separate rows. The v1.0.0 run of record misses the p95 target (32.5 s, no warmup).
+  warm, in separate rows, recomputed from the run's per-answer latencies. The v1.0.0 run of
+  record misses both: 32.5 s cold start included, 22.4 s warm.
 
 ### Fixed
 

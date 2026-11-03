@@ -32,7 +32,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from verity.eval.harness import percentile
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
+RUNS_DIR = REPO_ROOT / "datasets" / "eval" / "runs" / "live"
 DEFAULT_SCORECARD = REPO_ROOT / "scorecards" / "live-v1.0.0.json"
 DEFAULT_README = REPO_ROOT / "README.md"
 DEFAULT_SYSTEM_CARD = REPO_ROOT / "docs" / "SYSTEM_CARD.md"
@@ -278,25 +281,79 @@ def _against(measured: float | None, target: float, cause: str) -> str:
     return "met" if measured <= target else f"**SLO not met**: {cause}"
 
 
-def _latency_slo_rows(latency: dict[str, Any], n: int, approved: str) -> list[str]:
-    """Cold-start-included and warm p95 as separate rows. A run with a warmup times the
-    first answer apart (``cold_start``) and its p95 is warm; a run without one has a
-    single p95 that includes model loading and no way to take it out again."""
+def _run_latencies(data: dict[str, Any]) -> list[tuple[str, float]] | None:
+    """Per-answer ``(example_id, latency_ms)`` in run order from the run artefact the
+    scorecard was built from, or ``None`` when that artefact is not committed."""
+    run = data.get("provenance", {}).get("run_sha")
+    name = data["dataset"].get("name")
+    path = RUNS_DIR / f"eval_{run}_{name}.json"
+    if not run or not name or not path.exists():
+        return None
+    audits = json.loads(path.read_text(encoding="utf-8"))["per_audit"]
+    return [(a["example_id"], float(a["usage"]["latency_ms"])) for a in audits]
+
+
+def _p95(latencies: list[tuple[str, float]]) -> float:
+    return percentile(sorted(ms for _, ms in latencies), 95)
+
+
+def _p95_cause(over: list[tuple[str, float]], first: str | None) -> str:
+    """The answers over target, slowest first. Only the first answer of a run without
+    warmup has a known extra cost (model loading); the artefact holds no per-stage
+    timings or retry counts, so the excess of any other answer is not attributed."""
+    named = ", ".join(
+        f"{qid} {_fmt_ms(ms)}" + (" (first answer, model loading)" if qid == first else "")
+        for qid, ms in sorted(over, key=lambda item: -item[1])
+    )
+    unexplained = [qid for qid, _ in over if qid != first]
+    tail = (
+        "; the run recorded no per-stage timings or retries, so the time of "
+        f"{', '.join(unexplained)} is not attributed"
+        if unexplained
+        else ""
+    )
+    return f"answers over {SLO_P95_LATENCY_MS:,.0f} ms: {named}{tail}"
+
+
+def _latency_slo_rows(data: dict[str, Any], approved: str) -> list[str]:
+    """p95 cold start included and warm, as separate rows. From the run artefact when it
+    is committed (it must reproduce the scorecard p95); otherwise from the scorecard,
+    whose single p95 is warm only if the run had a warmup."""
     target = f"≤ {SLO_P95_LATENCY_MS:,.0f} ms ({approved})"
+    latency = data["latency_ms"]
+    n = data["dataset"]["n_questions"]
     p95 = float(latency["p95"])
     cold_start = latency.get("cold_start")
-    if cold_start is None:
-        cause = (
-            "the run had no warmup, so model loading on the first answer is in the "
-            f"sample, and at n={n} the p95 sits between the two slowest answers; the "
-            "scorecard keeps no per-answer latencies to say which answers those were"
-        )
+    answers = _run_latencies(data)
+
+    if answers is not None and cold_start is None:
+        if not math.isclose(_p95(answers), p95, abs_tol=0.01):
+            raise SystemExit(
+                f"run artefact p95 {_p95(answers):.3f} does not reproduce the scorecard p95 {p95}"
+            )
+        first = answers[0][0]
+        warm = answers[1:]
+        warm_p95 = _p95(warm)
+
+        def status(measured: float, sample: list[tuple[str, float]]) -> str:
+            over = [(qid, ms) for qid, ms in sample if ms > SLO_P95_LATENCY_MS]
+            return _against(measured, SLO_P95_LATENCY_MS, _p95_cause(over, first))
+
         cold_cells = (
-            f"{_fmt_ms(p95)} (n={n}, no warmup: includes model loading)",
-            _against(p95, SLO_P95_LATENCY_MS, cause),
+            f"{_fmt_ms(p95)} (n={n}, no warmup: the first answer loads the models)",
+            status(p95, answers),
         )
         warm_cells = (
-            "not measured: the run had no warmup and keeps no per-answer latencies",
+            f"{_fmt_ms(warm_p95)} (n={len(warm)}, first answer left out)",
+            status(warm_p95, warm),
+        )
+    elif cold_start is None:
+        cold_cells = (
+            f"{_fmt_ms(p95)} (n={n}, no warmup: includes model loading)",
+            _against(p95, SLO_P95_LATENCY_MS, "the per-answer latencies are not committed"),
+        )
+        warm_cells = (
+            "not measured: the run had no warmup and its artefact is not committed",
             "not measured",
         )
     else:
@@ -305,10 +362,10 @@ def _latency_slo_rows(latency: dict[str, Any], n: int, approved: str) -> list[st
             f"took {_fmt_ms(float(cold_start))}",
             "not measured",
         )
-        warm_cause = "the scorecard keeps no per-answer latencies; the eval artefact does"
+        over = [] if answers is None else [a for a in answers if a[1] > SLO_P95_LATENCY_MS]
         warm_cells = (
             f"{_fmt_ms(p95)} (n={n}, after one warmup answer)",
-            _against(p95, SLO_P95_LATENCY_MS, warm_cause),
+            _against(p95, SLO_P95_LATENCY_MS, _p95_cause(over, None)),
         )
     return [
         f"| p95 latency of one answer, cold start included | {target} | "
@@ -330,7 +387,7 @@ def _slo_rows(data: dict[str, Any]) -> list[str]:
     per_query = float(data["cost"]["per_query_usd"])
     approved = "approved"
     return [
-        *_latency_slo_rows(data["latency_ms"], n, approved),
+        *_latency_slo_rows(data, approved),
         f"| Error rate (requests answered with neither an answer nor a refusal) | "
         f"≤ {SLO_ERROR_RATE:.0%} ({approved}) | "
         f"{error_cell} | "
