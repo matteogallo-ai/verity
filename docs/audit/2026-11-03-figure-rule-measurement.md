@@ -20,10 +20,16 @@ refuse correct answers. The support check is unchanged.
   `main`; the others are on `fix/audit-part-c`, as for the F-8 measurement.
 - Variants:
   - **strict**: every figure of the answer must be in a cited quote;
-  - **exempt**: a figure is also accepted when it is in the question, when it is part
-    of an identifier (`FY2025`, `No. 1`, `NW-2025-001`), or when one arithmetic step
-    (+, −, ×, ÷, a percentage) or the sum of three numbers from the quotes and the
-    question gives it.
+  - **exempt**: a figure is also accepted when it is in the question, when it is
+    preceded by a label (`No.`, `Section`, `Amendment` …), or when one arithmetic step
+    (+, −, ×, ÷, a percentage) or the sum of any three numbers from the quotes and the
+    question gives it, within 0.5 %. Any number glued to a letter or a hyphen is
+    skipped as an identifier: `FY2025` and `NW-2025-001`, but also `60-day`,
+    `12-month`, `24h` and `$40k`. This variant is therefore much more lenient than "an
+    identifier is exempt": `90 days` passes against quotes holding `30` and `60`.
+- What is compared is the set of numbers, not whole figures: a date counts as its
+  month name plus a separate day number, `2:00` and `02:00` differ, and a comma
+  decimal such as `2,5` is not read as a number.
 - Correctness of each refused answer was read against the dataset's reference answer.
   Every one listed below was rated faithful (1.0) by the judge.
 
@@ -38,7 +44,9 @@ refuse correct answers. The support check is unchanged.
 | `live/eval_969e1d5_test.json` | 34 | q-010, q-029, q-037, q-053, q-056, q-062, q-066 | q-010, q-037 |
 
 Every listed answer is correct except q-087, which is out of scope and should have been
-refused. The strict variant catches it, and the exempt variant lets it through.
+refused. The strict variant catches it, and the exempt variant lets it through. A rule
+lenient enough to accept the correct answers above also accepts wrong figures it was
+meant to catch; what the exempt variant still catches was not measured.
 
 Why correct answers fail the strict variant:
 
