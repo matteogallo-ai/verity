@@ -142,6 +142,16 @@ class AnthropicClient(LLMClient):
                 raise ProviderUnavailableError(f"anthropic init failed: {exc}") from exc
         return self._client
 
+    async def ping(self) -> None:
+        """Reach the provider without spending tokens: the Models API is not billed.
+        Raises the same typed errors as :meth:`complete`."""
+        client = self._get_client()
+        try:
+            await client.models.retrieve(self._model)
+        # Every vendor failure is translated to a typed Verity error and re-raised.
+        except Exception as exc:
+            _raise_translated(exc, sdk=_lazy_anthropic(), provider="anthropic")
+
     async def complete(
         self,
         messages: list[Message],
@@ -253,6 +263,16 @@ class OpenAIClient(LLMClient):
             except Exception as exc:
                 raise ProviderUnavailableError(f"openai init failed: {exc}") from exc
         return self._client
+
+    async def ping(self) -> None:
+        """Reach the provider without spending tokens: the Models API is not billed.
+        Raises the same typed errors as :meth:`complete`."""
+        client = self._get_client()
+        try:
+            await client.models.retrieve(self._model)
+        # Every vendor failure is translated to a typed Verity error and re-raised.
+        except Exception as exc:
+            _raise_translated(exc, sdk=_lazy_openai(), provider="openai")
 
     async def complete(
         self,

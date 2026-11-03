@@ -63,6 +63,7 @@ CI job `claims` runs those tests.
 - `docker compose up`: non-root image, Postgres, migrations, corpus ingestion and the API in order, smoke-tested in CI (C26).
 - API hardening: API keys on `/ask` and `/ingest`, per-key rate limit, bounded inputs, file-type allow-list, generic errors with a request ID (C23).
 - Bounded spend: per-key spending budget on `/ask`, a per-answer cap on `verity ask` checked before each LLM call, bounded `max_tokens` and timeouts (C31).
+- Liveness and readiness split: `/health` answers while the process lives; `/ready` answers `503` unless Postgres and at least one LLM provider are reachable, without spending tokens (C32).
 - Prompt-injection defence: delimited, untrusted-labelled evidence, and a deterministic support check (citation coverage, cited relevance, injection markers) the model's score cannot override; adversarial eval questions (C24).
 - Provider and store outages reported as errors (HTTP 503), never as refusals (C25).
 

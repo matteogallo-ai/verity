@@ -33,6 +33,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from verity import __version__
 from verity.api.aggregator import SessionMetrics, aggregate_spans, to_prometheus
 from verity.api.guards import RateLimiter, SpendBudget
+from verity.api.readiness import readiness
 from verity.api.router import router as api_router
 from verity.api.state import AppRuntime, default_agent_mode
 from verity.config import Settings, get_settings
@@ -122,6 +123,14 @@ def create_app(
     @app.get("/health")
     def health() -> JSONResponse:
         return JSONResponse({"status": "ok", "version": __version__})
+
+    @app.get("/ready")
+    async def ready() -> JSONResponse:
+        is_ready, checks = await readiness(runtime)
+        return JSONResponse(
+            {"status": "ready" if is_ready else "not ready", "checks": checks},
+            status_code=200 if is_ready else 503,
+        )
 
     @app.get("/metrics")
     def metrics() -> JSONResponse:

@@ -9,7 +9,8 @@ and the response. Log events are structlog lines (JSON keys `event`, `trace_id`,
 
 | Signal | What it tells | What it does not |
 |---|---|---|
-| `GET /health` | the process answers HTTP | nothing about Postgres, the models or the providers: it returns `200` while all three are down |
+| `GET /health` | liveness: the process answers HTTP | nothing about Postgres, the models or the providers: it returns `200` while all three are down, so a restart policy keyed on it never restarts a healthy process for a dependency outage |
+| `GET /ready` | readiness: `200` when Postgres answers `SELECT 1` (if it is the configured store) and at least one configured provider answers its free Models API; otherwise `503`. Body `{"status": "ready" \| "not ready", "checks": {"store": …, "llm": …}}`, each check `ok`, `unreachable`, `timeout` (2 s per check) or `not used` (memory store, stub agent). The cause is in the `readiness_failed` / `readiness_timeout` log lines, never in the body | whether the local models load, or whether a provider has quota left: the Models API is not billed and does not spend quota |
 | `GET /status` | the store answers (it lists the corpus) and the boot-time provenance; `provenance.is_stub: true` means no provider key was found and answers are canned | provider health |
 | `answer_done` log line | one per answered or refused request: `decision`, `reason`, `stage_ms`, `latency_ms`, tokens, `cost_usd` | — |
 | `answer_failed` log line | one per request that could not be decided: `decision=error`, `error_kind`, `error`, the stages reached | tokens spent before the failure |
@@ -43,7 +44,8 @@ error is never a refusal (C25).
 ## 2. Postgres unreachable or not migrated
 
 - **Symptom.** `/ask`, `/ingest` and `/status` answer `503` with
-  `{"detail": {"error": "retrieval_unavailable", …}}`; `/health` stays `200`.
+  `{"detail": {"error": "retrieval_unavailable", …}}`; `/health` stays `200`;
+  `/ready` answers `503` with `"store": "unreachable"` (or `"timeout"`).
 - **Detection.** `store_unavailable` (error, with traceback) when the failure is raised
   outside the agent, e.g. during the first request's corpus ingestion; `stage_failed`
   then `answer_failed` with `error_kind=retrieval_unavailable` inside `/ask`. Tests:
