@@ -73,7 +73,8 @@ machine or a cleared Hugging Face cache with network access disabled.
   reading "We couldn't connect to 'https://huggingface.co' … couldn't find them in the
   cached files" (an `OSError` from the model loader, reproduced with an empty
   `HF_HOME`), then `preload_failed` with the number of failed files. Then
-  `model_failed` and `answer_failed` with `error_kind=model_unavailable` on each `/ask`
+  `model_failed` (with the traceback) and `answer_failed` with
+  `error_kind=model_unavailable` on each `/ask`, which answers `503`
   (`tests/unit/test_api_hardening.py::test_a_local_model_failure_on_ask_is_a_503_not_a_500`),
   and `ingest_failed` on each
   upload. The not-ready state and the retry are tested with a loader that fails once

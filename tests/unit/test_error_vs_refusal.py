@@ -249,3 +249,20 @@ async def test_a_local_model_failure_is_a_typed_error_that_keeps_its_spend(
     assert str(exc) in answer.error.detail
     # The decompose call was paid before retrieval failed.
     assert answer.usage.llm_calls == 1 and answer.usage.cost_usd > 0
+
+
+@pytest.mark.asyncio
+async def test_an_embedder_that_returns_no_vector_is_a_model_error() -> None:
+    seeded = await _seed_retriever()
+
+    class _Empty:
+        async def embed(self, texts: list[str]) -> list[tuple[float, ...]]:
+            return []
+
+    retriever = HybridRetriever(store=seeded._store, embedder=_Empty(), reranker=None)  # type: ignore[arg-type]
+    agent = create_default_agent(
+        retriever=retriever, client=MultiProviderRoutingClient([_CountingStubClient()])
+    )
+    answer = await agent.answer(_ANSWERABLE)
+    assert answer.error is not None
+    assert answer.error.kind is ErrorKind.MODEL_UNAVAILABLE

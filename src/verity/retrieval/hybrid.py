@@ -79,7 +79,10 @@ class HybridRetriever(Retriever):
 
         async with self._tracer.stage("retrieve.embed_query", span_trace_id) as span:
             span.set_attribute("query.length", len(query))
-            query_vec = (await _model_call("embedder", self._embedder.embed([query])))[0]
+            vectors = await _model_call("embedder", self._embedder.embed([query]))
+            if not vectors:
+                raise ModelUnavailableError("embedder returned no vector for the query")
+            query_vec = vectors[0]
 
         # Run dense and sparse concurrently — both are IO-bound against Postgres.
         dense_task = asyncio.create_task(
@@ -176,7 +179,9 @@ async def _model_call[T](name: str, coro: Awaitable[T]) -> T:
     try:
         return await coro
     except Exception as exc:
-        log.error("model_failed", model=name, error=str(exc))
+        # The traceback is the only clue to whether this is a missing model, an OOM or
+        # a code defect: all three reach the client as the same 503.
+        log.error("model_failed", model=name, exc_info=exc)
         raise ModelUnavailableError(f"{name} failed: {exc}") from exc
 
 
