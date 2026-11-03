@@ -35,7 +35,7 @@ rejected alternatives are in [ADR 0006](docs/adr/0006-api-security-baseline.md).
   carry `principal=key-<n>`). With no key configured the server refuses to start unless
   `VERITY_API_AUTH_DISABLED=true` is set, which is for local development only
   (`tests/unit/test_api_hardening.py`).
-- **Public endpoints.** `/health`, `/status`, `/metrics`, `/metrics/prom`,
+- **Public endpoints.** `/health`, `/ready`, `/status`, `/metrics`, `/metrics/prom`,
   `/dashboard`, `/docs` and `/openapi.json` need no key. They expose corpus file names, document counts and
   aggregate latency and cost, never document text.
 - **Rate limit.** 30 requests per minute per key on `/ask` and `/ingest`, sliding
