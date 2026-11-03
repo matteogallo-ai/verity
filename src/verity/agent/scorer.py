@@ -20,7 +20,7 @@ from verity.agent.base import ConfidenceScorer
 from verity.agent.evidence import neutralise, render_evidence
 from verity.config import get_settings
 from verity.llm.base import RoutingClient
-from verity.llm.json_output import first_matching, parse_json_object
+from verity.llm.json_output import first_matching, parse_json_object, strict_bool
 from verity.llm.prompt import load_prompt
 from verity.types import Confidence, RefusalReason, RetrievalHit, UsageStats
 
@@ -117,8 +117,12 @@ def _parse_confidence(text: str) -> tuple[float, str, bool] | None:
     score = float(max(0, min(1, raw_score)))
     rationale_raw = first_matching(parsed, _RATIONALE_KEYS)
     rationale = str(rationale_raw).strip() if rationale_raw is not None else ""
-    refused_raw = first_matching(parsed, _REFUSED_KEYS)
-    refused = bool(refused_raw) if refused_raw is not None else False
+    if not any(key in parsed for key in _REFUSED_KEYS):
+        return score, rationale, False
+    # bool("false") is True; a flag that is not a boolean is malformed, not a guess.
+    refused = strict_bool(first_matching(parsed, _REFUSED_KEYS))
+    if refused is None:
+        return None
     return score, rationale, refused
 
 
