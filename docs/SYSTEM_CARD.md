@@ -92,8 +92,11 @@ Source: [`scorecards/live-v1.0.0.json`](../scorecards/live-v1.0.0.json) · commi
 The targets in the second table above are approved by the owner. A run that misses
 one is published as **SLO not met** with the cause the scorecard supports; the target
 is not moved to fit the run. The p95 is reported twice, cold start included and warm,
-because the first answer after boot loads the embedding and reranker models.
-Nothing enforces or alerts on these targets. How each is measured on a
+because the first answer of a process that has not loaded the embedding and reranker
+models pays that load; the run of record was such a process (`--no-warmup`). The API
+loads them before `/ready` answers `200`. Each answer records its per-stage
+wall-clock and the retries the provider SDKs made; the run of record above predates
+both, and the latency SLO status stands until a run of record that has them. Nothing enforces or alerts on these targets. How each is measured on a
 running server, with the signals the code emits (responses: [`RUNBOOK.md`](RUNBOOK.md)):
 
 | SLO | Measured from | Caveat |

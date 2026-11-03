@@ -2,8 +2,10 @@
 
 One store (pgvector by default, ``VERITY_STORE=memory`` for no database), one
 :class:`LocalEmbedder`, one :class:`CrossEncoderReranker`, one :class:`RagAgent`.
-The eval corpus is ingested on the first request (an idempotent upsert) so the demo
-works with zero uploads; ``POST /ingest`` adds on top. ``/status`` lists what the
+At startup the eval corpus is ingested (an idempotent upsert) and both models are
+loaded, in the background, so the demo works with zero uploads and the first
+answer pays no load; ``/ready`` is 503 until that is done. ``POST /ingest`` adds on
+top. ``/status`` lists what the
 store holds, so with pgvector it includes uploads from earlier processes.
 
 Why a singleton: the demo lives inside one FastAPI process. Rebuilding the
@@ -16,10 +18,13 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import re
+import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
+
+import structlog
 
 from verity.agent.agent import RagAgent
 from verity.api.models import Provenance
@@ -46,7 +51,11 @@ from verity.runtime import (
     ingest_uri,
 )
 
+_log = structlog.get_logger("verity.api.state")
 _UPLOAD_URI_PREFIX = "upload://"
+# Any question will do: retrieving it loads the query embedder and the reranker.
+_PRELOAD_QUERY = "preload"
+PreloadState = Literal["loading", "ok", "failed"]
 _FILENAME_SANITISE_RE = re.compile(r"[^A-Za-z0-9._-]+")
 
 
@@ -92,6 +101,9 @@ class AppRuntime:
         self._lock = asyncio.Lock()
         self._ingest_lock = asyncio.Lock()
         self._preloaded = False
+        self._attempted = False
+        self.preload_state: PreloadState = "loading"
+        self._preload_task: asyncio.Task[None] | None = None
 
         self.store: CorpusStore
         self.embedder: LocalEmbedder
@@ -119,20 +131,57 @@ class AppRuntime:
             else ()
         )
 
-    async def preload_corpus(self) -> None:
-        """Ingest ``corpus_dir`` once. Safe to call more than once."""
+    async def preload_corpus(self, *, retry: bool = False) -> int:
+        """Ingest ``corpus_dir``; the number of files that failed.
+
+        Requests call this without ``retry`` and ingest only if no attempt was made
+        yet: ``/status`` is public, so a failing corpus must not be re-ingested per
+        request. Only the preload retries (``retry=True``), ingesting the whole corpus
+        again (the upsert is idempotent), at the pace readiness sets."""
         async with self._lock:
-            if self._preloaded:
-                return
+            if self._preloaded or (self._attempted and not retry):
+                return 0
+            self._attempted = True
             if not self._corpus_dir.exists():
                 self._preloaded = True
-                return
-            await ingest_corpus(
+                return 0
+            result = await ingest_corpus(
                 corpus_dir=self._corpus_dir,
                 store=self.store,
                 embedder=self.embedder,
             )
-            self._preloaded = True
+            self._preloaded = not result.failures
+            return len(result.failures)
+
+    def start_preload(self) -> None:
+        """Ingest the corpus and load both models in the background, unless that is
+        under way or done. Called at startup, and by readiness after a failure, at most
+        once per readiness cache period."""
+        if self.preload_state == "ok":
+            return
+        if self._preload_task is not None and not self._preload_task.done():
+            return
+        self.preload_state = "loading"
+        self._preload_task = asyncio.get_running_loop().create_task(self._preload())
+
+    async def _preload(self) -> None:
+        started = time.perf_counter()
+        try:
+            failed_files = await self.preload_corpus(retry=True)
+            if failed_files:
+                self.preload_state = "failed"
+                _log.error("preload_failed", failed_files=failed_files)
+                return
+            await self.retriever.retrieve(_PRELOAD_QUERY, k=1)
+        # Whatever stops the preload (a model missing from the cache, a store that is
+        # not up yet) leaves the process not ready; the cause is logged, and readiness
+        # starts another attempt.
+        except Exception as exc:
+            self.preload_state = "failed"
+            _log.error("preload_failed", error_type=type(exc).__name__, error=str(exc))
+            return
+        self.preload_state = "ok"
+        _log.info("preload_done", elapsed_ms=round((time.perf_counter() - started) * 1000, 1))
 
     async def ingest_bytes(
         self, *, filename: str, content: bytes, extension: str, max_documents: int

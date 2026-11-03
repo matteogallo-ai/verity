@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, model_validator
@@ -171,6 +171,9 @@ class UsageStats(BaseModel, frozen=True):
     llm_calls: int = 0
     cost_usd: float = 0.0
     latency_ms: float = 0.0
+    # Attempts the provider SDK retried before the call returned: their time is in
+    # ``latency_ms``, and only this count tells a retried call from a slow one.
+    retries: int = 0
 
 
 class ErrorKind(StrEnum):
@@ -215,6 +218,9 @@ class Answer(BaseModel, frozen=True):
     trace_id: TraceId = Field(default_factory=new_id)
     provider_used: Provider | None = None
     model_used: str | None = None
+    # Wall-clock of each agent stage that ran, in ms, so a slow answer can be explained
+    # from the eval artefact instead of from logs that are not kept.
+    stage_ms: dict[str, float] = Field(default_factory=dict)
 
     @model_validator(mode="before")
     @classmethod
@@ -325,6 +331,13 @@ class LatencyMetrics(BaseModel, frozen=True):
     p99_ms: float
 
 
+class IncompleteReason(StrEnum):
+    """Why a run's metrics do not cover its whole dataset."""
+
+    BUDGET_EXCEEDED = "budget_exceeded"
+    ERRORED_EXAMPLES = "errored_examples"
+
+
 class Scorecard(BaseModel, frozen=True):
     """The single artefact the eval harness produces and the README publishes.
 
@@ -350,6 +363,9 @@ class Scorecard(BaseModel, frozen=True):
     # quality metric (an outage is neither a correct nor a wrong refusal) and listed
     # here so a run with failures cannot pass for a clean one.
     errored_example_ids: tuple[str, ...] = ()
+    # Set when the run stopped at its budget cap or lost examples to an outage. Such a
+    # run is kept for its paid results and never stands as a run of record.
+    incomplete_reason: IncompleteReason | None = None
 
 
 class ClaimVerdict(BaseModel, frozen=True):
@@ -396,6 +412,25 @@ class PerExampleAudit(BaseModel, frozen=True):
     judge_claims: tuple[ClaimVerdict, ...] | None = None
     answer_metrics: AnswerMetrics
     usage: UsageStats = Field(default_factory=UsageStats)
+    stage_ms: dict[str, float] = Field(default_factory=dict)
+
+
+class ErroredExample(BaseModel, frozen=True):
+    """An example that was paid for but not scored, kept so the spend is accounted
+    for and, when the judge failed, the answer can be judged again without paying
+    the agent twice."""
+
+    example_id: str
+    question: str
+    expected_answerable: bool
+    failed_stage: Literal["agent", "judge"]
+    # The error kind or exception class only: provider messages can quote secrets.
+    error: str
+    answer_text: str = ""
+    citations: tuple[Citation, ...] = ()
+    hits_used: tuple[RetrievalHit, ...] = ()
+    usage: UsageStats = Field(default_factory=UsageStats)
+    stage_ms: dict[str, float] = Field(default_factory=dict)
 
 
 class EvalRun(BaseModel, frozen=True):
@@ -428,3 +463,4 @@ class EvalRun(BaseModel, frozen=True):
     agent_model: str = "unknown"
     notes: str | None = None
     per_audit: tuple[PerExampleAudit, ...] = ()
+    errored: tuple[ErroredExample, ...] = ()

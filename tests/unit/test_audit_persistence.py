@@ -28,6 +28,7 @@ question dataset.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -242,6 +243,25 @@ async def test_run_store_round_trip_preserves_every_audit_field(tmp_path: Path) 
         assert back.usage == original.usage
 
 
+_STAGES = {"agent.decompose", "agent.retrieve", "agent.synthesize", "agent.confidence"}
+
+
+@pytest.mark.asyncio
+async def test_every_audit_record_keeps_its_stage_timings(tmp_path: Path) -> None:
+    """A latency miss is attributable from the artefact alone: without per-stage time,
+    a slow answer in a run of record can never be explained after the fact."""
+    result, _ = await _run_stub_harness()
+    store = FileRunStore(tmp_path)
+    store.save(result.as_eval_run())
+    reloaded = store.latest("questions")
+    assert reloaded is not None
+    for audit in reloaded.per_audit:
+        assert set(audit.stage_ms) == _STAGES
+        # The stages cover the answer's wall-clock: nothing slow hides between them.
+        # Each value is rounded to 0.01 ms, so four stages can sum 0.02 ms over it.
+        assert -0.05 <= audit.usage.latency_ms - sum(audit.stage_ms.values()) < 5.0
+
+
 def test_pre_v1_persisted_runs_load_without_per_audit(tmp_path: Path) -> None:
     """Backwards compat: a persisted run WITHOUT a ``per_audit`` key must load
     cleanly with an empty ``per_audit`` tuple. Guards against a future audit-
@@ -288,3 +308,14 @@ def test_pre_v1_persisted_runs_load_without_per_audit(tmp_path: Path) -> None:
     store.save(loaded)
     payload = json.loads((tmp_path / "eval_legacy0_questions.json").read_text(encoding="utf-8"))
     assert "per_audit" not in payload
+
+
+@pytest.mark.parametrize(
+    "artefact", sorted(Path("datasets/eval/runs/live").glob("eval_*.json")), ids=lambda p: p.name
+)
+def test_a_committed_run_of_record_resaves_byte_for_byte(artefact: Path, tmp_path: Path) -> None:
+    """Fields added after a run was recorded must not rewrite it when it is saved again."""
+    from verity.eval.run_store import _run_from_dict, _run_to_dict
+
+    original = json.loads(artefact.read_text(encoding="utf-8"))
+    assert _run_to_dict(_run_from_dict(original)) == original

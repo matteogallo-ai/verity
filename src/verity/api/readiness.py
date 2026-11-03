@@ -1,8 +1,8 @@
 """Readiness: can this process serve ``/ask`` right now?
 
-Liveness (``/health``) only says the process answers. Readiness reaches the two
-dependencies an answer needs: the store (Postgres, when it is the configured store)
-and the LLM providers. The providers are probed the way
+Liveness (``/health``) only says the process answers. Readiness requires the startup
+preload (corpus and models) to be done, and reaches the two dependencies an answer
+needs: the store (Postgres, when it is the configured store) and the LLM providers. The providers are probed the way
 :class:`~verity.llm.routing.MultiProviderRoutingClient` uses them: in order, moving to
 the next one only when a provider is unavailable, and stopping on any other failure
 (a rejected key, an unknown model), because routing would stop there too.
@@ -82,11 +82,23 @@ class Readiness:
         self._last: tuple[float, bool, dict[str, str]] | None = None
 
     async def check(self) -> tuple[bool, dict[str, str]]:
-        """``(ready, {check: state})``; ready when no check is unreachable or timed out."""
+        """``(ready, {check: state})``; ready when the preload is done and no dependency
+        is unreachable or timed out."""
+        probed_ready, probed = await self._probed()
+        # The preload state is in memory, so it is read on every call rather than
+        # cached: the process turns ready as soon as the preload ends.
+        preload = self._runtime.preload_state
+        return probed_ready and preload == OK, {**probed, "preload": preload}
+
+    async def _probed(self) -> tuple[bool, dict[str, str]]:
         async with self._lock:
             now = time.monotonic()
             if self._last is not None and now - self._last[0] < CACHE_S:
                 return self._last[1], self._last[2]
+            # A new preload attempt re-ingests the whole corpus: starting it here, with
+            # the probes, bounds attempts to one per CACHE_S however often /ready is hit.
+            if self._runtime.preload_state == "failed":
+                self._runtime.start_preload()
             store, llm = await asyncio.gather(
                 _store_state(self._runtime), _llm_state(self._runtime)
             )

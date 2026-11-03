@@ -20,7 +20,8 @@ from __future__ import annotations
 import html
 import re
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -80,11 +81,19 @@ def create_app(
             "API authentication is on but VERITY_API_KEYS is empty: set keys, or "
             "VERITY_API_AUTH_DISABLED=true for local development only."
         )
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        # In the background, so /health answers while the models load.
+        app.state.runtime.start_preload()
+        yield
+
     app = FastAPI(
         title="verity",
         version=__version__,
         docs_url="/docs",
         redoc_url=None,
+        lifespan=lifespan,
     )
     if cors_origins:
         app.add_middleware(

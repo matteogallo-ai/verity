@@ -10,7 +10,7 @@ and the response. Log events are structlog lines (JSON keys `event`, `trace_id`,
 | Signal | What it tells | What it does not |
 |---|---|---|
 | `GET /health` | liveness: the process answers HTTP | nothing about Postgres, the models or the providers: it returns `200` while all three are down, so a restart policy keyed on it never restarts a healthy process for a dependency outage |
-| `GET /ready` | readiness: `200` when Postgres answers `SELECT 1` through the store's connection path (if it is the configured store; the first ping also checks the schema, so an unmigrated database or a wrong embedding dimension reads `unreachable` too) and the LLM providers can serve: they are probed in routing order with a Models API lookup (no tokens), moving on only when one is unavailable, so a rejected key or an unknown model on the first provider is `503` even if the next one answers. Otherwise `503`. Body `{"status": "ready" \| "not ready", "checks": {"store": …, "llm": …}}`, each check `ok`, `unreachable`, `timeout` (2 s per check) or `not used` (memory store, stub agent); the cause is in the `readiness_failed` / `readiness_timeout` log lines, never in the body. A result is reused for 5 s, so a caller looping on this public endpoint reaches the dependencies at most once per 5 s | whether the local models load, or whether the provider still has rate limit or credit left for completions; a recovery shows up to 5 s late |
+| `GET /ready` | readiness: `200` when the startup preload is done (every corpus file ingested, embedding and reranker models loaded), Postgres answers `SELECT 1` through the store's connection path (if it is the configured store; the first ping also checks the schema, so an unmigrated database or a wrong embedding dimension reads `unreachable` too) and the LLM providers can serve: they are probed in routing order with a Models API lookup (no tokens), moving on only when one is unavailable, so a rejected key or an unknown model on the first provider is `503` even if the next one answers. Otherwise `503`. Body `{"status": "ready" \| "not ready", "checks": {"store": …, "llm": …, "preload": …}}`; `store` and `llm` are `ok`, `unreachable`, `timeout` (2 s per check) or `not used` (memory store, stub agent), `preload` is `loading`, `ok` or `failed`; the cause is in the `readiness_failed` / `readiness_timeout` / `preload_failed` log lines, never in the body. A dependency result is reused for 5 s, so a caller looping on this public endpoint reaches the dependencies at most once per 5 s; the preload state is read on every call, and a failed preload is started again | whether the provider still has rate limit or credit left for completions; a recovery shows up to 5 s late |
 | `GET /status` | the store answers (it lists the corpus) and the boot-time provenance; `provenance.is_stub: true` means no provider key was found and answers are canned | provider health |
 | `answer_done` log line | one per answered or refused request: `decision`, `reason`, `stage_ms`, `latency_ms`, tokens, `cost_usd` | — |
 | `answer_failed` log line | one per request that could not be decided: `decision=error`, `error_kind`, `error`, the stages reached | tokens spent before the failure |
@@ -47,7 +47,7 @@ error is never a refusal (C25).
   `{"detail": {"error": "retrieval_unavailable", …}}`; `/health` stays `200`;
   `/ready` answers `503` with `"store": "unreachable"` (or `"timeout"`).
 - **Detection.** `store_unavailable` (error, with traceback) when the failure is raised
-  outside the agent, e.g. during the first request's corpus ingestion; `stage_failed`
+  outside the agent, e.g. during a request's corpus ingestion; `stage_failed`
   then `answer_failed` with `error_kind=retrieval_unavailable` inside `/ask`. Tests:
   `tests/unit/test_api_hardening.py::test_unreachable_postgres_is_a_generic_503`,
   `tests/unit/test_api_router.py::test_ask_answers_503_when_the_store_is_down`.
@@ -62,29 +62,49 @@ error is never a refusal (C25).
 Outside the Docker image (which embeds the embedding and reranker models), a fresh
 machine or a cleared Hugging Face cache with network access disabled.
 
-- **Symptom.** `/ask` answers a generic `500`. `/ingest` answers `422` "The document
-  could not be parsed." for any file: the error is blamed on the document. On first
-  start the corpus is not ingested, and `/status` lists only what Postgres already held.
-- **Detection.** At the first request, one `embed_failed` line per corpus file, with
-  `error` reading "We couldn't connect to 'https://huggingface.co' … couldn't find them
-  in the cached files" (an `OSError` from the model loader, reproduced with an empty
-  `HF_HOME`). Then `unhandled_error` with that traceback on each `/ask`, and
-  `ingest_failed` on each upload. No test exercises this cause.
+- **Symptom.** `/ready` stays `503` with `"preload": "failed"` (or `"loading"` while an
+  attempt runs); `/health` stays `200`. `/ask` answers a generic `500`. `/ingest` answers
+  `422` "The document could not be parsed." for any file: the error is blamed on the
+  document. The corpus is not ingested, and `/status` lists only what Postgres already
+  held.
+- **Detection.** At startup, one `embed_failed` line per corpus file, with `error`
+  reading "We couldn't connect to 'https://huggingface.co' … couldn't find them in the
+  cached files" (an `OSError` from the model loader, reproduced with an empty
+  `HF_HOME`), then `preload_failed` with the number of failed files. Then
+  `unhandled_error` with that traceback on each `/ask`, and `ingest_failed` on each
+  upload. The not-ready state and the retry are tested with a loader that fails once
+  (`tests/unit/test_readiness.py::test_a_failed_preload_is_not_ready_and_is_retried`);
+  the missing cache itself is not.
 - **Response.** Fill the cache once with network access (a command that loads both
   models, e.g. `uv run verity retrieve "warm up" --store memory`), or run the Docker
-  image. Then **restart**: the corpus preload is marked done even when every file failed, so the
-  running process does not retry it.
+  image. No restart is needed: after a failed preload, `/ready` starts another attempt
+  (at most one per 5 s; each re-ingests the whole corpus; requests such as `/status`
+  never start one), and the process turns ready
+  once every corpus file is in.
 
 ## 4. Budget exhausted
 
 - **Eval run cap.** `verity eval run --budget-usd X` stops after the question whose
   cumulative agent + judge cost exceeds `X` (`eval.harness.BudgetExceededError`): the
-  console prints "Aborted after q-…: cumulative cost $… exceeded budget cap $…" and the
-  command exits `4`. Nothing is persisted, so the spend of the partial run buys no
-  artefact. The cap is checked after each question, so the overshoot is up to one
-  question's cost. No test covers the cap. Response: re-estimate the cost
-  (question count × the per-answer cost in [`SYSTEM_CARD.md`](SYSTEM_CARD.md), plus the
-  judge) and rerun with an approved cap.
+  console prints "Aborted after q-…: cumulative cost $… exceeded budget cap $…", then the
+  path of the incomplete run and the total spend, and the command exits `4`. Errored
+  examples count against the cap. The cap is checked after each question, so the
+  overshoot is up to one question's cost
+  (`tests/unit/test_incomplete_runs.py::test_a_budget_abort_carries_every_example_paid_so_far`).
+  Response: re-estimate the cost (question count × the per-answer cost in
+  [`SYSTEM_CARD.md`](SYSTEM_CARD.md), plus the judge) and rerun with an approved cap.
+- **Incomplete runs.** A run stopped by the cap, or with errored examples (agent or judge
+  outage, exit `6`), is written to
+  `eval_<sha>_<dataset>.incomplete-<UTC time>.json` next to the runs of record. It never
+  overwrites a file, `verity eval compare` ignores it, and no headline scorecard is
+  written for it. It holds every paid example: scored ones in `per_audit`, the others in
+  `errored` with the failed stage, the error kind, their usage and stage timings, and,
+  when the judge failed, the answer and its citations, so they can be judged again
+  without paying the agent twice
+  (`tests/unit/test_incomplete_runs.py::test_an_incomplete_run_never_replaces_or_joins_the_runs_of_record`).
+  Not covered: a rejected judge key (the run stops at once, as every example would fail
+  alike), an exception that is not a provider error, or a failure to write the
+  incomplete run itself; these end the run with a traceback and no artefact.
 - **Provider account out of credit or quota.** Verity has no notion of it; it sees the
   provider's HTTP error. A `429` is treated as unavailability (section 1); any other
   `4xx` becomes `answer_failed` with `error_kind=provider_error` and is not sent to the

@@ -15,6 +15,7 @@ from verity import __version__
 from verity.config import get_settings
 
 if TYPE_CHECKING:
+    from verity.eval.harness import HarnessResult
     from verity.retrieval.base import Retriever
     from verity.runtime import StoreKind
     from verity.types import Answer, RetrievalHit
@@ -720,25 +721,28 @@ def eval_run(
         f"agent=[bold]{agent_model}[/bold] · judge=[bold]{judge_model}[/bold] · "
         f"backend={backend_name} · n={len(examples)}"
     )
-    try:
-        result = asyncio.run(evaluator.run(examples, git_sha=git_sha, budget_usd_cap=budget_usd))
-    except BudgetExceededError as exc:
-        console.print(f"[red]{exc}[/red]")
-        raise typer.Exit(code=4) from exc
-
-    _print_scorecard(result)
-
     from verity.eval.run_store import StubOverwritesLiveError
 
     effective_runs_dir = resolve_runs_dir(runs_dir, judge_mode=judge_mode, agent_stub=agent_stub)
     run_store = FileRunStore(effective_runs_dir)
-    run = result.as_eval_run()
     try:
-        run_store.save(run)
+        result = asyncio.run(evaluator.run(examples, git_sha=git_sha, budget_usd_cap=budget_usd))
+    except BudgetExceededError as exc:
+        console.print(f"[red]{exc}[/red]")
+        if exc.result is not None:
+            # The examples paid before the abort are written, not thrown away.
+            partial_path = run_store.save(exc.result.as_eval_run())
+            console.print(f"[yellow]Persisted incomplete run[/yellow] {partial_path}")
+            _print_total_cost(exc.result)
+        raise typer.Exit(code=4) from exc
+
+    _print_scorecard(result)
+
+    try:
+        path = run_store.save(result.as_eval_run())
     except StubOverwritesLiveError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=5) from exc
-    path = run_store.path_for(run.scorecard.git_sha, run.scorecard.dataset)
     console.print(f"[green]Persisted[/green] {path}")
 
     # JSON write is deliberately UNCONDITIONAL and happens BEFORE any floor
@@ -746,7 +750,8 @@ def eval_run(
     # prevent the artefact from being written to disk. A paid run that fails a
     # floor and loses its scorecard invites a re-spend, which contradicts the
     # "one run of record" invariant.
-    if scorecard_json is not None:
+    # An incomplete run never becomes the published headline.
+    if scorecard_json is not None and result.scorecard.incomplete_reason is None:
         from verity.eval import write_headline_scorecard
         from verity.eval.headline import StubOverwritesLiveScorecardError
 
@@ -757,20 +762,12 @@ def eval_run(
             raise typer.Exit(code=5) from exc
         console.print(f"[green]Wrote headline scorecard[/green] {headline_path}")
 
-    # Real total_cost_usd — displayed at the end for the operator to eyeball
-    # before the live artefact is committed.
-    total_cost = sum(a.usage.cost_usd for a in result.answers) + result.judge_cost_usd
-    console.print(
-        f"[dim]total observed cost:[/dim] "
-        f"[bold]${total_cost:.4f}[/bold] "
-        f"(agent ${total_cost - result.judge_cost_usd:.4f}, "
-        f"judge ${result.judge_cost_usd:.4f})"
-    )
+    _print_total_cost(result)
 
     if result.scorecard.errored_example_ids:
         # Metrics cover fewer questions than the scorecard's n: the run is
         # incomplete and must not pass as a run of record, even with report-only
-        # floors. The artefacts above are kept for diagnosis.
+        # floors. Its artefact above is kept for its paid examples.
         console.print(
             f"[red]{len(result.scorecard.errored_example_ids)} example(s) errored: "
             "the run is incomplete; do not publish it.[/red]"
@@ -883,6 +880,19 @@ def eval_compare(
     if regressions:
         console.print(f"[red]Regressions on:[/red] {', '.join(regressions)}")
         raise typer.Exit(code=3)
+
+
+def _print_total_cost(result: HarnessResult) -> None:
+    """Everything the run paid for, errored examples included, for the operator to
+    check before the artefact is committed."""
+    agent = sum(a.usage.cost_usd for a in result.answers) + sum(
+        e.usage.cost_usd for e in result.errored
+    )
+    console.print(
+        f"[dim]total observed cost:[/dim] "
+        f"[bold]${agent + result.judge_cost_usd:.4f}[/bold] "
+        f"(agent ${agent:.4f}, judge ${result.judge_cost_usd:.4f})"
+    )
 
 
 def _print_scorecard(result) -> None:  # type: ignore[no-untyped-def]

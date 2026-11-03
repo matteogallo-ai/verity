@@ -1,7 +1,9 @@
 """Persist and diff :class:`EvalRun` records for regression tracking.
 
 One JSON file per (git_sha, dataset) under ``datasets/eval/runs/``
-(``eval_<sha>_<dataset>.json``). Retrieval-only scorecards use
+(``eval_<sha>_<dataset>.json``). An incomplete run (budget abort or errored
+examples) gets a file of its own, ``eval_<sha>_<dataset>.incomplete-<time>.json``,
+which never overwrites anything and which :meth:`FileRunStore.history` skips. Retrieval-only scorecards use
 ``retrieval_<sha>.json`` in the same directory; the prefixes keep them apart.
 """
 
@@ -15,7 +17,9 @@ from pathlib import Path
 from verity.eval.base import RunStore
 from verity.types import (
     AnswerMetrics,
+    ErroredExample,
     EvalRun,
+    IncompleteReason,
     LatencyMetrics,
     PerExampleAudit,
     RetrievalMetrics,
@@ -46,8 +50,11 @@ class FileRunStore(RunStore):
     def __init__(self, runs_dir: Path) -> None:
         self._runs_dir = runs_dir
 
-    def save(self, run: EvalRun, *, allow_overwrite: bool = False) -> None:
+    def save(self, run: EvalRun, *, allow_overwrite: bool = False) -> Path:
+        """Write ``run`` and return the path written."""
         self._runs_dir.mkdir(parents=True, exist_ok=True)
+        if run.scorecard.incomplete_reason is not None:
+            return self._save_incomplete(run)
         path = self.path_for(run.scorecard.git_sha, run.scorecard.dataset)
         if path.is_file() and not allow_overwrite and _is_stub_run(run):
             try:
@@ -64,6 +71,25 @@ class FileRunStore(RunStore):
         payload = _run_to_dict(run)
         with path.open("w", encoding="utf-8") as fh:
             json.dump(payload, fh, indent=2, sort_keys=True)
+        return path
+
+    def _save_incomplete(self, run: EvalRun) -> Path:
+        # A partial run must never replace a run of record, nor another partial run:
+        # each one is spend that cannot be bought back. Mode "x" fails rather than
+        # overwrite, and the counter covers two saves within the same microsecond.
+        record = self.path_for(run.scorecard.git_sha, run.scorecard.dataset)
+        stamp = run.scorecard.created_at.strftime("%Y%m%dT%H%M%S%fZ")
+        payload = _run_to_dict(run)
+        for n in range(100):
+            suffix = f".incomplete-{stamp}" + (f"-{n}" if n else "")
+            path = record.with_name(f"{record.stem}{suffix}.json")
+            try:
+                with path.open("x", encoding="utf-8") as fh:
+                    json.dump(payload, fh, indent=2, sort_keys=True)
+            except FileExistsError:
+                continue
+            return path
+        raise FileExistsError(f"no free name for an incomplete run next to {record.name}")
 
     def history(self, dataset: str, limit: int = 50) -> list[EvalRun]:
         if not self._runs_dir.exists():
@@ -71,6 +97,8 @@ class FileRunStore(RunStore):
         runs: list[EvalRun] = []
         for path in self._runs_dir.iterdir():
             if not path.name.startswith("eval_") or path.suffix != ".json":
+                continue
+            if ".incomplete-" in path.name:
                 continue
             try:
                 data = json.loads(path.read_text(encoding="utf-8"))
@@ -138,12 +166,35 @@ def _run_to_dict(run: EvalRun) -> dict[str, object]:
         scorecard_payload = payload["scorecard"]
         assert isinstance(scorecard_payload, dict)
         scorecard_payload["errored_example_ids"] = list(run.scorecard.errored_example_ids)
+    if run.scorecard.incomplete_reason is not None:
+        scorecard_payload = payload["scorecard"]
+        assert isinstance(scorecard_payload, dict)
+        scorecard_payload["incomplete_reason"] = run.scorecard.incomplete_reason.value
     # Per-example audit trail — omitted from the dict when empty so pre-v1.0.0
     # persisted runs stay byte-identical (regression tests depend on this).
     # ``mode="json"`` serialises UUIDs, tuples etc. into JSON-friendly primitives.
     if run.per_audit:
-        payload["per_audit"] = [audit.model_dump(mode="json") for audit in run.per_audit]
+        payload["per_audit"] = [
+            _without_unset_timings(a.model_dump(mode="json")) for a in run.per_audit
+        ]
+    if run.errored:
+        payload["errored"] = [
+            _without_unset_timings(e.model_dump(mode="json")) for e in run.errored
+        ]
     return payload
+
+
+def _without_unset_timings(record: dict[str, object]) -> dict[str, object]:
+    """Drop ``stage_ms`` and ``usage.retries`` when they carry nothing.
+
+    Runs recorded before these fields existed then save again byte for byte, so a
+    rejudge or a headline regeneration never rewrites a run of record."""
+    if not record.get("stage_ms"):
+        record.pop("stage_ms", None)
+    usage = record.get("usage")
+    if isinstance(usage, dict) and not usage.get("retries"):
+        usage.pop("retries", None)
+    return record
 
 
 def _run_from_dict(data: dict[str, object]) -> EvalRun:
@@ -162,6 +213,9 @@ def _run_from_dict(data: dict[str, object]) -> EvalRun:
         cost_per_query_usd=float(sc["cost_per_query_usd"]),
         cold_start_ms=float(cold_start_raw) if cold_start_raw is not None else None,
         errored_example_ids=tuple(str(x) for x in sc.get("errored_example_ids") or ()),
+        incomplete_reason=(
+            IncompleteReason(str(sc["incomplete_reason"])) if sc.get("incomplete_reason") else None
+        ),
     )
     per_audit_raw = data.get("per_audit")
     per_audit: tuple[PerExampleAudit, ...]
@@ -169,6 +223,12 @@ def _run_from_dict(data: dict[str, object]) -> EvalRun:
         per_audit = tuple(PerExampleAudit.model_validate(a) for a in per_audit_raw)
     else:
         per_audit = ()
+    errored_raw = data.get("errored")
+    errored = (
+        tuple(ErroredExample.model_validate(e) for e in errored_raw)
+        if isinstance(errored_raw, list)
+        else ()
+    )
     return EvalRun(
         scorecard=scorecard,
         embedding_model=str(data.get("embedding_model", "")),
@@ -176,6 +236,7 @@ def _run_from_dict(data: dict[str, object]) -> EvalRun:
         agent_model=str(data.get("agent_model", "unknown")),
         notes=(str(data["notes"]) if data.get("notes") else None),
         per_audit=per_audit,
+        errored=errored,
     )
 
 

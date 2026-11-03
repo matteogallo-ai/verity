@@ -8,6 +8,17 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The API ingests the corpus and loads the embedding and reranker models at startup, in
+  the background; `/ready` reports `"preload"` and stays `503` until every corpus file is
+  in, and a failed preload is started again by the next `/ready`. With the stub agent and
+  the memory store, the first `/ask` took 3.0–3.4 s (model load) and now takes 0.08 s,
+  after `/ready` turns `200` about 3.1 s from startup (three fresh processes each, warm
+  OS file cache, measured on the owner's machine with an in-process client; the
+  numbers are not reproduced by any test).
+- Each answer records its per-stage wall-clock (`stage_ms`) and the retries the provider
+  SDKs made (`usage.retries`); both are kept per example in eval run artefacts. Retries
+  are counted on calls that succeed: a call that exhausts its retries and fails over to
+  the next provider records none.
 - `verity ask --budget-usd` (default `VERITY_ASK_BUDGET_USD`, $1): before each LLM call,
   spend so far plus that call's estimated upper cost must fit the cap, else the answer stops
   with error kind `budget_exceeded`, exit 4, and the spend so far printed.
@@ -43,6 +54,12 @@ follows [Semantic Versioning](https://semver.org/).
 - A judge outage during `verity eval run` errors that example instead of ending the run
   and discarding its results; the example's spend still counts against `--budget-usd`,
   and a rejected judge key stops the run.
+- A paid eval run that stops at `--budget-usd` (exit 4) or loses examples to an outage
+  (exit 6) writes an incomplete run, `eval_<sha>_<dataset>.incomplete-<time>.json`, with
+  every paid example, errored ones included; it previously persisted nothing on a budget
+  abort, kept only the ids of errored examples, and wrote the headline for a run with
+  errors. Incomplete runs never overwrite a file and are left out of `eval compare`.
+  Errored examples count against the cap and in the printed total.
 - Delimiter tags written with a space before the slash (`< /document>`) are neutralised.
 - `VERITY_DATABASE_URL` is held as a secret and no longer appears in printed settings.
 

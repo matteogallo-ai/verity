@@ -93,6 +93,7 @@ class SpendCappedClient(RoutingClient):
             output_tokens=self.spent.output_tokens + used.output_tokens,
             llm_calls=self.spent.llm_calls + used.llm_calls,
             cost_usd=self.spent.cost_usd + used.cost_usd,
+            retries=self.spent.retries + used.retries,
         )
         return completion
 

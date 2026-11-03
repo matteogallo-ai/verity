@@ -52,7 +52,7 @@ def _anthropic_create_signature() -> inspect.Signature:
     import anthropic
 
     dummy = anthropic.AsyncAnthropic(api_key="test-key-not-used")
-    return inspect.signature(dummy.messages.create)
+    return inspect.signature(dummy.messages.with_raw_response.create)
 
 
 def _openai_create_signature() -> inspect.Signature:
@@ -60,12 +60,20 @@ def _openai_create_signature() -> inspect.Signature:
     import openai
 
     dummy = openai.AsyncOpenAI(api_key="test-key-not-used")
-    return inspect.signature(dummy.chat.completions.create)
+    return inspect.signature(dummy.chat.completions.with_raw_response.create)
+
+
+def _raw(parsed: Any) -> Any:
+    """The raw-response wrapper the clients request: ``parse()`` and ``retries_taken``."""
+    raw = MagicMock()
+    raw.parse.return_value = parsed
+    raw.retries_taken = 0
+    return raw
 
 
 def _install_anthropic_mock(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
-    """Replace ``AnthropicClient._get_client()`` with a mock whose ``messages.create``
-    is spec-bound to the real SDK signature. Returns the create-mock so the test can
+    """Replace ``AnthropicClient._get_client()`` with a mock whose
+    ``messages.with_raw_response.create`` is spec-bound to the real SDK signature. Returns the create-mock so the test can
     assert on its call args."""
     sig = _anthropic_create_signature()
 
@@ -74,11 +82,11 @@ def _install_anthropic_mock(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
         resp = MagicMock()
         resp.content = [MagicMock(text='{"sub_questions": ["stub"]}')]
         resp.usage = MagicMock(input_tokens=10, output_tokens=5)
-        return resp
+        return _raw(resp)
 
     create_mock = AsyncMock(side_effect=_fake_create)
     fake_client = MagicMock()
-    fake_client.messages.create = create_mock
+    fake_client.messages.with_raw_response.create = create_mock
 
     def _return_fake(_self: Any) -> Any:
         return fake_client
@@ -96,11 +104,11 @@ def _install_openai_mock(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
         resp = MagicMock()
         resp.choices = [MagicMock(message=MagicMock(content='{"sub_questions": ["stub"]}'))]
         resp.usage = MagicMock(prompt_tokens=10, completion_tokens=5)
-        return resp
+        return _raw(resp)
 
     create_mock = AsyncMock(side_effect=_fake_create)
     fake_client = MagicMock()
-    fake_client.chat.completions.create = create_mock
+    fake_client.chat.completions.with_raw_response.create = create_mock
 
     def _return_fake(_self: Any) -> Any:
         return fake_client
