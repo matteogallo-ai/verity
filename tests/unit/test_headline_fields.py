@@ -193,7 +193,7 @@ def _stub(result: HarnessResult, *, only: str | None = None) -> HarnessResult:
     if only == "judge":
         return dataclasses.replace(result, judge_model="stub-judge-v1")
     if only == "agent":
-        # Mixed case: the check is case-insensitive on either side.
+        # A mixed-case agent label alone still marks the run as a stub.
         return dataclasses.replace(result, agent_model="Stub-Agent")
     return dataclasses.replace(result, agent_model="stub-agent", judge_model="stub-judge-v1")
 

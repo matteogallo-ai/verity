@@ -85,7 +85,7 @@ services the fast lane stubs, and modules whose logic is mostly delegated to lib
 
 | Mutant | Change | Why it survives |
 |---|---|---|
-| `__init__` 2 | `"synthesize"` → `"SYNTHESIZE"` | Platform artefact: APFS is case-insensitive, so `prompts/SYNTHESIZE.prompt` resolves. On a case-sensitive file system (Linux CI) `load_prompt` raises `FileNotFoundError`. |
+| `__init__` 2 | `"synthesize"` → `"SYNTHESIZE"` | Not killed on a case-insensitive file system (APFS resolves `prompts/SYNTHESIZE.prompt` to the same file); on a case-sensitive one (Linux CI) `load_prompt` raises `FileNotFoundError` and every synthesizer test kills it. Asserting the private `_prompt.name` would kill it here too; left out to keep tests on the public surface. |
 | `synthesize` 3 | `with_scores=False` → `None` | Equivalent: `render_evidence` only tests truthiness. |
 | `_parse_synth_output` 17 | `get("citations", [])` → `get("citations", None)` | Equivalent: `or []` follows. |
 | `_parse_synth_output` 19 | `get("citations", [])` → `get("citations")` | Same as 17. |
@@ -101,7 +101,7 @@ services the fast lane stubs, and modules whose logic is mostly delegated to lib
 | Mutant | Change | Why it survives |
 |---|---|---|
 | `recall_at_k` 6 | `k <= 0` → `k < 0` | Equivalent: `retrieved_ids[:0]` counts no hit, recall 0.0. |
-| `ndcg_at_k` 6 | `k <= 0 or not ids` → `and` | Equivalent: for `k <= 0`, `min(k, |gold|) <= 0`, so the ideal DCG is 0 and the final guard returns 0.0. |
+| `ndcg_at_k` 6 | `k <= 0 or not ids` → `and` | Equivalent: for `k <= 0`, `min(k, |gold|) <= 0`, so the ideal DCG is 0 and the final guard returns 0.0; for `k > 0` with no ids, DCG is 0 and `0 / idcg` is 0.0. |
 | `ndcg_at_k` 7 | `k <= 0` → `k < 0` | Same: `k = 0` reaches the final guard, 0.0. |
 | `ndcg_at_k` 36 | `idcg > 0` → `(idcg > 0) or True` | Unreachable: with a non-empty gold set (checked first) and `k >= 1`, the ideal DCG is at least 1. |
 | `ndcg_at_k` 38 | `idcg > 0` → `idcg >= 0` | Same as 36. |
@@ -115,8 +115,9 @@ services the fast lane stubs, and modules whose logic is mostly delegated to lib
 | `_refusal_counts` 42–45 | keys `tp` / `fp` renamed | Dead output: callers read only `fn`, `precision` and `recall`. |
 | `build_headline_dict` 5, 21 | provider stamp → always `None` | Equivalent: the provenance summaries count models only; the provider is discarded. |
 | `build_headline_dict` 14, 17 | `getattr(result, "judge_stamps", [])` default changed or dropped | Unreachable default: `HarnessResult` always has `judge_stamps`. |
-| `write_headline_scorecard` 8, 10 | read with `encoding=None` / `"UTF-8"` | Equivalent under the UTF-8 locale of the run (`locale.getpreferredencoding()` is `UTF-8`), and the files are written ASCII-only (`json.dump` escapes non-ASCII). |
-| `write_headline_scorecard` 44, 46, 50 | write with no encoding / `None` / `"UTF-8"` | Same: the output is ASCII. |
+| `write_headline_scorecard` 10, 50 | `encoding="utf-8"` → `"UTF-8"` (read, write) | Equivalent: Python codec names are case-insensitive. |
+| `write_headline_scorecard` 44, 46 | write with `encoding=None` / omitted | Equivalent for any ASCII-compatible locale: `json.dump` escapes non-ASCII, so the bytes are ASCII. |
+| `write_headline_scorecard` 8 | read with `encoding=None` | Environment-dependent: the locale encoding is UTF-8 here (`locale.getpreferredencoding()`; POSIX coerces the C locale to UTF-8), so only a non-UTF-8 locale reading a non-ASCII file written by something else would tell it apart. Not testable in-process. |
 | `write_headline_scorecard` 11 | unreadable file → `""` instead of `None` | Equivalent: both are "not a dict", which takes the same path. |
 | `_existing_is_stub` 3, 5 | `get("provenance", {})` default → `None` or dropped | Equivalent: a missing provenance is "not a stub" either way (the `isinstance` check returns `False`; `{}` yields empty names). |
 | `_existing_is_stub` 14, 16, 19, 24, 26, 29 | `get("agent_model" / "judge_model", "")` default → `None`, dropped or `"XXXX"` | Equivalent: `"none"` and `"xxxx"` contain no `"stub"`, like `""`. |
@@ -128,3 +129,6 @@ services the fast lane stubs, and modules whose logic is mostly delegated to lib
    `{"a": 1}, {"b": 2}`, which is invalid, so the result is `None`. This fails closed
    (the scorer and synthesizer refuse). The list branch it describes is unreachable.
 2. The `tp` / `fp` keys of `_refusal_counts` are never read.
+3. `build_headline_dict` reads `getattr(result, "judge_stamps", [])` although
+   `HarnessResult.judge_stamps` is a field with a default; the fallback is dead and is
+   the only reason survivors 14 and 17 exist.

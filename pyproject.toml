@@ -163,7 +163,7 @@ only_mutate = [
   "src/verity/eval/headline.py",
   "src/verity/retrieval/fusion.py",
 ]
-# Files the fast lane reads from the checkout (corpus, prompts, README, claims, compose).
+# Files and directories the fast lane reads from the checkout.
 also_copy = [
   "prompts", "migrations", "datasets", "scorecards", "scripts", "docs", "README.md",
   "Dockerfile", "docker-compose.yml", "web/tests",

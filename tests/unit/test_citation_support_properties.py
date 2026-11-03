@@ -52,7 +52,7 @@ def _model_citations(draw: st.DrawFn, hits: list[RetrievalHit]) -> list[dict[str
     for _ in range(draw(st.integers(0, 6))):
         index = draw(st.integers(-2, len(hits) + 1))
         source = hits[min(max(index, 0), len(hits) - 1)].chunk.text
-        # Quotes at either end of a chunk are the off-by-one cases.
+        # A quote at a chunk's start is the off-by-one case of the offset check.
         start = draw(st.just(0) | st.integers(0, len(source)))
         quote = draw(st.just(source[start : draw(st.integers(start, len(source)))]) | _TEXT)
         out.append(
