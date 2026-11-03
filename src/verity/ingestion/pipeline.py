@@ -125,7 +125,15 @@ class IngestionPipeline:
                 result.failures.append(IngestionFailure(uri=uri, error=f"chunk: {exc}"))
                 continue
 
-            if self._sink is not None and await self._is_indexed(doc, chunks):
+            try:
+                indexed = self._sink is not None and await self._is_indexed(doc, chunks)
+            except (StoreSchemaError, StoreUnavailableError):
+                raise
+            except Exception as exc:
+                log.error("index_lookup_failed", uri=uri, document_id=str(doc.id), error=str(exc))
+                result.failures.append(IngestionFailure(uri=uri, error=f"index lookup: {exc}"))
+                continue
+            if indexed:
                 result.unchanged += 1
                 result.documents.append(doc)
                 result.chunks.extend(chunks)

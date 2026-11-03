@@ -120,3 +120,98 @@ async def test_a_file_that_fails_to_parse_is_not_pruned(tmp_path: Path) -> None:
     (corpus / "msa.md").write_text(_CLAUSE.format("30 days'"), encoding="utf-8")
     await ingest_corpus(corpus_dir=corpus, store=store, embedder=embedder)
     assert sorted(Path(d.uri).name for d in await store.list_documents()) == ["fees.md", "msa.md"]
+
+
+@pytest.mark.asyncio
+async def test_pruning_matches_documents_by_identity_not_by_absolute_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The host CLI and the API container share one database from two checkouts: a
+    file deleted from the repo must leave the index whichever side syncs."""
+    import verity.ingestion.ids as ids
+
+    store, backend = InMemoryVectorStore(), _CountingBackend()
+    embedder = LocalEmbedder(backend=backend)
+    checkouts = []
+    for name in ("host", "container"):
+        corpus = tmp_path / name / "datasets" / "corpus"
+        corpus.mkdir(parents=True)
+        (corpus / "msa.md").write_text(_CLAUSE.format("30 days'"), encoding="utf-8")
+        (corpus / "fees.md").write_text(_OTHER, encoding="utf-8")
+        checkouts.append(corpus)
+
+    monkeypatch.setattr(ids, "_repo_root_cache", (tmp_path / "host").resolve())
+    await ingest_corpus(corpus_dir=checkouts[0], store=store, embedder=embedder)
+    monkeypatch.setattr(ids, "_repo_root_cache", (tmp_path / "container").resolve())
+    (checkouts[1] / "msa.md").unlink()
+    await ingest_corpus(corpus_dir=checkouts[1], store=store, embedder=embedder)
+
+    assert [Path(d.uri).name for d in await store.list_documents()] == ["fees.md"]
+
+
+@pytest.mark.asyncio
+async def test_an_empty_corpus_directory_prunes_nothing(tmp_path: Path) -> None:
+    """An empty directory is more likely an unmounted volume than a deleted corpus."""
+    corpus, store, embedder, _ = _setup(tmp_path)
+    (corpus / "fees.md").write_text(_OTHER, encoding="utf-8")
+    await ingest_corpus(corpus_dir=corpus, store=store, embedder=embedder)
+    (corpus / "fees.md").rename(tmp_path / "fees.md")
+    await ingest_corpus(corpus_dir=corpus, store=store, embedder=embedder)
+    assert len(await store.list_documents()) == 1
+
+
+@pytest.mark.asyncio
+async def test_a_file_in_an_unreadable_directory_is_not_pruned(tmp_path: Path) -> None:
+    corpus, store, embedder, _ = _setup(tmp_path)
+    (corpus / "fees.md").write_text(_OTHER, encoding="utf-8")
+    locked = corpus / "locked"
+    locked.mkdir()
+    (locked / "msa.md").write_text(_CLAUSE.format("30 days'"), encoding="utf-8")
+    await ingest_corpus(corpus_dir=corpus, store=store, embedder=embedder)
+    locked.chmod(0)
+    try:
+        await ingest_corpus(corpus_dir=corpus, store=store, embedder=embedder)
+    finally:
+        locked.chmod(0o755)
+    assert len(await store.list_documents()) == 2
+
+
+@pytest.mark.asyncio
+async def test_uploads_survive_a_corpus_sync(tmp_path: Path) -> None:
+    from verity.runtime import ingest_uri
+
+    corpus, store, embedder, _ = _setup(tmp_path)
+    (corpus / "fees.md").write_text(_OTHER, encoding="utf-8")
+    await ingest_uri(uri="upload://abc.md", store=store, embedder=embedder, raw=b"# Up\n\nText.\n")
+    await ingest_corpus(corpus_dir=corpus, store=store, embedder=embedder)
+    assert len(await store.list_documents()) == 2
+
+
+@pytest.mark.asyncio
+async def test_a_new_embedding_model_embeds_again(tmp_path: Path) -> None:
+    corpus, store, embedder, backend = _setup(tmp_path)
+    (corpus / "fees.md").write_text(_OTHER, encoding="utf-8")
+    await ingest_corpus(corpus_dir=corpus, store=store, embedder=embedder)
+    other = LocalEmbedder(model="another-model", backend=backend)
+    before = len(backend.encoded)
+    await ingest_corpus(corpus_dir=corpus, store=store, embedder=other)
+    assert len(backend.encoded) > before
+
+
+@pytest.mark.asyncio
+async def test_a_failed_index_lookup_costs_one_document_not_the_batch(tmp_path: Path) -> None:
+    corpus, store, embedder, _ = _setup(tmp_path)
+    (corpus / "fees.md").write_text(_OTHER, encoding="utf-8")
+    (corpus / "msa.md").write_text(_CLAUSE.format("30 days'"), encoding="utf-8")
+    real = store.indexed_document
+    calls: list[str] = []
+
+    async def flaky(document_id: str):  # type: ignore[no-untyped-def]
+        calls.append(document_id)
+        if len(calls) == 1:
+            raise RuntimeError("query failed")
+        return await real(document_id)
+
+    store.indexed_document = flaky  # type: ignore[method-assign]
+    result = await ingest_corpus(corpus_dir=corpus, store=store, embedder=embedder)
+    assert len(result.failures) == 1 and result.n_documents == 1

@@ -92,7 +92,13 @@ def document_id_for_uri(uri: str) -> DocumentId:
     function normalises through :func:`identity_for` either way, so the resulting id
     is always portable across machines and clones.
     """
-    return uuid5(NAMESPACE_URL, identity_for(uri))
+    return document_id_for_identity(identity_for(uri))
+
+
+def document_id_for_identity(identity: str) -> DocumentId:
+    """The id of an already-normalised identity. Unlike :func:`document_id_for_uri`, it
+    does not resolve a relative identity against the working directory."""
+    return uuid5(NAMESPACE_URL, identity)
 
 
 def chunk_id_for(document_id: DocumentId, ordinal: int, char_start: int, char_end: int) -> ChunkId:
@@ -106,11 +112,44 @@ def chunk_id_for(document_id: DocumentId, ordinal: int, char_start: int, char_en
     return uuid5(NAMESPACE_URL, payload)
 
 
-__all__ = ["UUID", "chunk_id_for", "document_id_for_uri", "identity_for"]
-
-
 def content_sha256(text: str) -> str:
     """Hex SHA-256 of a document's text as UTF-8: what tells an edited document from
     an unchanged one, since its id stays the same across edits. The Postgres store
     computes the same digest in SQL from the stored text."""
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def identity_under(stored_uri: str, root_identity: str) -> str | None:
+    """The identity a stored local-file uri has under ``root_identity``, wherever the
+    checkout that ingested it lived; ``None`` if it is not under it.
+
+    A uri is stored as its access path, which differs between checkouts (the host and
+    the API container) while the document id, from the repo-relative identity, does
+    not. ``…/<anything>/datasets/corpus/msa.md`` is therefore read as
+    ``datasets/corpus/msa.md`` when ``root_identity`` is ``datasets/corpus``."""
+    if urlparse(stored_uri).scheme in _URL_SCHEMES | {_UPLOAD_SCHEME}:
+        return None
+    if Path(root_identity).is_absolute():
+        path = Path(stored_uri)
+        return path.as_posix() if path.is_relative_to(root_identity) else None
+    marker = f"/{root_identity}/"
+    position = stored_uri.rfind(marker)
+    return None if position < 0 else stored_uri[position + 1 :]
+
+
+def local_path_for(identity: str) -> Path:
+    """Where the file an identity names is in this checkout."""
+    path = Path(identity)
+    return path if path.is_absolute() else _find_repo_root() / path
+
+
+__all__ = [
+    "UUID",
+    "chunk_id_for",
+    "content_sha256",
+    "document_id_for_identity",
+    "document_id_for_uri",
+    "identity_for",
+    "identity_under",
+    "local_path_for",
+]

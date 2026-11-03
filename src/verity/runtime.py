@@ -24,6 +24,13 @@ from verity.ingestion import (
     StructureAwareChunker,
     create_default_parser,
 )
+from verity.ingestion.ids import (
+    document_id_for_identity,
+    document_id_for_uri,
+    identity_for,
+    identity_under,
+    local_path_for,
+)
 from verity.ingestion.pipeline import discover_sources
 from verity.llm.base import RoutingClient
 from verity.llm.routing import create_default_routing_client, primary_client_identity
@@ -80,21 +87,40 @@ async def ingest_corpus(
     return result
 
 
-async def prune_missing(store: CorpusStore, directory: Path, present: list[str]) -> list[str]:
-    """Delete the documents ingested from files under ``directory`` that are no longer
-    among ``present``; the uris removed.
+def _gone(identity: str) -> bool:
+    """True only when the file is known not to exist: a file that cannot be checked
+    (an unreadable directory) is kept."""
+    try:
+        return not local_path_for(identity).exists()
+    except OSError:
+        return False
 
-    Membership is by the stored access path, so a file that still exists but failed to
-    parse keeps its last good version, and uploads and URLs are never touched. A
-    document ingested from another absolute path (another checkout) is not seen as
-    under ``directory`` and is kept."""
-    root = await asyncio.to_thread(lambda: directory.expanduser().resolve())
-    kept = set(present)
-    gone = [
-        d
-        for d in await store.list_documents()
-        if d.uri not in kept and Path(d.uri).is_absolute() and Path(d.uri).is_relative_to(root)
-    ]
+
+async def prune_missing(store: CorpusStore, directory: Path, present: list[str]) -> list[str]:
+    """Delete the documents ingested from files under ``directory`` whose file is gone;
+    the uris removed.
+
+    Documents are matched by identity, so one ingested from another checkout of the
+    same repo (the host CLI and the API container share a database) is matched too.
+    Kept: uploads and URLs, a file that still exists (it failed to parse, or the scan
+    could not read its directory), a file whose existence cannot be checked, and
+    everything when ``present`` is empty, which is likelier an unmounted volume than a
+    deleted corpus."""
+    if not present:
+        log.warning("prune_skipped", reason="no file found", directory=str(directory))
+        return []
+    root = identity_for(str(directory))
+    kept = {document_id_for_uri(uri) for uri in present}
+    gone = []
+    for d in await store.list_documents():
+        identity = identity_under(d.uri, root)
+        # The id check rules out a uri that only looks like it is under the corpus.
+        if identity is None or str(document_id_for_identity(identity)) != d.document_id:
+            continue
+        if document_id_for_identity(identity) in kept:
+            continue
+        if await asyncio.to_thread(_gone, identity):
+            gone.append(d)
     await store.delete_documents([d.document_id for d in gone])
     for d in gone:
         log.info("document_removed", uri=d.uri, document_id=d.document_id)
