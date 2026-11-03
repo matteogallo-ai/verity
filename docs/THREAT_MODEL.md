@@ -21,7 +21,7 @@ equal ([ADR 0006](adr/0006-api-security-baseline.md)). The parties:
 | Document text (shipped or uploaded) | nothing: it is data | any instruction it contains |
 | Question text | nothing: it is data | any instruction it contains |
 | LLM provider (Anthropic, OpenAI) | producing text | the format and truth of that text |
-| Unauthenticated network client | `/health`, `/status` (whose first call also triggers the corpus preload), `/metrics`, `/metrics/prom`, `/dashboard`, `/docs`, `/openapi.json` | `/ask`, `/ingest` |
+| Unauthenticated network client | `/health`, `/ready` (states only: `ok`, `unreachable`, `timeout`, `not used`), `/status` (whose first call also triggers the corpus preload), `/metrics`, `/metrics/prom`, `/dashboard`, `/docs`, `/openapi.json` | `/ask`, `/ingest` |
 
 ## Summary
 
@@ -172,8 +172,10 @@ agent's log lines carry decision, stages, tokens and cost, not the question (no 
 layout and OCR models, and two hosted LLM APIs.
 
 **Mitigation.** Dependencies are pinned in `uv.lock` and `web/pnpm-lock.yaml`, and
-GitHub Actions by commit SHA. Dependabot opens grouped weekly updates. The
-`osv-scanner` CI job fails when a lockfile resolves a package with a known OSV
+GitHub Actions by commit SHA. Each week Dependabot groups minor and patch updates
+in one PR per ecosystem and opens one PR per major update, reviewed on its own
+because a major can break the build; a version-range update in `pyproject.toml`
+(psycopg, uvicorn) can also arrive alone. The `osv-scanner` CI job fails when a lockfile resolves a package with a known OSV
 advisory, apart from the dated exceptions in `osv-scanner.toml`; CodeQL analyses the
 Python and TypeScript source ([`docs/security/README.md`](security/README.md)). The
 Docker image embeds the embedding and reranker models and runs with
