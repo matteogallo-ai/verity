@@ -65,6 +65,35 @@ def _run(mod: ModuleType, path: Path, keys: str, ask: Any = _no_input) -> list[s
     return screens
 
 
+def _spy_files(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Record the name of every file opened; fail on any directory listing or text read."""
+    opened: list[str] = []
+    real_open, real_os_open, real_read_bytes = builtins.open, os.open, Path.read_bytes
+
+    def spy_open(file: Any, *args: Any, **kwargs: Any) -> Any:
+        if not isinstance(file, int):  # os.fdopen re-opens a descriptor already counted
+            opened.append(os.path.basename(str(file)))
+        return real_open(file, *args, **kwargs)
+
+    def spy_os_open(file: Any, *args: Any, **kwargs: Any) -> int:
+        opened.append(os.path.basename(str(file)))
+        return real_os_open(file, *args, **kwargs)
+
+    def spy_read_bytes(self: Path) -> bytes:
+        opened.append(self.name)
+        return real_read_bytes(self)
+
+    monkeypatch.setattr(builtins, "open", spy_open)
+    monkeypatch.setattr(io, "open", spy_open)  # Path.open goes through io.open
+    monkeypatch.setattr(os, "open", spy_os_open)
+    monkeypatch.setattr(Path, "read_bytes", spy_read_bytes)
+    monkeypatch.setattr(Path, "read_text", lambda *_a, **_k: pytest.fail("read_text called"))
+    monkeypatch.setattr(os, "listdir", lambda *_a, **_k: pytest.fail("listdir called"))
+    monkeypatch.setattr(Path, "iterdir", lambda *_a, **_k: pytest.fail("iterdir called"))
+    monkeypatch.setattr(Path, "glob", lambda *_a, **_k: pytest.fail("glob called"))
+    return opened
+
+
 def test_every_answer_is_saved_before_the_next_claim(tmp_path: Path) -> None:
     mod = _module()
     path = _csv(tmp_path, ["", "", ""])
@@ -161,30 +190,7 @@ def test_the_session_opens_only_the_csv_it_was_given(
     # The answer key and the judge's verdicts sit next to the CSV, as in the real folder.
     (tmp_path / "judge_key.json").write_text('{"A01": {"origin": "perturbed"}}')
     (tmp_path / "perturbed_verdicts.json").write_text("{}")
-    opened: list[str] = []
-    real_open, real_os_open, real_read_bytes = builtins.open, os.open, Path.read_bytes
-
-    def spy_open(file: Any, *args: Any, **kwargs: Any) -> Any:
-        if not isinstance(file, int):  # os.fdopen re-opens a descriptor already counted
-            opened.append(os.path.basename(str(file)))
-        return real_open(file, *args, **kwargs)
-
-    def spy_os_open(file: Any, *args: Any, **kwargs: Any) -> int:
-        opened.append(os.path.basename(str(file)))
-        return real_os_open(file, *args, **kwargs)
-
-    def spy_read_bytes(self: Path) -> bytes:
-        opened.append(self.name)
-        return real_read_bytes(self)
-
-    monkeypatch.setattr(builtins, "open", spy_open)
-    monkeypatch.setattr(io, "open", spy_open)  # Path.open goes through io.open
-    monkeypatch.setattr(os, "open", spy_os_open)
-    monkeypatch.setattr(Path, "read_bytes", spy_read_bytes)
-    monkeypatch.setattr(Path, "read_text", lambda *_a, **_k: pytest.fail("read_text called"))
-    monkeypatch.setattr(os, "listdir", lambda *_a, **_k: pytest.fail("listdir called"))
-    monkeypatch.setattr(Path, "iterdir", lambda *_a, **_k: pytest.fail("iterdir called"))
-    monkeypatch.setattr(Path, "glob", lambda *_a, **_k: pytest.fail("glob called"))
+    opened = _spy_files(monkeypatch)
     _run(mod, path, "suebsc", ask=lambda _p: "note")
 
     assert path.name in opened
@@ -418,30 +424,7 @@ def test_every_mode_opens_only_the_csv_it_was_given(
     path = _csv(tmp_path, ["supported", "unsupported", ""])
     (tmp_path / "judge_key.json").write_text('{"A01": {"origin": "perturbed"}}')
     (tmp_path / "perturbed_verdicts.json").write_text("{}")
-    opened: list[str] = []
-    real_open, real_os_open, real_read_bytes = builtins.open, os.open, Path.read_bytes
-
-    def spy_open(file: Any, *a: Any, **k: Any) -> Any:
-        if not isinstance(file, int):
-            opened.append(os.path.basename(str(file)))
-        return real_open(file, *a, **k)
-
-    def spy_os_open(file: Any, *a: Any, **k: Any) -> int:
-        opened.append(os.path.basename(str(file)))
-        return real_os_open(file, *a, **k)
-
-    def spy_read_bytes(self: Path) -> bytes:
-        opened.append(self.name)
-        return real_read_bytes(self)
-
-    monkeypatch.setattr(builtins, "open", spy_open)
-    monkeypatch.setattr(io, "open", spy_open)
-    monkeypatch.setattr(os, "open", spy_os_open)
-    monkeypatch.setattr(Path, "read_bytes", spy_read_bytes)
-    monkeypatch.setattr(Path, "read_text", lambda *_a, **_k: pytest.fail("read_text called"))
-    monkeypatch.setattr(os, "listdir", lambda *_a, **_k: pytest.fail("listdir called"))
-    monkeypatch.setattr(Path, "iterdir", lambda *_a, **_k: pytest.fail("iterdir called"))
-    monkeypatch.setattr(Path, "glob", lambda *_a, **_k: pytest.fail("glob called"))
+    opened = _spy_files(monkeypatch)
     assert _main(mod, monkeypatch, [*args, str(path)], "\nsubeu\nq") == 0
 
     assert path.name in opened
@@ -554,32 +537,188 @@ def test_a_two_file_session_opens_only_its_two_csvs(
     one, two = _two(tmp_path, ["supported", ""], ["", ""])
     (tmp_path / "judge_key.json").write_text('{"A01": {"origin": "perturbed"}}')
     (tmp_path / "perturbed_verdicts.json").write_text("{}")
-    opened: list[str] = []
-    real_open, real_os_open, real_read_bytes = builtins.open, os.open, Path.read_bytes
-
-    def spy_open(file: Any, *a: Any, **k: Any) -> Any:
-        if not isinstance(file, int):
-            opened.append(os.path.basename(str(file)))
-        return real_open(file, *a, **k)
-
-    def spy_os_open(file: Any, *a: Any, **k: Any) -> int:
-        opened.append(os.path.basename(str(file)))
-        return real_os_open(file, *a, **k)
-
-    def spy_read_bytes(self: Path) -> bytes:
-        opened.append(self.name)
-        return real_read_bytes(self)
-
-    monkeypatch.setattr(builtins, "open", spy_open)
-    monkeypatch.setattr(io, "open", spy_open)
-    monkeypatch.setattr(os, "open", spy_os_open)
-    monkeypatch.setattr(Path, "read_bytes", spy_read_bytes)
-    monkeypatch.setattr(Path, "read_text", lambda *_a, **_k: pytest.fail("read_text called"))
-    monkeypatch.setattr(os, "listdir", lambda *_a, **_k: pytest.fail("listdir called"))
-    monkeypatch.setattr(Path, "iterdir", lambda *_a, **_k: pytest.fail("iterdir called"))
-    monkeypatch.setattr(Path, "glob", lambda *_a, **_k: pytest.fail("glob called"))
+    opened = _spy_files(monkeypatch)
     assert _main(mod, monkeypatch, [*args, str(one), str(two)], "\nsusubq") == 0
 
     assert {one.name, two.name} <= set(opened)
     others = [n for n in opened if n not in (one.name, two.name)]
     assert all(n.endswith(".tmp") and n.startswith("tmp") for n in others), others
+
+
+ADJ_COLUMNS = [
+    "item_id",
+    "claim",
+    "cited_passage",
+    "extracts",
+    "blind_verdict",
+    "judge_verdict",
+    "adjudicated_verdict",
+    "reason",
+]
+
+
+def _adj(tmp_path: Path, decided: list[tuple[str, str]]) -> Path:
+    path = tmp_path / "adjudication.csv"
+    with path.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.writer(fh)
+        writer.writerow(ADJ_COLUMNS)
+        for i, (verdict, reason) in enumerate(decided, start=1):
+            writer.writerow(
+                [
+                    f"A{i:02d}",
+                    f"Claim {i}.",
+                    f"Passage {i}.",
+                    f"[1] Ex {i}",
+                    "supported",
+                    "unsupported",
+                    verdict,
+                    reason,
+                ]
+            )
+    return path
+
+
+def _adj_session(mod: ModuleType, path: Path) -> Any:
+    return mod.load(path, mod.ADJUDICATE)
+
+
+def test_adjudication_shows_both_verdicts_next_to_the_claim(tmp_path: Path) -> None:
+    mod = _module()
+    screen = _plain(mod.render(_adj_session(mod, _adj(tmp_path, [("", "")]))))
+    assert "ADJUDICATE   1/1   (0 adjudicated)" in screen
+    assert "Your blind verdict: supported" in screen
+    assert "Judge's verdict: unsupported" in screen
+    assert "c reason" in screen
+
+
+def test_a_decision_is_saved_with_its_reason_and_blind_columns_untouched(tmp_path: Path) -> None:
+    mod = _module()
+    path = _adj(tmp_path, [("", ""), ("", "")])
+    session = _adj_session(mod, path)
+    mod.step(session, "u", lambda _p: "the passage says 70.9%")
+    rows = _rows(path)
+    assert (rows[0]["adjudicated_verdict"], rows[0]["reason"]) == (
+        "unsupported",
+        "the passage says 70.9%",
+    )
+    assert rows[1]["adjudicated_verdict"] == ""
+    assert [(r["blind_verdict"], r["judge_verdict"]) for r in rows] == [
+        ("supported", "unsupported")
+    ] * 2
+    assert list(rows[0]) == ADJ_COLUMNS
+    assert session.index == 1
+
+
+@pytest.mark.parametrize("typed", ["", "   "])
+def test_no_decision_is_recorded_without_a_reason(tmp_path: Path, typed: str) -> None:
+    mod = _module()
+    path = _adj(tmp_path, [("", "")])
+    before = path.read_bytes()
+    session = _adj_session(mod, path)
+    mod.step(session, "s", lambda _p: typed)
+    assert path.read_bytes() == before
+    assert session.index == 0
+    assert "A reason is required" in mod.render(session)
+
+
+def test_reconfirming_a_decision_may_keep_its_reason(tmp_path: Path) -> None:
+    mod = _module()
+    path = _adj(tmp_path, [("supported", "first reading")])
+    session = _adj_session(mod, path)
+    assert session.index == 1  # resumes past the decided claim
+    mod.step(session, "b", _no_input)
+    mod.step(session, "s", lambda _p: "")
+    assert (_rows(path)[0]["adjudicated_verdict"], _rows(path)[0]["reason"]) == (
+        "supported",
+        "first reading",
+    )
+
+
+def test_flipping_a_decision_requires_a_new_reason(tmp_path: Path) -> None:
+    mod = _module()
+    path = _adj(tmp_path, [("supported", "passage states X")])
+    before = path.read_bytes()
+    session = _adj_session(mod, path)
+    session.index = 0
+    mod.step(session, "u", lambda _p: "")  # the old reason argued for the other verdict
+    assert path.read_bytes() == before
+    mod.step(session, "u", lambda _p: "X is about another quarter")
+    assert (_rows(path)[0]["adjudicated_verdict"], _rows(path)[0]["reason"]) == (
+        "unsupported",
+        "X is about another quarter",
+    )
+
+
+def test_a_dash_is_not_a_reason(tmp_path: Path) -> None:
+    mod = _module()
+    path = _adj(tmp_path, [("", "")])
+    before = path.read_bytes()
+    session = _adj_session(mod, path)
+    mod.step(session, "s", lambda _p: " - ")
+    assert path.read_bytes() == before
+    assert "A reason is required" in mod.render(session)
+
+
+def test_adjudication_review_is_labelled_as_both(tmp_path: Path) -> None:
+    mod = _module()
+    session = _adj_session(mod, _adj(tmp_path, [("supported", "r")]))
+    session.review, session.index = True, 0
+    assert "ADJUDICATE REVIEW   1/1" in _plain(mod.render(session))
+
+
+@pytest.mark.parametrize(("adjudicate", "word"), [(False, "annotated"), (True, "adjudicated")])
+def test_the_exit_line_names_what_was_counted(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    adjudicate: bool,
+    word: str,
+) -> None:
+    mod = _module()
+    path = _adj(tmp_path, [("", "")]) if adjudicate else _csv(tmp_path, [""])
+    args = ["--adjudicate", str(path)] if adjudicate else [str(path)]
+    assert _main(mod, monkeypatch, args, "q") == 0
+    assert f"(0/1 {word})" in capsys.readouterr().out
+
+
+def test_the_reason_cannot_be_cleared(tmp_path: Path) -> None:
+    mod = _module()
+    path = _adj(tmp_path, [("supported", "first reading")])
+    session = _adj_session(mod, path)
+    session.index = 0
+    mod.step(session, "c", lambda _p: "-")
+    assert _rows(path)[0]["reason"] == "first reading"
+    mod.step(session, "c", lambda _p: "better reason")
+    assert _rows(path)[0]["reason"] == "better reason"
+
+
+def test_adjudication_resumes_at_the_first_undecided_claim(tmp_path: Path) -> None:
+    mod = _module()
+    path = _adj(tmp_path, [("supported", "r1"), ("", ""), ("", "")])
+    session = _adj_session(mod, path)
+    assert session.index == 1
+    assert "(1 adjudicated)" in _plain(mod.render(session))
+
+
+def test_an_annotation_csv_is_refused_in_adjudication_mode(tmp_path: Path) -> None:
+    mod = _module()
+    with pytest.raises(SystemExit, match="blind_verdict"):
+        mod.load(_csv(tmp_path, [""]), mod.ADJUDICATE)
+
+
+@pytest.mark.parametrize("extra", [[], ["--review"], ["--from", "2"]])
+def test_adjudication_opens_only_the_file_it_was_given(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, extra: list[str]
+) -> None:
+    mod = _module()
+    path = _adj(tmp_path, [("", ""), ("", ""), ("", "")])
+    # The blind labels and the judge's verdicts sit next to it, as in the real folder.
+    for name in ("annotate_morning_1.csv", "judge_key.json", "agreement.json"):
+        (tmp_path / name).write_text("{}")
+    monkeypatch.setattr(mod, "_ask", lambda _p: "a reason")
+    opened = _spy_files(monkeypatch)
+    assert _main(mod, monkeypatch, ["--adjudicate", *extra, str(path)], "subcq") == 0
+
+    assert path.name in opened
+    temporaries = [n for n in opened if n != path.name]
+    assert all(n.endswith(".tmp") and n.startswith("tmp") for n in temporaries), temporaries
