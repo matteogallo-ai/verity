@@ -158,9 +158,10 @@ def render_block(
         f"{_ci(ooa['count'], ooa['total'], ooa['ci95_wilson'])} |"
     )
     lines.append(
-        f"| Retrieval nDCG@{retr['k']} | {_fmt(retr['ndcg_at_k'])} | deterministic (no LLM) |"
+        f"| Retrieval nDCG@{retr['k']} | {_fmt(retr['ndcg_at_k'])} | "
+        "scored without an LLM on hits retrieved for the LLM sub-questions |"
     )
-    lines.append(f"| Retrieval recall@{retr['k']} | {_fmt(retr['recall_at_k'])} | deterministic |")
+    lines.append(f"| Retrieval recall@{retr['k']} | {_fmt(retr['recall_at_k'])} | as nDCG |")
     lines.append(
         f"| Retrieval precision@{retr['k']} | {_fmt(retr['precision_at_k'])} | "
         "k>gold ceiling; interpret with recall |"

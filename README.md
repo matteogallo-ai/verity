@@ -83,8 +83,8 @@ CI job `claims` runs those tests.
 | Citation accuracy, per claim | 0.963 | pooled over claims: 105/109 · 95 % CI [0.909, 0.986] · judge κ 0.71 vs blind human (n=60) |
 | Hallucination rate | 0.000 | ↓ better · answers with an unsupported claim / answered answerable questions: 0/31 · 95 % CI [0.000, 0.110] |
 | Unanswerable answered | 3/20 | ↓ better · an answer shipped where the corpus has none: 3/20 · 95 % CI [0.052, 0.360] |
-| Retrieval nDCG@8 | 0.929 | deterministic (no LLM) |
-| Retrieval recall@8 | 0.986 | deterministic |
+| Retrieval nDCG@8 | 0.929 | scored without an LLM on hits retrieved for the LLM sub-questions |
+| Retrieval recall@8 | 0.986 | as nDCG |
 | Retrieval precision@8 | 0.146 | k>gold ceiling; interpret with recall |
 | Latency p50 / p95 / p99 | 5445.7 ms / 8949.3 ms / 10929.3 ms | warm; cold start `8460.1 ms` measured separately |
 | Cost / query | $0.0132 | total $1.2768 = agent $0.7408 + judge $0.5360 |
