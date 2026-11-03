@@ -33,7 +33,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from verity import __version__
 from verity.api.aggregator import SessionMetrics, aggregate_spans, to_prometheus
 from verity.api.guards import RateLimiter, SpendBudget
-from verity.api.readiness import readiness
+from verity.api.readiness import Readiness
 from verity.api.router import router as api_router
 from verity.api.state import AppRuntime, default_agent_mode
 from verity.config import Settings, get_settings
@@ -105,6 +105,7 @@ def create_app(
         tracer=runtime_tracer,
     )
     app.state.runtime = runtime
+    readiness = Readiness(runtime)
     app.state.settings = settings
     app.state.rate_limiter = RateLimiter(limit=settings.api_rate_limit_per_minute, window_s=60.0)
     app.state.spend_budget = SpendBudget(
@@ -126,7 +127,7 @@ def create_app(
 
     @app.get("/ready")
     async def ready() -> JSONResponse:
-        is_ready, checks = await readiness(runtime)
+        is_ready, checks = await readiness.check()
         return JSONResponse(
             {"status": "ready" if is_ready else "not ready", "checks": checks},
             status_code=200 if is_ready else 503,

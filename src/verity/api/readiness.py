@@ -2,9 +2,10 @@
 
 Liveness (``/health``) only says the process answers. Readiness reaches the two
 dependencies an answer needs: the store (Postgres, when it is the configured store)
-and the LLM providers. One reachable provider is enough, because the routing client
-falls back to the next one. Each check is cut at :data:`CHECK_TIMEOUT_S`, so a probe
-never waits on a hung dependency longer than its own timeout would.
+and the LLM providers. The providers are probed the way
+:class:`~verity.llm.routing.MultiProviderRoutingClient` uses them: in order, moving to
+the next one only when a provider is unavailable, and stopping on any other failure
+(a rejected key, an unknown model), because routing would stop there too.
 
 The response names each check's state only. The cause (host, driver message) goes to
 the log: ``/ready`` needs no key.
@@ -13,56 +14,83 @@ the log: ``/ready`` needs no key.
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import Awaitable, Callable
 
 import structlog
 
 from verity.api.state import AppRuntime
+from verity.llm.base import ProviderUnavailableError
 from verity.llm.clients import AnthropicClient, OpenAIClient
 from verity.retrieval.pgvector_store import PgVectorStore
 
 _log = structlog.get_logger("verity.api.readiness")
 
-# Below the default probe timeouts of orchestrators (Kubernetes: 1 s period 10 s, so a
-# probe must answer well within it); a dependency slower than this is not ready.
+# A dependency slower than this to answer one trivial request is not ready to serve.
 CHECK_TIMEOUT_S = 2.0
+# /ready is public: a result is reused for this long so that a caller looping on it
+# cannot turn each request into a new Postgres connection and a provider request.
+CACHE_S = 5.0
 
 OK, NOT_USED, UNREACHABLE, TIMEOUT = "ok", "not used", "unreachable", "timeout"
 
 
-async def _probe(name: str, call: Callable[[], Awaitable[None]]) -> str:
+async def _probe(name: str, call: Callable[[], Awaitable[None]]) -> tuple[str, bool]:
+    """``(state, transient)``: ``transient`` is true when routing would try the next
+    provider after this failure."""
     try:
         await asyncio.wait_for(call(), CHECK_TIMEOUT_S)
     except TimeoutError:
         _log.warning("readiness_timeout", check=name, timeout_s=CHECK_TIMEOUT_S)
-        return TIMEOUT
+        return TIMEOUT, True
     # Readiness reports a dependency's state and never raises: any failure, typed or
     # not (a driver error mid-query, a bad key), makes the dependency not ready. The
     # cause is logged here; the response carries only the state.
     except Exception as exc:
         _log.warning("readiness_failed", check=name, error_type=type(exc).__name__, error=str(exc))
-        return UNREACHABLE
-    return OK
+        return UNREACHABLE, isinstance(exc, ProviderUnavailableError)
+    return OK, False
 
 
 async def _store_state(runtime: AppRuntime) -> str:
     if not isinstance(runtime.store, PgVectorStore):
         return NOT_USED
-    return await _probe("store", runtime.store.ping)
+    state, _ = await _probe("store", runtime.store.ping)
+    return state
 
 
 async def _llm_state(runtime: AppRuntime) -> str:
     pingable = [p for p in runtime.providers if isinstance(p, (AnthropicClient, OpenAIClient))]
     if not pingable:
         return NOT_USED
-    states = await asyncio.gather(*(_probe(f"llm:{p.provider.value}", p.ping) for p in pingable))
-    if OK in states:
-        return OK
+    states: list[str] = []
+    for provider in pingable:
+        state, transient = await _probe(f"llm:{provider.provider.value}", provider.ping)
+        if state == OK or not transient:
+            return state
+        states.append(state)
     return TIMEOUT if all(s == TIMEOUT for s in states) else UNREACHABLE
 
 
-async def readiness(runtime: AppRuntime) -> tuple[bool, dict[str, str]]:
-    """``(ready, {check: state})``; ready when no check is unreachable or timed out."""
-    store, llm = await asyncio.gather(_store_state(runtime), _llm_state(runtime))
-    checks = {"store": store, "llm": llm}
-    return all(s in (OK, NOT_USED) for s in checks.values()), checks
+class Readiness:
+    """One per app: probes the dependencies at most once per :data:`CACHE_S`, and
+    concurrent callers share the probe in flight."""
+
+    def __init__(self, runtime: AppRuntime) -> None:
+        self._runtime = runtime
+        self._lock = asyncio.Lock()
+        self._last: tuple[float, bool, dict[str, str]] | None = None
+
+    async def check(self) -> tuple[bool, dict[str, str]]:
+        """``(ready, {check: state})``; ready when no check is unreachable or timed out."""
+        async with self._lock:
+            now = time.monotonic()
+            if self._last is not None and now - self._last[0] < CACHE_S:
+                return self._last[1], self._last[2]
+            store, llm = await asyncio.gather(
+                _store_state(self._runtime), _llm_state(self._runtime)
+            )
+            checks = {"store": store, "llm": llm}
+            ready = all(s in (OK, NOT_USED) for s in checks.values())
+            self._last = (time.monotonic(), ready, checks)
+            return ready, checks

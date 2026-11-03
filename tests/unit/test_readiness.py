@@ -123,3 +123,40 @@ def test_a_hanging_dependency_is_cut_at_the_timeout(
 def test_ready_needs_no_api_key(tmp_path: Path) -> None:
     with api_app(tmp_path, _SETTINGS) as client:
         assert client.get("/ready").status_code == 200
+
+
+def test_a_rejected_first_key_is_not_ready_even_if_the_next_provider_answers(
+    tmp_path: Path,
+) -> None:
+    """Routing falls back only on an unavailable provider; a rejected key stops it, so
+    every ``/ask`` would fail although the second provider answers."""
+
+    async def bad_key(*_a: object) -> None:
+        raise AuthenticationError("anthropic: 401")
+
+    with (
+        patch(_ANTHROPIC_PING, bad_key),
+        patch(_OPENAI_PING, _ok),
+        api_app(tmp_path, _SETTINGS, agent_mode="live") as client,
+    ):
+        r = client.get("/ready")
+    assert r.status_code == 503
+    assert r.json()["checks"]["llm"] == "unreachable"
+
+
+def test_back_to_back_probes_reach_the_dependencies_once(tmp_path: Path) -> None:
+    """``/ready`` is public: without a short cache each call would open a Postgres
+    connection and send a provider request."""
+    calls: list[str] = []
+
+    async def counted(*_a: object) -> None:
+        calls.append("ping")
+
+    with (
+        patch(_STORE_PING, counted),
+        patch(_ANTHROPIC_PING, counted),
+        api_app(tmp_path, _SETTINGS, store="pgvector", agent_mode="live") as client,
+    ):
+        for _ in range(5):
+            assert client.get("/ready").status_code == 200
+    assert calls == ["ping", "ping"]  # one store ping, one provider ping

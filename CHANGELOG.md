@@ -13,6 +13,9 @@ follows [Semantic Versioning](https://semver.org/).
   with error kind `budget_exceeded`, exit 4, and the spend so far printed.
 - `/ask` spending budget per API key over a sliding window (`VERITY_API_BUDGET_USD`, $5;
   `VERITY_API_BUDGET_WINDOW_S`, 3600 s); over budget is `429` with `Retry-After`.
+- `GET /ready`, separate from `/health`: `503` unless the Postgres store answers and the
+  LLM providers can serve in routing order; states only in the body, causes in the log;
+  results reused for 5 s. `/health` stays liveness only.
 
 ### Fixed
 
