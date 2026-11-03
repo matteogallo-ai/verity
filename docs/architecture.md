@@ -108,9 +108,9 @@ rework or still costs trust.
   against human labels (C27, C28) come first; a headline number comes after.
 - **Instrument for the SLOs from the first endpoint.** The code emits per-stage spans
   but no end-to-end latency series and no error counter, so the SLOs in the system card
-  are measured from log lines, and `/health` checks none of the dependencies. A
-  request-level span and an `answer_failed` counter cost a few lines when the router
-  was written.
+  are measured from log lines. A request-level span and an `answer_failed` counter
+  cost a few lines when the router was written. Likewise readiness: `/health` shipped
+  checking no dependency, and only the runbook exposed it; `/ready` is separate.
 - **Apply a defence to every input of its kind, with one test over all of them.** The
   untrusted-content delimiters cover the three serving prompts; the eval judge prompt,
   which reads the same documents, was left out, and the test enumerates prompt names
