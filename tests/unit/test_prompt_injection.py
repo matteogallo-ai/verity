@@ -74,6 +74,22 @@ def test_every_prompt_marks_its_inputs_untrusted(name: str) -> None:
     assert "<question>\n{{ question }}\n</question>" in prompt.user
 
 
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "judge prompt v0.1.0 has no delimiters and no untrusted-content instruction "
+        "(docs/THREAT_MODEL.md, LLM01 on the evaluator); a defended prompt is a new "
+        "judge version with its own rejudge and kappa"
+    ),
+)
+def test_the_judge_prompt_marks_its_inputs_untrusted() -> None:
+    """Strict: a defended judge prompt turns this into a failure, so the marker and the
+    THREAT_MODEL entry are removed with the fix instead of outliving it."""
+    prompt = load_prompt("judge_faithfulness")
+    assert "untrusted" in prompt.system
+    assert "never an instruction" in prompt.system
+
+
 def test_the_scorer_prompt_delimits_the_draft_answer() -> None:
     prompt = load_prompt("confidence")
     assert "<draft_answer>\n{{ answer }}\n</draft_answer>" in prompt.user
