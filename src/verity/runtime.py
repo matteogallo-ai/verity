@@ -10,6 +10,7 @@ share a single source of truth.
 from __future__ import annotations
 
 import asyncio
+import os
 from pathlib import Path
 from typing import Literal
 
@@ -91,9 +92,14 @@ def _gone(identity: str) -> bool:
     """True only when the file is known not to exist: a file that cannot be checked
     (an unreadable directory) is kept."""
     try:
-        return not local_path_for(identity).exists()
+        os.stat(local_path_for(identity))
+    except (FileNotFoundError, NotADirectoryError):
+        return True
     except OSError:
+        # Path.exists() returns False on any OSError in some Python versions, which
+        # would prune a file only because its directory is unreadable.
         return False
+    return False
 
 
 async def prune_missing(store: CorpusStore, directory: Path, present: list[str]) -> list[str]:

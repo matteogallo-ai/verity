@@ -49,7 +49,8 @@ follows [Semantic Versioning](https://semver.org/).
   unchanged and removed documents. Removal matches documents by their repo-relative
   identity, so the host CLI and the API container prune each other's copies; it never
   runs on an empty corpus directory, and keeps a document whose file cannot be read or
-  failed to parse. A model whose weights change under the same name, or a change to
+  failed to parse. One database holds one corpus version: the last sync wins, so an
+  API image built from an older checkout removes files a newer checkout added. A model whose weights change under the same name, or a change to
   document metadata only, is not detected; delete the rows in SQL to force a re-embed.
 - An answer that fails after some LLM calls returned now reports their tokens and cost
   (it reported zero), in `Answer.usage` and in the `answer_failed` log line. Eval

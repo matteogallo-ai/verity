@@ -215,3 +215,63 @@ async def test_a_failed_index_lookup_costs_one_document_not_the_batch(tmp_path: 
     store.indexed_document = flaky  # type: ignore[method-assign]
     result = await ingest_corpus(corpus_dir=corpus, store=store, embedder=embedder)
     assert len(result.failures) == 1 and result.n_documents == 1
+
+
+@pytest.mark.asyncio
+async def test_a_document_whose_lookup_fails_is_kept(tmp_path: Path) -> None:
+    corpus, store, embedder, _ = _setup(tmp_path)
+    (corpus / "fees.md").write_text(_OTHER, encoding="utf-8")
+    await ingest_corpus(corpus_dir=corpus, store=store, embedder=embedder)
+
+    async def broken(document_id: str):  # type: ignore[no-untyped-def]
+        raise RuntimeError("query failed")
+
+    store.indexed_document = broken  # type: ignore[method-assign]
+    result = await ingest_corpus(corpus_dir=corpus, store=store, embedder=embedder)
+    assert len(result.failures) == 1
+    assert len(await store.list_documents()) == 1
+
+
+@pytest.mark.parametrize("error", ["schema", "unavailable"])
+@pytest.mark.asyncio
+async def test_a_store_outage_during_lookup_stops_the_run(tmp_path: Path, error: str) -> None:
+    from verity.retrieval.base import StoreSchemaError, StoreUnavailableError
+
+    corpus, store, embedder, _ = _setup(tmp_path)
+    (corpus / "fees.md").write_text(_OTHER, encoding="utf-8")
+    exc = StoreSchemaError("schema") if error == "schema" else StoreUnavailableError("down")
+
+    async def broken(document_id: str):  # type: ignore[no-untyped-def]
+        raise exc
+
+    store.indexed_document = broken  # type: ignore[method-assign]
+    with pytest.raises(type(exc)):
+        await ingest_corpus(corpus_dir=corpus, store=store, embedder=embedder)
+
+
+def test_files_under_the_repo_root_are_matched_when_the_root_is_synced() -> None:
+    from verity.ingestion.ids import _find_repo_root, identity_under
+
+    stored = str(_find_repo_root() / "datasets" / "corpus" / "msa.md")
+    assert identity_under(stored, ".") == "datasets/corpus/msa.md"
+
+
+def test_only_a_missing_file_counts_as_gone(tmp_path: Path) -> None:
+    """``Path.exists`` hides permission errors on some Python versions; a file that
+    cannot be checked must not be pruned."""
+    import os
+
+    from verity.runtime import _gone
+
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    (locked / "msa.md").write_text("x", encoding="utf-8")
+    assert _gone(str(tmp_path / "absent.md"))
+    assert _gone(str(tmp_path / "absent" / "nested.md"))
+    locked.chmod(0)
+    try:
+        if os.access(locked, os.X_OK):
+            pytest.skip("running as a user that ignores permissions")
+        assert not _gone(str(locked / "msa.md"))
+    finally:
+        locked.chmod(0o755)

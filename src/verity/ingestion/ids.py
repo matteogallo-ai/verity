@@ -129,6 +129,10 @@ def identity_under(stored_uri: str, root_identity: str) -> str | None:
     ``datasets/corpus/msa.md`` when ``root_identity`` is ``datasets/corpus``."""
     if urlparse(stored_uri).scheme in _URL_SCHEMES | {_UPLOAD_SCHEME}:
         return None
+    if root_identity == ".":
+        # The repo root has no directory name to find in another checkout's path.
+        identity = identity_for(stored_uri)
+        return None if Path(identity).is_absolute() else identity
     if Path(root_identity).is_absolute():
         path = Path(stored_uri)
         return path.as_posix() if path.is_relative_to(root_identity) else None
