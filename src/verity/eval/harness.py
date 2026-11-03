@@ -359,13 +359,13 @@ def _latency_percentiles(answers: list[Answer]) -> LatencyMetrics:
         return LatencyMetrics(p50_ms=0.0, p95_ms=0.0, p99_ms=0.0)
     values = sorted(a.usage.latency_ms for a in answers)
     return LatencyMetrics(
-        p50_ms=_percentile(values, 50),
-        p95_ms=_percentile(values, 95),
-        p99_ms=_percentile(values, 99),
+        p50_ms=percentile(values, 50),
+        p95_ms=percentile(values, 95),
+        p99_ms=percentile(values, 99),
     )
 
 
-def _percentile(sorted_values: list[float], pct: float) -> float:
+def percentile(sorted_values: list[float], pct: float) -> float:
     if not sorted_values:
         return 0.0
     if len(sorted_values) == 1:

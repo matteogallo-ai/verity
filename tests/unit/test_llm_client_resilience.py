@@ -6,6 +6,7 @@ built from in-memory ``httpx2`` requests and responses.
 
 from __future__ import annotations
 
+import inspect
 from types import ModuleType
 from typing import Any
 
@@ -134,3 +135,56 @@ def test_a_client_that_cannot_be_built_is_unavailable(
     monkeypatch.setattr(anthropic if module == "anthropic" else openai, name, _broken)
     with pytest.raises(ProviderUnavailableError, match="init failed"):
         client_cls(api_key=SecretStr("k"), settings=Settings())._get_client()
+
+
+class _Models:
+    """``client.models`` whose ``retrieve`` is bound to the pinned SDK's signature."""
+
+    def __init__(self, sdk_models: Any, error: Exception | None = None) -> None:
+        self._sig = inspect.signature(sdk_models.retrieve)
+        self._error = error
+        self.calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+
+    async def retrieve(self, *args: object, **kwargs: object) -> object:
+        self._sig.bind(*args, **kwargs)
+        self.calls.append((args, kwargs))
+        if self._error is not None:
+            raise self._error
+        return object()
+
+
+def _sdk_models(client_cls: type[Any]) -> Any:
+    if client_cls is AnthropicClient:
+        return anthropic.AsyncAnthropic(api_key="test-key-not-used").models
+    return openai.AsyncOpenAI(api_key="test-key-not-used").models
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("client_cls", [AnthropicClient, OpenAIClient])
+async def test_ping_asks_the_free_models_endpoint_for_the_configured_model(
+    client_cls: type[Any],
+) -> None:
+    client = client_cls(api_key=SecretStr("k"), settings=Settings())
+    models = _Models(_sdk_models(client_cls))
+    client._client = type("SDK", (), {"models": models})()
+    await client.ping()
+    assert models.calls == [((client.model,), {})]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("client_cls", "error_name", "status", "expected"),
+    [
+        (AnthropicClient, "AuthenticationError", 401, AuthenticationError),
+        (OpenAIClient, "InternalServerError", 503, ProviderUnavailableError),
+    ],
+)
+async def test_a_failing_ping_raises_the_typed_error(
+    client_cls: type[Any], error_name: str, status: int, expected: type[Exception]
+) -> None:
+    sdk = anthropic if client_cls is AnthropicClient else openai
+    client = client_cls(api_key=SecretStr("k"), settings=Settings())
+    models = _Models(_sdk_models(client_cls), _status_error(sdk, error_name, status))
+    client._client = type("SDK", (), {"models": models})()
+    with pytest.raises(expected):
+        await client.ping()
