@@ -24,7 +24,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import cast
 
 import structlog
 
@@ -384,10 +383,6 @@ def _mean_cost(answers: list[Answer]) -> float:
         return 0.0
     total = sum(a.usage.cost_usd for a in answers)
     return float(total) / len(answers)
-
-
-# Silence a stray import warning if AnswerMetrics ever changes shape.
-_ = cast
 
 
 __all__ = [

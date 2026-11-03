@@ -16,7 +16,7 @@ from __future__ import annotations
 import asyncio
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 from verity.ingestion.ids import document_id_for_uri
@@ -181,7 +181,3 @@ def _title_from_sections(sections: tuple[Section, ...], text: str) -> str | None
         first_line = text.strip().splitlines()[0]
         return first_line[:120] if first_line else None
     return None
-
-
-# Re-export cast so mypy is happy with the TYPE_CHECKING guard.
-_ = cast
