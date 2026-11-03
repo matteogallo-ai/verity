@@ -64,6 +64,7 @@ CI job `claims` runs those tests.
 - API hardening: API keys on `/status`, `/ask` and `/ingest`, per-key rate limit, a limit on failed key attempts, bounded inputs, file-type allow-list, generic errors with a request ID (C23).
 - Bounded spend: per-key spending budget on `/ask`, a per-answer cap on `verity ask` checked before each LLM call, bounded `max_tokens` and timeouts (C31).
 - Liveness and readiness split: `/health` answers while the process lives; `/ready` answers `503` until the corpus and the local models are loaded at startup, and unless Postgres answers and the LLM providers can serve as routing uses them, without spending tokens (C32).
+- Retrieved text reaches the synthesizer datamarked (spotlighting), so an instruction a document writes stays document text; its effect on injection success is not measured (C33).
 - Prompt-injection defence: delimited, untrusted-labelled evidence, and a deterministic support check (citation coverage, cited relevance, injection markers) the model's score cannot override; adversarial eval questions (C24).
 - Provider and store outages reported as errors (HTTP 503), never as refusals (C25).
 

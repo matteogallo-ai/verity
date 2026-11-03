@@ -8,6 +8,15 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The synthesizer reads retrieved text datamarked (spotlighting, arXiv:2403.14720):
+  every space between words becomes `ˆ`, which `synthesize.prompt` v0.3.0 names as the
+  mark of document text. Quotes are matched across marks and whitespace and stored as
+  the document's own text, so a quote that crosses a line break is no longer dropped.
+  The confidence scorer is unchanged.
+- `datasets/eval/injection/`: 12 poisoned documents whose instructions are written in
+  plain English (none matches the injection marker list), one question each, and
+  `scripts/run_injection_eval.py`, which counts the answers that ship what a poisoned
+  document planted and the clean questions still answered. No live run is committed.
 - The API ingests the corpus and loads the embedding and reranker models at startup, in
   the background; `/ready` reports `"preload"` and stays `503` until every corpus file is
   in, and a failed preload is started again by the next `/ready`. With the stub agent and
