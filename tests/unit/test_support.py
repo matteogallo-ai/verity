@@ -44,6 +44,11 @@ def test_content_words_drop_stopwords_and_stem_to_five_letters() -> None:
     }
 
 
+def test_three_letter_words_count_and_two_letter_words_do_not() -> None:
+    """A fee or a tax is content; "up" is not. Pins the length cut-off at three."""
+    assert content_words("fee tax up") == {"fee", "tax"}
+
+
 def test_coverage_counts_answer_words_found_in_quotes() -> None:
     hit = _hit("Either party may terminate on thirty (30) days notice.", 1.0)
     cite = _cite(hit, "Either party may terminate on thirty (30) days notice.")

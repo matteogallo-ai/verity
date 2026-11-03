@@ -134,7 +134,7 @@ class AppRuntime:
         The URI is a **pure content address** — ``upload://<sha256><ext>`` —
         with the client-supplied filename NOT part of the URI. Same bytes
         under a different name therefore always resolve to the same
-        ``document_id`` (``uuid5(NAMESPACE_URL, uri)``); re-uploads are
+        ``document_id`` (``uuid5`` of ``identity_for(uri)``); re-uploads are
         idempotent by construction. The filename is preserved separately as
         the ``title`` for display, and the extension (parsed off the sanitised
         name) is what drives the ``SourceType`` dispatch; the caller has already

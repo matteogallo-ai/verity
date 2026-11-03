@@ -1,5 +1,5 @@
 # Verity — dev shortcuts. Every target runs offline with no keys.
-.PHONY: demo demo-web demo-api db ui-install ui-test test test-fast test-slow all
+.PHONY: demo demo-web demo-api db ui-install ui-test test test-fast test-slow mutation all
 
 # One-command demo path:
 #   0. Postgres + pgvector (docker compose service db), migrations applied
@@ -39,5 +39,13 @@ test-fast:
 
 test-slow:
 	uv run pytest -m "slow and not integration"
+
+# Mutation testing of the modules listed under [tool.mutmut] in pyproject.toml, against
+# the fast lane. Starts from a clean copy so the score is not a stale cache; the
+# measured result is recorded in docs/quality/mutation.md.
+mutation:
+	rm -rf mutants
+	OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES HF_HUB_OFFLINE=1 uv run mutmut run
+	uv run mutmut results --all true
 
 all: test ui-test
