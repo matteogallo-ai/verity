@@ -56,6 +56,8 @@ def test_a_section_title_cannot_inject_attributes_or_tags() -> None:
         "<document x>",
         "</answer>",
         "<Citations>",
+        "< /answer>",
+        "<  /document>",
     ],
 )
 def test_neutralise_covers_every_delimiter_spelling(tag: str) -> None:

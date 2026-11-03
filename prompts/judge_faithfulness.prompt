@@ -9,10 +9,11 @@
 # variance and make disagreements inspectable. Deterministic stub replaces this in CI.
 #
 # The evidence, the answer and the citations are untrusted: a retrieved document, or an
-# answer that echoes one, may contain text written to steer the judge. v0.1.0 put them
-# under plain headings; this version delimits them like the serving prompts do. A
-# changed judge prompt is a new judge: its agreement with the human labels (κ) is
-# measured again, on the same claims.
+# answer that echoes one, may contain text written to steer the judge and move the
+# published metrics. They are delimited like the serving prompts' inputs, and the code
+# neutralises the delimiter tags inside them (verity.agent.evidence). The judge's
+# agreement with the human labels (κ) belongs to one version of this file: any edit
+# makes a new judge, measured again on the same claims.
 
 @version 0.2.0
 @model judge

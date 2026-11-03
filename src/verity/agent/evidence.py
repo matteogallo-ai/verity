@@ -21,10 +21,11 @@ from verity.types import RetrievalHit
 
 NO_EVIDENCE = "<evidence>\n(no evidence available)\n</evidence>"
 
-# Every element name the prompts use to delimit untrusted text.
-_TAG_RE = re.compile(
-    r"<(?=/?\s*(?:evidence|document|question|draft_answer|answer|citations)\b)", re.IGNORECASE
-)
+# Every element name the prompts use to delimit untrusted text. One list for both
+# defences: what neutralise makes inert, verity.agent.support flags as an injection.
+DELIMITER_TAGS = ("evidence", "document", "question", "draft_answer", "answer", "citations")
+_TAG_NAMES = "|".join(DELIMITER_TAGS)
+_TAG_RE = re.compile(rf"<(?=\s*/?\s*(?:{_TAG_NAMES})\b)", re.IGNORECASE)
 
 
 def neutralise(text: str) -> str:
@@ -61,4 +62,4 @@ def render_evidence(hits: list[RetrievalHit], *, with_scores: bool) -> str:
     return "<evidence>\n" + "\n".join(blocks) + "\n</evidence>"
 
 
-__all__ = ["NO_EVIDENCE", "neutralise", "render_evidence"]
+__all__ = ["DELIMITER_TAGS", "NO_EVIDENCE", "neutralise", "render_evidence"]
