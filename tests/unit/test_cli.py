@@ -422,6 +422,7 @@ def test_eval_run_with_errored_examples_exits_six(
     assert not headline.exists()
 
 
+@pytest.mark.slow  # the CLI builds the real embedder and reranker
 def test_a_budget_abort_persists_what_was_paid(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
