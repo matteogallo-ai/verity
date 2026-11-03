@@ -192,3 +192,41 @@ async def test_errored_examples_are_counted_apart_from_every_metric() -> None:
     assert result.scorecard.errored_example_ids == (examples[0].id,)
     assert len(result.per_refusal) == len(examples) - 1
     assert examples[0].id not in {r.example_id for r in result.per_refusal}
+
+
+@pytest.mark.asyncio
+async def test_a_judge_outage_errors_one_example_instead_of_losing_the_run() -> None:
+    """The agent calls before a judge failure are paid for; an exception escaping the
+    loop would discard every result of the run and invite a second spend."""
+    from verity.llm.base import ProviderUnavailableError
+
+    retriever = await _seed_retriever()
+    agent = create_default_agent(retriever=retriever, client=build_stub_router())
+    examples = load_full_dataset(DATASET)
+    failing_id = examples[1].id
+    stub = StubFaithfulnessJudge()
+
+    class _FlakyJudge:
+        def __getattr__(self, name: str) -> object:
+            return getattr(stub, name)
+
+        async def judge(self, example, answer):  # type: ignore[no-untyped-def]
+            if example.id == failing_id:
+                raise ProviderUnavailableError("judge provider down")
+            return await stub.judge(example, answer)
+
+    evaluator = AgentEvaluator(
+        agent=agent,
+        judge=_FlakyJudge(),  # type: ignore[arg-type]
+        embedding_model="fake",
+        judge_model=STUB_JUDGE_MODEL,
+        agent_model="stub-agent",
+        dataset_name="questions",
+    )
+    result = await evaluator.run(examples, git_sha="test0000")
+
+    assert result.scorecard.errored_example_ids == (failing_id,)
+    scored = {r.example_id for r in result.per_refusal}
+    assert failing_id not in scored and len(scored) == len(examples) - 1
+    assert failing_id not in {a.example_id for a in result.per_audit}
+    assert failing_id not in {r.example_id for r in result.per_retrieval}

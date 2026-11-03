@@ -36,6 +36,7 @@ from verity.eval.retrieval_metric import (
     PerExampleScore,
     macro_average,
 )
+from verity.llm.base import LLMError
 from verity.types import (
     Answer,
     AnswerMetrics,
@@ -202,6 +203,17 @@ class AgentEvaluator(Evaluator):
                 )
                 continue
             confidence = answer.confidence
+            # Answer quality: judge every example (refusals get a well-defined
+            # convention in the judge — see judge.py docstring). Judged before anything
+            # is recorded, so a judge outage leaves no half-scored example behind.
+            try:
+                answer_metrics = await self._judge.judge(example, answer)
+            except LLMError as exc:
+                # Every call before this one is paid for: an outage costs this example,
+                # not the run. Reported by id, like an agent outage.
+                errored.append(example.id)
+                log.error("harness_judge_errored", example_id=example.id, error=type(exc).__name__)
+                continue
             answers.append(answer)
             log.info(
                 "harness_answered",
@@ -220,9 +232,6 @@ class AgentEvaluator(Evaluator):
                     )
                 )
 
-            # Answer quality: judge every example (refusals get a well-defined
-            # convention in the judge — see judge.py docstring).
-            answer_metrics = await self._judge.judge(example, answer)
             per_answer.append(
                 PerExampleAnswerMetrics(example_id=example.id, metrics=answer_metrics)
             )
