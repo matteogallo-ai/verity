@@ -486,7 +486,7 @@ def test_adjudication_lists_disagreements_and_perturbed_claims_judged_true(
 def test_adjudicated_result_is_separate_and_never_touches_the_blind_one(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    mod, key, perturbed = _annotated(tmp_path, monkeypatch)
+    mod, _key, perturbed = _annotated(tmp_path, monkeypatch)
     blind_files = [*mod.CSV_FILES, mod.RESULT, mod.FINAL_CSV, mod.KEY, mod.REJUDGED]
     before = {p: p.read_bytes() for p in blind_files}
     assert mod.main(["adjudication-export"]) == 0
