@@ -424,12 +424,56 @@ def test_system_card_recovers_counts_from_the_artefact_and_gives_intervals() -> 
     assert rows["Citation accuracy, per-question mean (judge)"] == ["0.722", "n=12", "no interval"]
 
 
-def test_system_card_slos_are_marked_proposed_and_say_what_was_not_measured() -> None:
+def test_system_card_slos_are_approved_and_say_what_was_not_measured() -> None:
     rows = _card_rows(_committed_scorecard())
     slos = [_row_starting(rows, prefix) for prefix in ("p95", "Error", "Cost")]
-    assert all("proposed, pending owner approval" in cells[0] for cells in slos)
-    assert slos[0][2] == "over target"  # 32.5 s with model loading vs 15 s
+    assert all(cells[0].endswith("(approved)") for cells in slos)
     assert slos[1][1:] == ["not recorded by this scorecard", "not measured"]
+    assert slos[2][2] == "met"
+
+
+def test_a_p95_over_target_is_published_as_not_met_with_its_cause() -> None:
+    """Recomputed from the run's per-answer latencies, which must reproduce the
+    scorecard p95; a miss names the answers over target instead of guessing a cause."""
+    rows = _card_rows(_committed_scorecard())
+    cells = _row_starting(rows, "p95 latency of one answer, cold start included")
+    assert cells[0] == "≤ 15,000 ms (approved)"
+    assert cells[1] == "32526.5 ms (n=16, no warmup: the first answer loads the models)"
+    assert cells[2].startswith("**SLO not met**: answers over 15,000 ms: q-003 37684.8 ms, ")
+    assert "q-001 30807.0 ms (first answer, model loading)" in cells[2]
+
+
+def test_the_warm_p95_leaves_out_the_first_answer_and_still_misses() -> None:
+    rows = _card_rows(_committed_scorecard())
+    warm = _row_starting(rows, "p95 latency of one answer, warm")
+    assert warm[1] == "22410.1 ms (n=15, first answer left out)"
+    assert warm[2].startswith("**SLO not met**: answers over 15,000 ms: q-003 37684.8 ms, ")
+    assert "q-001" not in warm[2]
+    # The run kept no per-stage timings or retry counts: the cause of the slow
+    # answers other than the first is said to be unknown, not guessed.
+    assert "not attributed" in warm[2]
+
+
+def test_without_a_run_artefact_the_warm_p95_comes_from_a_warmed_scorecard() -> None:
+    payload = _committed_scorecard()
+    payload["provenance"]["run_sha"] = "0000000"  # no such artefact
+    payload["latency_ms"] = {"cold_start": 8460.1, "p50": 5445.7, "p95": 8949.3, "p99": 10929.3}
+    rows = _card_rows(payload)
+    assert _row_starting(rows, "p95 latency of one answer, warm")[1:] == [
+        "8949.3 ms (n=16, after one warmup answer)",
+        "met",
+    ]
+    assert _row_starting(rows, "p95 latency of one answer, cold start included")[1:] == [
+        "not measured as one sample: the first answer after boot, timed apart, took 8460.1 ms",
+        "not measured",
+    ]
+
+
+def test_a_run_artefact_that_does_not_reproduce_the_scorecard_p95_is_refused() -> None:
+    payload = _committed_scorecard()
+    payload["latency_ms"]["p95"] = 1000.0
+    with pytest.raises(SystemExit, match="does not reproduce"):
+        _card_rows(payload)
 
 
 def test_system_card_reads_counts_stored_in_a_newer_scorecard() -> None:
@@ -443,7 +487,7 @@ def test_system_card_reads_counts_stored_in_a_newer_scorecard() -> None:
     assert rows["Refusal precision"] == ["0.773", "17/22", "[0.566, 0.899]"]
     assert _row_starting(rows, "Error")[1:] == [
         "0.062 (1/16, 95 % CI [0.011, 0.283])",
-        "over target",
+        "**SLO not met**: 1 of 16 requests errored; the scorecard does not record why",
     ]
 
 
