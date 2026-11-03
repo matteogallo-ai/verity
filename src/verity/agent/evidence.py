@@ -1,5 +1,5 @@
 """Rendering of untrusted text (retrieved chunks, the question, a draft answer) into
-the delimited blocks the synthesis and confidence prompts expect.
+the delimited blocks the synthesis, confidence and eval-judge prompts expect.
 
 Retrieved text is data, not instructions: each chunk sits in its own
 ``<document index="i">`` element inside one ``<evidence>`` element, and the prompts
@@ -22,7 +22,9 @@ from verity.types import RetrievalHit
 NO_EVIDENCE = "<evidence>\n(no evidence available)\n</evidence>"
 
 # Every element name the prompts use to delimit untrusted text.
-_TAG_RE = re.compile(r"<(?=/?\s*(?:evidence|document|question|draft_answer)\b)", re.IGNORECASE)
+_TAG_RE = re.compile(
+    r"<(?=/?\s*(?:evidence|document|question|draft_answer|answer|citations)\b)", re.IGNORECASE
+)
 
 
 def neutralise(text: str) -> str:

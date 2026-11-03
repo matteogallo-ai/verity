@@ -36,6 +36,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from verity.agent.evidence import neutralise, render_evidence
 from verity.eval.base import FaithfulnessJudge
 from verity.llm.base import RoutingClient
 from verity.llm.json_output import first_matching, parse_json_object
@@ -47,7 +48,6 @@ from verity.types import (
     ClaimVerdict,
     EvalExample,
     Provider,
-    RetrievalHit,
     UsageStats,
 )
 
@@ -88,20 +88,14 @@ def _atomic_claims(text: str) -> list[str]:
     return parts
 
 
-def _render_context(hits: list[RetrievalHit]) -> str:
-    if not hits:
-        return "(no evidence)"
-    return "\n\n".join(
-        f"[{i}] (section: {h.chunk.section or '-'})\n{h.chunk.text.strip()}"
-        for i, h in enumerate(hits)
-    )
-
-
 def _render_citations(answer: Answer) -> str:
+    """One line per citation; the quote is the agent's output, so it is neutralised like
+    the answer: a quote cannot close the ``<citations>`` block."""
     if not answer.citations:
         return "(no citations)"
     return "\n".join(
-        f"[{i}] chunk={c.chunk_id} quote={c.quote!r}" for i, c in enumerate(answer.citations)
+        f"[{i}] chunk={c.chunk_id} quote={neutralise(c.quote)!r}"
+        for i, c in enumerate(answer.citations)
     )
 
 
@@ -266,8 +260,8 @@ class LLMFaithfulnessJudge(FaithfulnessJudge):
             )
 
         messages = self._prompt.render(
-            context=_render_context(list(answer.hits_used)),
-            answer=answer.text,
+            evidence=render_evidence(list(answer.hits_used), with_scores=False),
+            answer=neutralise(answer.text),
             citations=_render_citations(answer),
         )
         completion = await self._client.complete(messages, max_tokens=_MAX_TOKENS)

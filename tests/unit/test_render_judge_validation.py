@@ -85,8 +85,11 @@ def test_kappa_on_a_class_of_fewer_than_five_is_marked_fragile() -> None:
     assert "fragile" not in mixed_row
 
 
-def test_check_writes_nothing_and_fails_on_drift(tmp_path: Path) -> None:
+def test_check_writes_nothing_and_fails_on_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     mod = _load("render_judge_validation")
+    monkeypatch.setattr(mod, "provenance", _prov)
     readme = tmp_path / "README.md"
     readme.write_text("x\n<!-- JUDGE:START -->\nstale\n<!-- JUDGE:END -->\n")
     before = readme.read_text()
@@ -94,8 +97,9 @@ def test_check_writes_nothing_and_fails_on_drift(tmp_path: Path) -> None:
     assert readme.read_text() == before
 
 
-def test_missing_markers_fail_loudly(tmp_path: Path) -> None:
+def test_missing_markers_fail_loudly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     mod = _load("render_judge_validation")
+    monkeypatch.setattr(mod, "provenance", _prov)
     readme = tmp_path / "README.md"
     readme.write_text("no markers\n")
     with pytest.raises(SystemExit, match="markers"):
