@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from datetime import UTC, datetime
 from pathlib import Path
@@ -11,7 +12,7 @@ from typer.testing import CliRunner
 
 from verity import __version__
 from verity.cli import MISSING_KEY_MESSAGE, app
-from verity.config import get_settings
+from verity.config import Settings, get_settings
 from verity.eval import FileRunStore
 from verity.types import (
     AnswerMetrics,
@@ -294,8 +295,13 @@ def test_ask_without_key_and_without_stub_errors_actionably(
     - :func:`_clean` strips any residual ANSI and collapses whitespace so the
       substring checks are tokenisation-independent.
     """
-    monkeypatch.delenv("VERITY_ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.delenv("VERITY_OPENAI_API_KEY", raising=False)
+    # The developer's environment must not decide the outcome: no .env file is read
+    # and no provider key or VERITY_ variable leaks in from the shell.
+    monkeypatch.setitem(Settings.model_config, "env_file", None)
+    for name in list(os.environ):
+        if name.startswith("VERITY_") or name in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY"):
+            monkeypatch.delenv(name)
+    monkeypatch.setenv("VERITY_STORE", "memory")
     get_settings.cache_clear()
     try:
         result = runner.invoke(
