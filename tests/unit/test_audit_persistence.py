@@ -28,6 +28,7 @@ question dataset.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -307,3 +308,14 @@ def test_pre_v1_persisted_runs_load_without_per_audit(tmp_path: Path) -> None:
     store.save(loaded)
     payload = json.loads((tmp_path / "eval_legacy0_questions.json").read_text(encoding="utf-8"))
     assert "per_audit" not in payload
+
+
+@pytest.mark.parametrize(
+    "artefact", sorted(Path("datasets/eval/runs/live").glob("eval_*.json")), ids=lambda p: p.name
+)
+def test_a_committed_run_of_record_resaves_byte_for_byte(artefact: Path, tmp_path: Path) -> None:
+    """Fields added after a run was recorded must not rewrite it when it is saved again."""
+    from verity.eval.run_store import _run_from_dict, _run_to_dict
+
+    original = json.loads(artefact.read_text(encoding="utf-8"))
+    assert _run_to_dict(_run_from_dict(original)) == original

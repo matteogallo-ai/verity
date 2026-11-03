@@ -174,10 +174,27 @@ def _run_to_dict(run: EvalRun) -> dict[str, object]:
     # persisted runs stay byte-identical (regression tests depend on this).
     # ``mode="json"`` serialises UUIDs, tuples etc. into JSON-friendly primitives.
     if run.per_audit:
-        payload["per_audit"] = [audit.model_dump(mode="json") for audit in run.per_audit]
+        payload["per_audit"] = [
+            _without_unset_timings(a.model_dump(mode="json")) for a in run.per_audit
+        ]
     if run.errored:
-        payload["errored"] = [e.model_dump(mode="json") for e in run.errored]
+        payload["errored"] = [
+            _without_unset_timings(e.model_dump(mode="json")) for e in run.errored
+        ]
     return payload
+
+
+def _without_unset_timings(record: dict[str, object]) -> dict[str, object]:
+    """Drop ``stage_ms`` and ``usage.retries`` when they carry nothing.
+
+    Runs recorded before these fields existed then save again byte for byte, so a
+    rejudge or a headline regeneration never rewrites a run of record."""
+    if not record.get("stage_ms"):
+        record.pop("stage_ms", None)
+    usage = record.get("usage")
+    if isinstance(usage, dict) and not usage.get("retries"):
+        usage.pop("retries", None)
+    return record
 
 
 def _run_from_dict(data: dict[str, object]) -> EvalRun:
