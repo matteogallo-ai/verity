@@ -91,9 +91,16 @@ machine or a cleared Hugging Face cache with network access disabled.
   is tested in `tests/unit/test_llm_client_resilience.py::test_sdk_errors_translate_by_class`.
   The `error` field of the log line holds the provider's message. Response: top up or
   raise the quota; no restart needed.
-- **No API spending cap.** Nothing stops `/ask` traffic from spending: watch
-  `verity_cost_usd_total` and the `cost_usd` of `answer_done`, and lower the rate limit
-  or revoke keys (remove from `VERITY_API_KEYS`, restart).
+- **Per-key API budget.** A key whose `/ask` spend reaches `VERITY_API_BUDGET_USD`
+  within `VERITY_API_BUDGET_WINDOW_S` gets `429` with `Retry-After` until enough spend
+  leaves the window
+  (`tests/unit/test_api_hardening.py::test_spending_budget_is_per_key_and_answers_429_with_retry_after`).
+  The budget is per process and a restart resets it, so it does not cap total spend:
+  watch `verity_cost_usd_total` and the `cost_usd` of `answer_done`, and lower the
+  budget or revoke keys (remove from `VERITY_API_KEYS`, restart).
+- **`verity ask` cap.** `--budget-usd` (`VERITY_ASK_BUDGET_USD`) stops before a call
+  whose estimated upper cost could cross it: exit `4`, spend so far printed
+  (`tests/unit/test_budget.py::test_ask_stops_at_the_budget_with_exit_4_and_prints_the_spend`).
 
 ## 5. Malformed or oversized upload
 

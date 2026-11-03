@@ -36,7 +36,7 @@ equal ([ADR 0006](adr/0006-api-security-baseline.md)). The parties:
 | [LLM06 Excessive agency](#llm06-excessive-agency) | no tools | not applicable beyond a fixed pipeline |
 | [LLM07 System prompt leakage](#llm07-system-prompt-leakage) | low | prompts are public by design |
 | [LLM09 Misinformation](#llm09-misinformation) | yes | partial |
-| [LLM10 Unbounded consumption](#llm10-unbounded-consumption) | yes | partial: no spending cap on the API |
+| [LLM10 Unbounded consumption](#llm10-unbounded-consumption) | yes | partial: per-key, per-process spending budget; no global cap |
 
 ## LLM08 Vector and embedding weaknesses
 
@@ -275,11 +275,15 @@ OCR models.
 | Upload ≤ 1 MiB; corpus ≤ 200 documents | `api.router.ingest_endpoint`, `api.state.AppRuntime.ingest_bytes` | `tests/unit/test_api_hardening.py::test_two_megabyte_upload_is_413`, `tests/unit/test_api_hardening.py::test_corpus_document_limit_is_409` (C23) |
 | LLM call timeout 30 s, 2 retries per provider | `llm.clients`, `Settings.llm_timeout_s` / `llm_max_retries` | `tests/unit/test_llm_client_resilience.py::test_sdk_clients_get_the_configured_timeout_and_retries` |
 | At most `max_agent_steps` sub-questions | `agent.decomposer.LLMQuestionDecomposer` | `tests/unit/test_decomposer.py::test_decomposer_caps_at_max_steps` |
-| Output tokens per call: 256 (decompose, score), 512 (synthesize, judge) | call sites in `verity.agent`, `verity.eval.judge` | no test |
+| Output tokens per call: 256 (decompose, score), 512 (synthesize, judge) | call sites in `verity.agent`, `verity.eval.judge` | `tests/unit/test_budget.py::test_every_agent_call_bounds_its_output_tokens` (agent calls; the judge has no test) |
+| `/ask` spend per key ≤ `VERITY_API_BUDGET_USD` over a sliding window; errored answers count; `429` + `Retry-After` | `api.guards.SpendBudget` | `tests/unit/test_api_hardening.py::test_spending_budget_is_per_key_and_answers_429_with_retry_after`, `tests/unit/test_api_hardening.py::test_an_answer_that_errors_after_spending_counts_against_the_budget` (C31) |
+| `verity ask --budget-usd`: no call whose estimated upper cost could cross the cap (exit 4) | `llm.budget.SpendCappedClient` | `tests/unit/test_budget.py::test_a_call_that_could_cross_the_cap_is_never_sent`, `tests/unit/test_budget.py::test_ask_stops_at_the_budget_with_exit_4_and_prints_the_spend` (C31) |
 | Eval spend cap `verity eval run --budget-usd` (exit 4) | `eval.harness.BudgetExceededError` | no test |
 | In-memory spans capped at `VERITY_TRACE_MAX_SPANS` | `observability.tracer` | `tests/unit/test_tracer.py::test_span_buffer_is_bounded_and_keeps_the_newest` (C29) |
 
-**Not stopped.** No per-key or global spending budget on `/ask`, and `verity ask` has
-no cap. The limit is per key and per process: k keys on N processes allow k × N × 30
-requests a minute. Docling parsing of an accepted PDF has no time limit. No test for any
-of these.
+**Not stopped.** The rate limit and the spending budget are per key and per process:
+k keys on N processes allow k × N × 30 requests a minute and k × N × the budget, and a
+restart resets both. There is no global budget. The answers in flight when a key's
+budget is crossed overshoot it, and failed attempts a provider bills (SDK retries,
+fallback after a timeout) report no usage and are not counted. Docling parsing of an
+accepted PDF has no time limit. No test for any of these.
