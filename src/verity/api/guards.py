@@ -8,6 +8,7 @@ Everything here is deterministic and in process: one API process serves one tena
 from __future__ import annotations
 
 import hmac
+import ipaddress
 import math
 import time
 from collections import deque
@@ -25,24 +26,57 @@ _ANONYMOUS = "anonymous"
 class RateLimiter:
     """Sliding-window limit of ``limit`` hits per ``window_s`` seconds, per principal.
 
-    Principals are configured keys (plus ``anonymous`` when auth is disabled), so the
-    number of buckets is bounded by configuration, not by client behaviour.
+    Keyed by configured keys, the number of buckets is bounded by configuration. Keyed
+    by client address, it is not, so ``max_principals`` caps it: expired buckets go
+    first, then the oldest. A client that controls more addresses than the cap can
+    reset its own count; the cap bounds memory, it does not stop a distributed guesser.
+    When the cap is reached with no expired bucket, the oldest-created tenth goes.
     """
 
     def __init__(
-        self, *, limit: int, window_s: float, clock: Callable[[], float] = time.monotonic
+        self,
+        *,
+        limit: int,
+        window_s: float,
+        clock: Callable[[], float] = time.monotonic,
+        max_principals: int | None = None,
     ) -> None:
         self._limit = limit
         self._window_s = window_s
         self._clock = clock
+        self._max_principals = max_principals
         self._hits: dict[str, deque[float]] = {}
+
+    def __len__(self) -> int:
+        return len(self._hits)
+
+    def _live(self, hits: deque[float], now: float) -> deque[float]:
+        while hits and hits[0] <= now - self._window_s:
+            hits.popleft()
+        return hits
+
+    def _evict(self, now: float) -> None:
+        for principal in [p for p, hits in self._hits.items() if not self._live(hits, now)]:
+            del self._hits[principal]
+        if self._max_principals is not None and len(self._hits) >= self._max_principals:
+            # A tenth at once, so a client cycling addresses at the cap does not cost a
+            # full scan on every request.
+            for principal in list(self._hits)[: max(1, self._max_principals // 10)]:
+                del self._hits[principal]
+
+    def blocked(self, principal: str) -> float | None:
+        """Like :meth:`hit` without recording: ``None`` while a slot is free."""
+        now = self._clock()
+        hits = self._live(self._hits.get(principal, deque()), now)
+        return hits[0] + self._window_s - now if len(hits) >= self._limit else None
 
     def hit(self, principal: str) -> float | None:
         """Record one hit. ``None`` when allowed, else the seconds until a slot frees."""
         now = self._clock()
-        hits = self._hits.setdefault(principal, deque())
-        while hits and hits[0] <= now - self._window_s:
-            hits.popleft()
+        cap = self._max_principals
+        if principal not in self._hits and cap is not None and len(self._hits) >= cap:
+            self._evict(now)
+        hits = self._live(self._hits.setdefault(principal, deque()), now)
         if len(hits) >= self._limit:
             return hits[0] + self._window_s - now
         hits.append(now)
@@ -100,6 +134,21 @@ def retry_after_header(seconds: float) -> dict[str, str]:
     return {"Retry-After": str(max(1, math.ceil(seconds)))}
 
 
+def client_bucket(host: str) -> str:
+    """The failed-attempt bucket of a client address: the address itself for IPv4, its
+    /64 for IPv6, which one host usually holds whole. A value that is not an address
+    (a test client, a Unix socket) is its own bucket."""
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return host
+    if isinstance(address, ipaddress.IPv6Address):
+        if address.ipv4_mapped is not None:
+            return str(address.ipv4_mapped)
+        return str(ipaddress.ip_network(f"{address}/64", strict=False))
+    return str(address)
+
+
 def _principal_for(supplied: str | None, settings: Settings) -> str | None:
     """The configured key ``supplied`` matches, by index; ``None`` if none does.
 
@@ -121,13 +170,29 @@ async def require_api_key(request: Request) -> str:
     Returns the principal (``key-<n>`` or ``anonymous``), bound on the log context.
     The key itself is never logged. Async on purpose: FastAPI runs a sync dependency
     in a worker thread, whose context-variable binding the handler would not see.
+
+    Failed attempts are limited per client address, checked before the key so a
+    blocked client cannot tell a right guess from a wrong one. Behind a reverse proxy
+    every request comes from the proxy's address unless uvicorn trusts its forwarded
+    headers (``--proxy-headers --forwarded-allow-ips``), and one guesser would then
+    block every client.
     """
     settings: Settings = request.app.state.settings
     if settings.api_auth_disabled:
         principal = _ANONYMOUS
     else:
+        client = client_bucket(request.client.host if request.client else "unknown")
+        failures: RateLimiter = request.app.state.auth_failures
+        wait = failures.blocked(client)
+        if wait is not None:
+            raise HTTPException(
+                status_code=429,
+                detail="Too many failed key attempts.",
+                headers=retry_after_header(wait),
+            )
         found = _principal_for(request.headers.get("x-api-key"), settings)
         if found is None:
+            failures.hit(client)
             raise HTTPException(status_code=401, detail="Missing or invalid X-API-Key.")
         principal = found
     limiter: RateLimiter = request.app.state.rate_limiter
@@ -201,6 +266,7 @@ __all__ = [
     "SpendBudget",
     "UploadRejectedError",
     "check_upload",
+    "client_bucket",
     "require_api_key",
     "retry_after_header",
 ]

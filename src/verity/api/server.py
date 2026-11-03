@@ -117,6 +117,9 @@ def create_app(
     readiness = Readiness(runtime)
     app.state.settings = settings
     app.state.rate_limiter = RateLimiter(limit=settings.api_rate_limit_per_minute, window_s=60.0)
+    app.state.auth_failures = RateLimiter(
+        limit=settings.api_auth_failures_per_minute, window_s=60.0, max_principals=10_000
+    )
     app.state.spend_budget = SpendBudget(
         budget_usd=settings.api_budget_usd, window_s=settings.api_budget_window_s
     )

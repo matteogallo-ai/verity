@@ -60,10 +60,13 @@ async def _corpus_summary(runtime: AppRuntime) -> CorpusSummary:
     )
 
 
-@router.get("/status", response_model=StatusResponse)
+@router.get("/status", response_model=StatusResponse, dependencies=[Depends(require_api_key)])
 async def status_endpoint(request: Request) -> StatusResponse:
     """Status: real corpus counts, real provenance triple, real
-    otel endpoint config. No hard-coded ``"ok"``."""
+    otel endpoint config. No hard-coded ``"ok"``.
+
+    Behind the key because it lists every document URI and the models in use;
+    ``/health`` and ``/ready`` are the public probes."""
     runtime = _runtime(request)
     settings: Settings = request.app.state.settings
     # First hit doubles as a lazy preload — subsequent hits are free.

@@ -65,6 +65,13 @@ def test_wrong_key_is_401(client: TestClient) -> None:
     assert r.status_code == 401
 
 
+def test_status_needs_a_key(client: TestClient) -> None:
+    """/status lists every document URI and the model provenance."""
+    del client.headers["X-API-Key"]
+    assert client.get("/status").status_code == 401
+    assert client.get("/status", headers={"X-API-Key": _KEY}).status_code == 200
+
+
 def test_health_stays_public(client: TestClient) -> None:
     del client.headers["X-API-Key"]
     assert client.get("/health").status_code == 200
@@ -100,6 +107,14 @@ def test_rate_limit_is_per_key_and_answers_429_with_retry_after(tmp_path: Path) 
         assert other.status_code == 200
 
 
+def test_status_counts_toward_the_per_key_rate_limit(tmp_path: Path) -> None:
+    with api_app(tmp_path, _settings(api_rate_limit_per_minute=2)) as c:
+        c.headers["X-API-Key"] = _KEY
+        assert c.get("/status").status_code == 200
+        assert c.get("/status").status_code == 200
+        assert c.post("/ask", json={"question": _QUESTION}).status_code == 429
+
+
 def test_rate_limiter_window_slides() -> None:
     now = [0.0]
     limiter = RateLimiter(limit=2, window_s=60.0, clock=lambda: now[0])
@@ -109,6 +124,73 @@ def test_rate_limiter_window_slides() -> None:
     assert retry is not None and 59.0 < retry <= 60.0
     now[0] = 60.5
     assert limiter.hit("k") is None
+
+
+def test_failed_key_attempts_are_rate_limited_per_client(tmp_path: Path) -> None:
+    with api_app(tmp_path, _settings(api_auth_failures_per_minute=3)) as c:
+        for _ in range(3):
+            assert c.get("/status", headers={"X-API-Key": "guess"}).status_code == 401
+        blocked = c.get("/status", headers={"X-API-Key": "guess"})
+        assert blocked.status_code == 429
+        assert int(blocked.headers["Retry-After"]) >= 1
+        # Checked before the key: a correct guess from a blocked client learns nothing.
+        assert c.get("/status", headers={"X-API-Key": _KEY}).status_code == 429
+
+
+def test_successful_requests_do_not_count_as_failed_attempts(tmp_path: Path) -> None:
+    with api_app(tmp_path, _settings(api_auth_failures_per_minute=2)) as c:
+        c.headers["X-API-Key"] = _KEY
+        for _ in range(5):
+            assert c.get("/status").status_code == 200
+
+
+def test_rate_limiter_peek_does_not_record_a_hit() -> None:
+    limiter = RateLimiter(limit=1, window_s=60.0, clock=lambda: 0.0)
+    assert limiter.blocked("ip") is None
+    assert limiter.hit("ip") is None
+    assert limiter.blocked("ip") is not None
+
+
+def test_rate_limiter_memory_is_bounded() -> None:
+    """Failed attempts are keyed by client address, which a client chooses."""
+    now = [0.0]
+    limiter = RateLimiter(limit=1, window_s=60.0, clock=lambda: now[0], max_principals=100)
+    for n in range(1000):
+        limiter.hit(f"10.0.{n // 256}.{n % 256}")
+    assert len(limiter) <= 100
+    now[0] = 61.0
+    limiter.hit("10.9.9.9")
+    assert len(limiter) == 1
+
+
+def test_eviction_drops_expired_buckets_before_a_live_one() -> None:
+    now = [0.0]
+    limiter = RateLimiter(limit=1, window_s=60.0, clock=lambda: now[0], max_principals=3)
+    limiter.hit("old-1")
+    limiter.hit("old-2")
+    now[0] = 50.0
+    limiter.hit("blocked")
+    now[0] = 70.0
+    limiter.hit("new")
+    assert limiter.blocked("blocked") is not None
+
+
+@pytest.mark.parametrize(
+    ("first", "second", "shared"),
+    [
+        ("2001:db8::1", "2001:db8::ffff:1", True),
+        ("2001:db8::1", "2001:db8:0:1::1", False),
+        ("192.0.2.1", "192.0.2.2", False),
+        ("::ffff:192.0.2.1", "192.0.2.1", True),
+        ("testclient", "testclient", True),
+    ],
+)
+def test_failed_attempts_are_counted_per_ipv6_64(first: str, second: str, shared: bool) -> None:
+    """One IPv6 host usually holds a whole /64: counted per address, it would get ten
+    attempts per address."""
+    from verity.api.guards import client_bucket
+
+    assert (client_bucket(first) == client_bucket(second)) is shared
 
 
 # --- spending budget -------------------------------------------------------------------

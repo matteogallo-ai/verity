@@ -114,6 +114,9 @@ class Settings(BaseSettings):
     # deliberate choice (local development), never the result of a missing variable.
     api_auth_disabled: bool = False
     api_rate_limit_per_minute: int = Field(default=30, gt=0)
+    # Wrong or missing keys per client address per minute: enough for a mistyped key,
+    # too few to guess one.
+    api_auth_failures_per_minute: int = Field(default=10, gt=0)
     # Spending budget per key over a sliding window, from the cost each /ask reports.
     # $5 an hour is about 400 live answers at the run-of-record average ($0.012): room
     # for a team's interactive use, a ceiling on a leaked or looping key.

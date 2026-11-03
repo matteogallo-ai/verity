@@ -123,7 +123,8 @@ def test_a_failed_preload_is_not_ready_and_is_retried(tmp_path: Path) -> None:
         assert "cache" not in r.text
         # That call started another attempt, which loads the model this time.
         _until_ready(client)
-        n_docs = client.get("/status").json()["corpus"]["n_documents"]
+        status = client.get("/status", headers={"X-API-Key": _KEY})
+        n_docs = status.json()["corpus"]["n_documents"]
     assert len(attempts) == 2
     assert n_docs == len([p for p in Path("datasets/corpus").iterdir() if p.is_file()])
 
@@ -260,8 +261,8 @@ def test_a_failing_preload_is_retried_once_per_cache_period(tmp_path: Path) -> N
 
 
 def test_requests_do_not_re_ingest_a_corpus_that_failed(tmp_path: Path) -> None:
-    """``/status`` is public: if each call re-ingested a failing corpus, anyone could
-    keep the process embedding. Only the bounded readiness retry starts an attempt."""
+    """If each ``/status`` call re-ingested a failing corpus, any key holder could keep
+    the process embedding. Only the bounded readiness retry starts an attempt."""
     loads: list[str] = []
 
     def broken_embedder(_model: str) -> FakeEmbeddingBackend:
@@ -271,5 +272,5 @@ def test_requests_do_not_re_ingest_a_corpus_that_failed(tmp_path: Path) -> None:
     with api_app(tmp_path, _SETTINGS, embedder_factory=broken_embedder) as client:
         after_startup = len(loads)
         for _ in range(3):
-            assert client.get("/status").status_code == 200
+            assert client.get("/status", headers={"X-API-Key": _KEY}).status_code == 200
     assert len(loads) == after_startup
