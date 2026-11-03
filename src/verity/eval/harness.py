@@ -36,7 +36,7 @@ from verity.eval.retrieval_metric import (
     PerExampleScore,
     macro_average,
 )
-from verity.llm.base import LLMError
+from verity.llm.base import AuthenticationError, LLMError
 from verity.types import (
     Answer,
     AnswerMetrics,
@@ -190,6 +190,8 @@ class AgentEvaluator(Evaluator):
             log.info("harness_warmup_done", cold_start_ms=cold_start_ms)
 
         errored: list[str] = []
+        # Agent spend of examples whose judge call failed: they are not in ``answers``.
+        judge_errored_cost_usd = 0.0
         for example in dataset:
             answer = await self._agent.answer(example.question)
             if answer.confidence is None:
@@ -208,11 +210,20 @@ class AgentEvaluator(Evaluator):
             # is recorded, so a judge outage leaves no half-scored example behind.
             try:
                 answer_metrics = await self._judge.judge(example, answer)
+            except AuthenticationError:
+                # A rejected key fails every example alike; carrying on would spend the
+                # agent on the whole dataset for no score.
+                raise
             except LLMError as exc:
                 # Every call before this one is paid for: an outage costs this example,
-                # not the run. Reported by id, like an agent outage.
+                # not the run. Reported by id, like an agent outage, and its answer's
+                # spend still counts against the cap.
                 errored.append(example.id)
+                judge_errored_cost_usd += answer.usage.cost_usd
                 log.error("harness_judge_errored", example_id=example.id, error=type(exc).__name__)
+                _check_budget(
+                    budget_usd_cap, example.id, answers, judge_cost_usd + judge_errored_cost_usd
+                )
                 continue
             answers.append(answer)
             log.info(
@@ -285,14 +296,9 @@ class AgentEvaluator(Evaluator):
                 )
             )
 
-            if budget_usd_cap is not None:
-                agent_cost_so_far = sum(a.usage.cost_usd for a in answers)
-                cumulative = agent_cost_so_far + judge_cost_usd
-                if cumulative > budget_usd_cap:
-                    raise BudgetExceededError(
-                        f"Aborted after {example.id}: cumulative cost "
-                        f"${cumulative:.4f} exceeded budget cap ${budget_usd_cap:.2f}"
-                    )
+            _check_budget(
+                budget_usd_cap, example.id, answers, judge_cost_usd + judge_errored_cost_usd
+            )
 
         retrieval_agg = _aggregate_retrieval(per_retrieval, k=self._k)
         answer_agg = _aggregate_answer(per_answer, per_refusal)
@@ -385,6 +391,20 @@ def percentile(sorted_values: list[float], pct: float) -> float:
     high = min(low + 1, len(sorted_values) - 1)
     frac = rank - low
     return float(sorted_values[low] + (sorted_values[high] - sorted_values[low]) * frac)
+
+
+def _check_budget(
+    cap: float | None, example_id: str, answers: list[Answer], other_cost_usd: float
+) -> None:
+    """Raise once agent spend on ``answers`` plus ``other_cost_usd`` exceeds ``cap``."""
+    if cap is None:
+        return
+    cumulative = sum(a.usage.cost_usd for a in answers) + other_cost_usd
+    if cumulative > cap:
+        raise BudgetExceededError(
+            f"Aborted after {example_id}: cumulative cost "
+            f"${cumulative:.4f} exceeded budget cap ${cap:.2f}"
+        )
 
 
 def _mean_cost(answers: list[Answer]) -> float:

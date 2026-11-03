@@ -169,8 +169,6 @@ agent's log lines carry decision, stages, tokens and cost, not the question (no 
   without a key.
 - The question and the top retrieved chunks are sent to the configured provider. No
   redaction, no test.
-- The Postgres DSN, password included, is a plain `str` (`Settings.database_url`) and
-  appears in `repr(Settings())`. No test.
 - `answer_done` logs a refusal's `rationale`, which is model-written and can quote a
   document; `answer_failed` logs the provider's exception text. No test bounds what
   they contain.
@@ -296,7 +294,7 @@ OCR models.
 | Output tokens per call: 256 (decompose, score), 512 (synthesize, judge) | call sites in `verity.agent`, `verity.eval.judge` | `tests/unit/test_budget.py::test_every_agent_call_bounds_its_output_tokens` (agent calls; the judge has no test) |
 | `/ask` spend per key ≤ `VERITY_API_BUDGET_USD` over a sliding window; errored answers count; `429` + `Retry-After` | `api.guards.SpendBudget` | `tests/unit/test_api_hardening.py::test_spending_budget_is_per_key_and_answers_429_with_retry_after`, `tests/unit/test_api_hardening.py::test_an_answer_that_errors_after_spending_counts_against_the_budget` (C31) |
 | `verity ask --budget-usd`: no call whose estimated upper cost could cross the cap (exit 4) | `llm.budget.SpendCappedClient` | `tests/unit/test_budget.py::test_a_call_that_could_cross_the_cap_is_never_sent`, `tests/unit/test_budget.py::test_ask_stops_at_the_budget_with_exit_4_and_prints_the_spend` (C31) |
-| Eval spend cap `verity eval run --budget-usd` (exit 4) | `eval.harness.BudgetExceededError` | no test |
+| Eval spend cap `verity eval run --budget-usd` (exit 4), checked after each example, so a run can overshoot by one example; answers whose judge call failed count | `eval.harness.BudgetExceededError` | `tests/unit/test_harness.py::test_the_budget_cap_counts_answers_whose_judge_failed` |
 | In-memory spans capped at `VERITY_TRACE_MAX_SPANS` | `observability.tracer` | `tests/unit/test_tracer.py::test_span_buffer_is_bounded_and_keeps_the_newest` (C29) |
 
 **Not stopped.** The rate limit and the spending budget are per key and per process:

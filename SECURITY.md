@@ -90,8 +90,7 @@ deployment:
 - An injection paraphrased past the marker list, or a false fact stated plainly in a
   relevant document, is not stopped (LLM01, LLM09). The eval judge prompt has no
   untrusted-content delimiters (LLM01).
-- The Postgres DSN, password included, is a plain string in the settings; questions and
-  retrieved passages go to the LLM provider (LLM02).
+- Questions and retrieved passages go to the LLM provider (LLM02).
 - The `/ask` spending budget is per process and resets on restart, and failed attempts
   a provider bills are not counted (LLM10). The dependency scan misses advisories not
   yet in the OSV database, the base image and the models downloaded at run time
