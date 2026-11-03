@@ -23,8 +23,13 @@ traced span (latency, hit count).
 Two `VectorStore` implementations exist:
 - `PgVectorStore` (default, `VERITY_STORE=pgvector`): pgvector HNSW dense search +
   Postgres full-text search (`ts_rank` over the OR of the query's lexemes). Used by the
-  API, `make demo`, every CLI command and the CI retrieval gate. The corpus is upserted
-  on first use; ids are content-addressed, so re-ingesting is a no-op.
+  API, `make demo`, every CLI command and the CI retrieval gate. The corpus is synced
+  on first use. A document's id comes from its path (or URL, or upload digest) and stays
+  the same across edits; its text's SHA-256, its chunk ids and the embedding model are
+  compared with what the store holds. A match is skipped without embedding; a mismatch
+  replaces all of the document's chunks in one transaction, so an edit never leaves an
+  old chunk retrievable; a document whose file left the corpus directory is deleted
+  with its chunks.
 - `InMemoryVectorStore` (`VERITY_STORE=memory`, `--store memory`): cosine dense search +
   BM25 (`rank-bm25`). Used by the unit tests and wherever no database is available.
 

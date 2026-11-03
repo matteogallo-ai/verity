@@ -133,3 +133,53 @@ async def test_ping_on_a_refused_port_raises_the_typed_store_error() -> None:
     store = PgVectorStore(database_url="postgresql://verity@127.0.0.1:1/verity", embedding_dim=384)
     with pytest.raises(StoreUnavailableError):
         await store.ping()
+
+
+@pytest.mark.asyncio
+async def test_an_edited_or_deleted_corpus_file_leaves_nothing_stale(  # type: ignore[no-untyped-def]
+    migrated_db: str, tmp_path
+) -> None:
+    from verity.ingestion.ids import content_sha256
+    from verity.runtime import ingest_corpus
+
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    msa, fees = corpus / "msa.md", corpus / "fees.md"
+    msa.write_text("# Termination\n\nTerminate with 30 days' written notice.\n")
+    fees.write_text("# Fees\n\nPayable within 45 days — net, in €.\n")
+    embedder = LocalEmbedder(model="fake", expected_dim=384, backend=_FakeBackend(384))
+    store = PgVectorStore(database_url=migrated_db)
+    try:
+        await ingest_corpus(corpus_dir=corpus, store=store, embedder=embedder)
+        ours = {d.uri: d.document_id for d in await store.list_documents()}
+        fees_id, msa_id = ours[str(fees.resolve())], ours[str(msa.resolve())]
+
+        async def texts_of(document_id: str, query: str) -> list[str]:
+            # The database also holds the shipped corpus: look only at this test's files.
+            hits = await store.sparse_search(query, k=50)
+            return [h.chunk.text for h in hits if str(h.chunk.document_id) == document_id]
+
+        held = await store.indexed_document(fees_id)
+        # The digest Postgres computes is the one Python computes, non-ASCII included.
+        assert held is not None
+        assert held.content_sha256 == content_sha256(fees.read_text())
+
+        msa.write_text("# Termination\n\nTerminate with ninety (90) days' written notice.\n")
+        await ingest_corpus(corpus_dir=corpus, store=store, embedder=embedder)
+        texts = await texts_of(msa_id, "terminate notice")
+        assert texts and all("30 days" not in t for t in texts)
+        assert any("ninety (90) days" in t for t in texts)
+
+        fees.unlink()
+        await ingest_corpus(corpus_dir=corpus, store=store, embedder=embedder)
+        uris = {d.uri for d in await store.list_documents()}
+        assert str(fees.resolve()) not in uris and str(msa.resolve()) in uris
+        assert await texts_of(fees_id, "payable") == []
+        assert await store.indexed_document(fees_id) is None
+    finally:
+        # The database is shared with the retrieval gate: leave only the shipped corpus.
+        async with await psycopg.AsyncConnection.connect(migrated_db) as conn:
+            await conn.execute(
+                "DELETE FROM documents WHERE uri = ANY(%s)",
+                ([str(msa.resolve()), str(fees.resolve())],),
+            )

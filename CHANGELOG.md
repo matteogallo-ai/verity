@@ -43,6 +43,19 @@ follows [Semantic Versioning](https://semver.org/).
 - The confidence scorer read a refusal flag given as a string with `bool()`, so
   `"refused": "false"` counted as a refusal. A flag that is not a boolean now makes the
   response unparseable.
+- Re-ingesting an edited document left its old chunks in the store when the edit moved
+  chunk boundaries: the stale text stayed retrievable and citable, and a quote was
+  validated against text the document no longer had (claim C01). Ingestion now replaces
+  a document's chunks in one transaction, in both stores; a corpus file that was deleted
+  leaves the index with its chunks; a document whose text (SHA-256), chunks and
+  embedding model match the index is not embedded again. `verity ingest` reports
+  unchanged and removed documents. Removal matches documents by their repo-relative
+  identity, so the host CLI and the API container prune each other's copies; it never
+  runs on an empty corpus directory, and keeps a document whose file cannot be read or
+  failed to parse. One database holds one corpus version: the last sync wins, so an
+  API image built from an older checkout removes files a newer checkout added. A model
+  whose weights change under the same name, or a change to document metadata only, is
+  not detected; delete the rows in SQL to force a re-embed.
 - An answer that fails after some LLM calls returned now reports their tokens and cost
   (it reported zero), in `Answer.usage` and in the `answer_failed` log line. Eval
   `cost.*` figures and `verity eval run --budget-usd` therefore include the spend of

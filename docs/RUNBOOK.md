@@ -78,8 +78,8 @@ machine or a cleared Hugging Face cache with network access disabled.
 - **Response.** Fill the cache once with network access (a command that loads both
   models, e.g. `uv run verity retrieve "warm up" --store memory`), or run the Docker
   image. No restart is needed: after a failed preload, `/ready` starts another attempt
-  (at most one per 5 s; each re-ingests the whole corpus; requests such as `/status`
-  never start one), and the process turns ready
+  (at most one per 5 s; each embeds the files not yet indexed; requests such as
+  `/status` never start one), and the process turns ready
   once every corpus file is in.
 
 ## 4. Budget exhausted
@@ -144,6 +144,11 @@ machine or a cleared Hugging Face cache with network access disabled.
   under the request id: a corrupt file is the client's; an `OSError` from a model loader
   is section 3; a PDF in the container fails because docling's models are not in the
   image. A `409` needs documents removed in SQL (below); no endpoint deletes one.
+- **Corpus sync across checkouts.** A corpus sync (`verity ingest DIR`, the API
+  preload) removes documents whose file is gone, matched by repo-relative path, from
+  whichever checkout ingested them. One database therefore holds one corpus version: an
+  API image built from an older checkout removes files a newer one added. Rebuild the
+  image, or point it at its own database, when the two must differ.
 
 ## 6. A poisoned or injection document in the corpus
 

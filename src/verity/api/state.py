@@ -135,9 +135,8 @@ class AppRuntime:
         """Ingest ``corpus_dir``; the number of files that failed.
 
         Requests call this without ``retry`` and ingest only if no attempt was made
-        yet: ``/status`` is public, so a failing corpus must not be re-ingested per
-        request. Only the preload retries (``retry=True``), ingesting the whole corpus
-        again (the upsert is idempotent), at the pace readiness sets."""
+        yet, so a failing corpus is not re-ingested on every request. Only the preload retries (``retry=True``), at the pace readiness sets;
+        a retry embeds only the files the index does not hold yet."""
         async with self._lock:
             if self._preloaded or (self._attempted and not retry):
                 return 0
