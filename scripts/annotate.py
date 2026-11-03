@@ -1,7 +1,7 @@
 """Annotate one judge-validation CSV in the terminal, one claim at a time.
 
     uv run python scripts/annotate.py datasets/eval/judge_validation/annotate_morning_1.csv
-    uv run python scripts/annotate.py --review [--from N] <csv>
+    uv run python scripts/annotate.py --review [--from N] <csv> [<csv> ...]
 
 Keys (one keystroke, no Enter, either case): s supported · u unsupported · c comment ·
 e show or hide the full extracts · b back · q quit (Ctrl-C quits too). Enter keeps the
@@ -10,7 +10,10 @@ session starts at the first claim without a verdict. ``--review`` starts at clai
 (or N with ``--from N``) and walks every claim, answered or not, showing the current
 verdict; s/u replace it, Enter keeps it.
 
-Blind by construction: the tool reads the CSV it is given and nothing else, and shows
+Several CSVs given together form one session (claims numbered across files, e.g.
+60/60); each answer is written back to the file its claim came from.
+
+Blind by construction: the tool reads the CSVs it is given and nothing else, and shows
 only the claim, its cited passage, the extracts and what the annotator typed; neither
 the item id nor any other column is displayed. It refuses a file that is not an
 annotation CSV, so the answer key cannot be opened by mistake.
@@ -26,7 +29,7 @@ import re
 import shutil
 import sys
 import tempfile
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -61,21 +64,39 @@ def highlight(text: str) -> str:
 
 
 @dataclass
-class Session:
+class Sheet:
+    """One annotation CSV: its rows are written back to it, in its own format."""
+
     path: Path
     fieldnames: list[str]
     rows: list[dict[str, str]]
     newline: str
+
+
+@dataclass
+class Session:
+    sheets: list[Sheet]
     index: int = 0
     show_extracts: bool = False
     review: bool = False
 
     @property
+    def rows(self) -> list[dict[str, str]]:
+        return [row for sheet in self.sheets for row in sheet.rows]
+
+    @property
     def done(self) -> int:
         return sum(1 for r in self.rows if r["human_verdict"])
 
+    def sheet_at(self, index: int) -> Sheet:
+        for sheet in self.sheets:
+            if index < len(sheet.rows):
+                return sheet
+            index -= len(sheet.rows)
+        raise IndexError(index)
 
-def load(path: Path) -> Session:
+
+def _read_sheet(path: Path) -> Sheet:
     if path.suffix != ".csv":
         raise SystemExit(f"refusing to open {path.name}: give an annotation CSV")
     raw = path.read_bytes()
@@ -101,23 +122,31 @@ def load(path: Path) -> Session:
                 f"one of {sorted(LABELS.values())}; fix or empty it"
             )
         row["human_verdict"] = verdict
-    first_open = next((i for i, r in enumerate(rows) if not r["human_verdict"]), len(rows))
-    return Session(path, fieldnames, rows, newline, first_open)
+    return Sheet(path, fieldnames, rows, newline)
 
 
-def save(session: Session) -> None:
-    """Write to a temporary file then rename it: an interrupted save never leaves a
-    half-written CSV. The file keeps its permissions and line endings."""
-    fd, tmp = tempfile.mkstemp(dir=session.path.parent, suffix=".tmp")
+def load(paths: Path | Sequence[Path]) -> Session:
+    """One session over one or several CSVs, in the order given."""
+    paths = [paths] if isinstance(paths, Path) else list(paths)
+    if len({p.resolve() for p in paths}) != len(paths):
+        raise SystemExit("the same CSV is given twice")
+    session = Session([_read_sheet(p) for p in paths])
+    rows = session.rows
+    session.index = next((i for i, r in enumerate(rows) if not r["human_verdict"]), len(rows))
+    return session
+
+
+def save(sheet: Sheet) -> None:
+    """Write one CSV to a temporary file then rename it: an interrupted save never
+    leaves a half-written CSV. The file keeps its permissions and line endings."""
+    fd, tmp = tempfile.mkstemp(dir=sheet.path.parent, suffix=".tmp")
     try:
         with os.fdopen(fd, "w", newline="", encoding="utf-8") as fh:
-            writer = csv.DictWriter(
-                fh, fieldnames=session.fieldnames, lineterminator=session.newline
-            )
+            writer = csv.DictWriter(fh, fieldnames=sheet.fieldnames, lineterminator=sheet.newline)
             writer.writeheader()
-            writer.writerows(session.rows)
-        shutil.copymode(session.path, tmp)
-        os.replace(tmp, session.path)
+            writer.writerows(sheet.rows)
+        shutil.copymode(sheet.path, tmp)
+        os.replace(tmp, sheet.path)
     except BaseException:
         # Re-raised: only the temporary file is cleaned up, the error is the caller's.
         Path(tmp).unlink(missing_ok=True)
@@ -162,15 +191,16 @@ def step(session: Session, key: str, ask: Callable[[str], str]) -> bool:
     if session.index >= len(session.rows):
         return True
     row = session.rows[session.index]
+    sheet = session.sheet_at(session.index)
     if key in LABELS:
         row["human_verdict"] = LABELS[key]
-        save(session)
+        save(sheet)
         session.index += 1
         session.show_extracts = False
     elif key == "c":
         typed = ask("Comment (Enter to keep, '-' to clear): ").strip()
         row[COMMENT] = "" if typed == "-" else (typed or row[COMMENT])
-        save(session)
+        save(sheet)
     elif key == "e":
         session.show_extracts = not session.show_extracts
     elif key in ("\r", "\n") and row["human_verdict"]:
@@ -234,7 +264,7 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="annotate.py", description=__doc__, formatter_class=argparse.RawTextHelpFormatter
     )
-    parser.add_argument("csv", type=Path)
+    parser.add_argument("csv", type=Path, nargs="+", help="one or more CSVs, one session")
     parser.add_argument("--review", action="store_true", help="walk every claim from claim 1")
     parser.add_argument("--from", dest="start", type=int, metavar="N", help="start at claim N")
     return parser
@@ -262,7 +292,8 @@ def main(argv: list[str] | None = None) -> int:
     # Ctrl-C is a way to quit: every answer is already on disk.
     with contextlib.suppress(KeyboardInterrupt):
         run(session, _terminal_keys(), _ask, out)
-    out(f"\nSaved {session.path} ({session.done}/{len(session.rows)} annotated).\n")
+    names = ", ".join(str(sheet.path) for sheet in session.sheets)
+    out(f"\nSaved {names} ({session.done}/{len(session.rows)} annotated).\n")
     return 0
 
 

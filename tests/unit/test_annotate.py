@@ -465,3 +465,121 @@ def test_review_screens_show_no_origin_id_or_extra_column(
     text = _plain(capsys.readouterr().out).lower()
     for word in ("perturb", "origin", "real", "judge", "date", "kind", "a01", "a02"):
         assert word not in text, word
+
+
+# --- one session over two CSVs ---------------------------------------------------------
+
+
+def _two(tmp_path: Path, first: list[str], second: list[str]) -> tuple[Path, Path]:
+    one = _csv(tmp_path, first)
+    two = one.with_name("annotate_morning_2.csv")
+    with two.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.writer(fh)
+        writer.writerow(COLUMNS)
+        for i, verdict in enumerate(second, start=1):
+            writer.writerow([f"B{i:02d}", f"Other {i}.", f"Text {i}.", f"[1] Y {i}", verdict])
+    return one, two
+
+
+def test_two_files_form_one_session_numbered_across_them(tmp_path: Path) -> None:
+    mod = _module()
+    one, two = _two(tmp_path, ["", ""], ["", "", ""])
+    session = mod.load([one, two])
+    assert len(session.rows) == 5 and session.index == 0
+    assert "1/5   (0 annotated)" in _plain(mod.render(session))
+    session.index = 2
+    assert "Other 1." in _plain(mod.render(session))  # first claim of the second file
+
+
+def test_each_answer_is_saved_to_the_file_its_claim_came_from(tmp_path: Path) -> None:
+    mod = _module()
+    one, two = _two(tmp_path, ["", ""], ["", ""])
+    second_before = two.read_bytes()
+    session = mod.load([one, two])
+    for key in "su":
+        mod.step(session, key, _no_input)
+    assert [r["human_verdict"] for r in _rows(one)] == ["supported", "unsupported"]
+    assert two.read_bytes() == second_before  # untouched until one of its claims changes
+    mod.step(session, "s", _no_input)
+    assert [r["human_verdict"] for r in _rows(two)] == ["supported", ""]
+    assert [r["item_id"] for r in _rows(two)] == ["B01", "B02"]  # order kept
+
+
+def test_two_file_session_resumes_across_the_boundary(tmp_path: Path) -> None:
+    mod = _module()
+    one, two = _two(tmp_path, ["supported", "supported"], ["unsupported", ""])
+    session = mod.load([one, two])
+    assert session.index == 3 and session.done == 3
+
+
+@pytest.mark.parametrize("key", ["b", "B"])
+def test_back_from_the_end_of_two_finished_files_crosses_back_into_the_first(
+    tmp_path: Path, key: str
+) -> None:
+    mod = _module()
+    one, two = _two(tmp_path, ["supported", "supported"], ["unsupported", "supported"])
+    session = mod.load([one, two])
+    assert session.index == 4  # finished screen
+    for _ in range(3):
+        mod.step(session, key, _no_input)
+    assert session.index == 1  # second claim of the first file
+    mod.step(session, "u", _no_input)
+    assert [r["human_verdict"] for r in _rows(one)] == ["supported", "unsupported"]
+
+
+def test_review_walks_both_files_and_from_counts_across_them(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    mod = _module()
+    one, two = _two(tmp_path, ["supported", "supported"], ["unsupported", "supported"])
+    assert _main(mod, monkeypatch, ["--review", "--from", "3", str(one), str(two)], "s\nq") == 0
+    assert [r["human_verdict"] for r in _rows(two)] == ["supported", "supported"]
+    assert [r["human_verdict"] for r in _rows(one)] == ["supported", "supported"]
+    out = _plain(capsys.readouterr().out)
+    assert "REVIEW   3/4" in out and "REVIEW   4/4" in out
+
+
+def test_the_same_file_twice_is_refused(tmp_path: Path) -> None:
+    mod = _module()
+    one = _csv(tmp_path, [""])
+    with pytest.raises(SystemExit, match="twice"):
+        mod.load([one, one])
+
+
+@pytest.mark.parametrize("args", [[], ["--review"], ["--review", "--from", "3"]])
+def test_a_two_file_session_opens_only_its_two_csvs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, args: list[str]
+) -> None:
+    mod = _module()
+    one, two = _two(tmp_path, ["supported", ""], ["", ""])
+    (tmp_path / "judge_key.json").write_text('{"A01": {"origin": "perturbed"}}')
+    (tmp_path / "perturbed_verdicts.json").write_text("{}")
+    opened: list[str] = []
+    real_open, real_os_open, real_read_bytes = builtins.open, os.open, Path.read_bytes
+
+    def spy_open(file: Any, *a: Any, **k: Any) -> Any:
+        if not isinstance(file, int):
+            opened.append(os.path.basename(str(file)))
+        return real_open(file, *a, **k)
+
+    def spy_os_open(file: Any, *a: Any, **k: Any) -> int:
+        opened.append(os.path.basename(str(file)))
+        return real_os_open(file, *a, **k)
+
+    def spy_read_bytes(self: Path) -> bytes:
+        opened.append(self.name)
+        return real_read_bytes(self)
+
+    monkeypatch.setattr(builtins, "open", spy_open)
+    monkeypatch.setattr(io, "open", spy_open)
+    monkeypatch.setattr(os, "open", spy_os_open)
+    monkeypatch.setattr(Path, "read_bytes", spy_read_bytes)
+    monkeypatch.setattr(Path, "read_text", lambda *_a, **_k: pytest.fail("read_text called"))
+    monkeypatch.setattr(os, "listdir", lambda *_a, **_k: pytest.fail("listdir called"))
+    monkeypatch.setattr(Path, "iterdir", lambda *_a, **_k: pytest.fail("iterdir called"))
+    monkeypatch.setattr(Path, "glob", lambda *_a, **_k: pytest.fail("glob called"))
+    assert _main(mod, monkeypatch, [*args, str(one), str(two)], "\nsusubq") == 0
+
+    assert {one.name, two.name} <= set(opened)
+    others = [n for n in opened if n not in (one.name, two.name)]
+    assert all(n.endswith(".tmp") and n.startswith("tmp") for n in others), others
