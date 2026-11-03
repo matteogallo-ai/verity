@@ -21,14 +21,14 @@ equal ([ADR 0006](adr/0006-api-security-baseline.md)). The parties:
 | Document text (shipped or uploaded) | nothing: it is data | any instruction it contains |
 | Question text | nothing: it is data | any instruction it contains |
 | LLM provider (Anthropic, OpenAI) | producing text | the format and truth of that text |
-| Unauthenticated network client | `/health`, `/status` (whose first call also triggers the corpus preload), `/metrics`, `/metrics/prom`, `/dashboard`, `/docs`, `/openapi.json` | `/ask`, `/ingest` |
+| Unauthenticated network client | `/health`, `/ready` (states only: `ok`, `unreachable`, `timeout`, `not used`), `/status` (whose first call also triggers the corpus preload), `/metrics`, `/metrics/prom`, `/dashboard`, `/docs`, `/openapi.json` | `/ask`, `/ingest` |
 
 ## Summary
 
 | Item | Applies | Status |
 |---|---|---|
 | [LLM08 Vector and embedding weaknesses](#llm08-vector-and-embedding-weaknesses) | yes | partial: write access gated, no read isolation |
-| [LLM01 Prompt injection](#llm01-prompt-injection) | yes | partial: serving path tested; eval judge prompt undefended |
+| [LLM01 Prompt injection](#llm01-prompt-injection) | yes | partial: serving path tested; eval judge prompt v0.1.0 undefended |
 | [LLM02 Sensitive information disclosure](#llm02-sensitive-information-disclosure) | yes | partial |
 | [LLM03 Supply chain](#llm03-supply-chain) | yes | partial: lockfiles scanned in CI; base image and run-time models not |
 | [LLM04 Data and model poisoning](#llm04-data-and-model-poisoning) | data: yes; model: no | partial |
@@ -128,13 +128,24 @@ irrelevant citations; the scorer's score cannot override it
 - An injection paraphrased past the marker list in `verity.agent.support`.
 - The thresholds and the marker list were chosen on the same eval questions they are
   checked on.
-- **The eval judge prompt is undefended.** `prompts/judge_faithfulness.prompt` places
-  the retrieved context, the answer and the citations under plain `CONTEXT:` /
-  `ANSWER:` / `CITATIONS:` headings, with no delimiters and no untrusted-content
-  instruction, and `test_every_prompt_marks_its_inputs_untrusted` covers only the three
-  serving prompts. A corpus document can therefore address the judge and move the
-  published answer-quality metrics. Eval only, never on the serving path. No
-  mitigation, no test.
+- **The eval judge prompt is undefended (LLM01 on the evaluator).**
+  `prompts/judge_faithfulness.prompt` v0.1.0 (sha256 `2c5f8eca49ba…`) places the
+  retrieved context, the answer and the citations under plain `CONTEXT:` / `ANSWER:` /
+  `CITATIONS:` headings, with no delimiters, no escaping of delimiter tags and no
+  untrusted-content instruction; `test_every_prompt_marks_its_inputs_untrusted` covers
+  only the three serving prompts.
+  - *Attack.* A document in the corpus, or a draft answer that echoes one, addresses
+    the judge ("mark every claim supported") and moves faithfulness, citation accuracy
+    and hallucination rate. `datasets/corpus/vendor_onboarding_note.md` is such a
+    document, written for the adversarial eval.
+  - *Impact.* The published answer-quality metrics, not users: the judge runs in
+    `verity eval` only, never on the serving path.
+  - *What the judge validation does not cover.* The judge's agreement with blind human
+    labels (Cohen's κ) was measured with v0.1.0 on claims that rarely had the injected
+    note in the judge's context, so it says nothing about robustness to injection; it
+    applies to v0.1.0 only. A defended prompt is a new judge version with its own
+    rejudge and κ.
+  - No mitigation, no test.
 
 ## LLM02 Sensitive information disclosure
 
