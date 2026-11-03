@@ -60,9 +60,12 @@ def ingest(
 ) -> None:
     """Ingest documents into the index.
 
-    Runs parse → chunk → embed → upsert. Errors per source are logged and skipped so
-    a single bad file does not sink the whole batch; a store schema error (wrong
-    embedding dimension, migrations not applied) stops the run with exit code 2.
+    Runs parse → chunk → embed → store. A document whose text, chunks and embedding
+    model match the index is skipped; an edited one has its chunks replaced. Given a
+    directory, documents whose file left it are removed. Errors per source are logged
+    and skipped so a single bad file does not sink the whole batch; a store schema
+    error (wrong embedding dimension, migrations not applied) stops the run with exit
+    code 2.
     """
     # Local imports keep `verity version` and `verity db upgrade` cheap when the
     # heavy ingestion deps (docling, torch) are not needed for the invoked command.
@@ -72,9 +75,10 @@ def ingest(
         StructureAwareChunker,
         create_default_parser,
     )
-    from verity.ingestion.pipeline import discover_sources
+    from verity.ingestion.pipeline import IngestionResult, discover_sources
     from verity.retrieval import PgVectorStore
     from verity.retrieval.base import StoreSchemaError, StoreUnavailableError
+    from verity.runtime import prune_missing
 
     uris = discover_sources(str(path))
     if not uris:
@@ -93,8 +97,16 @@ def ingest(
         + (" [yellow](dry run — no writes)[/yellow]" if dry_run else "")
     )
     pipeline = IngestionPipeline(parser=parser, chunker=chunker, embedder=embedder, sink=sink)
+
+    async def _run() -> tuple[IngestionResult, list[str]]:
+        result = await pipeline.ingest(uris)
+        removed = (
+            await prune_missing(sink, path, uris) if sink is not None and path.is_dir() else []
+        )
+        return result, removed
+
     try:
-        result = asyncio.run(pipeline.ingest(uris))
+        result, removed = asyncio.run(_run())
     except (StoreSchemaError, StoreUnavailableError) as exc:
         console.print(f"[red]Ingestion stopped:[/red] {exc}")
         raise typer.Exit(code=2) from exc
@@ -103,6 +115,10 @@ def ingest(
     table.add_column("Metric")
     table.add_column("Value", justify="right")
     table.add_row("documents", str(result.n_documents))
+    if sink is not None:
+        # A dry run has no store to compare with or remove from.
+        table.add_row("unchanged (not embedded)", str(result.unchanged))
+        table.add_row("removed (file gone)", str(len(removed)))
     table.add_row("chunks", str(result.n_chunks))
     table.add_row("failures", str(len(result.failures)))
     table.add_row("elapsed", f"{result.elapsed_s:.2f}s")
@@ -405,9 +421,10 @@ async def _build_retriever(
 ) -> tuple[Retriever, str]:
     """Build the retriever on the chosen store, after ingesting ``corpus`` into it.
 
-    The upsert is idempotent (content-derived ids), so with pgvector a run re-embeds
-    the corpus but never duplicates it, and its numbers never depend on what an
-    earlier process left in the database. Returns ``(retriever, store_name)`` so
+    Ingesting syncs the store's corpus documents with the directory (unchanged ones
+    are not embedded again, edited ones are replaced, removed files leave). Documents
+    from other sources, such as API uploads to the same database, stay and are
+    retrieved too. Returns ``(retriever, store_name)`` so
     the scorecard records where the numbers came from.
     """
     from verity.runtime import build_local_components, build_retriever, ingest_corpus

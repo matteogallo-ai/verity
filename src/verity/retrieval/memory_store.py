@@ -25,7 +25,8 @@ from collections.abc import Sequence
 import numpy as np
 from rank_bm25 import BM25Okapi
 
-from verity.retrieval.base import CorpusStore, DocumentSummary
+from verity.ingestion.ids import content_sha256
+from verity.retrieval.base import CorpusStore, DocumentSummary, IndexedDocument
 from verity.types import Chunk, Document, EmbeddedChunk, RetrievalHit, RetrieverKind
 
 _TOKEN_RE = re.compile(r"\w+")
@@ -42,6 +43,7 @@ class InMemoryVectorStore(CorpusStore):
         self._chunks: dict[str, Chunk] = {}
         self._documents: dict[str, Document] = {}
         self._embeddings: dict[str, np.ndarray] = {}
+        self._models: dict[str, str] = {}
         self._bm25: BM25Okapi | None = None
         self._bm25_order: list[str] = []
         self._bm25_dirty = True
@@ -51,11 +53,40 @@ class InMemoryVectorStore(CorpusStore):
             cid = str(embedded.chunk.id)
             self._chunks[cid] = embedded.chunk
             self._embeddings[cid] = np.asarray(embedded.embedding, dtype=np.float32)
+            self._models[cid] = embedded.model
         self._bm25_dirty = True
 
-    async def upsert_documents(self, documents: Sequence[Document]) -> None:
-        for document in documents:
-            self._documents[str(document.id)] = document
+    async def indexed_document(self, document_id: str) -> IndexedDocument | None:
+        document = self._documents.get(document_id)
+        if document is None:
+            return None
+        cids = self._chunk_ids_of(document_id)
+        return IndexedDocument(
+            content_sha256=content_sha256(document.text),
+            chunk_ids=frozenset(cids),
+            embedding_models=frozenset(self._models[c] for c in cids),
+        )
+
+    async def replace_document(self, document: Document, chunks: list[EmbeddedChunk]) -> None:
+        # Nothing awaits between the removal and the insert, so no reader sees the gap.
+        self._drop_chunks(str(document.id))
+        self._documents[str(document.id)] = document
+        await self.upsert(chunks)
+
+    async def delete_documents(self, document_ids: Sequence[str]) -> None:
+        for document_id in document_ids:
+            self._drop_chunks(document_id)
+            self._documents.pop(document_id, None)
+
+    def _chunk_ids_of(self, document_id: str) -> list[str]:
+        return [cid for cid, c in self._chunks.items() if str(c.document_id) == document_id]
+
+    def _drop_chunks(self, document_id: str) -> None:
+        for cid in self._chunk_ids_of(document_id):
+            del self._chunks[cid]
+            del self._embeddings[cid]
+            del self._models[cid]
+        self._bm25_dirty = True
 
     async def list_documents(self) -> list[DocumentSummary]:
         counts: dict[str, int] = {}
