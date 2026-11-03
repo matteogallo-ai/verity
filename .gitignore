@@ -36,3 +36,8 @@ out/
 # (datasets/eval/runs/live/) are artefacts of record.
 /datasets/eval/runs/eval_*.json
 /datasets/eval/runs/retrieval_*.json
+
+# Answer key and judge verdicts of the blind judge validation: never committed while the
+# human annotation is in progress.
+datasets/eval/judge_validation/judge_key.json
+datasets/eval/judge_validation/perturbed_verdicts.json
