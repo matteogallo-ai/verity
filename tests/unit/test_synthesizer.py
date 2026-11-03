@@ -7,6 +7,7 @@ from uuid import UUID
 
 import pytest
 
+from verity.agent.evidence import datamark
 from verity.agent.synthesizer import CitedSynthesizer, _parse_synth_output, _validate_citations
 from verity.llm.clients import StubLLMClient
 from verity.llm.routing import MultiProviderRoutingClient
@@ -140,7 +141,7 @@ async def test_synthesizer_calls_the_model_deterministically_without_scores() ->
     ((messages, max_tokens, temperature),) = client.calls
     assert (max_tokens, temperature) == (512, 0.0)
     rendered = "\n".join(m.content for m in messages)
-    assert "Foo bar baz." in rendered
+    assert datamark("Foo bar baz.") in rendered
     assert "score=" not in rendered
     expected_usage = UsageStats(input_tokens=3, output_tokens=2, llm_calls=1)
     assert synthesizer.last_usage == result.usage == expected_usage

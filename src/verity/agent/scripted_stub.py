@@ -19,6 +19,7 @@ import json
 import re
 from dataclasses import dataclass
 
+from verity.agent.evidence import DATAMARK
 from verity.agent.support import content_words
 from verity.llm.clients import Responder, StubLLMClient
 from verity.llm.routing import MultiProviderRoutingClient
@@ -222,7 +223,8 @@ def scripted_responder() -> Responder:
         if kind == "decompose":
             return json.dumps([question])
         if kind == "synthesize":
-            evidence = user_content
+            # Reads the datamarked evidence as a model does, words separated by spaces.
+            evidence = user_content.replace(DATAMARK, " ")
             theme = _match_theme(question, evidence)
             if theme is None:
                 return json.dumps(

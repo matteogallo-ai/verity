@@ -11,6 +11,13 @@ left-pointing angle quotation mark).
 The synthesizer and the confidence scorer show the model the same hits in the same
 order; the ``index`` is what a citation's ``chunk_index`` refers back to. The scorer
 also sees each hit's retrieval score.
+
+The synthesizer's evidence is also datamarked (spotlighting, Hines et al. 2024,
+arXiv:2403.14720): every whitespace run in retrieved text becomes :data:`DATAMARK`,
+which the synthesis prompt names. Delimiters say where a document starts and ends;
+the mark stays on every word in between, so an instruction a document writes still
+reads as document text however natural its wording. The scorer's evidence is not
+marked: its prompt is frozen and does not describe the mark.
 """
 
 from __future__ import annotations
@@ -20,6 +27,11 @@ import re
 from verity.types import RetrievalHit
 
 NO_EVIDENCE = "<evidence>\n(no evidence available)\n</evidence>"
+
+# The paper's mark. A document that writes it gets the ASCII caret instead, so it can
+# neither forge marked text nor hide a word boundary.
+DATAMARK = "\u02c6"
+_WHITESPACE_RE = re.compile(r"\s+")
 
 # Every element name the prompts use to delimit untrusted text.
 # Whitespace is allowed on both sides of the slash: a model reading "< /document>" may
@@ -36,29 +48,38 @@ def neutralise(text: str) -> str:
     return _TAG_RE.sub("\u2039", text)
 
 
+def datamark(text: str) -> str:
+    """``text`` with every whitespace run replaced by :data:`DATAMARK`."""
+    return _WHITESPACE_RE.sub(DATAMARK, text.replace(DATAMARK, "^"))
+
+
 def _attribute(value: str) -> str:
     return neutralise(value).replace('"', "'").replace("\n", " ")
 
 
-def render_evidence(hits: list[RetrievalHit], *, with_scores: bool) -> str:
+def render_evidence(
+    hits: list[RetrievalHit], *, with_scores: bool, datamarked: bool = False
+) -> str:
     """Render ``hits`` as ``<document>`` elements inside one ``<evidence>`` element.
 
     ``with_scores=False`` (synthesizer): ``<document index="i" section="...">``.
     ``with_scores=True`` (scorer): ``<document index="i" score="0.000" section="...">``.
     Chunk text is stripped of surrounding whitespace and neutralised; a missing section
-    renders as ``-``; an empty hit list renders as :data:`NO_EVIDENCE`.
+    renders as ``-``; an empty hit list renders as :data:`NO_EVIDENCE`. With
+    ``datamarked``, chunk text and section are passed through :func:`datamark`.
     """
+    mark = datamark if datamarked else (lambda text: text)
     if not hits:
         return NO_EVIDENCE
     blocks: list[str] = []
     for i, hit in enumerate(hits):
         score = f' score="{hit.score:.3f}"' if with_scores else ""
-        section = _attribute(hit.chunk.section or "-")
+        section = mark(_attribute(hit.chunk.section or "-"))
         blocks.append(
             f'<document index="{i}"{score} section="{section}">\n'
-            f"{neutralise(hit.chunk.text.strip())}\n</document>"
+            f"{mark(neutralise(hit.chunk.text.strip()))}\n</document>"
         )
     return "<evidence>\n" + "\n".join(blocks) + "\n</evidence>"
 
 
-__all__ = ["NO_EVIDENCE", "neutralise", "render_evidence"]
+__all__ = ["DATAMARK", "NO_EVIDENCE", "datamark", "neutralise", "render_evidence"]

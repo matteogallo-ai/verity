@@ -17,6 +17,7 @@ import pytest
 
 from tests.unit.test_agent import _seed_retriever
 from verity.agent.agent import create_default_agent
+from verity.agent.evidence import DATAMARK
 from verity.llm.clients import StubLLMClient
 from verity.llm.routing import MultiProviderRoutingClient
 from verity.retrieval import HybridRetriever
@@ -45,7 +46,7 @@ def _obedient(attack_answer: str | None, verdict: str, seen: list[str]) -> StubL
     """
 
     def _respond(messages: list[Message]) -> str:
-        system, user = messages[0].content.lower(), messages[-1].content
+        system, user = messages[0].content.lower(), messages[-1].content.replace(DATAMARK, " ")
         if "decompose" in system:
             seen.append("decompose")
             question = re.search(r"<question>\s*(.*?)\s*</question>", user, re.DOTALL)
