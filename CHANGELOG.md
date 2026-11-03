@@ -23,6 +23,9 @@ follows [Semantic Versioning](https://semver.org/).
   **SLO not met** with its cause, and the p95 latency is reported cold start included and
   warm, in separate rows, recomputed from the run's per-answer latencies. The v1.0.0 run of
   record misses both: 32.5 s cold start included, 22.4 s warm.
+- The README and system card say the run of record predates the support check and the
+  delimited prompts; claims C09, C24 and C25 state what they cover. Findings of a neutral
+  audit of `main` and what became of each: `docs/audit/2026-11-03-neutral-audit.md`.
 
 ### Fixed
 
@@ -32,6 +35,15 @@ follows [Semantic Versioning](https://semver.org/).
   errored answers.
 - Concurrent answers from one agent (the API) each report their own usage; the
   decompose usage of one could be reported by another.
+- The faithfulness judge read the string `"false"` as supported; a verdict is now a JSON
+  boolean or the string `true`/`false`, anything else makes the reply malformed.
+- A provider with no API key is left out of the default route: an OpenAI-only setup
+  answered `503` to every `/ask`. With no key at all, the router fails at construction.
+- PDF and DOCX conversion runs in a worker thread; it blocked every other request.
+- A judge outage during `verity eval run` errors that example instead of ending the run
+  and discarding its results.
+- Delimiter tags written with a space before the slash (`< /document>`) are neutralised.
+- `VERITY_DATABASE_URL` is held as a secret and no longer appears in printed settings.
 
 ### Security
 
