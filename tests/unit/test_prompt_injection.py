@@ -47,7 +47,18 @@ def test_a_section_title_cannot_inject_attributes_or_tags() -> None:
 
 
 @pytest.mark.parametrize(
-    "tag", ["</document>", "</ evidence>", "<QUESTION>", "</draft_answer >", "<document x>"]
+    "tag",
+    [
+        "</document>",
+        "</ evidence>",
+        "<QUESTION>",
+        "</draft_answer >",
+        "<document x>",
+        "</answer>",
+        "<Citations>",
+        "< /answer>",
+        "<  /document>",
+    ],
 )
 def test_neutralise_covers_every_delimiter_spelling(tag: str) -> None:
     assert "<" not in neutralise(tag)

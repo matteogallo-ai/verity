@@ -83,8 +83,8 @@ CI job `claims` runs those tests.
 | Citation accuracy, per claim | 0.963 | pooled over claims: 105/109 · 95 % CI [0.909, 0.986] · judge κ 0.71 vs blind human (n=60) |
 | Hallucination rate | 0.000 | ↓ better · answers with an unsupported claim / answered answerable questions: 0/31 · 95 % CI [0.000, 0.110] |
 | Unanswerable answered | 3/20 | ↓ better · an answer shipped where the corpus has none: 3/20 · 95 % CI [0.052, 0.360] |
-| Retrieval nDCG@8 | 0.929 | deterministic (no LLM) |
-| Retrieval recall@8 | 0.986 | deterministic |
+| Retrieval nDCG@8 | 0.929 | scored without an LLM on hits retrieved for the LLM sub-questions |
+| Retrieval recall@8 | 0.986 | as nDCG |
 | Retrieval precision@8 | 0.146 | k>gold ceiling; interpret with recall |
 | Latency p50 / p95 / p99 | 5445.7 ms / 8949.3 ms / 10929.3 ms | warm; cold start `8460.1 ms` measured separately |
 | Cost / query | $0.0132 | total $1.2768 = agent $0.7408 + judge $0.5360 |
@@ -122,7 +122,7 @@ labels is the result of record; an adjudication of the disagreements, published
 separately, does not replace it.
 
 <!-- JUDGE:START -->
-Judge `claude-opus-5-5` against **blind human labels**, the reference: 60 claims labelled without origin or judge verdict, 40 real claims from the test run and 20 claims perturbed to be false (one number, date, negation or entity changed).
+Judge `claude-opus-5-5` with judge prompt v0.1.0 (`prompts/judge_faithfulness.prompt`, sha256 `2c5f8eca49ba`) against **blind human labels**, the reference: 60 claims labelled without origin or judge verdict, 40 real claims (16 from the dev run, 24 from the test run) and 20 claims perturbed to be false (one number, date, negation or entity changed). The κ below belongs to this prompt version: a changed judge prompt is a new judge and needs its own κ.
 
 | Measure | Value | n · notes |
 |---|---|---|
@@ -137,6 +137,7 @@ Disagreements: the judge rejects 6 claims the human accepts and accepts 1 the hu
 
 - kappa has no Wilson interval: it is not a proportion; with 60 items it is uncertain by itself.
 - a perturbed claim counts as detected if any sub-claim the judge made of it is unsupported, even outside the changed span: sensitivity is an upper bound (per-claim detail in perturbed_verdicts.json).
+- robustness to injected content is not measured: judge prompt v0.1.0 puts the retrieved text in front of the judge without delimiters or an untrusted-content instruction ([THREAT_MODEL](docs/THREAT_MODEL.md#llm01-prompt-injection)), and only 4 of the 60 claims had the corpus note written to carry an injection in the judge's context.
 
 Generated from [`datasets/eval/judge_validation/agreement.json`](datasets/eval/judge_validation/agreement.json) (`scripts/render_judge_validation.py --check`); the labels and the key are pinned in `datasets/eval/judge_validation/SHA256SUMS`.
 <!-- JUDGE:END -->

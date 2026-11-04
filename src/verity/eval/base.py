@@ -6,8 +6,9 @@ accuracy, hallucination rate, refusal calibration, latency percentiles, and cost
 Runs are persisted with their git SHA so quality changes across commits are visible
 (regression tracking), exactly as a production AI team tracks its models.
 
-Design rule for CI reproducibility: retrieval and refusal metrics are deterministic and
-run with local embeddings + a stubbed judge, so the eval suite is free and gate-able in
+Design rule for CI reproducibility: with the stub agent and judge, retrieval and refusal
+metrics are deterministic (live, they follow the LLM's decisions) and run with local
+embeddings, so the eval suite is free and gate-able in
 CI. The published headline scorecard comes from a separate real run (real judge model),
 never fabricated.
 

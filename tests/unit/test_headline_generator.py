@@ -472,3 +472,14 @@ def test_block_prints_the_interval_and_n_next_to_each_proportion() -> None:
     assert "517/550 · 95 % CI [" in rows["Faithfulness, per claim"]
     assert "CI" not in rows["Faithfulness, per question"]
     assert "0/5 · 95 % CI [0.000, 0.434]" in rows["Unanswerable answered"]
+
+
+def test_retrieval_rows_do_not_claim_to_be_deterministic() -> None:
+    """Retrieval is scored on the agent's hits, which follow the LLM's sub-questions:
+    reruns of one commit move nDCG (datasets/eval/runs/noise/)."""
+    generator = _load_generator()
+    payload = json.loads(generator.DEFAULT_SCORECARD.read_text())
+    rows = [line for line in generator.render_block(payload).splitlines() if "| Retrieval" in line]
+    assert rows
+    assert not any("deterministic" in row for row in rows)
+    assert "LLM sub-questions" in rows[0]

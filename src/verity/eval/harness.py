@@ -3,14 +3,16 @@
 Runs the agent on every question in the labeled dataset and merges four
 independently-testable measurement tracks into one artefact:
 
-1. **Retrieval** (deterministic) — precision@k, recall@k, nDCG@k on the
-   answerable-and-labeled subset. Reuses :mod:`verity.eval.retrieval_metric`.
+1. **Retrieval** (scored without an LLM, on the hits retrieved for the LLM's
+   sub-questions) — precision@k, recall@k, nDCG@k on the answerable-and-labeled
+   subset. Reuses :mod:`verity.eval.retrieval_metric`.
 2. **Answer quality** (via injected :class:`FaithfulnessJudge`) — faithfulness,
    citation_accuracy, hallucination_rate. In ``--judge stub`` these come from the
    scripted mechanical judge and the Scorecard's ``judge_model`` records that
    explicitly (``stub-judge-v1``).
-3. **Refusal calibration** (deterministic) — refusal_precision + refusal_recall
-   from the (expected_answerable, observed_refused) pairs across the whole
+3. **Refusal calibration** (scored without an LLM, on the agent's decisions) —
+   refusal_precision + refusal_recall from the (expected_answerable,
+   observed_refused) pairs across the whole
    dataset, including the near-miss out-of-scope questions.
 4. **Operational** — latency percentiles from ``Answer.usage.latency_ms``,
    cost/query mean from ``Answer.usage.cost_usd`` (0.0 in stub mode).

@@ -29,7 +29,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from verity.agent.evidence import neutralise
+from verity.agent.evidence import DELIMITER_TAGS, neutralise
 from verity.types import Citation, RefusalReason, RetrievalHit, RetrieverKind
 
 _WORD_RE = re.compile(r"[a-z0-9]+")
@@ -37,7 +37,7 @@ _INJECTION_MARKERS = re.compile(
     r"""["'](?:score|refused|confidence|should_refuse)["']\s*:"""
     r"|ignore\s+(?:all\s+|any\s+)?(?:the\s+)?(?:previous|prior|above)\s+instructions"
     r"|^\s*(?:system|assistant)\s*:"
-    r"|\u2039\s*/?\s*(?:evidence|document|question|draft_answer)\b",
+    rf"|\u2039\s*/?\s*(?:{'|'.join(DELIMITER_TAGS)})\b",
     re.IGNORECASE | re.MULTILINE,
 )
 _STEM_LENGTH = 5
