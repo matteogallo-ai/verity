@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Smoke test of the Compose stack: build, bring up db → migrate → ingest → app, then
-# check /health, a non-empty corpus on /status (with the key), 401 without a key and one
-# stub /ask.
+# check /health, a non-empty corpus on /status (with the key), 401 without a key, one
+# stub /ask and a PDF upload (docling runs offline on the models baked into the image).
 # Used by the CI `docker` job; runnable locally. No provider key: the agent is the stub.
 set -euo pipefail
 
@@ -10,8 +10,10 @@ export VERITY_API_PORT="${VERITY_API_PORT:-8000}"
 project="${COMPOSE_PROJECT_NAME:-verity-smoke}"
 base="http://127.0.0.1:${VERITY_API_PORT}"
 key="docker-smoke-key-0123456789"
+pdf="$(mktemp)"
 
 cleanup() {
+  rm -f "$pdf"
   docker compose -p "$project" logs --no-color migrate ingest app | tail -n 60 || true
   docker compose -p "$project" down -v
 }
@@ -41,4 +43,14 @@ import json, sys
 answer = json.load(sys.stdin)["answer"]
 assert not answer["confidence"]["refused"] and answer["citations"], answer
 print("ask: answered with", len(answer["citations"]), "citation(s):", answer["text"][:80])
+'
+
+python3 "$(dirname "$0")/../tests/minimal_pdf.py" "The smoke test PDF says the escrow fee is 42 francs." >"$pdf"
+curl -fsS -X POST "$base/ingest" -H "X-API-Key: $key" \
+  -F "file=@${pdf};filename=smoke.pdf;type=application/pdf" \
+  | python3 -c '
+import json, sys
+record = json.load(sys.stdin)
+assert record["n_chunks"] > 0, record
+print("ingest pdf:", record["n_chunks"], "chunk(s), corpus", record["corpus"]["n_documents"], "documents")
 '

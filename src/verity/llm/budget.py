@@ -75,18 +75,14 @@ class SpendCappedClient(RoutingClient):
         """The wrapped router's clients, so provenance and estimates see through the cap."""
         return tuple(getattr(self._inner, "clients", ()))
 
-    async def complete(
-        self, messages: list[Message], *, max_tokens: int = 1024, temperature: float = 0.0
-    ) -> Completion:
+    async def complete(self, messages: list[Message], *, max_tokens: int = 1024) -> Completion:
         estimate = upper_cost_estimate(self.clients, messages, max_tokens=max_tokens)
         if self.spent.cost_usd + estimate > self._cap_usd:
             raise SpendCapExceededError(
                 f"spent ${self.spent.cost_usd:.4f} of the ${self._cap_usd:.4f} cap; the next "
                 f"call could cost up to ${estimate:.4f}, so it was not sent"
             )
-        completion = await self._inner.complete(
-            messages, max_tokens=max_tokens, temperature=temperature
-        )
+        completion = await self._inner.complete(messages, max_tokens=max_tokens)
         used = completion.usage
         self.spent = UsageStats(
             input_tokens=self.spent.input_tokens + used.input_tokens,

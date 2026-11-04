@@ -43,6 +43,7 @@ from verity.eval import (
     StubFaithfulnessJudge,
     load_full_dataset,
 )
+from verity.eval.run_store import load_run
 from verity.ingestion.chunker import StructureAwareChunker
 from verity.ingestion.embedder import LocalEmbedder
 from verity.ingestion.parsers import create_default_parser
@@ -198,6 +199,18 @@ async def test_judge_claims_bypassed_on_refusals_populated_otherwise() -> None:
 
 
 @pytest.mark.asyncio
+async def test_every_audit_record_carries_the_confidence_score_and_refusal_reason() -> None:
+    """The threshold sweep and calibration (ECE) are computed from the artefact, so
+    the scorer's score and the reason of each refusal must be stored, not only the
+    refused flag."""
+    result, _ = await _run_stub_harness()
+    for audit, answer in zip(result.per_audit, result.answers, strict=True):
+        assert answer.confidence is not None
+        assert audit.confidence_score == answer.confidence.score
+        assert audit.refusal_reason == answer.confidence.reason
+
+
+@pytest.mark.asyncio
 async def test_hits_used_persisted_for_every_example() -> None:
     """The retrieved chunks the agent had at its disposal are part of the
     audit record — a reader can inspect what evidence the agent saw without
@@ -241,6 +254,28 @@ async def test_run_store_round_trip_preserves_every_audit_field(tmp_path: Path) 
         assert back.judge_claims == original.judge_claims
         assert back.answer_metrics == original.answer_metrics
         assert back.usage == original.usage
+        assert back == original  # every field, including the ones added later
+    path = store.path_for(run.scorecard.git_sha, "questions")
+    assert load_run(path).per_audit == reloaded.per_audit
+
+
+@pytest.mark.asyncio
+async def test_the_artefact_holds_every_cost_the_scorecard_publishes(tmp_path: Path) -> None:
+    """The published total (agent + judge + errored examples) must be recomputable
+    from the saved run alone."""
+    result, _ = await _run_stub_harness()
+    run = result.as_eval_run()
+    assert all(a.judge_usage is not None for a in run.per_audit)
+    assert run.errored_cost_usd == result.errored_cost_usd
+
+    store = FileRunStore(tmp_path)
+    store.save(run)
+    reloaded = store.latest("questions")
+    assert reloaded is not None
+    assert reloaded.errored_cost_usd == run.errored_cost_usd
+    assert sum(a.judge_usage.cost_usd for a in reloaded.per_audit if a.judge_usage) == (
+        pytest.approx(result.judge_cost_usd)
+    )
 
 
 _STAGES = {"agent.decompose", "agent.retrieve", "agent.synthesize", "agent.confidence"}
@@ -310,8 +345,45 @@ def test_pre_v1_persisted_runs_load_without_per_audit(tmp_path: Path) -> None:
     assert "per_audit" not in payload
 
 
+@pytest.mark.asyncio
+async def test_scorecard_answer_quality_is_the_mean_over_judged_answers_only() -> None:
+    """The harness scorecard and the published headline use one definition: refusals
+    bypass the judge and are not averaged in at a conventional 1.0 (the v1.0.0
+    artefact said citation_accuracy 0.7917 where the headline said 0.722)."""
+    result, _ = await _run_stub_harness()
+    judged = [a for a in result.per_audit if a.judge_claims is not None]
+    assert len(judged) < len(result.per_audit), "the stub run must contain refusals"
+    expected = sum(a.answer_metrics.faithfulness for a in judged) / len(judged)
+    assert result.scorecard.answer.faithfulness == pytest.approx(expected)
+
+
+@pytest.mark.asyncio
+async def test_the_artefact_records_what_the_run_measured_with(tmp_path: Path) -> None:
+    """Dataset hash, prompt hashes, duration and per-example models survive a save and
+    load, so a published number can be tied to its exact inputs."""
+    result, _ = await _run_stub_harness()
+    assert set(result.prompt_sha256) == {p.stem for p in (REPO_ROOT / "prompts").glob("*.prompt")}
+    assert result.duration_s is not None and result.duration_s > 0
+    run = result.as_eval_run(dataset_sha256="d" * 64, confidence_threshold=0.4)
+    store = FileRunStore(tmp_path)
+    store.save(run)
+    back = load_run(store.path_for(run.scorecard.git_sha, run.scorecard.dataset))
+    assert back.dataset_sha256 == "d" * 64
+    assert back.prompt_sha256 == result.prompt_sha256
+    assert back.duration_s == result.duration_s
+    assert back.confidence_threshold == 0.4
+    answered = [a for a in back.per_audit if not a.refused]
+    assert answered and all(a.agent_model_used and a.judge_model_used for a in answered)
+
+
 @pytest.mark.parametrize(
-    "artefact", sorted(Path("datasets/eval/runs/live").glob("eval_*.json")), ids=lambda p: p.name
+    "artefact",
+    sorted(
+        p
+        for p in Path("datasets/eval/runs/live").glob("eval_*.json")
+        if not p.name.endswith(".recomputed.json")
+    ),
+    ids=lambda p: p.name,
 )
 def test_a_committed_run_of_record_resaves_byte_for_byte(artefact: Path, tmp_path: Path) -> None:
     """Fields added after a run was recorded must not rewrite it when it is saved again."""

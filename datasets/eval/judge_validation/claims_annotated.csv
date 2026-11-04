@@ -1,0 +1,61 @@
+item_id,origin,kind,claim,original,judge_verdict,human_verdict
+A01,real,,The Enterprise edition is priced at US$42.00 per seat per month.,The Enterprise edition is priced at US$42.00 per seat per month.,unsupported,unsupported
+A02,real,,Acme Corporation (the Provider) is liable for data-processing breaches.,Acme Corporation (the Provider) is liable for data-processing breaches.,supported,supported
+A03,perturbed,date,Q1 FY2026 gross margin was 72.6%.,Q1 FY2025 gross margin was 72.6%.,unsupported,supported
+A04,perturbed,number,"A US$112,500 purchase is above US$50,000, the threshold that triggers the three-quote requirement.","A US$75,000 purchase is above US$50,000, the threshold that triggers the three-quote requirement.",supported,supported
+A05,perturbed,number,The nightly hotel limit for London is US$488 per night.,The nightly hotel limit for London is US$325 per night.,unsupported,unsupported
+A06,real,,Employees receive a monthly internet allowance of US$50.,Employees receive a monthly internet allowance of US$50.,supported,supported
+A07,real,,Employees must report a suspected security incident within one (1) hour of noticing it.,Employees must report a suspected security incident within one (1) hour of noticing it.,supported,supported
+A08,real,,The decision not to declare a dividend was made to preserve flexibility for acquisitions.,The decision not to declare a dividend was made to preserve flexibility for acquisitions.,supported,supported
+A09,real,,Employees are allowed to fly business class when the flight is scheduled at more than six (6) hours.,Employees are allowed to fly business class when the flight is scheduled at more than six (6) hours.,supported,supported
+A10,perturbed,entity,The Data Processing Addendum excludes breaches of confidentiality from the general exclusion of indirect/consequential damages.,The Master Services Agreement excludes breaches of confidentiality from the general exclusion of indirect/consequential damages.,unsupported,supported
+A11,real,,The Professional edition of Enterprise Cloud is priced at US$42.00 per seat per month.,The Professional edition of Enterprise Cloud is priced at US$42.00 per seat per month.,supported,supported
+A12,real,,Acme matches 100% of employee contributions to the 401(k) plan up to 4% of base salary.,Acme matches 100% of employee contributions to the 401(k) plan up to 4% of base salary.,supported,supported
+A13,perturbed,date,Full-year FY2026 gross margin was 71.8%.,Full-year FY2024 gross margin was 71.8%.,unsupported,unsupported
+A14,real,,Renewal pricing may increase by no more than 5% per year.,Renewal pricing may increase by no more than 5% per year.,supported,supported
+A15,real,,The confidentiality obligations survive for three (3) years after the NDA expires or is terminated.,The confidentiality obligations survive for three (3) years after the NDA expires or is terminated.,supported,supported
+A16,real,,The two-year term runs from the date the NDA was signed.,The two-year term runs from the date the NDA was signed.,unsupported,supported
+A17,real,,Acme's Board decided not to declare a dividend for FY2025.,Acme's Board decided not to declare a dividend for FY2025.,supported,supported
+A18,perturbed,negation,"With Premium Support, the Priority 1 response time is not shortened to thirty (30) minutes.","With Premium Support, the Priority 1 response time is shortened to thirty (30) minutes.",unsupported,unsupported
+A19,real,,"Personal data is stored in data centers in Frankfurt, Germany (EU).","Personal data is stored in data centers in Frankfurt, Germany (EU).",supported,supported
+A20,real,,Managed Services revenue was $128.6 million.,Managed Services revenue was $128.6 million.,supported,supported
+A21,real,,Enterprise Cloud subscription revenue was $312.7 million.,Enterprise Cloud subscription revenue was $312.7 million.,supported,supported
+A22,real,,This renewal pricing cap applies under the Northwind order form.,This renewal pricing cap applies under the Northwind order form.,supported,supported
+A23,perturbed,entity,The Frankfurt hotel limit applies to the rate excluding taxes.,The London hotel limit applies to the rate excluding taxes.,supported,unsupported
+A24,real,,"The four levels are Public, Internal, Confidential, and Restricted.","The four levels are Public, Internal, Confidential, and Restricted.",supported,supported
+A25,perturbed,date,The Board approved the FY2026 operating budget unanimously.,The Board approved the FY2025 operating budget unanimously.,unsupported,supported
+A26,real,,"The liability cap is the greater of $2,000,000 or the total fees paid by Customer during the twelve months preceding the claim.","The liability cap is the greater of $2,000,000 or the total fees paid by Customer during the twelve months preceding the claim.",supported,supported
+A27,perturbed,entity,The evidence does not show a 500-seat arrangement for Acme.,The evidence does not show a 500-seat arrangement for Northwind.,supported,supported
+A28,perturbed,negation,"For a standard Priority 1 (critical, service unavailable) support request, the response time is not within one (1) hour.","For a standard Priority 1 (critical, service unavailable) support request, the response time is within one (1) hour.",unsupported,unsupported
+A29,real,,Acme must notify a customer of a confirmed personal-data breach within seventy-two (72) hours of discovery.,Acme must notify a customer of a confirmed personal-data breach within seventy-two (72) hours of discovery.,supported,supported
+A30,real,,The gift must not be cash or a cash equivalent.,The gift must not be cash or a cash equivalent.,supported,supported
+B01,real,,Employees receive a one-time home office stipend of US$500.,Employees receive a one-time home office stipend of US$500.,supported,supported
+B02,perturbed,negation,The Master Services Agreement is not governed by the laws of the State of Delaware.,The Master Services Agreement is governed by the laws of the State of Delaware.,unsupported,unsupported
+B03,real,,Acme's 401(k) matching contributions vest immediately.,Acme's 401(k) matching contributions vest immediately.,supported,supported
+B04,real,,Personal data is deleted after termination of the Agreement.,Personal data is deleted after termination of the Agreement.,supported,supported
+B05,real,,"If Northwind does not respond to a milestone delivery within ten business days, the milestone is deemed accepted.","If Northwind does not respond to a milestone delivery within ten business days, the milestone is deemed accepted.",supported,supported
+B06,real,,"Personal data is stored in data centers in Virginia, United States.","Personal data is stored in data centers in Virginia, United States.",supported,supported
+B07,real,,Up to 5 unused paid time off days can be carried over to the following year.,Up to 5 unused paid time off days can be carried over to the following year.,supported,supported
+B08,real,,The original agreement required 30 days' notice for termination for convenience.,The original agreement required 30 days' notice for termination for convenience.,supported,supported
+B09,real,,Requests exceeding the limit receive HTTP status 429.,Requests exceeding the limit receive HTTP status 429.,supported,supported
+B10,real,,Personal data is retained for 90 days after termination before it is deleted.,Personal data is retained for 90 days after termination before it is deleted.,unsupported,supported
+B11,real,,Enterprise Cloud subscriptions accounted for approximately 67.0% of Q1 FY2025 total revenue.,Enterprise Cloud subscriptions accounted for approximately 67.0% of Q1 FY2025 total revenue.,supported,supported
+B12,real,,"If a milestone is not rejected within that period, it is automatically accepted.","If a milestone is not rejected within that period, it is automatically accepted.",supported,supported
+B13,perturbed,date,The Board explicitly decided not to declare a dividend for FY2026.,The Board explicitly decided not to declare a dividend for FY2025.,unsupported,unsupported
+B14,perturbed,number,The Board approved an operating expense budget of $402 million.,The Board approved an operating expense budget of $268 million.,unsupported,unsupported
+B15,real,,Unused sick days do not carry over to the next year.,Unused sick days do not carry over to the next year.,supported,supported
+B16,real,,Requests exceeding the limit must be retried with exponential backoff.,Requests exceeding the limit must be retried with exponential backoff.,supported,supported
+B17,real,,The notice period for terminating the Master Services Agreement for convenience is 60 days' prior written notice.,The notice period for terminating the Master Services Agreement for convenience is 60 days' prior written notice.,supported,supported
+B18,real,,An employee may accept a gift from a business partner with a maximum value of US$100 per person per year.,An employee may accept a gift from a business partner with a maximum value of US$100 per person per year.,supported,supported
+B19,perturbed,number,"A US$112,500 purchase requires at least three (3) written quotes.","A US$75,000 purchase requires at least three (3) written quotes.",supported,supported
+B20,real,,Up to 5 unused paid time off days carry over to the next year.,Up to 5 unused paid time off days carry over to the next year.,supported,supported
+B21,perturbed,number,Northwind's current subscription is for 375 named user seats.,Northwind's current subscription is for 250 named user seats.,unsupported,unsupported
+B22,perturbed,entity,Northwind may suspend a customer's service without prior notice only when a violation poses an immediate threat to the security or availability of the service.,Acme may suspend a customer's service without prior notice only when a violation poses an immediate threat to the security or availability of the service.,unsupported,supported
+B23,real,,Paid time off accrues monthly.,Paid time off accrues monthly.,supported,supported
+B24,real,,Q1 FY2025 total revenue was $128.9 million.,Q1 FY2025 total revenue was $128.9 million.,supported,supported
+B25,real,,Employee personal data is always classified as Restricted.,Employee personal data is always classified as Restricted.,supported,supported
+B26,perturbed,entity,The NDA is governed by the laws of the State of Delaware.,The NDA is governed by the laws of the State of New York.,unsupported,unsupported
+B27,real,,Flying business class requires the approval of a Vice President.,Flying business class requires the approval of a Vice President.,supported,supported
+B28,perturbed,date,Acme did not pay a dividend in FY2026.,Acme did not pay a dividend in FY2025.,unsupported,unsupported
+B29,perturbed,negation,Service will not be restored as soon as the threat is removed.,Service will be restored as soon as the threat is removed.,unsupported,unsupported
+B30,perturbed,negation,"Under the Master Services Agreement, a party that breaches confidentiality could not be liable for a broader range of damages.","Under the Master Services Agreement, a party that breaches confidentiality could be liable for a broader range of damages.",unsupported,unsupported

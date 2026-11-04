@@ -29,10 +29,13 @@ src/verity/
   db/                 SQL migration runner
 prompts/              *.prompt files loaded by verity.llm.prompt
 migrations/           numbered SQL files (pgvector schema)
-datasets/corpus/      6 Markdown documents (one adversarial); datasets/eval/questions.jsonl: 19 labeled questions
+datasets/corpus/      21 documents (Markdown, PDF, DOCX; one adversarial), see datasets/CORPUS.md
+datasets/corpus_src/  Markdown sources of the PDF/DOCX documents
+datasets/eval/        questions.jsonl (95), frozen dev.jsonl / test.jsonl split
 scorecards/           committed live scorecard (source of the README table)
 scripts/              check_claims, check_stale_narrative, check_commit_messages,
-                      generate_headline_results, build_eval_labels
+                      generate_headline_results, build_eval_labels,
+                      build_corpus_documents, split_dataset
 tests/unit/           fast + slow lanes; tests/integration/ needs Postgres
 web/                  Next.js 15 UI (pnpm, vitest)
 ```
@@ -53,7 +56,14 @@ uv run python scripts/check_claims.py                      # CLAIMS.md ≡ passi
 uv run python scripts/check_claims.py --no-run             # structure only, no tests executed
 uv run python scripts/check_stale_narrative.py             # no sprint labels / future tense / bare TODO
 uv run python scripts/check_commit_messages.py main..HEAD  # Conventional Commits on the branch
-uv run python scripts/generate_headline_results.py --check # README + SYSTEM_CARD blocks ≡ scorecard
+uv run python scripts/generate_headline_results.py --check # scorecard ≡ artefact, README + SYSTEM_CARD blocks ≡ scorecards
+uv run python scripts/build_corpus_documents.py --check    # PDF/DOCX corpus ≡ sources
+uv run python scripts/split_dataset.py --check             # dev/test split ≡ seed
+uv run python scripts/recompute_live_aggregates.py --check # live runs: *.recomputed.json current
+uv run python scripts/refusal_analysis.py --check --dev datasets/eval/runs/live/eval_6ec544d_dev.json \
+  --test datasets/eval/runs/live/eval_969e1d5_test.json --out-json scorecards/refusal-analysis.json
+uv run python scripts/summarise_injection_runs.py --check  # injection runs + review ≡ scorecard
+uv run python -m tests.docling_fixture                     # refresh the parsed PDF/DOCX fixture of the fast lane
 VERITY_STORE=memory uv run verity eval run --ci            # pipeline smoke test on stubs (no keys, no db)
 VERITY_API_AUTH_DISABLED=true uv run verity serve --port 8000  # API on pgvector, dev: no auth, stub without LLM key
 make demo                                                  # pgvector + API + web UI, stub mode
@@ -69,7 +79,8 @@ cd web && corepack pnpm lint && corepack pnpm typecheck && corepack pnpm test
 - The README results block and the docs/SYSTEM_CARD.md block are generated; edit `scorecards/`
   or the generator, never the blocks.
 - Changing a non-comment line of a `prompts/*.prompt` file changes model behaviour.
-- `datasets/eval/runs/live/` holds runs of record; never overwrite them.
+- `datasets/eval/runs/live/` holds runs of record, pinned in its `SHA256SUMS`; never
+  modify them, even a derived aggregate. Recomputations go in `*.recomputed.json`.
 - A new README feature needs a `docs/CLAIMS.md` row with passing tests in the same PR.
 
 ## Appendix A — How coding agents must work in my repos

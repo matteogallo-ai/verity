@@ -1,5 +1,5 @@
 """Rendering of untrusted text (retrieved chunks, the question, a draft answer) into
-the delimited blocks the synthesis and confidence prompts expect.
+the delimited blocks the synthesis, confidence and eval-judge prompts expect.
 
 Retrieved text is data, not instructions: each chunk sits in its own
 ``<document index="i">`` element inside one ``<evidence>`` element, and the prompts
@@ -46,10 +46,13 @@ DATAMARK_NOTE = (
     "document, write its words with ordinary spaces."
 )
 
-# Every element name the prompts use to delimit untrusted text.
+# Every element name the prompts use to delimit untrusted text. One list for both
+# defences: what neutralise makes inert, verity.agent.support flags as an injection.
 # Whitespace is allowed on both sides of the slash: a model reading "< /document>" may
 # still take it for the closing tag.
-_TAG_RE = re.compile(r"<(?=\s*/?\s*(?:evidence|document|question|draft_answer)\b)", re.IGNORECASE)
+DELIMITER_TAGS = ("evidence", "document", "question", "draft_answer", "answer", "citations")
+_TAG_NAMES = "|".join(DELIMITER_TAGS)
+_TAG_RE = re.compile(rf"<(?=\s*/?\s*(?:{_TAG_NAMES})\b)", re.IGNORECASE)
 
 
 def neutralise(text: str) -> str:
@@ -100,4 +103,12 @@ def render_evidence(
     return "<evidence>\n" + "\n".join(blocks) + "\n</evidence>"
 
 
-__all__ = ["DATAMARK", "DATAMARK_NOTE", "NO_EVIDENCE", "datamark", "neutralise", "render_evidence"]
+__all__ = [
+    "DATAMARK",
+    "DATAMARK_NOTE",
+    "DELIMITER_TAGS",
+    "NO_EVIDENCE",
+    "datamark",
+    "neutralise",
+    "render_evidence",
+]

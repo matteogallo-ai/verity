@@ -1,4 +1,4 @@
-"""Confidence score + threshold-gated refusal decision.
+"""Confidence score and its refusal decision (model refusal, or score below the threshold).
 
 Wraps ``confidence.prompt`` and owns the single comparison against
 ``config.confidence_threshold`` that decides whether the agent ships an answer or a
@@ -57,7 +57,7 @@ class LLMConfidenceScorer(ConfidenceScorer):
             answer=neutralise(draft_answer),
             evidence=render_evidence(hits, with_scores=True),
         )
-        completion = await self._client.complete(messages, max_tokens=256, temperature=0.0)
+        completion = await self._client.complete(messages, max_tokens=256)
         self.last_usage = completion.usage
         raw = _parse_confidence(completion.text)
         if raw is None:

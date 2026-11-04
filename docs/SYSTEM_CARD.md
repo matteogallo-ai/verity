@@ -46,9 +46,9 @@ API (`/ask`, `/ingest`, `/status`) and a Next.js UI. Each shipped capability is 
 
 | Artefact | Content | Licence / terms |
 |---|---|---|
-| `datasets/corpus/` | 6 Markdown documents: an MSA, a DPA, an SLA, an employee handbook, an FY2024 financial summary (all naming a company "Acme Corporation"), and `vendor_onboarding_note.md`, an adversarial document with injected instructions | MIT, with the repository; their origin is not documented in the repository |
-| `datasets/eval/questions.jsonl` | 19 labelled questions: 11 answerable, 8 out-of-scope, 3 of those adversarial; gold chunk ids for every answerable one | MIT, with the repository |
-| Run of record | `datasets/eval/runs/live/eval_d0ca1d5_questions.json` and the scorecard below; q-001 to q-016 over the first 5 documents (it predates the adversarial document, the deterministic support check and the delimited prompts) | MIT, with the repository |
+| `datasets/corpus/` | 21 documents of a fictional company, "Acme Corporation", in contracts, HR and finance (Markdown, PDF, DOCX; the PDF and DOCX files are rendered from `datasets/corpus_src/`), one of them, `vendor_onboarding_note.md`, adversarial with injected instructions; see [`CORPUS.md`](../datasets/CORPUS.md) | MIT, written for the repository |
+| `datasets/eval/questions.jsonl` | 95 labelled questions: 62 answerable, 33 out-of-scope; gold chunk ids for every answerable one; split by a fixed seed into `dev.jsonl` (39) and `test.jsonl` (56) | MIT, with the repository |
+| Runs of record | `datasets/eval/runs/live/eval_6ec544d_dev.json` (dev split, where the thresholds were tuned) and `eval_969e1d5_test.json` (test split, the scorecard below); both used synthesize.prompt v0.2.0 and judge prompt v0.1.0, so they predate the datamarked evidence of synthesize.prompt v0.3.0 | MIT, with the repository |
 | Embedding model | `BAAI/bge-small-en-v1.5`, 384 dimensions, run locally | MIT (its model card) |
 | Reranker | `cross-encoder/ms-marco-MiniLM-L-6-v2`, run locally | stated on its model card; not vendored here |
 | Generation | `claude-sonnet-4-6` through the Anthropic API, `gpt-4.1-mini` as fallback | the providers' API terms; question and retrieved passages are sent to them |
@@ -58,33 +58,34 @@ The API does not detect or filter personal data in uploaded documents.
 ## Measured performance
 
 One live run, never averaged or re-run; read every value with its n and its interval.
-The answer-quality rows come from an LLM judge (named in the source line) that is not
-validated against human labels (claim C27, roadmap). Faithfulness and citation accuracy, as means of
+The answer-quality rows come from an LLM judge (named in the source line), validated
+against blind human labels on 60 claims for its prompt v0.1.0 (claim C27; the κ and its
+limits are in the README's "Judge validation"). Faithfulness and citation accuracy, as means of
 per-question fractions, are not proportions: they get n and no interval. A scorecard
 that stores per-claim counts gets a per-claim row instead, whose interval is too narrow
 because the claims of one answer are correlated.
 Definitions: [`evaluation-methodology.md`](evaluation-methodology.md).
 
 <!-- SYSTEM-CARD:START -->
-Source: [`scorecards/live-v1.0.0.json`](../scorecards/live-v1.0.0.json) · commit `d0ca1d5` · 2026-09-07 · agent `claude-sonnet-4-6 (16/16)` · judge `claude-sonnet-4-6 (12/16 answered — 4 refusals bypass the judge)` · n=16 (11 answerable + 5 out-of-scope).
+Source: [`scorecards/live-v1.1.0.json`](../scorecards/live-v1.1.0.json) · commit `969e1d5` · 2026-11-02 · agent `claude-sonnet-4-6 (56/56)` · judge `claude-opus-5-5 (34/56 answered — 22 refusals bypass the judge)` · n=56 (36 answerable + 20 out-of-scope).
 
 | Metric | Value | k/n | 95 % CI (Wilson) |
 |---|---:|---:|---:|
-| Refusal recall | 0.800 | 4/5 | [0.376, 0.964] |
-| Refusal precision | 1.000 | 4/4 | [0.510, 1.000] |
-| Out-of-scope answered ↓ | 0.200 | 1/5 | [0.036, 0.624] |
-| Hallucination rate ↓ (judge) | 0.000 | 0/11 | [0.000, 0.259] |
-| Faithfulness, per-question mean (judge) | 1.000 | n=12 | no interval |
-| Citation accuracy, per-question mean (judge) | 0.722 | n=12 | no interval |
-| Retrieval nDCG@8, per-question mean | 0.953 | n=11 | no interval |
-| Retrieval Recall@8, per-question mean | 1.000 | n=11 | no interval |
+| Refusal recall | 0.850 | 17/20 | [0.640, 0.948] |
+| Refusal precision | 0.773 | 17/22 | [0.566, 0.899] |
+| Out-of-scope answered ↓ | 0.150 | 3/20 | [0.052, 0.360] |
+| Hallucination rate ↓ (judge) | 0.000 | 0/31 | [0.000, 0.110] |
+| Faithfulness per claim (judge) | 0.991 | 108/109 | [0.950, 0.998] |
+| Citation accuracy per claim (judge) | 0.963 | 105/109 | [0.909, 0.986] |
+| Retrieval nDCG@8, per-question mean | 0.929 | n=36 | no interval |
+| Retrieval Recall@8, per-question mean | 0.986 | n=36 | no interval |
 
 | SLO | Target | Measured on the run of record | Status |
 |---|---|---|---|
-| p95 latency of one answer, cold start included | ≤ 15,000 ms (approved) | 32526.5 ms (n=16, no warmup: the first answer loads the models) | **SLO not met**: answers over 15,000 ms: q-003 37684.8 ms, q-001 30807.0 ms (first answer, model loading), q-006 15863.9 ms; the run recorded no per-stage timings or retries, so the time of q-003, q-006 is not attributed |
-| p95 latency of one answer, warm (cold start excluded) | ≤ 15,000 ms (approved) | 22410.1 ms (n=15, first answer left out) | **SLO not met**: answers over 15,000 ms: q-003 37684.8 ms, q-006 15863.9 ms; the run recorded no per-stage timings or retries, so the time of q-003, q-006 is not attributed |
-| Error rate (requests answered with neither an answer nor a refusal) | ≤ 1% (approved) | not recorded by this scorecard | not measured |
-| Cost per answer (agent calls; the judge is eval-only) | ≤ $0.02 (approved) | $0.0122 (mean, n=16) | met |
+| p95 latency of one answer, cold start included | ≤ 15,000 ms (approved) | not measured as one sample: the first answer after boot, timed apart, took 8460.1 ms | not measured |
+| p95 latency of one answer, warm (cold start excluded) | ≤ 15,000 ms (approved) | 8949.3 ms (n=56, after one warmup answer) | met |
+| Error rate (requests answered with neither an answer nor a refusal) | ≤ 1% (approved) | 0.000 (0/56, 95 % CI [0.000, 0.064]) | met |
+| Cost per answer (agent calls; the judge is eval-only) | ≤ $0.02 (approved) | $0.0132 (mean, n=56) | met |
 <!-- SYSTEM-CARD:END -->
 
 ## Service level objectives
@@ -93,10 +94,10 @@ The targets in the second table above are approved by the owner. A run that miss
 one is published as **SLO not met** with the cause the scorecard supports; the target
 is not moved to fit the run. The p95 is reported twice, cold start included and warm,
 because the first answer of a process that has not loaded the embedding and reranker
-models pays that load; the run of record was such a process (`--no-warmup`). The API
-loads them before `/ready` answers `200`. Each answer records its per-stage
-wall-clock and the retries the provider SDKs made; the run of record above predates
-both, and the latency SLO status stands until a run of record that has them. Nothing enforces or alerts on these targets. How each is measured on a
+models pays that load; the run of record timed that first answer apart and excluded it
+from the warm p95. The API loads them before `/ready` answers `200`. Each answer
+records its per-stage wall-clock and the retries the provider SDKs made; the run of
+record above predates both, so its latency is one wall-clock per answer. Nothing enforces or alerts on these targets. How each is measured on a
 running server, with the signals the code emits (responses: [`RUNBOOK.md`](RUNBOOK.md)):
 
 | SLO | Measured from | Caveat |
@@ -107,9 +108,11 @@ running server, with the signals the code emits (responses: [`RUNBOOK.md`](RUNBO
 
 ## Known limits
 
-- **Sample size.** The n in the table above; no dev/test split, and the confidence
-  threshold and the support-check thresholds were chosen on the same examples.
-- **Unvalidated judge.** Its agreement with human labels is not measured.
+- **Sample size.** The n in the table above, on the held-out test split; the confidence
+  threshold and the support-check thresholds were chosen on the dev split only.
+- **Judge validated on 60 claims only.** κ is measured for judge prompt v0.1.0; on
+  real claims alone it is fragile (few unsupported claims), and a changed judge prompt
+  needs its own κ.
 - **Uncalibrated confidence.** Refusal is threshold-gated on a self-reported score.
 - **Citation granularity.** A paragraph-level quote can cover several claims; the judge
   marks such citations not ok while the claim is supported.

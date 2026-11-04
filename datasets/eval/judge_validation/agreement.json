@@ -1,0 +1,121 @@
+{
+  "agreement_mixed": {
+    "cohen_kappa": 0.7099447513812154,
+    "confusion": {
+      "judge_supported/human_supported": 40,
+      "judge_supported/human_unsupported": 1,
+      "judge_unsupported/human_supported": 6,
+      "judge_unsupported/human_unsupported": 13
+    },
+    "n_claims": 60,
+    "observed": {
+      "ci95_wilson": [
+        0.7782,
+        0.9423
+      ],
+      "k": 53,
+      "n": 60,
+      "value": 0.883333
+    }
+  },
+  "agreement_real_only": {
+    "cohen_kappa": 0.48051948051948035,
+    "confusion": {
+      "judge_supported/human_supported": 37,
+      "judge_supported/human_unsupported": 0,
+      "judge_unsupported/human_supported": 2,
+      "judge_unsupported/human_unsupported": 1
+    },
+    "n_claims": 40,
+    "observed": {
+      "ci95_wilson": [
+        0.835,
+        0.9862
+      ],
+      "k": 38,
+      "n": 40,
+      "value": 0.95
+    }
+  },
+  "judge_without_verdict": [],
+  "notes": [
+    "kappa has no Wilson interval: it is not a proportion; with 60 items it is uncertain by itself",
+    "a perturbed claim counts as detected if any sub-claim the judge made of it is unsupported, even outside the changed span: sensitivity is an upper bound (per-claim detail in perturbed_verdicts.json)"
+  ],
+  "sensitivity": {
+    "by_kind": {
+      "date": {
+        "ci95_wilson": [
+          0.5655,
+          1.0
+        ],
+        "k": 5,
+        "n": 5,
+        "value": 1.0
+      },
+      "entity": {
+        "ci95_wilson": [
+          0.2307,
+          0.8824
+        ],
+        "k": 3,
+        "n": 5,
+        "value": 0.6
+      },
+      "negation": {
+        "ci95_wilson": [
+          0.5655,
+          1.0
+        ],
+        "k": 5,
+        "n": 5,
+        "value": 1.0
+      },
+      "number": {
+        "ci95_wilson": [
+          0.2307,
+          0.8824
+        ],
+        "k": 3,
+        "n": 5,
+        "value": 0.6
+      }
+    },
+    "human_unsupported": {
+      "ci95_wilson": [
+        0.4329,
+        0.8188
+      ],
+      "k": 13,
+      "n": 20,
+      "value": 0.65
+    },
+    "judge_detected": {
+      "ci95_wilson": [
+        0.584,
+        0.9193
+      ],
+      "k": 16,
+      "n": 20,
+      "value": 0.8
+    },
+    "judge_detected_among_human_unsupported": {
+      "ci95_wilson": [
+        0.6669,
+        0.9863
+      ],
+      "k": 12,
+      "n": 13,
+      "value": 0.923077
+    }
+  },
+  "specificity_real": {
+    "ci95_wilson": [
+      0.8311,
+      0.9858
+    ],
+    "k": 37,
+    "n": 39,
+    "value": 0.948718
+  }
+}

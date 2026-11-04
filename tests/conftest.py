@@ -14,6 +14,7 @@ import pytest
 import pytest_socket
 from hypothesis import HealthCheck, settings
 
+from verity.config import Settings
 from verity.types import (
     Chunk,
     Confidence,
@@ -23,6 +24,10 @@ from verity.types import (
     SourceType,
 )
 
+# A developer's .env may hold a real provider key; tests must never read it, or a
+# test meant to run keyless would reach a paid API (the slow and integration lanes
+# leave the network open). Settings in tests come from the environment only.
+Settings.model_config["env_file"] = None
 # Property tests run in the fast lane, so the default profile bounds them: the whole
 # lane must stay under 60 s. `derandomize` makes a CI failure reproducible from the
 # log alone. `thorough` is the opt-in deep search (HYPOTHESIS_PROFILE=thorough).

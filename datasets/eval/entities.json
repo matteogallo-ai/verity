@@ -1,0 +1,15 @@
+{
+  "_doc": "Names of the corpus by type, for the entity perturbation (verity.eval.perturb): a name is swapped only for another of the same type.",
+  "person": ["Dana Whitfield", "Elena Rossi", "Lena Park", "Maria Chen", "Robert Lang", "Tom Becker"],
+  "company": ["Acme Corporation", "Northwind Logistics Inc"],
+  "company_short": ["Acme", "Northwind"],
+  "jurisdiction": ["Delaware", "New York"],
+  "city": ["Frankfurt", "London", "San Francisco"],
+  "role": ["Chief Executive Officer", "Chief Financial Officer", "Chief Information Security Officer", "Chief Operating Officer", "Corporate Secretary", "Director", "Vice President"],
+  "role_short": ["CEO", "CFO", "CISO", "COO"],
+  "document": ["Acceptable Use Policy", "Data Processing Addendum", "Employee Handbook", "Information Security Policy", "Master Services Agreement", "Order Form", "Procurement Policy", "Remote Work Policy", "Service Level Agreement"],
+  "segment": ["Enterprise Cloud", "Managed Services"],
+  "edition": ["Business edition", "Enterprise edition", "Professional edition", "Standard edition"],
+  "leave": ["Bereavement Leave", "Parental Leave", "Sick Leave", "Unpaid Leave"],
+  "insurance": ["Disability Insurance", "Health Insurance"]
+}

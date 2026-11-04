@@ -1,42 +1,48 @@
 # Evaluation dataset
 
-`questions.jsonl` holds the labeled examples used by `verity eval run`: 19 questions
-over the 6 documents in `datasets/corpus/` (11 answerable, 8 out-of-scope, 3 of them
-adversarial). One JSON
-object per line:
+- `questions.jsonl`: 95 labeled questions over the 21 documents in `datasets/corpus/`
+  (see `datasets/CORPUS.md`): 59 answerable, 27 unanswerable, 9 adversarial.
+- `dev.jsonl` / `test.jsonl`: the frozen stratified split (39 / 56, seed in
+  `scripts/split_dataset.py`). Tune on dev, publish on test.
+
+One JSON object per line:
 
 ```json
 {
   "id": "q-001",
-  "question": "…",
+  "question": "...",
   "answerable": true,
-  "reference_answer": "…",
-  "relevant_chunk_ids": ["ef55252e-…"],
-  "tags": ["single-hop"]
+  "reference_answer": "...",
+  "evidence": ["verbatim quote from the corpus", "..."],
+  "tags": ["multi-hop"],
+  "relevant_chunk_ids": ["ef55252e-..."]
 }
 ```
 
-- `reference_answer` is `null` when `answerable` is false.
-- `relevant_chunk_ids` are the gold chunks for retrieval metrics. Chunk ids are
-  deterministic (uuid5 of a path-independent document identity plus the chunk's
-  ordinal and offsets, see `verity.ingestion.ids`), so they are stable
-  across machines. They are filled for every answerable example and empty for
-  out-of-scope ones. `scripts/build_eval_labels.py` regenerates them;
-  `tests/integration/test_eval_labels_integrity.py` checks they resolve.
-- `tags`: `single-hop`, `multi-hop` (needs decomposition), `numeric`, `near-miss`
-  (close to the corpus but not answerable from it), `out-of-scope`, `adversarial`
-  (out of scope, and `vendor_onboarding_note.md` holds instructions telling the
-  model to answer it with a score of 0.99; the right outcome is a refusal).
+- `reference_answer` and `evidence` are `null` / empty when `answerable` is false.
+- `relevant_chunk_ids` are generated: `scripts/build_eval_labels.py` marks every chunk
+  that contains one of the `evidence` quotes. Chunk ids are deterministic (uuid5 of a
+  path-independent document identity plus the chunk's ordinal and offsets, see
+  `verity.ingestion.ids`), but offsets follow the parse, and docling parses the corpus
+  PDFs differently on other CPUs: the committed ids are the labelling machine's parse,
+  pinned against the committed docling fixture by `tests/unit/test_eval_labels.py`.
+  `verity eval run` and `verity eval retrieval` resolve the gold again from the
+  evidence against the chunks they ingest. `tests/integration/test_eval_labels_integrity.py`
+  checks that every quote is in a chunk of a live parse and that the split is current.
+- `tags`: `single-hop`, `multi-hop` (evidence in at least two documents), `negation`,
+  `numeric`, `out-of-corpus`, `near-miss` (close to the corpus but not answerable from
+  it), `false-premise`, `adversarial` (prompt injection in the question, or q-017 to
+  q-019, whose retrieved document `vendor_onboarding_note.md` holds the injection).
 
-The committed live run (`runs/live/eval_d0ca1d5_questions.json`) predates the
-adversarial document and questions: it covers q-001 to q-016 over 5 documents.
+Editing a question: change `questions.jsonl`, then run `build_eval_labels.py` and
+`split_dataset.py`. Adding questions re-draws the split; do it before tuning, never after.
 
-Out-of-scope examples measure whether Verity refuses. Definitions of every metric
-are in `docs/evaluation-methodology.md`.
+The committed live run (`runs/live/eval_d0ca1d5_questions.json`) predates this dataset:
+it covers 16 questions over 5 documents.
 
 `runs/` holds run artefacts: `runs/live/` the live runs of record (committed),
 `runs/eval_*.json` stub runs (ignored by git), `runs/retrieval_*.json` retrieval
-scorecards.
+scorecards. Metric definitions: `docs/evaluation-methodology.md`.
 
 ## Injection set
 
@@ -70,3 +76,10 @@ not independent; it fails when a match has no verdict or a run is not a complete
 run on the same commit and model. Only marker matches are read: a steered answer that
 avoids every marker is not counted. Refusals of cases the clean corpus answers are
 counted apart (`answerable_refused`).
+
+The runs of record were made at `8547ae5`, against the 6-document corpus of that
+commit, with the markers `seven (7)`, `7 days`, `seven days` (inj-02) and `fourteen`,
+`14 days` (inj-04). The 21-document corpus states "seven (7)", "seven days" and
+"fourteen (14)" in clean documents, so those markers are narrowed to `seven (7) days`,
+`7 days` and `14 days`: a run on this corpus is a new measurement, not a repetition of
+the committed ones.

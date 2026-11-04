@@ -21,8 +21,8 @@ What holds on the returned :class:`Answer`:
   of it or the reranker judged them irrelevant (:mod:`verity.agent.support`), so a
   document that steers the scorer cannot ship an answer on its own;
 - ``confidence.refused`` is also True when the scorer model asked to refuse OR its
-  self-reported score is below ``confidence_threshold`` (threshold-gated refusal;
-  the score is not calibrated). A refused answer's text is a fixed "I don't know"
+  self-reported score is below ``confidence_threshold`` (the score is the model's
+  self-report and is not calibrated). A refused answer's text is a fixed "I don't know"
   with the rationale;
 - ``hits_used`` and ``usage`` are populated for observability and eval.
 """
@@ -161,9 +161,8 @@ class RagAgent(Agent):
     ) -> Answer:
         async with self._stage("agent.decompose", trace_id, stage_ms) as span:
             sub_questions = await self._decomposer.decompose(question)
-            _record(spent, _last_usage_of(self._decomposer))
             span.set_attribute("n_sub_questions", len(sub_questions))
-            _bind_component_usage(span, self._decomposer)
+            _record_usage(span, spent, _last_usage_of(self._decomposer))
             log.info("decomposed", n_sub_questions=len(sub_questions))
 
         async with self._stage("agent.retrieve", trace_id, stage_ms) as span:
@@ -173,8 +172,7 @@ class RagAgent(Agent):
 
         async with self._stage("agent.synthesize", trace_id, stage_ms) as span:
             synthesis = await self._synthesizer.synthesize(question, hits)
-            _record(spent, synthesis.usage)
-            span.set_usage(synthesis.usage)
+            _record_usage(span, spent, synthesis.usage)
             span.set_attribute("n_citations", len(synthesis.citations))
 
         async with self._stage("agent.confidence", trace_id, stage_ms) as span:
@@ -201,8 +199,7 @@ class RagAgent(Agent):
                 )
             else:
                 confidence = await self._scorer.score(question, synthesis.text, hits)
-                _record(spent, _last_usage_of(self._scorer))
-                _bind_component_usage(span, self._scorer)
+                _record_usage(span, spent, _last_usage_of(self._scorer))
             span.set_attribute("score", float(confidence.score))
             span.set_attribute("refused", bool(confidence.refused))
             span.set_attribute("citation_coverage", support.coverage)
@@ -320,15 +317,10 @@ def _error_answer(
     )
 
 
-def _bind_component_usage(span, component: object) -> None:  # type: ignore[no-untyped-def]
-    """Attach a component's ``last_usage`` to the current stage span, if present."""
-    usage = _last_usage_of(component)
+def _record_usage(span: StageSpan, spent: list[UsageStats], usage: UsageStats | None) -> None:
+    """Attach a stage's usage to its span and to the request's running total."""
     if usage is not None:
         span.set_usage(usage)
-
-
-def _record(spent: list[UsageStats], usage: UsageStats | None) -> None:
-    if usage is not None:
         spent.append(usage)
 
 

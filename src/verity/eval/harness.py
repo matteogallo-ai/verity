@@ -3,14 +3,16 @@
 Runs the agent on every question in the labeled dataset and merges four
 independently-testable measurement tracks into one artefact:
 
-1. **Retrieval** (deterministic) — precision@k, recall@k, nDCG@k on the
-   answerable-and-labeled subset. Reuses :mod:`verity.eval.retrieval_metric`.
+1. **Retrieval** (scored without an LLM, on the hits retrieved for the LLM's
+   sub-questions) — precision@k, recall@k, nDCG@k on the answerable-and-labeled
+   subset. Reuses :mod:`verity.eval.retrieval_metric`.
 2. **Answer quality** (via injected :class:`FaithfulnessJudge`) — faithfulness,
    citation_accuracy, hallucination_rate. In ``--judge stub`` these come from the
    scripted mechanical judge and the Scorecard's ``judge_model`` records that
    explicitly (``stub-judge-v1``).
-3. **Refusal calibration** (deterministic) — refusal_precision + refusal_recall
-   from the (expected_answerable, observed_refused) pairs across the whole
+3. **Refusal calibration** (scored without an LLM, on the agent's decisions) —
+   refusal_precision + refusal_recall from the (expected_answerable,
+   observed_refused) pairs across the whole
    dataset, including the near-miss out-of-scope questions.
 4. **Operational** — latency percentiles from ``Answer.usage.latency_ms``,
    cost/query mean from ``Answer.usage.cost_usd`` (0.0 in stub mode).
@@ -22,6 +24,7 @@ regressions.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Literal
@@ -30,6 +33,7 @@ import structlog
 
 from verity.agent.base import Agent
 from verity.config import get_settings
+from verity.eval.answer_quality import answer_quality
 from verity.eval.base import Evaluator, FaithfulnessJudge
 from verity.eval.refusal import RefusalOutcome, build_confusion
 from verity.eval.retrieval_metric import (
@@ -38,6 +42,7 @@ from verity.eval.retrieval_metric import (
     macro_average,
 )
 from verity.llm.base import AuthenticationError, LLMError
+from verity.llm.prompt import prompt_sha256
 from verity.types import (
     Answer,
     AnswerMetrics,
@@ -115,9 +120,8 @@ class HarnessResult:
     per_retrieval: list[PerExampleScore] = field(default_factory=list)
     per_answer: list[PerExampleAnswerMetrics] = field(default_factory=list)
     per_refusal: list[PerExampleRefusal] = field(default_factory=list)
-    # Per-call judge cost accumulator — the harness sums it across the loop so
-    # ``total_cost_usd = sum(a.usage.cost_usd for a in answers) + judge_cost_usd``
-    # is exact. Zero in ``--judge stub`` mode.
+    # Per-call judge cost accumulator: the run's total cost is the scored answers'
+    # cost + ``errored_cost_usd`` + this. Zero in ``--judge stub`` mode.
     judge_cost_usd: float = 0.0
     # Per-call judge provenance stamps — one entry per dataset example. Used by
     # ``build_headline_dict`` to emit a truthful aggregate ("who actually
@@ -127,10 +131,24 @@ class HarnessResult:
     # RE-READ later without re-spending on the judge. Serialised verbatim
     # into ``EvalRun.per_audit`` by :meth:`as_eval_run`.
     per_audit: list[PerExampleAudit] = field(default_factory=list)
+    prompt_sha256: dict[str, str] = field(default_factory=dict)
+    duration_s: float | None = None
     # Examples paid for but not scored (agent or judge outage), in dataset order.
     errored: list[ErroredExample] = field(default_factory=list)
 
-    def as_eval_run(self, *, notes: str | None = None) -> EvalRun:
+    @property
+    def errored_cost_usd(self) -> float:
+        """Agent cost of the examples paid for but not scored: their calls before the
+        error were billed, and ``answers`` holds only the scored examples."""
+        return round(sum(e.usage.cost_usd for e in self.errored), 6)
+
+    def as_eval_run(
+        self,
+        *,
+        notes: str | None = None,
+        dataset_sha256: str | None = None,
+        confidence_threshold: float | None = None,
+    ) -> EvalRun:
         return EvalRun(
             scorecard=self.scorecard,
             embedding_model=self.embedding_model,
@@ -139,6 +157,10 @@ class HarnessResult:
             notes=notes,
             per_audit=tuple(self.per_audit),
             errored=tuple(self.errored),
+            dataset_sha256=dataset_sha256,
+            prompt_sha256=self.prompt_sha256,
+            duration_s=self.duration_s,
+            confidence_threshold=confidence_threshold,
         )
 
 
@@ -202,6 +224,8 @@ class AgentEvaluator(Evaluator):
             cold_start_ms = await agent_warmup(self._agent)
             log.info("harness_warmup_done", cold_start_ms=cold_start_ms)
 
+        prompts = prompt_sha256()
+        started = time.monotonic()
         errored: list[ErroredExample] = []
         budget_message: str | None = None
         for example in dataset:
@@ -301,6 +325,8 @@ class AgentEvaluator(Evaluator):
                     answer_text=answer.text,
                     refused=confidence.refused,
                     refusal_rationale=(confidence.rationale if confidence.refused else ""),
+                    confidence_score=confidence.score,
+                    refusal_reason=confidence.reason,
                     citations=answer.citations,
                     hits_used=answer.hits_used,
                     judge_claims=(
@@ -308,6 +334,9 @@ class AgentEvaluator(Evaluator):
                     ),
                     answer_metrics=answer_metrics,
                     usage=answer.usage,
+                    judge_usage=judge_last_usage,
+                    agent_model_used=answer.model_used,
+                    judge_model_used=getattr(self._judge, "last_model", None),
                     stage_ms=answer.stage_ms,
                 )
             )
@@ -318,10 +347,11 @@ class AgentEvaluator(Evaluator):
             if budget_message:
                 break
 
+        duration_s = round(time.monotonic() - started, 3)
         retrieval_agg = _aggregate_retrieval(per_retrieval, k=self._k)
-        answer_agg = _aggregate_answer(per_answer, per_refusal)
+        answer_agg = _aggregate_answer(per_audit, per_refusal)
         latency = _latency_percentiles(answers)
-        cost_per_query = _mean_cost(answers)
+        cost_per_query = _mean_cost(answers, errored)
 
         scorecard = Scorecard(
             git_sha=git_sha,
@@ -354,6 +384,8 @@ class AgentEvaluator(Evaluator):
             judge_cost_usd=round(judge_cost_usd, 6),
             judge_stamps=judge_stamps,
             per_audit=per_audit,
+            prompt_sha256=prompts,
+            duration_s=duration_s,
             errored=errored,
         )
         if budget_message:
@@ -383,17 +415,15 @@ def _aggregate_retrieval(per_example: list[PerExampleScore], *, k: int) -> Retri
 
 
 def _aggregate_answer(
-    per_answer: list[PerExampleAnswerMetrics],
+    per_audit: list[PerExampleAudit],
     per_refusal: list[PerExampleRefusal],
 ) -> AnswerMetrics:
-    """Mean faithfulness / citation_accuracy / hallucination_rate + real refusal metrics."""
-    if per_answer:
-        n = float(len(per_answer))
-        faithfulness = sum(p.metrics.faithfulness for p in per_answer) / n
-        citation_accuracy = sum(p.metrics.citation_accuracy for p in per_answer) / n
-        hallucination_rate = sum(p.metrics.hallucination_rate for p in per_answer) / n
-    else:
-        faithfulness = citation_accuracy = hallucination_rate = 0.0
+    """Macro answer quality as defined in :mod:`verity.eval.answer_quality` (0.0 when
+    nothing was judged, since the scorecard field is a float) + refusal metrics."""
+    quality = answer_quality(per_audit)
+    faithfulness = quality.faithfulness_macro.value or 0.0
+    citation_accuracy = quality.citation_accuracy_macro.value or 0.0
+    hallucination_rate = quality.hallucination_rate.value or 0.0
 
     outcomes = [
         RefusalOutcome(
@@ -462,11 +492,14 @@ def _check_budget(
     return None
 
 
-def _mean_cost(answers: list[Answer]) -> float:
-    if not answers:
+def _mean_cost(answers: list[Answer], errored: list[ErroredExample]) -> float:
+    """Mean agent cost per attempted question: an errored example was attempted and
+    its calls before the error were billed."""
+    attempted = len(answers) + len(errored)
+    if not attempted:
         return 0.0
-    total = sum(a.usage.cost_usd for a in answers)
-    return float(total) / len(answers)
+    total = sum(a.usage.cost_usd for a in answers) + sum(e.usage.cost_usd for e in errored)
+    return float(total) / attempted
 
 
 __all__ = [

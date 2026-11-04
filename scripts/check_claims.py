@@ -4,7 +4,8 @@ What it verifies:
 1. Every row of the claims table has a unique ID (``C<nn>``) and a status of
    ``shipped`` or ``roadmap``.
 2. Every ``shipped`` claim lists at least one test.
-3. Every listed pytest test file exists, and every listed node id passes when run
+3. Every listed pytest test file exists and defines the listed test (read with
+   ``ast``, also under ``--no-run``), and every listed node id passes when run
    explicitly: the whole set runs in one pytest call (markers are not filtered, so
    ``slow`` and ``integration`` tests run too, which needs Postgres), and the JUnit
    report is mapped back to each claim. A node id with no result is ``missing``
@@ -30,6 +31,7 @@ Exit 0 when every check passes, 1 otherwise; each problem is printed on its own 
 from __future__ import annotations
 
 import argparse
+import ast
 import re
 import subprocess
 import sys
@@ -200,13 +202,42 @@ def run_pytest(nodeids: list[str], root: Path) -> tuple[dict[str, str], str]:
     return outcomes, proc.stdout + proc.stderr
 
 
+def _defined(path: Path, parts: list[str]) -> bool:
+    """Whether ``path`` defines the class/function chain ``parts``, read with ``ast``:
+    no import, so it needs neither Postgres nor the models the test itself needs. A
+    test method a class inherits from a base class reads as not defined."""
+    body: list[ast.stmt] = ast.parse(path.read_text(encoding="utf-8")).body
+    for i, name in enumerate(parts):
+        node = next(
+            (
+                n
+                for n in body
+                if isinstance(n, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef)
+                and n.name == name.split("[", 1)[0]
+            ),
+            None,
+        )
+        if node is None:
+            return False
+        if i < len(parts) - 1:
+            if not isinstance(node, ast.ClassDef):
+                return False
+            body = node.body
+    return True
+
+
 def check_tests(claims: list[Claim], root: Path, *, run: bool) -> list[str]:
     problems: list[str] = []
     for claim in claims:
         for test in claim.tests:
-            path = root / test.split("::", 1)[0]
+            file, _, rest = test.partition("::")
+            path = root / file
             if not path.is_file():
                 problems.append(f"{claim.claim_id}: test file not found: {test}")
+            elif rest and file.endswith(".py") and not _defined(path, rest.split("::")):
+                # pytest aborts the whole run on one unknown node id: catch it here,
+                # where no database is needed.
+                problems.append(f"{claim.claim_id}: test not defined in its file: {test}")
     if problems or not run:
         return problems
 

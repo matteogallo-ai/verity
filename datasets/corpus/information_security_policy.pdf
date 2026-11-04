@@ -1,0 +1,69 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [5 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 6 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> >>
+endobj
+6 0 obj
+<< /Length 3036 >>
+stream
+BT /F2 16 Tf 72 698 Td (Information Security Policy) Tj ET
+BT /F1 11 Tf 72 675 Td (Policy owner: Chief Information Security Officer. Version 5.0, effective February 1,) Tj ET
+BT /F1 11 Tf 72 660 Td (2025. Applies to all employees, contractors and systems of Acme Corporation.) Tj ET
+BT /F2 13 Tf 72 638 Td (1. Data Classification) Tj ET
+BT /F1 11 Tf 72 615 Td (Acme classifies information into four levels: Public, Internal, Confidential and) Tj ET
+BT /F1 11 Tf 72 600 Td (Restricted. Customer data and employee personal data are always Restricted. Restricted) Tj ET
+BT /F1 11 Tf 72 585 Td (data may only be stored in approved production systems and may never be copied to) Tj ET
+BT /F1 11 Tf 72 570 Td (personal devices.) Tj ET
+BT /F2 13 Tf 72 548 Td (2. Passwords and Authentication) Tj ET
+BT /F1 11 Tf 72 525 Td (Passwords must be at least fourteen \(14\) characters long. Multi-factor authentication is) Tj ET
+BT /F1 11 Tf 72 510 Td (required for every company system that supports it, including email, source control and) Tj ET
+BT /F1 11 Tf 72 495 Td (the VPN. Passwords are not rotated on a schedule; they must be changed immediately when) Tj ET
+BT /F1 11 Tf 72 480 Td (a compromise is suspected.) Tj ET
+BT /F2 13 Tf 72 458 Td (3. Devices) Tj ET
+BT /F1 11 Tf 72 435 Td (Company laptops must use full-disk encryption, automatic screen lock after five \(5\)) Tj ET
+BT /F1 11 Tf 72 420 Td (minutes of inactivity and the managed endpoint protection agent. Lost or stolen devices) Tj ET
+BT /F1 11 Tf 72 405 Td (must be reported to the IT service desk within four \(4\) hours.) Tj ET
+BT /F2 13 Tf 72 383 Td (4. Access Control) Tj ET
+BT /F1 11 Tf 72 360 Td (Access is granted on a least-privilege basis and reviewed every quarter by the system) Tj ET
+BT /F1 11 Tf 72 345 Td (owner. Access for departing employees is revoked on their last working day.) Tj ET
+BT /F2 13 Tf 72 323 Td (5. Incident Reporting) Tj ET
+BT /F1 11 Tf 72 300 Td (Employees must report any suspected security incident to security@acme.example within) Tj ET
+BT /F1 11 Tf 72 285 Td (one \(1\) hour of noticing it. The security team classifies incidents by severity and) Tj ET
+BT /F1 11 Tf 72 270 Td (leads the response.) Tj ET
+BT /F2 13 Tf 72 248 Td (6. Training) Tj ET
+BT /F1 11 Tf 72 225 Td (All employees complete security awareness training when they join and every year after) Tj ET
+BT /F1 11 Tf 72 210 Td (that. Employees who fail a simulated phishing test complete a short refresher course) Tj ET
+BT /F1 11 Tf 72 195 Td (within fourteen \(14\) days.) Tj ET
+BT /F2 13 Tf 72 173 Td (7. Vendors) Tj ET
+BT /F1 11 Tf 72 150 Td (A vendor that will process Confidential or Restricted data must pass a security review) Tj ET
+BT /F1 11 Tf 72 135 Td (before a contract is signed. The review is repeated every two \(2\) years.) Tj ET
+BT /F2 13 Tf 72 113 Td (8. Exceptions) Tj ET
+BT /F1 11 Tf 72 90 Td (Exceptions to this policy require written approval from the Chief Information Security) Tj ET
+BT /F1 11 Tf 72 75 Td (Officer and expire after twelve \(12\) months.) Tj ET
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000212 00000 n 
+0000000314 00000 n 
+0000000450 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+3538
+%%EOF

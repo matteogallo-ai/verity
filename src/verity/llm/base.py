@@ -39,9 +39,7 @@ class LLMClient(Protocol):
     @property
     def model(self) -> str: ...
 
-    async def complete(
-        self, messages: list[Message], *, max_tokens: int = 1024, temperature: float = 0.0
-    ) -> Completion: ...
+    async def complete(self, messages: list[Message], *, max_tokens: int = 1024) -> Completion: ...
 
 
 @runtime_checkable
@@ -55,6 +53,4 @@ class RoutingClient(Protocol):
       * if all providers are exhausted, raise the last transient error.
     """
 
-    async def complete(
-        self, messages: list[Message], *, max_tokens: int = 1024, temperature: float = 0.0
-    ) -> Completion: ...
+    async def complete(self, messages: list[Message], *, max_tokens: int = 1024) -> Completion: ...

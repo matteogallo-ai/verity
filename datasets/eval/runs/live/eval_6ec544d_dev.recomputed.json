@@ -1,0 +1,39 @@
+{
+  "definition": "verity.eval.answer_quality (docs/evaluation-methodology.md)",
+  "recomputed": {
+    "citation_accuracy_macro": {
+      "denominator": 21,
+      "numerator": 19.716666666666665,
+      "value": 0.9388888888888888
+    },
+    "citation_accuracy_micro": {
+      "denominator": 55,
+      "numerator": 51,
+      "value": 0.9272727272727272
+    },
+    "faithfulness_macro": {
+      "denominator": 21,
+      "numerator": 20.166666666666668,
+      "value": 0.9603174603174603
+    },
+    "faithfulness_micro": {
+      "denominator": 55,
+      "numerator": 53,
+      "value": 0.9636363636363636
+    },
+    "hallucination_rate": {
+      "denominator": 20,
+      "numerator": 2.0,
+      "value": 0.1
+    },
+    "n_judged": 21,
+    "n_judged_without_claims": 0
+  },
+  "source": "eval_6ec544d_dev.json",
+  "source_sha256": "c48fc64776890e063f563b079c73952e786b9e68eb56e677356b74231e2c7a19",
+  "stored": {
+    "citation_accuracy": 0.9388888888888888,
+    "faithfulness": 0.9603174603174603,
+    "hallucination_rate": 0.1
+  }
+}

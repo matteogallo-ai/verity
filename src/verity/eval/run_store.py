@@ -175,26 +175,58 @@ def _run_to_dict(run: EvalRun) -> dict[str, object]:
     # ``mode="json"`` serialises UUIDs, tuples etc. into JSON-friendly primitives.
     if run.per_audit:
         payload["per_audit"] = [
-            _without_unset_timings(a.model_dump(mode="json")) for a in run.per_audit
+            _without_unset_fields(a.model_dump(mode="json")) for a in run.per_audit
         ]
     if run.errored:
-        payload["errored"] = [
-            _without_unset_timings(e.model_dump(mode="json")) for e in run.errored
-        ]
+        payload["errored"] = [_without_unset_fields(e.model_dump(mode="json")) for e in run.errored]
+    # Written only when set, so files from earlier runs keep their exact bytes.
+    if run.dataset_sha256 is not None:
+        payload["dataset_sha256"] = run.dataset_sha256
+    if run.prompt_sha256:
+        payload["prompt_sha256"] = dict(sorted(run.prompt_sha256.items()))
+    if run.duration_s is not None:
+        payload["duration_s"] = run.duration_s
+    if run.confidence_threshold is not None:
+        payload["confidence_threshold"] = run.confidence_threshold
     return payload
 
 
-def _without_unset_timings(record: dict[str, object]) -> dict[str, object]:
-    """Drop ``stage_ms`` and ``usage.retries`` when they carry nothing.
+# Audit fields added together: a record from before them has every one of them unset,
+# while a later record always has a confidence score.
+_PROVENANCE_FIELDS = (
+    "confidence_score",
+    "refusal_reason",
+    "judge_usage",
+    "agent_model_used",
+    "judge_model_used",
+)
+
+
+def _without_unset_fields(record: dict[str, object]) -> dict[str, object]:
+    """Drop ``stage_ms``, the ``retries`` of each usage record, the citation index of each
+    judged claim and the provenance fields when they carry nothing.
 
     Runs recorded before these fields existed then save again byte for byte, so a
     rejudge or a headline regeneration never rewrites a run of record."""
+    if all(record.get(key) is None for key in _PROVENANCE_FIELDS):
+        for key in _PROVENANCE_FIELDS:
+            record.pop(key, None)
     if not record.get("stage_ms"):
         record.pop("stage_ms", None)
-    usage = record.get("usage")
-    if isinstance(usage, dict) and not usage.get("retries"):
-        usage.pop("retries", None)
+    for key in ("usage", "judge_usage"):
+        usage = record.get(key)
+        if isinstance(usage, dict) and not usage.get("retries"):
+            usage.pop("retries", None)
+    claims = record.get("judge_claims")
+    for claim in claims if isinstance(claims, list) else ():
+        if isinstance(claim, dict) and claim.get("citation") is None:
+            claim.pop("citation", None)
     return record
+
+
+def load_run(path: Path) -> EvalRun:
+    """The run stored at ``path`` (a file written by :meth:`FileRunStore.save`)."""
+    return _run_from_dict(json.loads(path.read_text()))
 
 
 def _run_from_dict(data: dict[str, object]) -> EvalRun:
@@ -236,6 +268,10 @@ def _run_from_dict(data: dict[str, object]) -> EvalRun:
         agent_model=str(data.get("agent_model", "unknown")),
         notes=(str(data["notes"]) if data.get("notes") else None),
         per_audit=per_audit,
+        dataset_sha256=data.get("dataset_sha256"),
+        prompt_sha256=data.get("prompt_sha256") or {},
+        duration_s=data.get("duration_s"),
+        confidence_threshold=data.get("confidence_threshold"),
         errored=errored,
     )
 

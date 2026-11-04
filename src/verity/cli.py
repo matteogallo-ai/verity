@@ -4,6 +4,7 @@ eval commands (retrieval, run, compare). Every command is implemented."""
 from __future__ import annotations
 
 import asyncio
+import hashlib
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, cast
 
@@ -18,7 +19,7 @@ if TYPE_CHECKING:
     from verity.eval.harness import HarnessResult
     from verity.retrieval.base import Retriever
     from verity.runtime import StoreKind
-    from verity.types import Answer, RetrievalHit
+    from verity.types import Answer, Chunk, EvalExample, RetrievalHit
 
 app = typer.Typer(
     name="verity",
@@ -135,11 +136,20 @@ def ingest(
 @db_app.command("upgrade")
 def db_upgrade() -> None:
     """Apply pending database migrations (idempotent)."""
+    import psycopg
+
     from verity.db import apply_pending, list_applied
+    from verity.db.redact import redact_conninfo
 
     database_url = get_settings().database_url.get_secret_value()
-    applied = apply_pending(database_url)
-    total = list_applied(database_url)
+    try:
+        applied = apply_pending(database_url)
+        total = list_applied(database_url)
+    except psycopg.Error as exc:
+        # Printed redacted and not chained: libpq may quote the password.
+        reason = redact_conninfo(str(exc).strip(), database_url)
+        console.print(f"[red]Migration failed:[/red] {type(exc).__name__}: {reason}")
+        raise typer.Exit(code=2) from None
     if applied:
         console.print(f"[green]Applied {len(applied)} migration(s):[/green] {', '.join(applied)}")
     else:
@@ -195,7 +205,7 @@ def ask(
     if not stub:
         _require_llm_api_key()
 
-    retriever, _ = asyncio.run(_build_retriever(corpus=corpus, store=store, no_rerank=False))
+    retriever, _, _ = asyncio.run(_build_retriever(corpus=corpus, store=store, no_rerank=False))
     router = build_stub_router() if stub else create_default_routing_client()
     client = SpendCappedClient(router, cap_usd=cap)
     agent = create_default_agent(retriever=retriever, client=client)
@@ -354,9 +364,10 @@ def eval_retrieval(
         )
         raise typer.Exit(code=0)
 
-    retriever, backend_name = asyncio.run(
+    retriever, backend_name, chunks = asyncio.run(
         _build_retriever(corpus=corpus, store=store, no_rerank=no_rerank)
     )
+    examples = _gold_from_evidence(examples, chunks)
 
     scorecard = asyncio.run(
         run_retrieval_eval(
@@ -418,14 +429,15 @@ def eval_retrieval(
 
 async def _build_retriever(
     *, corpus: Path, store: str | None, no_rerank: bool
-) -> tuple[Retriever, str]:
+) -> tuple[Retriever, str, list[Chunk]]:
     """Build the retriever on the chosen store, after ingesting ``corpus`` into it.
 
     Ingesting syncs the store's corpus documents with the directory (unchanged ones
     are not embedded again, edited ones are replaced, removed files leave). Documents
     from other sources, such as API uploads to the same database, stay and are
-    retrieved too. Returns ``(retriever, store_name)`` so
-    the scorecard records where the numbers came from.
+    retrieved too. Returns ``(retriever, store_name, corpus_chunks)``: the scorecard
+    records where the numbers came from, and the eval resolves its gold chunks from
+    the chunks of this parse.
     """
     from verity.runtime import build_local_components, build_retriever, ingest_corpus
 
@@ -436,7 +448,22 @@ async def _build_retriever(
         f"[dim]{kind} store: ingested {result.n_documents} docs, {result.n_chunks} chunks "
         f"(elapsed {result.elapsed_s:.2f}s)[/dim]"
     )
-    return build_retriever(store=vector_store, embedder=embedder, reranker=reranker), kind
+    retriever = build_retriever(store=vector_store, embedder=embedder, reranker=reranker)
+    return retriever, kind, result.chunks
+
+
+def _gold_from_evidence(examples: list[EvalExample], chunks: list[Chunk]) -> list[EvalExample]:
+    """The examples with their gold chunks resolved from their evidence against this
+    parse of the corpus (see ``verity.eval.labels``); exit 2 when a quote is in no
+    chunk, since every retrieval figure would then be scored against a wrong gold."""
+    from verity.eval.labels import resolve_gold
+
+    resolved, problems = resolve_gold(examples, chunks)
+    if problems:
+        for problem in problems:
+            console.print(f"[red]{problem}[/red]")
+        raise typer.Exit(code=2)
+    return resolved
 
 
 def _resolve_store(store: str | None) -> StoreKind:
@@ -449,7 +476,7 @@ def _resolve_store(store: str | None) -> StoreKind:
 async def _run_retrieve(
     *, query: str, k: int, corpus: Path, store: str | None, no_rerank: bool
 ) -> list[RetrievalHit]:
-    retriever, _ = await _build_retriever(corpus=corpus, store=store, no_rerank=no_rerank)
+    retriever, _, _ = await _build_retriever(corpus=corpus, store=store, no_rerank=no_rerank)
     return await retriever.retrieve(query, k=k)
 
 
@@ -683,7 +710,7 @@ def eval_run(
         load_full_dataset,
     )
     from verity.llm import create_default_routing_client
-    from verity.llm.routing import primary_client_identity
+    from verity.llm.routing import create_judge_client, primary_client_identity
 
     judge_mode = "stub" if ci else judge.lower()
     if judge_mode not in {"stub", "live"}:
@@ -697,9 +724,10 @@ def eval_run(
         console.print("[yellow]Empty dataset — nothing to score.[/yellow]")
         raise typer.Exit(code=0)
 
-    retriever, backend_name = asyncio.run(
+    retriever, backend_name, chunks = asyncio.run(
         _build_retriever(corpus=corpus, store=store, no_rerank=False)
     )
+    examples = _gold_from_evidence(examples, chunks)
 
     # Agent LLM: stub by default (offline), real client if the user turned it off.
     agent_client = build_stub_router() if agent_stub else create_default_routing_client()
@@ -718,7 +746,11 @@ def eval_run(
         judge_impl: object = StubFaithfulnessJudge()
         judge_model = STUB_JUDGE_MODEL
     else:
-        judge_client = create_default_routing_client()
+        try:
+            judge_client = create_judge_client(agent_client=agent_client)
+        except ValueError as exc:
+            console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(code=2) from exc
         judge_impl = LLMFaithfulnessJudge(judge_client)
         judge_model = getattr(judge_impl, "model", "llm-judge")
 
@@ -742,21 +774,29 @@ def eval_run(
 
     effective_runs_dir = resolve_runs_dir(runs_dir, judge_mode=judge_mode, agent_stub=agent_stub)
     run_store = FileRunStore(effective_runs_dir)
+    dataset_sha256 = hashlib.sha256(dataset.read_bytes()).hexdigest()
+    # create_default_agent above builds its scorer from these settings.
+    threshold = settings.confidence_threshold
     try:
         result = asyncio.run(evaluator.run(examples, git_sha=git_sha, budget_usd_cap=budget_usd))
     except BudgetExceededError as exc:
         console.print(f"[red]{exc}[/red]")
         if exc.result is not None:
             # The examples paid before the abort are written, not thrown away.
-            partial_path = run_store.save(exc.result.as_eval_run())
+            partial_path = run_store.save(
+                exc.result.as_eval_run(
+                    dataset_sha256=dataset_sha256, confidence_threshold=threshold
+                )
+            )
             console.print(f"[yellow]Persisted incomplete run[/yellow] {partial_path}")
             _print_total_cost(exc.result)
         raise typer.Exit(code=4) from exc
 
     _print_scorecard(result)
 
+    run = result.as_eval_run(dataset_sha256=dataset_sha256, confidence_threshold=threshold)
     try:
-        path = run_store.save(result.as_eval_run())
+        path = run_store.save(run)
     except StubOverwritesLiveError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=5) from exc
@@ -773,7 +813,9 @@ def eval_run(
         from verity.eval.headline import StubOverwritesLiveScorecardError
 
         try:
-            headline_path = write_headline_scorecard(result, scorecard_json, dataset_path=dataset)
+            headline_path = write_headline_scorecard(
+                run, scorecard_json, source_artefact=_display_path(path)
+            )
         except StubOverwritesLiveScorecardError as exc:
             console.print(f"[red]{exc}[/red]")
             raise typer.Exit(code=5) from exc
@@ -899,6 +941,13 @@ def eval_compare(
         raise typer.Exit(code=3)
 
 
+def _display_path(path: Path) -> str:
+    """``path`` relative to the working directory when inside it, else absolute."""
+    resolved = path.resolve()
+    cwd = Path.cwd()
+    return (resolved.relative_to(cwd) if resolved.is_relative_to(cwd) else resolved).as_posix()
+
+
 def _print_total_cost(result: HarnessResult) -> None:
     """Everything the run paid for, errored examples included, for the operator to
     check before the artefact is committed."""
@@ -980,27 +1029,26 @@ def _print_scorecard(result) -> None:  # type: ignore[no-untyped-def]
         if agent_is_stub
         else f"REAL calc / agent={result.agent_model}"
     )
-    # v3 scoped metrics computed from per_audit — every judge-track number
-    # displayed with its denominator so a reader cannot quote it
-    # without knowing what was averaged. See
-    # ``verity.eval.headline.build_headline_dict`` for the same rules on the
-    # JSON side.
-    judged = [a for a in result.per_audit if a.judge_claims is not None]
-    at_risk = [a for a in result.per_audit if a.expected_answerable and not a.refused]
-    n_judged = len(judged)
-    n_at_risk = len(at_risk)
-    faith_v3 = sum(a.answer_metrics.faithfulness for a in judged) / n_judged if n_judged else 0.0
-    ca_v3 = sum(a.answer_metrics.citation_accuracy for a in judged) / n_judged if n_judged else 0.0
-    hall_v3 = (
-        sum(a.answer_metrics.hallucination_rate for a in at_risk) / n_at_risk if n_at_risk else 0.0
-    )
-    answer.add_row(f"faithfulness (answered, n={n_judged})", f"{faith_v3:.3f}", stub_note)
-    answer.add_row(f"citation_accuracy (answered, n={n_judged})", f"{ca_v3:.3f}", stub_note)
+    # One definition with the published headline: verity.eval.answer_quality.
+    from verity.eval.answer_quality import Ratio, answer_quality
+
+    def _value(ratio: Ratio) -> str:
+        return "n/a" if ratio.value is None else f"{ratio.value:.3f}"
+
+    q = answer_quality(result.per_audit)
+    for name, macro, micro in (
+        ("faithfulness", q.faithfulness_macro, q.faithfulness_micro),
+        ("citation_accuracy", q.citation_accuracy_macro, q.citation_accuracy_micro),
+    ):
+        answer.add_row(f"{name} (answered, n={macro.denominator})", _value(macro), stub_note)
+        answer.add_row(f"{name} micro (claims, n={micro.denominator})", _value(micro), stub_note)
     answer.add_row(
-        f"hallucination_rate (answerable_and_answered, n={n_at_risk})",
-        f"{hall_v3:.3f}",
+        f"hallucination_rate (answerable_and_answered, n={q.hallucination_rate.denominator})",
+        _value(q.hallucination_rate),
         stub_note,
     )
+    if q.n_judged_without_claims:
+        answer.add_row("judged without a usable claim", str(q.n_judged_without_claims), stub_note)
     answer.add_row("refusal_precision", f"{sc.answer.refusal_precision:.3f}", refusal_tag)
     answer.add_row("refusal_recall", f"{sc.answer.refusal_recall:.3f}", refusal_tag)
     # Companion to hallucination_rate — the count of out-of-scope examples

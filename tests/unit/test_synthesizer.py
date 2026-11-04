@@ -116,12 +116,10 @@ class _RecordingClient:
 
     def __init__(self, text: str) -> None:
         self.text = text
-        self.calls: list[tuple[list[Message], int, float]] = []
+        self.calls: list[tuple[list[Message], int]] = []
 
-    async def complete(
-        self, messages: list[Message], *, max_tokens: int = 1024, temperature: float = 0.7
-    ) -> Completion:
-        self.calls.append((messages, max_tokens, temperature))
+    async def complete(self, messages: list[Message], *, max_tokens: int = 1024) -> Completion:
+        self.calls.append((messages, max_tokens))
         return Completion(
             text=self.text,
             provider=Provider.OPENAI,
@@ -131,15 +129,16 @@ class _RecordingClient:
 
 
 @pytest.mark.asyncio
-async def test_synthesizer_calls_the_model_deterministically_without_scores() -> None:
-    """Drafts use temperature 0 and a 512-token budget, and the evidence carries no
-    retrieval scores: those are the scorer's input, not the drafter's."""
+async def test_synthesizer_calls_the_model_with_its_budget_and_without_scores() -> None:
+    """Drafts get a 512-token budget, and the evidence carries no retrieval scores:
+    those are the scorer's input, not the drafter's. No sampling parameter is sent
+    (API version 2026-10-21 rejects one)."""
     client = _RecordingClient('{"answer": "a", "citations": []}')
     synthesizer = CitedSynthesizer(client)
     assert synthesizer.last_usage is None
     result = await synthesizer.synthesize("q?", [_hit("Foo bar baz.", cs=0)])
-    ((messages, max_tokens, temperature),) = client.calls
-    assert (max_tokens, temperature) == (512, 0.0)
+    ((messages, max_tokens),) = client.calls
+    assert max_tokens == 512
     rendered = "\n".join(m.content for m in messages)
     assert datamark("Foo bar baz.") in rendered
     assert "score=" not in rendered

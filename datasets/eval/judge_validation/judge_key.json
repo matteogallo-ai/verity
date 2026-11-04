@@ -1,0 +1,669 @@
+{
+  "items": {
+    "A01": {
+      "changed": null,
+      "claim": "The Enterprise edition is priced at US$42.00 per seat per month.",
+      "judge_verdict": "unsupported",
+      "kind": null,
+      "origin": "real",
+      "original": "The Enterprise edition is priced at US$42.00 per seat per month.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-074/0"
+    },
+    "A02": {
+      "changed": null,
+      "claim": "Acme Corporation (the Provider) is liable for data-processing breaches.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Acme Corporation (the Provider) is liable for data-processing breaches.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-002/0"
+    },
+    "A03": {
+      "changed": [
+        "2025",
+        "2026"
+      ],
+      "claim": "Q1 FY2026 gross margin was 72.6%.",
+      "judge_verdict": null,
+      "kind": "date",
+      "origin": "perturbed",
+      "original": "Q1 FY2025 gross margin was 72.6%.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-054/0"
+    },
+    "A04": {
+      "changed": [
+        "75,000",
+        "112,500"
+      ],
+      "claim": "A US$112,500 purchase is above US$50,000, the threshold that triggers the three-quote requirement.",
+      "judge_verdict": null,
+      "kind": "number",
+      "origin": "perturbed",
+      "original": "A US$75,000 purchase is above US$50,000, the threshold that triggers the three-quote requirement.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-062/1"
+    },
+    "A05": {
+      "changed": [
+        "325",
+        "488"
+      ],
+      "claim": "The nightly hotel limit for London is US$488 per night.",
+      "judge_verdict": null,
+      "kind": "number",
+      "origin": "perturbed",
+      "original": "The nightly hotel limit for London is US$325 per night.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-035/0"
+    },
+    "A06": {
+      "changed": null,
+      "claim": "Employees receive a monthly internet allowance of US$50.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Employees receive a monthly internet allowance of US$50.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-048/1"
+    },
+    "A07": {
+      "changed": null,
+      "claim": "Employees must report a suspected security incident within one (1) hour of noticing it.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Employees must report a suspected security incident within one (1) hour of noticing it.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-043/0"
+    },
+    "A08": {
+      "changed": null,
+      "claim": "The decision not to declare a dividend was made to preserve flexibility for acquisitions.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "The decision not to declare a dividend was made to preserve flexibility for acquisitions.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-059/1"
+    },
+    "A09": {
+      "changed": null,
+      "claim": "Employees are allowed to fly business class when the flight is scheduled at more than six (6) hours.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Employees are allowed to fly business class when the flight is scheduled at more than six (6) hours.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-036/0"
+    },
+    "A10": {
+      "changed": [
+        "Master Services Agreement",
+        "Data Processing Addendum"
+      ],
+      "claim": "The Data Processing Addendum excludes breaches of confidentiality from the general exclusion of indirect/consequential damages.",
+      "judge_verdict": null,
+      "kind": "entity",
+      "origin": "perturbed",
+      "original": "The Master Services Agreement excludes breaches of confidentiality from the general exclusion of indirect/consequential damages.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-089/4"
+    },
+    "A11": {
+      "changed": null,
+      "claim": "The Professional edition of Enterprise Cloud is priced at US$42.00 per seat per month.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "The Professional edition of Enterprise Cloud is priced at US$42.00 per seat per month.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-074/2"
+    },
+    "A12": {
+      "changed": null,
+      "claim": "Acme matches 100% of employee contributions to the 401(k) plan up to 4% of base salary.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Acme matches 100% of employee contributions to the 401(k) plan up to 4% of base salary.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-051/0"
+    },
+    "A13": {
+      "changed": [
+        "2024",
+        "2026"
+      ],
+      "claim": "Full-year FY2026 gross margin was 71.8%.",
+      "judge_verdict": null,
+      "kind": "date",
+      "origin": "perturbed",
+      "original": "Full-year FY2024 gross margin was 71.8%.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-054/1"
+    },
+    "A14": {
+      "changed": null,
+      "claim": "Renewal pricing may increase by no more than 5% per year.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Renewal pricing may increase by no more than 5% per year.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-025/0"
+    },
+    "A15": {
+      "changed": null,
+      "claim": "The confidentiality obligations survive for three (3) years after the NDA expires or is terminated.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "The confidentiality obligations survive for three (3) years after the NDA expires or is terminated.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-026/2"
+    },
+    "A16": {
+      "changed": null,
+      "claim": "The two-year term runs from the date the NDA was signed.",
+      "judge_verdict": "unsupported",
+      "kind": null,
+      "origin": "real",
+      "original": "The two-year term runs from the date the NDA was signed.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-026/1"
+    },
+    "A17": {
+      "changed": null,
+      "claim": "Acme's Board decided not to declare a dividend for FY2025.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Acme's Board decided not to declare a dividend for FY2025.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-059/0"
+    },
+    "A18": {
+      "changed": [
+        "is",
+        "is not"
+      ],
+      "claim": "With Premium Support, the Priority 1 response time is not shortened to thirty (30) minutes.",
+      "judge_verdict": null,
+      "kind": "negation",
+      "origin": "perturbed",
+      "original": "With Premium Support, the Priority 1 response time is shortened to thirty (30) minutes.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-010/1"
+    },
+    "A19": {
+      "changed": null,
+      "claim": "Personal data is stored in data centers in Frankfurt, Germany (EU).",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Personal data is stored in data centers in Frankfurt, Germany (EU).",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-008/0"
+    },
+    "A20": {
+      "changed": null,
+      "claim": "Managed Services revenue was $128.6 million.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Managed Services revenue was $128.6 million.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-003/6"
+    },
+    "A21": {
+      "changed": null,
+      "claim": "Enterprise Cloud subscription revenue was $312.7 million.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Enterprise Cloud subscription revenue was $312.7 million.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-003/4"
+    },
+    "A22": {
+      "changed": null,
+      "claim": "This renewal pricing cap applies under the Northwind order form.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "This renewal pricing cap applies under the Northwind order form.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-025/1"
+    },
+    "A23": {
+      "changed": [
+        "London",
+        "Frankfurt"
+      ],
+      "claim": "The Frankfurt hotel limit applies to the rate excluding taxes.",
+      "judge_verdict": null,
+      "kind": "entity",
+      "origin": "perturbed",
+      "original": "The London hotel limit applies to the rate excluding taxes.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-035/1"
+    },
+    "A24": {
+      "changed": null,
+      "claim": "The four levels are Public, Internal, Confidential, and Restricted.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "The four levels are Public, Internal, Confidential, and Restricted.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-044/1"
+    },
+    "A25": {
+      "changed": [
+        "2025",
+        "2026"
+      ],
+      "claim": "The Board approved the FY2026 operating budget unanimously.",
+      "judge_verdict": null,
+      "kind": "date",
+      "origin": "perturbed",
+      "original": "The Board approved the FY2025 operating budget unanimously.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-057/0"
+    },
+    "A26": {
+      "changed": null,
+      "claim": "The liability cap is the greater of $2,000,000 or the total fees paid by Customer during the twelve months preceding the claim.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "The liability cap is the greater of $2,000,000 or the total fees paid by Customer during the twelve months preceding the claim.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-002/1"
+    },
+    "A27": {
+      "changed": [
+        "Northwind",
+        "Acme"
+      ],
+      "claim": "The evidence does not show a 500-seat arrangement for Acme.",
+      "judge_verdict": null,
+      "kind": "entity",
+      "origin": "perturbed",
+      "original": "The evidence does not show a 500-seat arrangement for Northwind.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-087/0"
+    },
+    "A28": {
+      "changed": [
+        "is",
+        "is not"
+      ],
+      "claim": "For a standard Priority 1 (critical, service unavailable) support request, the response time is not within one (1) hour.",
+      "judge_verdict": null,
+      "kind": "negation",
+      "origin": "perturbed",
+      "original": "For a standard Priority 1 (critical, service unavailable) support request, the response time is within one (1) hour.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-010/0"
+    },
+    "A29": {
+      "changed": null,
+      "claim": "Acme must notify a customer of a confirmed personal-data breach within seventy-two (72) hours of discovery.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Acme must notify a customer of a confirmed personal-data breach within seventy-two (72) hours of discovery.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-043/1"
+    },
+    "A30": {
+      "changed": null,
+      "claim": "The gift must not be cash or a cash equivalent.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "The gift must not be cash or a cash equivalent.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-050/1"
+    },
+    "B01": {
+      "changed": null,
+      "claim": "Employees receive a one-time home office stipend of US$500.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Employees receive a one-time home office stipend of US$500.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-048/0"
+    },
+    "B02": {
+      "changed": [
+        "is",
+        "is not"
+      ],
+      "claim": "The Master Services Agreement is not governed by the laws of the State of Delaware.",
+      "judge_verdict": null,
+      "kind": "negation",
+      "origin": "perturbed",
+      "original": "The Master Services Agreement is governed by the laws of the State of Delaware.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-028/1"
+    },
+    "B03": {
+      "changed": null,
+      "claim": "Acme's 401(k) matching contributions vest immediately.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Acme's 401(k) matching contributions vest immediately.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-051/1"
+    },
+    "B04": {
+      "changed": null,
+      "claim": "Personal data is deleted after termination of the Agreement.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Personal data is deleted after termination of the Agreement.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-009/0"
+    },
+    "B05": {
+      "changed": null,
+      "claim": "If Northwind does not respond to a milestone delivery within ten business days, the milestone is deemed accepted.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "If Northwind does not respond to a milestone delivery within ten business days, the milestone is deemed accepted.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-030/0"
+    },
+    "B06": {
+      "changed": null,
+      "claim": "Personal data is stored in data centers in Virginia, United States.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Personal data is stored in data centers in Virginia, United States.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-008/1"
+    },
+    "B07": {
+      "changed": null,
+      "claim": "Up to 5 unused paid time off days can be carried over to the following year.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Up to 5 unused paid time off days can be carried over to the following year.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-011/2"
+    },
+    "B08": {
+      "changed": null,
+      "claim": "The original agreement required 30 days' notice for termination for convenience.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "The original agreement required 30 days' notice for termination for convenience.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-001/2"
+    },
+    "B09": {
+      "changed": null,
+      "claim": "Requests exceeding the limit receive HTTP status 429.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Requests exceeding the limit receive HTTP status 429.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-033/1"
+    },
+    "B10": {
+      "changed": null,
+      "claim": "Personal data is retained for 90 days after termination before it is deleted.",
+      "judge_verdict": "unsupported",
+      "kind": null,
+      "origin": "real",
+      "original": "Personal data is retained for 90 days after termination before it is deleted.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-009/1"
+    },
+    "B11": {
+      "changed": null,
+      "claim": "Enterprise Cloud subscriptions accounted for approximately 67.0% of Q1 FY2025 total revenue.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Enterprise Cloud subscriptions accounted for approximately 67.0% of Q1 FY2025 total revenue.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-066/2"
+    },
+    "B12": {
+      "changed": null,
+      "claim": "If a milestone is not rejected within that period, it is automatically accepted.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "If a milestone is not rejected within that period, it is automatically accepted.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-030/2"
+    },
+    "B13": {
+      "changed": [
+        "2025",
+        "2026"
+      ],
+      "claim": "The Board explicitly decided not to declare a dividend for FY2026.",
+      "judge_verdict": null,
+      "kind": "date",
+      "origin": "perturbed",
+      "original": "The Board explicitly decided not to declare a dividend for FY2025.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-085/1"
+    },
+    "B14": {
+      "changed": [
+        "268",
+        "402"
+      ],
+      "claim": "The Board approved an operating expense budget of $402 million.",
+      "judge_verdict": null,
+      "kind": "number",
+      "origin": "perturbed",
+      "original": "The Board approved an operating expense budget of $268 million.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-057/1"
+    },
+    "B15": {
+      "changed": null,
+      "claim": "Unused sick days do not carry over to the next year.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Unused sick days do not carry over to the next year.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-047/1"
+    },
+    "B16": {
+      "changed": null,
+      "claim": "Requests exceeding the limit must be retried with exponential backoff.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Requests exceeding the limit must be retried with exponential backoff.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-033/2"
+    },
+    "B17": {
+      "changed": null,
+      "claim": "The notice period for terminating the Master Services Agreement for convenience is 60 days' prior written notice.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "The notice period for terminating the Master Services Agreement for convenience is 60 days' prior written notice.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-001/0"
+    },
+    "B18": {
+      "changed": null,
+      "claim": "An employee may accept a gift from a business partner with a maximum value of US$100 per person per year.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "An employee may accept a gift from a business partner with a maximum value of US$100 per person per year.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-050/0"
+    },
+    "B19": {
+      "changed": [
+        "75,000",
+        "112,500"
+      ],
+      "claim": "A US$112,500 purchase requires at least three (3) written quotes.",
+      "judge_verdict": null,
+      "kind": "number",
+      "origin": "perturbed",
+      "original": "A US$75,000 purchase requires at least three (3) written quotes.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-062/0"
+    },
+    "B20": {
+      "changed": null,
+      "claim": "Up to 5 unused paid time off days carry over to the next year.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Up to 5 unused paid time off days carry over to the next year.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-047/0"
+    },
+    "B21": {
+      "changed": [
+        "250",
+        "375"
+      ],
+      "claim": "Northwind's current subscription is for 375 named user seats.",
+      "judge_verdict": null,
+      "kind": "number",
+      "origin": "perturbed",
+      "original": "Northwind's current subscription is for 250 named user seats.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-087/1"
+    },
+    "B22": {
+      "changed": [
+        "Acme",
+        "Northwind"
+      ],
+      "claim": "Northwind may suspend a customer's service without prior notice only when a violation poses an immediate threat to the security or availability of the service.",
+      "judge_verdict": null,
+      "kind": "entity",
+      "origin": "perturbed",
+      "original": "Acme may suspend a customer's service without prior notice only when a violation poses an immediate threat to the security or availability of the service.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-034/0"
+    },
+    "B23": {
+      "changed": null,
+      "claim": "Paid time off accrues monthly.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Paid time off accrues monthly.",
+      "run": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+      "source_claim": "eval_6ec544d_dev/q-011/1"
+    },
+    "B24": {
+      "changed": null,
+      "claim": "Q1 FY2025 total revenue was $128.9 million.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Q1 FY2025 total revenue was $128.9 million.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-066/0"
+    },
+    "B25": {
+      "changed": null,
+      "claim": "Employee personal data is always classified as Restricted.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Employee personal data is always classified as Restricted.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-044/3"
+    },
+    "B26": {
+      "changed": [
+        "New York",
+        "Delaware"
+      ],
+      "claim": "The NDA is governed by the laws of the State of Delaware.",
+      "judge_verdict": null,
+      "kind": "entity",
+      "origin": "perturbed",
+      "original": "The NDA is governed by the laws of the State of New York.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-028/0"
+    },
+    "B27": {
+      "changed": null,
+      "claim": "Flying business class requires the approval of a Vice President.",
+      "judge_verdict": "supported",
+      "kind": null,
+      "origin": "real",
+      "original": "Flying business class requires the approval of a Vice President.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-036/1"
+    },
+    "B28": {
+      "changed": [
+        "2025",
+        "2026"
+      ],
+      "claim": "Acme did not pay a dividend in FY2026.",
+      "judge_verdict": null,
+      "kind": "date",
+      "origin": "perturbed",
+      "original": "Acme did not pay a dividend in FY2025.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-085/0"
+    },
+    "B29": {
+      "changed": [
+        "will",
+        "will not"
+      ],
+      "claim": "Service will not be restored as soon as the threat is removed.",
+      "judge_verdict": null,
+      "kind": "negation",
+      "origin": "perturbed",
+      "original": "Service will be restored as soon as the threat is removed.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-034/1"
+    },
+    "B30": {
+      "changed": [
+        "could",
+        "could not"
+      ],
+      "claim": "Under the Master Services Agreement, a party that breaches confidentiality could not be liable for a broader range of damages.",
+      "judge_verdict": null,
+      "kind": "negation",
+      "origin": "perturbed",
+      "original": "Under the Master Services Agreement, a party that breaches confidentiality could be liable for a broader range of damages.",
+      "run": "datasets/eval/runs/live/eval_969e1d5_test.json",
+      "source_claim": "eval_969e1d5_test/q-089/5"
+    }
+  },
+  "runs": [
+    "datasets/eval/runs/live/eval_6ec544d_dev.json",
+    "datasets/eval/runs/live/eval_969e1d5_test.json"
+  ],
+  "seed": 20261102
+}

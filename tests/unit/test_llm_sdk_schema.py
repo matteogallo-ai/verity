@@ -126,9 +126,10 @@ def _install_openai_mock(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
 async def test_anthropic_complete_kwargs_bind_to_the_pinned_sdk_signature(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """``AnthropicClient.complete`` must only pass kwargs that bind cleanly to
-    the real SDK signature. Regression guard for the SDK 1.x ``temperature``
-    removal — a future rename / drop will fail here rather than at first spend."""
+    """``AnthropicClient.complete`` must only pass kwargs that bind cleanly to the
+    real SDK signature, and none of the sampling parameters: API version
+    2026-10-21 rejects ``temperature``, ``top_p`` and ``top_k`` with a 400, even at
+    their defaults and even through ``extra_body``."""
     create_mock = _install_anthropic_mock(monkeypatch)
     client = AnthropicClient(api_key=SecretStr("k"), model="claude-sonnet-4-6")
     await client.complete(
@@ -137,19 +138,11 @@ async def test_anthropic_complete_kwargs_bind_to_the_pinned_sdk_signature(
             Message(role=Role.USER, content="hi"),
         ],
         max_tokens=64,
-        temperature=0.0,
     )
     create_mock.assert_awaited_once()
     call_kwargs = create_mock.await_args.kwargs
-    # Positive: temperature must go through extra_body, not as a top-level kwarg
-    # (the SDK 1.x removal — the exact fault the hotfix corrects).
-    assert "temperature" not in call_kwargs, (
-        "temperature must NOT be a top-level kwarg on anthropic 1.x — "
-        "route it through extra_body instead"
-    )
-    assert call_kwargs.get("extra_body") == {"temperature": 0.0}, (
-        f"expected extra_body={{'temperature': 0.0}}, got {call_kwargs.get('extra_body')!r}"
-    )
+    sent = {**call_kwargs, **(call_kwargs.get("extra_body") or {})}
+    assert not {"temperature", "top_p", "top_k"} & set(sent), sent
     # Positive: mandatory kwargs are all present with the right names.
     assert call_kwargs["model"] == "claude-sonnet-4-6"
     assert call_kwargs["max_tokens"] == 64
@@ -263,7 +256,7 @@ async def test_anthropic_reachable_from_llm_judge(monkeypatch: pytest.MonkeyPatc
 
 
 # --------------------------------------------------------------------------------------
-# OpenAI — pinned 3.x, still exposes temperature. Verify it stays that way.
+# OpenAI — the fallback provider; same kwargs guarantee.
 # --------------------------------------------------------------------------------------
 
 
@@ -281,12 +274,11 @@ async def test_openai_complete_kwargs_bind_to_the_pinned_sdk_signature(
             Message(role=Role.USER, content="hi"),
         ],
         max_tokens=64,
-        temperature=0.0,
     )
     create_mock.assert_awaited_once()
     call_kwargs = create_mock.await_args.kwargs
-    # OpenAI 3.x still exposes temperature as a top-level kwarg.
-    assert call_kwargs["temperature"] == 0.0
+    # One sampling policy for every provider: the provider default (ADR 0007).
+    assert "temperature" not in call_kwargs
     assert call_kwargs["max_tokens"] == 64
     assert call_kwargs["model"] == "gpt-4.1-mini"
     assert call_kwargs["messages"] == [

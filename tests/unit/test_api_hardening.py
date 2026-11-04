@@ -14,6 +14,7 @@ from tests.unit.api_app import api_app
 from verity.api import create_app
 from verity.api.guards import RateLimiter
 from verity.config import Settings
+from verity.ingestion.pipeline import discover_sources
 
 _KEY = "test-key-0123456789"
 _QUESTION = "What is the notice period for terminating the agreement?"
@@ -324,7 +325,9 @@ def test_octet_stream_markdown_is_accepted_after_sniffing(client: TestClient) ->
 
 
 def test_corpus_document_limit_is_409(tmp_path: Path) -> None:
-    with api_app(tmp_path, _settings(api_max_documents=7)) as c:
+    # Room for the preloaded corpus plus exactly one upload.
+    n_corpus = len(discover_sources("datasets/corpus"))
+    with api_app(tmp_path, _settings(api_max_documents=n_corpus + 1)) as c:
         c.headers["X-API-Key"] = _KEY
         assert _upload(c, "a.txt", b"first upload", "text/plain").status_code == 200
         assert _upload(c, "b.txt", b"second upload", "text/plain").status_code == 409

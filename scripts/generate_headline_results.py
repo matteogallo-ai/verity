@@ -1,23 +1,18 @@
-"""Render the README's "measured results" section and the system card's
-"measured performance" section from the committed live scorecard JSON — never
-hand-typed, never transcription-drift-prone.
+"""Write the headline scorecard from a run artefact, the README results block from the
+scorecard, and the system card's measured-performance block. Nothing is typed by hand.
 
-Reads ``scorecards/live-v1.0.0.json`` (produced by
-``verity eval run --judge live --scorecard-json <path>``) and replaces the
-content between two Markdown comment markers in ``README.md``:
+    # reproduce: artefact -> scorecard -> README
+    uv run python scripts/generate_headline_results.py \
+        --artefact datasets/eval/runs/live/<run>.json --scorecard scorecards/<name>.json
+    # CI: scorecard == recomputed from its artefact, README block == rendered scorecard
+    uv run python scripts/generate_headline_results.py --check
 
-    <!-- RESULTS:START -->
-      ... regenerated table + provenance line ...
-    <!-- RESULTS:END -->
-
-and between ``<!-- SYSTEM-CARD:START -->`` / ``<!-- SYSTEM-CARD:END -->`` in
-``docs/SYSTEM_CARD.md`` (each proportion with k/n and a Wilson 95 % interval, and
-the proposed SLOs next to their measured values). Both blocks read the same
-scorecard file, so replacing the scorecard regenerates both.
-
-Idempotent: running twice yields the same file byte-for-byte (assuming the JSON
-hasn't changed). Fails LOUDLY if the markers are missing or the JSON is
-malformed — the whole point is to prevent a silent stale README.
+The scorecard names its artefact (``source_artefact``), so ``--check`` needs no
+argument. The README block sits between ``<!-- RESULTS:START -->`` and
+``<!-- RESULTS:END -->``; the system card block between ``<!-- SYSTEM-CARD:START -->``
+and ``<!-- SYSTEM-CARD:END -->`` in ``docs/SYSTEM_CARD.md`` (each proportion with k/n
+and a Wilson 95 % interval, and the approved SLOs next to their measured values).
+Missing markers fail loudly, and every file is rendered before any is written.
 """
 
 from __future__ import annotations
@@ -33,13 +28,16 @@ from pathlib import Path
 from typing import Any
 
 from verity.eval.harness import percentile
+from verity.eval.headline import SCHEMA, build_headline_dict_from_eval_run
 from verity.eval.intervals import wilson
+from verity.eval.run_store import load_run
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUNS_DIR = REPO_ROOT / "datasets" / "eval" / "runs" / "live"
-DEFAULT_SCORECARD = REPO_ROOT / "scorecards" / "live-v1.0.0.json"
+DEFAULT_SCORECARD = REPO_ROOT / "scorecards" / "live-v1.1.0.json"
 DEFAULT_README = REPO_ROOT / "README.md"
 DEFAULT_SYSTEM_CARD = REPO_ROOT / "docs" / "SYSTEM_CARD.md"
+VALIDATION = REPO_ROOT / "datasets" / "eval" / "judge_validation"
 START = "<!-- RESULTS:START -->"
 END = "<!-- RESULTS:END -->"
 CARD_START = "<!-- SYSTEM-CARD:START -->"
@@ -69,73 +67,119 @@ def _short_date(iso: str) -> str:
         return iso.split("T", 1)[0]
 
 
-def render_block(data: dict[str, Any]) -> str:
+def _repo_path(path: Path) -> str:
+    """``path`` relative to the repository when inside it, else absolute."""
+    resolved = path.resolve()
+    inside = resolved.is_relative_to(REPO_ROOT)
+    return (resolved.relative_to(REPO_ROOT) if inside else resolved).as_posix()
+
+
+def _ci(k: int, n: int, ci: list[float] | None) -> str:
+    """``k/n · 95 % CI [low, high]`` (Wilson), or ``k/n`` when n is 0."""
+    if ci is None:
+        return f"{k}/{n}"
+    return f"{k}/{n} · 95 % CI [{ci[0]:.3f}, {ci[1]:.3f}]"
+
+
+def _usd(value: float | None) -> str:
+    return "not recorded" if value is None else f"${value:.4f}"
+
+
+def judge_label(judge_model: str, validation_dir: Path = VALIDATION) -> str:
+    """How the answer-quality rows qualify their judge: validated only when the blind
+    agreement artefact exists and was measured on this very judge model."""
+    agreement, rejudged = (
+        validation_dir / "agreement.json",
+        validation_dir / "perturbed_verdicts.json",
+    )
+    if not (agreement.is_file() and rejudged.is_file()):
+        return "judge unvalidated"
+    validated_model = json.loads(rejudged.read_text(encoding="utf-8"))["judge_model"]
+    if judge_model.split()[0] != validated_model:
+        return "judge unvalidated"
+    mixed = json.loads(agreement.read_text(encoding="utf-8"))["agreement_mixed"]
+    return f"judge κ {mixed['cohen_kappa']:.2f} vs blind human (n={mixed['n_claims']})"
+
+
+def render_block(
+    data: dict[str, Any],
+    *,
+    scorecard_path: Path = DEFAULT_SCORECARD,
+    judge: str = "judge unvalidated",
+) -> str:
     """Return the Markdown block to insert between the RESULTS markers."""
     prov = data["provenance"]
     cost = data["cost"]
     retr = data["retrieval"]
     ans = data["answer_quality"]
-    refu = data["refusal_calibration"]
+    refu = data["refusal"]
     lat = data["latency_ms"]
     ds = data["dataset"]
-    is_stub_agent = prov["agent_model"] == "stub-agent"
-    is_stub_judge = prov["judge_model"] == "stub-judge-v1"
+    sizes = data["sample_sizes"]
+    is_stub = "stub" in prov["agent_model"] or "stub" in prov["judge_model"]
     stub_warning = (
-        "\n> ⚠️ **This scorecard was generated on stubs**. "
-        "The v1.0.0 file will be regenerated from the one-shot live run — "
-        "faithfulness / citation_accuracy / hallucination_rate below come from "
-        "the mechanical stub judge (`stub-judge-v1`) and are placeholders here.\n"
-        if (is_stub_agent or is_stub_judge)
+        "\n> ⚠️ **This scorecard was generated on stubs**: the answer-quality and refusal "
+        "numbers describe the scripted stubs, not Verity.\n"
+        if is_stub
         else ""
     )
     date = _short_date(str(data["generated_at"]))
-    lines: list[str] = []
-    lines.append(
+    without_claims = sizes["n_judged_without_claims"]
+    recall, precision = refu["refusal_recall"], refu["refusal_precision"]
+    thr = refu.get("confidence_threshold")
+    threshold = "threshold not recorded" if thr is None else f"threshold {thr:g}"
+    lines = [
         f"**Measured on**: `agent={prov['agent_model']}` · "
         f"`judge={prov['judge_model']}` · "
         f"`embedding={prov['embedding_model']}` · "
-        f"commit `{prov['run_sha']}` · {date} · "
-        f"n={ds['n_questions']} ({ds['n_answerable']} answerable + {ds['n_unanswerable']} out-of-scope) · "
-        f"total cost **${cost['total_usd']:.4f}**"
-    )
-    lines.append("")
-    lines.append("| Metric | Value | Notes |")
-    lines.append("|---|---:|---|")
-    lines.append(
-        f"| **Refusal recall** | **{_fmt(refu['refusal_recall'])}** | headline · fraction of out-of-scope questions correctly refused |"
-    )
-    lines.append(
-        f"| **Refusal precision** | **{_fmt(refu['refusal_precision'])}** | of the refusals, fraction that were genuinely unanswerable |"
-    )
-    # v3: each judge-track metric is a {value, scope, n_denominator} triple.
-    # Render the value alongside the scope so no number can be quoted
-    # without its denominator visible.
-    faith = ans["faithfulness"]
-    ca = ans["citation_accuracy"]
+        f"commit `{prov['run_sha']}` · {date} · dataset `{ds['name']}` · "
+        f"n={ds['n_questions']} ({ds['n_answerable']} answerable + "
+        f"{ds['n_unanswerable']} unanswerable) · "
+        f"**{sizes['n_errored']} errored** (kept out of every metric) · "
+        f"total cost **{_usd(cost['total_usd'])}**",
+        "",
+        "| Metric | Value | Notes |",
+        "|---|---:|---|",
+        f"| **Refusal recall** | **{_fmt(recall['value'])}** | "
+        f"unanswerable questions refused / unanswerable: "
+        f"{_ci(recall['k'], recall['n'], recall['ci95_wilson'])} · {threshold} |",
+        f"| **Refusal precision** | **{_fmt(precision['value'])}** | "
+        f"refusals that were unanswerable / refusals: "
+        f"{_ci(precision['k'], precision['n'], precision['ci95_wilson'])} |",
+    ]
+    for label, key in (
+        ("Faithfulness", "faithfulness"),
+        ("Citation accuracy", "citation_accuracy"),
+    ):
+        macro, micro = ans[key]["macro"], ans[key]["micro"]
+        lines.append(
+            f"| {label}, per question | {_fmt(macro['value'])} | "
+            f"mean over {macro['n_questions']} judged answers · {judge} |"
+        )
+        lines.append(
+            f"| {label}, per claim | {_fmt(micro['value'])} | pooled over claims: "
+            f"{_ci(micro['k'], micro['n_claims'], micro['ci95_wilson'])} · {judge} |"
+        )
     hall = ans["hallucination_rate"]
     lines.append(
-        f"| Faithfulness ({faith['scope']}, n={faith['n_denominator']}) | "
-        f"{_fmt(faith['value'])} | per-question mean of claim-level judge verdicts over {faith['n_denominator']} answered questions · judge unvalidated |"
+        f"| Hallucination rate | {_fmt(hall['value'])} | ↓ better · answers with an "
+        f"unsupported claim / answered answerable questions: "
+        f"{_ci(hall['k'], hall['n_questions'], hall['ci95_wilson'])} |"
+    )
+    ooa = refu["out_of_scope_answered"]
+    lines.append(
+        f"| Unanswerable answered | {ooa['count']}/{ooa['total']} | ↓ better · "
+        f"an answer shipped where the corpus has none: "
+        f"{_ci(ooa['count'], ooa['total'], ooa['ci95_wilson'])} |"
     )
     lines.append(
-        f"| Citation accuracy ({ca['scope']}, n={ca['n_denominator']}) | "
-        f"{_fmt(ca['value'])} | per-question mean over {ca['n_denominator']} answered questions (refusals bypass the judge) · judge unvalidated |"
+        f"| Retrieval nDCG@{retr['k']} | {_fmt(retr['ndcg_at_k'])} | "
+        "scored without an LLM on hits retrieved for the LLM sub-questions |"
     )
+    lines.append(f"| Retrieval recall@{retr['k']} | {_fmt(retr['recall_at_k'])} | as nDCG |")
     lines.append(
-        f"| Hallucination rate ({hall['scope']}, n={hall['n_denominator']}) | "
-        f"{_fmt(hall['value'])} | ↓ better · at-risk set = answerable questions the agent answered |"
-    )
-    ooa = refu.get("out_of_scope_answered", {})
-    if isinstance(ooa, dict) and "count" in ooa and "total" in ooa:
-        lines.append(
-            f"| Out-of-scope answered | {ooa['count']}/{ooa['total']} | ↓ better · questions we shipped an answer for that were unanswerable |"
-        )
-    lines.append(
-        f"| Retrieval nDCG@{retr['k']} | {_fmt(retr['ndcg_at_k'])} | deterministic (no LLM) |"
-    )
-    lines.append(f"| Retrieval recall@{retr['k']} | {_fmt(retr['recall_at_k'])} | deterministic |")
-    lines.append(
-        f"| Retrieval precision@{retr['k']} | {_fmt(retr['precision_at_k'])} | k>gold ceiling; interpret with recall |"
+        f"| Retrieval precision@{retr['k']} | {_fmt(retr['precision_at_k'])} | "
+        "k>gold ceiling; interpret with recall |"
     )
     cold_start = lat.get("cold_start")
     latency_note = (
@@ -144,55 +188,53 @@ def render_block(data: dict[str, Any]) -> str:
         else f"warm; cold start `{_fmt_ms(cold_start)}` measured separately"
     )
     lines.append(
-        f"| Latency p50 / p95 / p99 | {_fmt_ms(lat['p50'])} / {_fmt_ms(lat['p95'])} / {_fmt_ms(lat['p99'])} | {latency_note} |"
+        f"| Latency p50 / p95 / p99 | {_fmt_ms(lat['p50'])} / {_fmt_ms(lat['p95'])} / "
+        f"{_fmt_ms(lat['p99'])} | {latency_note} |"
     )
     lines.append(
-        f"| Cost / query | ${cost['per_query_usd']:.4f} | total ${cost['total_usd']:.4f} = agent ${cost['agent_usd']:.4f} + judge ${cost['judge_usd']:.4f} |"
+        f"| Cost / query | ${cost['per_query_usd']:.4f} | total {_usd(cost['total_usd'])} = "
+        f"agent {_usd(cost['agent_usd'])} + judge {_usd(cost['judge_usd'])} |"
     )
     lines.append("")
+    by_reason = refu.get("by_reason") or {}
+    recorded = {k: v for k, v in by_reason.items() if k != "not_recorded"}
+    if recorded:
+        causes = " · ".join(
+            f"`{k}` {v['answerable'] + v['unanswerable']} ({v['answerable']} answerable)"
+            for k, v in recorded.items()
+        )
+        lines.append(f"Refusals by cause: {causes}.")
+        if "below_threshold" not in recorded:
+            lines.append(
+                "No refusal has the cause `below_threshold`: the confidence threshold "
+                "decided none of them."
+            )
+        lines.append("")
+    if "not_recorded" in by_reason:
+        n = sum(by_reason["not_recorded"].values())
+        lines.append(f"{n} refusal(s) with no recorded cause (artefact predates it).")
+        lines.append("")
+    if without_claims:
+        lines.append(
+            f"{without_claims} judged answer(s) got no usable claim from the judge (output "
+            "unparseable, or no claims): scored 0 per question, "
+            "no claims counted per claim."
+        )
+        lines.append("")
+    rel = _repo_path(scorecard_path)
     lines.append(
-        f"Numbers are copied verbatim from [`{DEFAULT_SCORECARD.relative_to(REPO_ROOT)}`]"
-        f"({DEFAULT_SCORECARD.relative_to(REPO_ROOT).as_posix()}) "
-        "(committed artefact of the single live run of record — never averaged, "
-        "never re-run to nudge a number)."
+        f"Generated from [`{rel}`]({rel}), itself computed from the run artefact "
+        f"`{data['source_artefact']}` (`scripts/generate_headline_results.py --check` "
+        "recomputes both)."
     )
     lines.append(stub_warning)
     return "\n".join(lines)
 
 
-def _refusal_block(data: dict[str, Any]) -> dict[str, Any]:
-    refusal = data.get("refusal") or data.get("refusal_calibration")
-    if not isinstance(refusal, dict):
-        raise SystemExit("scorecard has no refusal block")
-    return refusal
-
-
-def _refusal_count(data: dict[str, Any], name: str) -> tuple[float, int, int]:
-    """``(value, k, n)`` of refusal recall or precision.
-
-    A scorecard that stores the counts gives them directly; one that stores only the
-    value gives them through its ``per_refusal`` records, and the value must agree.
-    """
-    metric = _refusal_block(data)[name]
-    if isinstance(metric, dict):
-        return float(metric["value"]), int(metric["k"]), int(metric["n"])
-    rows = data["per_refusal"]
-    k = sum(1 for r in rows if not r["expected_answerable"] and r["observed_refused"])
-    if name == "refusal_recall":
-        n = sum(1 for r in rows if not r["expected_answerable"])
-    else:
-        n = sum(1 for r in rows if r["observed_refused"])
-    if n and abs(k / n - float(metric)) > 1e-6:
-        raise SystemExit(f"{name}={metric} disagrees with per_refusal ({k}/{n})")
-    return float(metric), k, n
-
-
-def _binary_count(value: float, n: int) -> int | None:
-    """``k`` with ``k / n == value`` up to the scorecard's 6-decimal rounding, else None."""
-    if n == 0:
-        return None
-    k = round(value * n)
-    return k if abs(k / n - value) <= 1e-6 else None
+def _require_v5(data: dict[str, Any]) -> None:
+    """The card reads the counts a v5 scorecard stores; an older one does not hold them."""
+    if data.get("schema") != SCHEMA:
+        raise SystemExit(f"the system card renders {SCHEMA} scorecards, not {data.get('schema')!r}")
 
 
 def _count_and_interval(k: int | None, n: int) -> tuple[str, str]:
@@ -208,42 +250,36 @@ def _ci_cells(k: int | None, n: int) -> str:
 
 
 def _performance_rows(data: dict[str, Any]) -> list[str]:
-    refusal = _refusal_block(data)
+    _require_v5(data)
+    refusal = data["refusal"]
     rows: list[str] = []
     for label, name in (
         ("Refusal recall", "refusal_recall"),
         ("Refusal precision", "refusal_precision"),
     ):
-        value, k, n = _refusal_count(data, name)
-        rows.append(f"| {label} | {_fmt(value)} | {_ci_cells(k, n)} |")
+        metric = refusal[name]
+        rows.append(
+            f"| {label} | {_fmt(metric['value'])} | {_ci_cells(metric['k'], metric['n'])} |"
+        )
     ooa = refusal["out_of_scope_answered"]
     ooa_value = ooa["count"] / ooa["total"] if ooa["total"] else 0.0
     rows.append(
         f"| Out-of-scope answered ↓ | {_fmt(ooa_value)} | {_ci_cells(ooa['count'], ooa['total'])} |"
     )
     hall = data["answer_quality"]["hallucination_rate"]
-    hall_n = int(hall.get("n_questions", hall.get("n_denominator", 0)))
-    hall_k = hall["k"] if "k" in hall else _binary_count(float(hall["value"]), hall_n)
     rows.append(
-        f"| Hallucination rate ↓ (judge) | {_fmt(hall['value'])} | {_ci_cells(hall_k, hall_n)} |"
+        f"| Hallucination rate ↓ (judge) | {_fmt(hall['value'])} | "
+        f"{_ci_cells(hall['k'], hall['n_questions'])} |"
     )
     for label, name in (
         ("Faithfulness", "faithfulness"),
         ("Citation accuracy", "citation_accuracy"),
     ):
-        metric = data["answer_quality"][name]
-        if "micro" in metric:
-            micro = metric["micro"]
-            rows.append(
-                f"| {label} per claim (judge) | {_fmt(micro['value'])} | "
-                f"{_ci_cells(micro['k'], micro['n_claims'])} |"
-            )
-        else:
-            # A per-question mean of per-claim fractions has no k/n to put in an interval.
-            rows.append(
-                f"| {label}, per-question mean (judge) | {_fmt(metric['value'])} | "
-                f"{_ci_cells(None, metric['n_denominator'])} |"
-            )
+        micro = data["answer_quality"][name]["micro"]
+        rows.append(
+            f"| {label} per claim (judge) | {_fmt(micro['value'])} | "
+            f"{_ci_cells(micro['k'], micro['n_claims'])} |"
+        )
     retrieval = data["retrieval"]
     n_answerable = data["dataset"]["n_answerable"]
     for label, key in (("nDCG", "ndcg_at_k"), ("Recall", "recall_at_k")):
@@ -358,13 +394,10 @@ def _latency_slo_rows(data: dict[str, Any], approved: str) -> list[str]:
 
 def _slo_rows(data: dict[str, Any]) -> list[str]:
     n = data["dataset"]["n_questions"]
-    errored = data.get("sample_sizes", {}).get("n_errored")
-    error_rate = errored / n if errored is not None and n else None
-    if errored is None:
-        error_cell = "not recorded by this scorecard"
-    else:
-        count, interval = _count_and_interval(errored, n)
-        error_cell = f"{_fmt(error_rate)} ({count}, 95 % CI {interval})"
+    errored = int(data["sample_sizes"]["n_errored"])
+    error_rate = errored / n if n else None
+    count, interval = _count_and_interval(errored, n)
+    error_cell = f"{_fmt(error_rate)} ({count}, 95 % CI {interval})"
     per_query = float(data["cost"]["per_query_usd"])
     approved = "approved"
     return [
@@ -414,12 +447,6 @@ def render_system_card_block(
     return "\n".join(lines)
 
 
-def _repo_path(path: Path) -> str:
-    resolved = path.resolve()
-    inside = resolved.is_relative_to(REPO_ROOT)
-    return (resolved.relative_to(REPO_ROOT) if inside else resolved).as_posix()
-
-
 def render_readme(text: str, block: str) -> str:
     """Return ``text`` with the content between the RESULTS markers replaced."""
     return replace_between(text, block, START, END)
@@ -444,60 +471,81 @@ def replace_between(text: str, block: str, start_marker: str, end_marker: str) -
     return re.sub(r"\n{3,}", "\n\n", replacement)
 
 
+def _dump(payload: dict[str, Any]) -> str:
+    return json.dumps(payload, indent=2, sort_keys=True) + "\n"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scorecard", type=Path, default=DEFAULT_SCORECARD)
     parser.add_argument("--readme", type=Path, default=DEFAULT_README)
     parser.add_argument("--system-card", type=Path, default=DEFAULT_SYSTEM_CARD)
     parser.add_argument(
+        "--artefact",
+        type=Path,
+        help="Run artefact to compute the scorecard from (default: the one it names).",
+    )
+    parser.add_argument(
         "--check",
         action="store_true",
-        help="Exit non-zero if the README or the system card would be modified (CI use).",
+        help="Exit 1 if the scorecard, the README or the system card would change; write nothing.",
     )
     args = parser.parse_args(argv)
 
-    if not args.scorecard.is_file():
-        raise SystemExit(f"scorecard JSON not found: {args.scorecard}")
-    payload = json.loads(args.scorecard.read_text(encoding="utf-8"))
-    if payload.get("schema") != "verity.scorecard.headline/v3":
-        raise SystemExit(
-            f"scorecard schema is not verity.scorecard.headline/v3 (got {payload.get('schema')!r})"
-        )
-    targets = (
-        (args.readme, render_readme, render_block(payload)),
-        (
-            args.system_card,
-            lambda text, block: replace_between(text, block, CARD_START, CARD_END),
-            render_system_card_block(
-                payload, scorecard_path=args.scorecard, card_path=args.system_card
-            ),
+    existing = (
+        json.loads(args.scorecard.read_text(encoding="utf-8")) if args.scorecard.is_file() else None
+    )
+    if args.artefact is not None:
+        artefact = args.artefact
+    elif existing is not None and existing.get("source_artefact"):
+        artefact = REPO_ROOT / existing["source_artefact"]
+    else:
+        raise SystemExit(f"no --artefact given and {args.scorecard} names none")
+    source = _repo_path(artefact)
+    payload = build_headline_dict_from_eval_run(load_run(artefact), source_artefact=source)
+
+    scorecard_text = _dump(payload)
+    for path in (args.readme, args.system_card):
+        if not path.is_file():
+            raise SystemExit(f"{path} not found")
+    readme = args.readme.read_text(encoding="utf-8")
+    card = args.system_card.read_text(encoding="utf-8")
+    # Render every file before writing any, so a missing marker leaves all as they were.
+    rendered_readme = render_readme(
+        readme,
+        render_block(
+            payload,
+            scorecard_path=args.scorecard,
+            judge=judge_label(payload["provenance"]["judge_model"]),
         ),
     )
-    # Render every file before writing any, so a missing file or marker leaves both as
-    # they were instead of updating one of them.
+    rendered_card = replace_between(
+        card,
+        render_system_card_block(
+            payload, scorecard_path=args.scorecard, card_path=args.system_card
+        ),
+        CARD_START,
+        CARD_END,
+    )
     pending: list[tuple[Path, str]] = []
-    for path, render, block in targets:
-        if not path.is_file():
-            raise SystemExit(f"file to regenerate not found: {path}")
-        current = path.read_text(encoding="utf-8")
-        rendered = render(current, block)
-        if rendered == current:
-            print(f"{path} already up to date")
-        else:
-            pending.append((path, rendered))
-    stale = [path for path, _ in pending]
+    if existing is None or _dump(existing) != scorecard_text:
+        pending.append((args.scorecard, scorecard_text))
+    if rendered_readme != readme:
+        pending.append((args.readme, rendered_readme))
+    if rendered_card != card:
+        pending.append((args.system_card, rendered_card))
     # --check only compares: a CI or pre-commit run must never edit the tree.
-    if not args.check:
-        for path, rendered in pending:
-            path.write_text(rendered, encoding="utf-8")
-            print(f"Updated {path}")
-    if args.check and stale:
-        names = ", ".join(str(p) for p in stale)
-        print(
-            f"{names} would be modified — run scripts/generate_headline_results.py to regenerate.",
-            file=sys.stderr,
-        )
-        return 1
+    if args.check:
+        if pending:
+            names = ", ".join(str(path) for path, _ in pending)
+            print(f"out of date: {names} — run without --check", file=sys.stderr)
+            return 1
+        print(f"scorecard, README and system card match {source}")
+        return 0
+    args.scorecard.parent.mkdir(parents=True, exist_ok=True)
+    for path, text in pending:
+        path.write_text(text, encoding="utf-8")
+        print(f"wrote {path}")
     return 0
 
 

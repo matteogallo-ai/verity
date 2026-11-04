@@ -1,8 +1,8 @@
 # Verity UI
 
 Next.js 15 (App Router) + TypeScript strict. The web surface for the Verity
-demo: upload a document, ask a question, get a cited answer (or a threshold-gated
-refusal), see the exact retrieved chunks and their rerank scores, and — the
+demo: upload a document, ask a question, get a cited answer (or a refusal with
+its rationale), see the exact retrieved chunks and their rerank scores, and — the
 point of the whole project — know at a glance **which agent produced the
 answer** you're looking at.
 
@@ -108,7 +108,7 @@ automatically on the next `/status` poll: the banner disappears, the badge
 turns green and reads the actual model id.
 
 The published live scorecard (faithfulness, hallucination and refusal numbers
-from one run with a real model) is `scorecards/live-v1.0.0.json`; the UI does
+from one run with a real model) is `scorecards/live-v1.1.0.json`; the UI does
 not display it.
 
 ## Development

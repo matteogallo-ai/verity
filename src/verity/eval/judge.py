@@ -36,6 +36,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from verity.agent.evidence import DATAMARK_NOTE, neutralise, render_evidence
 from verity.eval.base import FaithfulnessJudge
 from verity.llm.base import RoutingClient
 from verity.llm.json_output import first_matching, parse_json_object, strict_bool
@@ -47,7 +48,6 @@ from verity.types import (
     ClaimVerdict,
     EvalExample,
     Provider,
-    RetrievalHit,
     UsageStats,
 )
 
@@ -88,20 +88,14 @@ def _atomic_claims(text: str) -> list[str]:
     return parts
 
 
-def _render_context(hits: list[RetrievalHit]) -> str:
-    if not hits:
-        return "(no evidence)"
-    return "\n\n".join(
-        f"[{i}] (section: {h.chunk.section or '-'})\n{h.chunk.text.strip()}"
-        for i, h in enumerate(hits)
-    )
-
-
 def _render_citations(answer: Answer) -> str:
+    """One line per citation; the quote is the agent's output, so it is neutralised like
+    the answer: a quote cannot close the ``<citations>`` block."""
     if not answer.citations:
         return "(no citations)"
     return "\n".join(
-        f"[{i}] chunk={c.chunk_id} quote={c.quote!r}" for i, c in enumerate(answer.citations)
+        f"[{i}] chunk={c.chunk_id} quote={neutralise(c.quote)!r}"
+        for i, c in enumerate(answer.citations)
     )
 
 
@@ -266,11 +260,12 @@ class LLMFaithfulnessJudge(FaithfulnessJudge):
             )
 
         messages = self._prompt.render(
-            context=_render_context(list(answer.hits_used)),
-            answer=answer.text,
+            evidence=render_evidence(list(answer.hits_used), with_scores=False, datamarked=True),
+            datamark_note=DATAMARK_NOTE,
+            answer=neutralise(answer.text),
             citations=_render_citations(answer),
         )
-        completion = await self._client.complete(messages, max_tokens=512, temperature=0.0)
+        completion = await self._client.complete(messages, max_tokens=_MAX_TOKENS)
         self.last_usage = completion.usage
         self.last_provider = completion.provider
         self.last_model = completion.model
@@ -286,7 +281,10 @@ class LLMFaithfulnessJudge(FaithfulnessJudge):
                 refusal_precision=0.0,
                 refusal_recall=0.0,
             )
-        verdicts, supported, citation_ok, total = parsed
+        verdicts = _check_citations(parsed[0], len(answer.citations))
+        total = len(verdicts)
+        supported = sum(1 for v in verdicts if v.supported)
+        citation_ok = sum(1 for v in verdicts if v.citation_ok)
         self.last_claims = verdicts
         faithfulness = supported / total if total else 0.0
         citation_accuracy = citation_ok / total if total else 0.0
@@ -300,10 +298,37 @@ class LLMFaithfulnessJudge(FaithfulnessJudge):
         )
 
 
+# Thinking models (Claude Opus 5.5 always thinks) spend part of max_tokens on thinking;
+# a verdict cut short parses as malformed and scores the answer as unsupported. Only
+# the tokens actually produced are billed, so the headroom costs nothing.
+_MAX_TOKENS = 8192
+
 _JUDGE_CLAIMS_KEYS = ("claims", "atomic_claims", "assessments", "verdicts")
 _JUDGE_SUPPORTED_KEYS = ("supported", "is_supported", "grounded")
 _JUDGE_CITATION_OK_KEYS = ("citation_ok", "citation_supports", "citation_valid")
 _JUDGE_CLAIM_TEXT_KEYS = ("claim", "text", "statement")
+
+
+def _citation_index(value: object) -> int | None:
+    """A JSON integer naming a citation, else ``None``. ``True`` is an ``int`` in Python
+    and ``"0"`` or ``0.0`` are guesses: none of them names a citation."""
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    return None
+
+
+def _check_citations(
+    verdicts: tuple[ClaimVerdict, ...], n_citations: int
+) -> tuple[ClaimVerdict, ...]:
+    """``citation_ok`` holds only when the judge named a citation of this answer: a
+    citation that is right for one claim says nothing about the others (audit finding
+    M1). ``supported`` is left as judged, on all the evidence."""
+    return tuple(
+        v
+        if v.citation is not None and 0 <= v.citation < n_citations
+        else v.model_copy(update={"citation_ok": False})
+        for v in verdicts
+    )
 
 
 def _parse_judge_output(text: str) -> tuple[tuple[ClaimVerdict, ...], int, int, int] | None:
@@ -337,7 +362,12 @@ def _parse_judge_output(text: str) -> tuple[tuple[ClaimVerdict, ...], int, int, 
         if is_supported is None or is_citation_ok is None:
             return None
         verdicts.append(
-            ClaimVerdict(claim=claim_text, supported=is_supported, citation_ok=is_citation_ok)
+            ClaimVerdict(
+                claim=claim_text,
+                supported=is_supported,
+                citation_ok=is_citation_ok,
+                citation=_citation_index(entry.get("citation")),
+            )
         )
         if is_supported:
             supported += 1

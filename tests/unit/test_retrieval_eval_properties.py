@@ -1,5 +1,5 @@
 """Property-based tests of rank fusion, retrieval metrics, refusal calibration and the
-headline aggregation: the numbers the scorecard publishes."""
+headline refusal and cost figures: the numbers the scorecard publishes."""
 
 from __future__ import annotations
 
@@ -11,7 +11,8 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from verity.eval.headline import _compute_headline, _NormalizedInputs
+from tests.unit.test_headline_generator import _fixture_result
+from verity.eval.headline import build_headline_dict_from_eval_run
 from verity.eval.refusal import RefusalOutcome, build_confusion
 from verity.eval.retrieval_metric import (
     PerExampleScore,
@@ -21,7 +22,16 @@ from verity.eval.retrieval_metric import (
     recall_at_k,
 )
 from verity.retrieval.fusion import ReciprocalRankFusion
-from verity.types import Chunk, RetrievalHit, RetrievalMetrics, RetrieverKind
+from verity.types import (
+    AnswerMetrics,
+    Chunk,
+    EvalRun,
+    PerExampleAudit,
+    RetrievalHit,
+    RetrievalMetrics,
+    RetrieverKind,
+    UsageStats,
+)
 
 _DOC = UUID(int=1)
 _IDS = st.integers(0, 15).map(lambda n: UUID(int=n + 100))
@@ -157,83 +167,68 @@ _AUDIT = st.fixed_dictionaries(
     {
         "expected_answerable": st.booleans(),
         "refused": st.booleans(),
-        "judge_claims_is_none": st.booleans(),
-        "faithfulness": _UNIT,
-        "citation_accuracy": _UNIT,
-        "hallucination_rate": _UNIT,
+        "agent_usd": st.floats(0, 1),
+        "judge_usd": st.floats(0, 1),
     }
 )
 
 
-def _inputs(audit: list[dict[str, Any]], agent_usd: float, judge_usd: float) -> _NormalizedInputs:
-    refusal = [
-        {
-            "example_id": str(i),
-            "expected_answerable": a["expected_answerable"],
-            "observed_refused": a["refused"],
-        }
-        for i, a in enumerate(audit)
-    ]
-    return _NormalizedInputs(
-        scorecard_git_sha="sha",
-        scorecard_created_at_iso="2026-01-01T00:00:00+00:00",
-        scorecard_dataset="d",
-        n_examples=len(audit),
-        retrieval_k=5,
-        retrieval_precision=0.0,
-        retrieval_recall=0.0,
-        retrieval_ndcg=0.0,
-        latency_p50=0.0,
-        latency_p95=0.0,
-        latency_p99=0.0,
-        cold_start_ms=None,
-        cost_per_query_usd=0.0,
-        agent_cost_usd=agent_usd,
-        judge_cost_usd=judge_usd,
-        embedding_model="m",
-        agent_summary="a",
-        judge_summary="j",
-        per_refusal_records=refusal,
-        per_audit_records=audit,
+def _run(rows: list[dict[str, Any]]) -> EvalRun:
+    scorecard = _fixture_result().scorecard.model_copy(update={"n_examples": len(rows)})
+    metrics = AnswerMetrics(
+        faithfulness=1.0,
+        citation_accuracy=1.0,
+        hallucination_rate=0.0,
+        refusal_precision=0.0,
+        refusal_recall=0.0,
     )
+    audits = tuple(
+        PerExampleAudit(
+            example_id=str(i),
+            question="q",
+            expected_answerable=r["expected_answerable"],
+            answer_text="a",
+            refused=r["refused"],
+            judge_claims=None if r["refused"] else (),
+            answer_metrics=metrics,
+            usage=UsageStats(cost_usd=r["agent_usd"]),
+            judge_usage=UsageStats(cost_usd=r["judge_usd"]),
+        )
+        for i, r in enumerate(rows)
+    )
+    return EvalRun(scorecard=scorecard, embedding_model="e", judge_model="j", per_audit=audits)
 
 
-def _mean(values: list[float]) -> float:
-    return sum(values) / len(values) if values else 0.0
-
-
-@given(st.lists(_AUDIT, max_size=12), st.floats(0, 10), st.floats(0, 10))
-def test_headline_metrics_are_means_over_their_declared_scope(
-    audit: list[dict[str, Any]], agent_usd: float, judge_usd: float
+@given(st.lists(_AUDIT, max_size=12))
+def test_headline_refusal_counts_and_costs_follow_the_audit_trail(
+    rows: list[dict[str, Any]],
 ) -> None:
-    headline = _compute_headline(_inputs(audit, agent_usd, judge_usd), dataset_sha=None)
+    headline = build_headline_dict_from_eval_run(_run(rows))
     sizes = headline["sample_sizes"]
-    assert sizes["n_answered"] + sizes["n_refused"] == len(audit)
-
-    judged = [a for a in audit if not a["judge_claims_is_none"]]
-    at_risk = [a for a in audit if a["expected_answerable"] and not a["refused"]]
-    quality = headline["answer_quality"]
-    for name, scope in (
-        ("faithfulness", judged),
-        ("citation_accuracy", judged),
-        ("hallucination_rate", at_risk),
-    ):
-        assert quality[name]["n_denominator"] == len(scope)
-        assert quality[name]["value"] == round(_mean([a[name] for a in scope]), 6)
-    assert sizes["n_judged"] == len(judged)
-    assert sizes["n_answerable_answered"] == len(at_risk)
-    assert headline["cost"]["total_usd"] == round(agent_usd + judge_usd, 6)
+    assert sizes["n_answered"] + sizes["n_refused"] == len(rows)
+    assert sizes["n_answerable_answered"] == sum(
+        1 for r in rows if r["expected_answerable"] and not r["refused"]
+    )
+    agent = sum(r["agent_usd"] for r in rows)
+    judge = sum(r["judge_usd"] for r in rows)
+    cost = headline["cost"]
+    assert cost["agent_usd"] == pytest.approx(agent, abs=1e-6)
+    if rows:
+        assert cost["total_usd"] == pytest.approx(agent + judge, abs=2e-6)
 
     confusion = build_confusion(
-        RefusalOutcome(str(i), a["expected_answerable"], a["refused"]) for i, a in enumerate(audit)
+        RefusalOutcome(str(i), r["expected_answerable"], r["refused"]) for i, r in enumerate(rows)
     )
-    calibration = headline["refusal_calibration"]
-    assert calibration["out_of_scope_answered"] == {
-        "count": confusion.fn,
-        "total": confusion.tp + confusion.fn,
-    }
+    refusal = headline["refusal"]
+    assert refusal["out_of_scope_answered"]["count"] == confusion.fn
+    assert refusal["out_of_scope_answered"]["total"] == confusion.tp + confusion.fn
     # Both modules compute the refusal pair; they agree wherever it is defined.
     if confusion.tp + confusion.fp:
-        assert calibration["refusal_precision"] == confusion.refusal_precision
+        assert refusal["refusal_precision"]["k"] == confusion.tp
+        assert refusal["refusal_precision"]["value"] == pytest.approx(
+            confusion.refusal_precision, abs=1e-6
+        )
     if confusion.tp + confusion.fn:
-        assert calibration["refusal_recall"] == confusion.refusal_recall
+        assert refusal["refusal_recall"]["value"] == pytest.approx(
+            confusion.refusal_recall, abs=1e-6
+        )

@@ -308,6 +308,9 @@ class EvalExample(BaseModel, frozen=True):
     answerable: bool
     reference_answer: str | None = None  # None iff not answerable
     relevant_chunk_ids: tuple[ChunkId, ...] = ()  # gold retrieval labels
+    # Verbatim corpus quotes answering the question; the eval resolves the gold
+    # chunks from them (``verity.eval.labels``).
+    evidence: tuple[str, ...] = ()
     tags: tuple[str, ...] = ()
 
 
@@ -382,6 +385,9 @@ class ClaimVerdict(BaseModel, frozen=True):
     claim: str
     supported: bool
     citation_ok: bool
+    # Index into the answer's citations that the judge named as supporting the claim
+    # (judge prompt v0.2.0 on); None when it named none, and in earlier runs.
+    citation: int | None = None
 
 
 class PerExampleAudit(BaseModel, frozen=True):
@@ -408,11 +414,23 @@ class PerExampleAudit(BaseModel, frozen=True):
     answer_text: str
     refused: bool
     refusal_rationale: str = ""
+    # The scorer's score (0.0 when a deterministic check refused before the scorer
+    # ran) and the refusal reason: the threshold sweep and the calibration metrics
+    # are recomputed from these. None in runs recorded before they were stored.
+    confidence_score: float | None = None
+    refusal_reason: RefusalReason | None = None
     citations: tuple[Citation, ...] = ()
     hits_used: tuple[RetrievalHit, ...] = ()
     judge_claims: tuple[ClaimVerdict, ...] | None = None
     answer_metrics: AnswerMetrics
     usage: UsageStats = Field(default_factory=UsageStats)
+    # The judge call for this example (zero usage when a refusal bypassed the judge);
+    # None in runs recorded before it was stored.
+    judge_usage: UsageStats | None = None
+    # Models that actually served this example (a routing fallback can differ from the
+    # run-level labels). None when not called or in runs recorded before they were stored.
+    agent_model_used: str | None = None
+    judge_model_used: str | None = None
     stage_ms: dict[str, float] = Field(default_factory=dict)
 
 
@@ -465,3 +483,17 @@ class EvalRun(BaseModel, frozen=True):
     notes: str | None = None
     per_audit: tuple[PerExampleAudit, ...] = ()
     errored: tuple[ErroredExample, ...] = ()
+    # What the run measured with, so its numbers can be tied to exact inputs: the
+    # dataset file's SHA-256, each prompt file's SHA-256, and the wall-clock duration.
+    # None / empty in runs recorded before they were stored.
+    dataset_sha256: str | None = None
+    prompt_sha256: dict[str, str] = Field(default_factory=dict)
+    duration_s: float | None = None
+    # The refusal threshold the agent ran with: refusals are published at this value.
+    confidence_threshold: float | None = None
+
+    @property
+    def errored_cost_usd(self) -> float:
+        """Agent cost of the examples paid for but not scored: they have no audit
+        record, but their calls were billed."""
+        return round(sum(e.usage.cost_usd for e in self.errored), 6)

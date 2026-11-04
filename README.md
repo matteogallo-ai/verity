@@ -4,7 +4,7 @@
 
 **A RAG agent over enterprise documents that refuses when its evidence is weak, and
 publishes how often it gets that right.**
-Cited answers with verbatim quotes. Threshold-gated refusal on out-of-scope questions.
+Cited answers with verbatim quotes. Refusal when the citations do not support the answer.
 Every published number traceable to the run artefact that produced it.
 
 [![ci](https://github.com/matteogallo-ai/verity/actions/workflows/ci.yml/badge.svg)](https://github.com/matteogallo-ai/verity/actions/workflows/ci.yml)
@@ -20,8 +20,9 @@ Enterprise RAG demos answer confidently and are wrong just often enough to be
 dangerous: a fluent, cited-looking answer with no real grounding is the failure that
 matters for contracts, filings and policies.
 
-Verity drafts an answer, asks a scorer model how well the evidence supports it, and
-refuses below a threshold. It publishes faithfulness, citation accuracy,
+Verity drafts an answer, checks deterministically that its citations cover and
+match it, asks a scorer model how well the evidence supports it, and refuses when a
+check fails, the scorer refuses, or the score is below a threshold. It publishes faithfulness, citation accuracy,
 hallucination rate and refusal precision / recall from one live run whose
 per-question audit trail is committed next to the code.
 
@@ -47,7 +48,7 @@ Each feature maps to its implementation and tests in [`docs/CLAIMS.md`](docs/CLA
 CI job `claims` runs those tests.
 
 - Verbatim citations: every quote is a substring of its source document; others are dropped (C01).
-- Threshold-gated refusal with a rationale (C02); unparseable scorer output is refused (C03).
+- Refusal with a rationale when a citation check fails, the scorer refuses or its score is below a threshold (C02); unparseable scorer output is refused (C03).
 - Hybrid retrieval: dense + sparse, reciprocal rank fusion, cross-encoder rerank (C04).
 - Two vector stores: in-memory with cosine and BM25 (C05); Postgres + pgvector with full-text search (C06), the default for the API, the demo and the eval (C22).
 - Markdown and plain-text ingestion with structure-aware chunking and machine-independent ids (C07); PDF and DOCX through docling (C08).
@@ -55,7 +56,9 @@ CI job `claims` runs those tests.
 - Per-request provenance: each answer records the model that actually served it (C10).
 - Evaluation harness: retrieval, refusal and LLM-judged answer-quality metrics, one audit record per question (C11).
 - Live run artefacts protected from being overwritten by stub runs (C12).
+- 95 questions over 21 documents (≥ 25 unanswerable, ≥ 5 adversarial) with a frozen, seeded dev/test split; per-question and per-claim aggregates (C28).
 - README results generated from the scorecard and checked in CI (C13); CLI labels match scorecard keys (C14).
+- 95 questions over 21 documents (≥ 25 unanswerable, ≥ 5 adversarial) with a frozen, seeded dev/test split; per-question and per-claim aggregates (C28).
 - SDK call signatures (C15) and LLM output parsers (C16) tested against the shapes real models produce.
 - Per-stage tracing behind `/metrics`, `/metrics/prom` and `/dashboard` (C17); optional OTLP export, bounded in-memory spans (C29).
 - HTTP API with `/status`, `/ask` and content-addressed `/ingest` (C18), and a Next.js UI with citation highlighting and a provenance badge (C19).
@@ -64,74 +67,163 @@ CI job `claims` runs those tests.
 - API hardening: API keys on `/status`, `/ask` and `/ingest`, per-key rate limit, a limit on failed key attempts, bounded inputs, file-type allow-list, generic errors with a request ID (C23).
 - Bounded spend: per-key spending budget on `/ask`, a per-answer cap on `verity ask` checked before each LLM call, bounded `max_tokens` and timeouts (C31).
 - Liveness and readiness split: `/health` answers while the process lives; `/ready` answers `503` until the corpus and the local models are loaded at startup, and unless Postgres answers and the LLM providers can serve as routing uses them, without spending tokens (C32).
-- Retrieved text reaches the synthesizer datamarked (spotlighting): a mark between every pair of words lets its prompt label all of it as document content. Against 12 naturally worded poisoned documents, 3 live runs per arm, no case was steered with or without the mark (0/12 each, Wilson 95 % [0, 0.243]), though the attacks made answerable questions refuse (4/24 answers with the mark, 7/24 without): this set does not show an effect of the mark (C33).
+- Retrieved text reaches the synthesizer datamarked (spotlighting): a mark between every pair of words lets its prompt label all of it as document content. Against 12 naturally worded poisoned documents, 3 live runs per arm on the earlier 6-document corpus, no case was steered with or without the mark (0/12 each, Wilson 95 % [0, 0.243]), though the attacks made answerable questions refuse (4/24 answers with the mark, 7/24 without): this set does not show an effect of the mark (C33).
 - Prompt-injection defence: delimited, untrusted-labelled evidence, and a deterministic support check (citation coverage, cited relevance, injection markers) the model's score cannot override; adversarial eval questions (C24).
 - Provider and store outages reported as errors (HTTP 503), never as refusals (C25).
+- Judge validated against blind human labels on 60 claims, real and perturbed to be false: κ, agreement, specificity and sensitivity with n and intervals, generated from a pinned artefact (C27).
 
 ## Measured results
 
 <!-- RESULTS:START -->
-**Measured on**: `agent=claude-sonnet-4-6 (16/16)` · `judge=claude-sonnet-4-6 (12/16 answered — 4 refusals bypass the judge)` · `embedding=BAAI/bge-small-en-v1.5` · commit `d0ca1d5` · 2026-09-07 · n=16 (11 answerable + 5 out-of-scope) · total cost **$0.2713**
+**Measured on**: `agent=claude-sonnet-4-6 (56/56)` · `judge=claude-opus-5-5 (34/56 answered — 22 refusals bypass the judge)` · `embedding=BAAI/bge-small-en-v1.5` · commit `969e1d5` · 2026-11-02 · dataset `test` · n=56 (36 answerable + 20 unanswerable) · **0 errored** (kept out of every metric) · total cost **$1.2768**
 
 | Metric | Value | Notes |
 |---|---:|---|
-| **Refusal recall** | **0.800** | headline · fraction of out-of-scope questions correctly refused |
-| **Refusal precision** | **1.000** | of the refusals, fraction that were genuinely unanswerable |
-| Faithfulness (answered, n=12) | 1.000 | per-question mean of claim-level judge verdicts over 12 answered questions · judge unvalidated |
-| Citation accuracy (answered, n=12) | 0.722 | per-question mean over 12 answered questions (refusals bypass the judge) · judge unvalidated |
-| Hallucination rate (answerable_and_answered, n=11) | 0.000 | ↓ better · at-risk set = answerable questions the agent answered |
-| Out-of-scope answered | 1/5 | ↓ better · questions we shipped an answer for that were unanswerable |
-| Retrieval nDCG@8 | 0.953 | deterministic (no LLM) |
-| Retrieval recall@8 | 1.000 | deterministic |
-| Retrieval precision@8 | 0.148 | k>gold ceiling; interpret with recall |
-| Latency p50 / p95 / p99 | 9374.7 ms / 32526.5 ms / 36653.1 ms | no warmup: includes the first question's model loading |
-| Cost / query | $0.0122 | total $0.2713 = agent $0.1950 + judge $0.0763 |
+| **Refusal recall** | **0.850** | unanswerable questions refused / unanswerable: 17/20 · 95 % CI [0.640, 0.948] · threshold 0 |
+| **Refusal precision** | **0.773** | refusals that were unanswerable / refusals: 17/22 · 95 % CI [0.566, 0.899] |
+| Faithfulness, per question | 0.990 | mean over 34 judged answers · judge κ 0.71 vs blind human (n=60) |
+| Faithfulness, per claim | 0.991 | pooled over claims: 108/109 · 95 % CI [0.950, 0.998] · judge κ 0.71 vs blind human (n=60) |
+| Citation accuracy, per question | 0.968 | mean over 34 judged answers · judge κ 0.71 vs blind human (n=60) |
+| Citation accuracy, per claim | 0.963 | pooled over claims: 105/109 · 95 % CI [0.909, 0.986] · judge κ 0.71 vs blind human (n=60) |
+| Hallucination rate | 0.000 | ↓ better · answers with an unsupported claim / answered answerable questions: 0/31 · 95 % CI [0.000, 0.110] |
+| Unanswerable answered | 3/20 | ↓ better · an answer shipped where the corpus has none: 3/20 · 95 % CI [0.052, 0.360] |
+| Retrieval nDCG@8 | 0.929 | scored without an LLM on hits retrieved for the LLM sub-questions |
+| Retrieval recall@8 | 0.986 | as nDCG |
+| Retrieval precision@8 | 0.146 | k>gold ceiling; interpret with recall |
+| Latency p50 / p95 / p99 | 5445.7 ms / 8949.3 ms / 10929.3 ms | warm; cold start `8460.1 ms` measured separately |
+| Cost / query | $0.0132 | total $1.2768 = agent $0.7408 + judge $0.5360 |
 
-Numbers are copied verbatim from [`scorecards/live-v1.0.0.json`](scorecards/live-v1.0.0.json) (committed artefact of the single live run of record — never averaged, never re-run to nudge a number).
+Refusals by cause: `irrelevant_citation` 4 (4 answerable) · `low_citation_coverage` 7 (1 answerable) · `model_refused` 2 (0 answerable) · `no_citation` 6 (0 answerable) · `suspected_injection` 3 (0 answerable).
+No refusal has the cause `below_threshold`: the confidence threshold decided none of them.
+
+Generated from [`scorecards/live-v1.1.0.json`](scorecards/live-v1.1.0.json), itself computed from the run artefact `datasets/eval/runs/live/eval_969e1d5_test.json` (`scripts/generate_headline_results.py --check` recomputes both).
 
 <!-- RESULTS:END -->
+
+The v1.0.0 artefact
+[`eval_d0ca1d5_questions.json`](datasets/eval/runs/live/eval_d0ca1d5_questions.json)
+is immutable and still stores citation accuracy **0.7917**, under the earlier
+definition that averaged its 4 refusals in at 1.0. Under the single definition used
+above (refusals excluded) it is **0.7222**, per question over 12 judged answers; the
+recomputation is in
+[`eval_d0ca1d5_questions.recomputed.json`](datasets/eval/runs/live/eval_d0ca1d5_questions.recomputed.json)
+(`scripts/recompute_live_aggregates.py`).
 
 Every value in the table is copied from the committed scorecard JSON by
 [`scripts/generate_headline_results.py`](scripts/generate_headline_results.py);
 `--check` fails CI if the README drifts. Each answer-quality metric carries its
 `scope` and `n_denominator`. The full audit trail (per-question answer, citations,
-per-claim judge verdict) is
-[`datasets/eval/runs/live/eval_d0ca1d5_questions.json`](datasets/eval/runs/live/eval_d0ca1d5_questions.json).
-Retrieval numbers come from the in-memory store (BM25 sparse arm), which that run
-used; `verity eval run` now defaults to pgvector (`--store memory` reproduces it). Definitions: [`docs/evaluation-methodology.md`](docs/evaluation-methodology.md).
-Each proportion with its k/n and Wilson 95 % interval, the approved SLOs and whether the run meets them, the intended
-use and the known limits: [`docs/SYSTEM_CARD.md`](docs/SYSTEM_CARD.md), generated from
-the same scorecard.
+refusal cause, confidence score, per-claim judge verdict) is
+[`datasets/eval/runs/live/eval_969e1d5_test.json`](datasets/eval/runs/live/eval_969e1d5_test.json).
+The run used the in-memory store (BM25 sparse arm); `verity eval run` defaults to
+pgvector (`--store memory` reproduces it). Definitions:
+[`docs/evaluation-methodology.md`](docs/evaluation-methodology.md).
+Each proportion with its k/n and Wilson 95 % interval, the approved SLOs and whether
+this run meets them, the intended use and the known limits:
+[`docs/SYSTEM_CARD.md`](docs/SYSTEM_CARD.md), generated from the same scorecard.
+
+## Judge validation
+
+The answer-quality rows above are judged by a model. Its agreement with blind human
+labels is the result of record; an adjudication of the disagreements, published
+separately, does not replace it.
+
+<!-- JUDGE:START -->
+Judge `claude-opus-5-5` with judge prompt v0.1.0 (`datasets/eval/judge_validation/judge_faithfulness.v0.1.0.prompt`, sha256 `2c5f8eca49ba`) against **blind human labels**, the reference: 60 claims labelled without origin or judge verdict, 40 real claims (16 from the dev run, 24 from the test run) and 20 claims perturbed to be false (one number, date, negation or entity changed). The κ below belongs to this prompt version: a changed judge prompt is a new judge and needs its own κ.
+
+| Measure | Value | n · notes |
+|---|---|---|
+| Cohen's κ, all claims | 0.71 | 60 claims · observed agreement 0.883 (53/60 · 95 % CI [0.778, 0.942]) · 46 supported / 14 unsupported by the human |
+| Cohen's κ, real claims only | 0.48 | 40 claims · observed agreement 0.950 (38/40 · 95 % CI [0.835, 0.986]) · **fragile**: only 1 of 40 claims is in the smaller human class, so one or two disagreements move κ widely |
+| Judge specificity on real claims (human: supported) | 0.949 | 37/39 · 95 % CI [0.831, 0.986] |
+| Sensitivity: perturbed claims the judge finds unsupported (**upper bound**) | 0.800 | 16/20 · 95 % CI [0.584, 0.919] · by kind: date 5/5 · entity 3/5 · negation 5/5 · number 3/5 |
+| … among perturbed claims the human finds unsupported | 0.923 | 12/13 · 95 % CI [0.667, 0.986] |
+| Perturbed claims the human finds unsupported | 0.650 | 13/20 · 95 % CI [0.433, 0.819] |
+
+Disagreements: the judge rejects 6 claims the human accepts and accepts 1 the human rejects. Notes from the artefact:
+
+- kappa has no Wilson interval: it is not a proportion; with 60 items it is uncertain by itself.
+- a perturbed claim counts as detected if any sub-claim the judge made of it is unsupported, even outside the changed span: sensitivity is an upper bound (per-claim detail in perturbed_verdicts.json).
+- robustness to injected content is not measured: judge prompt v0.1.0 puts the retrieved text in front of the judge without delimiters or an untrusted-content instruction ([THREAT_MODEL](docs/THREAT_MODEL.md#llm01-prompt-injection)), and only 4 of the 60 claims had the corpus note written to carry an injection in the judge's context.
+
+Generated from [`datasets/eval/judge_validation/agreement.json`](datasets/eval/judge_validation/agreement.json) (`scripts/render_judge_validation.py --check`); the labels and the key are pinned in `datasets/eval/judge_validation/SHA256SUMS`.
+<!-- JUDGE:END -->
+
+### Adjudicated agreement (not the result of record)
+
+<!-- JUDGE-ADJUDICATED:START -->
+10 claims re-read with both verdicts visible, by the annotator of the blind labels: every disagreement, and every perturbed claim judged true blind. 7 labels changed, **6 of them to the judge's verdict**. The judge's verdict was in view, so a change towards it may be persuasion as much as correction: these figures bound agreement from above and validate nothing. Of the 7 perturbed claims judged true blind, 2 stay true after the change and 5 were annotator misses.
+
+| Measure | Blind (of record) | Adjudicated |
+|---|---|---|
+| Cohen's κ, all claims | 0.71 | 0.93 |
+| Cohen's κ, real claims only (fragile: 3 unsupported) | 0.48 | 1.00 |
+| Observed agreement, all claims | 53/60 · 95 % CI [0.778, 0.942] | 58/60 · 95 % CI [0.886, 0.991] |
+| Perturbed claims the human finds unsupported | 13/20 · 95 % CI [0.433, 0.819] | 18/20 · 95 % CI [0.699, 0.972] |
+| … of which the judge finds unsupported | 12/13 · 95 % CI [0.667, 0.986] | 16/18 · 95 % CI [0.672, 0.969] |
+
+Generated from [`datasets/eval/judge_validation/agreement_adjudicated.json`](datasets/eval/judge_validation/agreement_adjudicated.json); each decision and its reason is in `adjudication.csv`.
+<!-- JUDGE-ADJUDICATED:END -->
+
+### Judge prompt v0.2.0 (not the judge of the runs of record)
+
+<!-- JUDGE-V2:START -->
+Judge `claude-opus-5-5` with judge prompt v0.2.0 (sha256 `aa66e62370a2`), the prompt in `prompts/`: its inputs are delimited and its evidence datamarked, and it names the citation of each claim. Rejudged against the same blind labels, for $1.3045, on **52 of 60 claims only: the budget stopped the rejudge before 8**, so the figures below are incomplete and both prompts are compared on those claims; the unjudged ones are the last in id order, not a random sample. Every claim, real or perturbed, is judged as a one-claim answer; v0.1.0 used the live whole-answer verdict for the real claims, so a change on real claims mixes the prompt and the protocol. The runs of record were judged by v0.1.0: their answer-quality figures carry the v0.1.0 κ above.
+
+| Measure, on the 52 claims v0.2.0 judged | v0.1.0 (runs of record) | v0.2.0 |
+|---|---|---|
+| Cohen's κ, all claims | 0.64 | 0.60 |
+| Observed agreement | 45/52 · 95 % CI [0.747, 0.933] | 44/52 · 95 % CI [0.725, 0.920] |
+| Cohen's κ, real claims only (fragile: 1 unsupported) | 0.48 | 0.37 |
+| Judge specificity on real claims | 33/35 · 95 % CI [0.814, 0.984] | 32/35 · 95 % CI [0.776, 0.970] |
+| Sensitivity on perturbed claims (upper bound) | 12/16 · 95 % CI [0.505, 0.898] | 12/16 · 95 % CI [0.505, 0.898] |
+
+On all 60 claims v0.1.0 has κ 0.71, the figure of record above.
+
+The judge named a valid citation it found supporting for 40 of the 57 claims it returned. The blind labels judge support only, so this count is not validated against a human.
+
+Generated from [`datasets/eval/judge_validation/judge-v0.2.0/agreement.json`](datasets/eval/judge_validation/judge-v0.2.0/agreement.json); per-claim verdicts in `verdicts.json` beside it.
+<!-- JUDGE-V2:END -->
 
 ## Open issues: what the numbers do not say
 
-- **n = 16 is a method check, not a benchmark.** 16 questions over 5 documents; one
-  question moves refusal recall by 0.2. There is no dev/test split: the 0.55
-  threshold was set by hand and is reported on the same examples.
-- **The numbers predate the current answering pipeline.** The run of record
-  (`d0ca1d5`, 2026-09-07) ran before the deterministic support check and the
-  delimited, untrusted-labelled prompts. The support check's two thresholds were
-  chosen on these same 16 questions, so they cannot measure its false-refusal cost,
-  and no live run of the current code is published here.
-- **The judge is unvalidated.** It is the same model as the agent
-  (`claude-sonnet-4-6`) and its agreement with human labels has not been measured.
-- **Citation accuracy is a per-question mean.** Aggregated per claim instead, the
-  same artefact gives 21 of 34 claims with `citation_ok` (0.618), against 0.722 per
-  question. All 13 failing claims are `supported = true`: the judge found the
-  attached citation too coarse (a paragraph-level quote for several facts), not the
-  claim unsupported. An earlier v1.0.0 headline published 0.792, which averaged over
-  all 16 questions with refusals counted as 1.0; v1.0.1 restricted it to the 12
-  answered questions.
-- **The confidence score is not calibrated.** It is the scorer model's
-  self-report; refusal is "threshold-gated", and calibration has not been measured.
-- **q-015 is a labelling ambiguity.** *"Which specific cloud provider hosts the
-  production infrastructure?"* is labelled out-of-scope (the corpus names no
-  provider). The agent answered that the evidence does not name one, with one
-  citation (the artefact does not record its confidence score). The label only
-  checks `refused`, so this counts as an out-of-scope question answered, and
-  refusal recall is reported as 0.800.
-- **Latency includes cold start.** The run used `--no-warmup`, so p95/p99 include
-  the first question's model loading; percentiles come from 16 calls in one run.
+- **The runs predate the current prompts.** Both v1.1.0 runs used
+  `synthesize.prompt` v0.2.0 and judge prompt v0.1.0: the datamarked synthesis (C33)
+  and the delimited judge came after them, and no live run of the current pipeline is
+  published here.
+- **The threshold decides nothing on this data.** Every refusal above has a
+  deterministic cause (no citation, low citation coverage, irrelevant citation,
+  suspected injection) or is the scorer's own refusal; none is `below_threshold`.
+  The threshold was chosen on the dev split by a rule fixed before the run (highest
+  refusal recall at precision ≥ 0.9, else highest F1): no threshold reached 0.9,
+  refusal precision and recall are identical for every threshold from 0.00 to 0.95,
+  and the rule gave 0.00. Sweep and figure:
+  [`scorecards/refusal-analysis.json`](scorecards/refusal-analysis.json),
+  [`docs/figures/reliability.png`](docs/figures/reliability.png).
+- **Refusal precision is a known limit** (row above, with its interval). Every
+  refusal of an answerable question comes from the citation checks
+  (`irrelevant_citation`, `low_citation_coverage`: counts under "Refusals by cause");
+  dev shows the same cause (`scorecards/refusal-analysis.json`). Tuning those checks
+  is done on dev only; a new test run belongs to a new version.
+- **The confidence score is not calibrated.** On test, 35 of the 36 scored answers
+  score 0.9 or more and 31 of them are answerable: ECE 0.116 over n = 36, with almost
+  every answer in one bin. Isotonic and Platt maps fitted on dev hold one
+  unanswerable example and do not fix it (ECE 0.097 and 0.091). The score is the
+  scorer model's self-report.
+- **The judge is validated on 60 claims by one annotator, and is a Claude model.**
+  It is `claude-opus-5-5`, a different model from the agent (`claude-sonnet-4-6`),
+  not a different family. κ against the owner's blind labels and the sensitivity on
+  perturbed claims are under "Judge validation"; κ on real claims alone rests on one
+  human-unsupported claim and is fragile. One annotator gives no inter-annotator
+  agreement.
+- **n = 56 is small.** The 95 % Wilson intervals in the table show how little it
+  pins down: no hallucination in the sample does not rule out a rate up to the
+  interval's upper bound.
+  Per-claim intervals assume independent claims; claims of one answer are not, so
+  those intervals are too narrow. The corpus is 21 fictional documents in three
+  domains, with no scanned PDFs or tables.
+- **Unanswerable questions were answered** (row "Unanswerable answered"): q-074,
+  q-085 and q-089, with scores 0.72, 0.92 and 0.90.
 
 ## Roadmap
 
@@ -139,9 +231,8 @@ Not implemented, or implemented without a test. Each item is a `roadmap` row in
 [`docs/CLAIMS.md`](docs/CLAIMS.md).
 
 - Web-page ingestion: the trafilatura parser exists but no test exercises it (C30).
-- Calibrated refusal: measure calibration (ECE, reliability diagram) before claiming it (C21).
-- A judge validated against human labels, from a different model family (C27).
-- ≥ 80 questions with a frozen dev/test split; micro and macro aggregates (C28).
+- Calibrated refusal: the measured test ECE (0.116) does not support it (C21).
+- A judge from a different model family, and a second human annotator (C34).
 
 ## Architecture
 
@@ -179,7 +270,7 @@ flowchart LR
     subgraph Eval["Evaluation"]
         ship --> judge[LLM judge<br/>supported · citation_ok]
         refuse --> refusal[refusal metrics<br/>TP/FP/FN/TN]
-        judge --> scorecard["scorecards/live-v1.0.0.json<br/>+ per-question audit"]
+        judge --> scorecard["scorecards/live-v1.1.0.json<br/>+ per-question audit"]
         refusal --> scorecard
     end
 
@@ -213,8 +304,11 @@ uv run verity eval retrieval               # ingests datasets/corpus, then score
 
 `VERITY_STORE=memory` runs everything in process memory, without a database.
 
-Everything in containers (the image embeds the local models; no provider key means stub
-mode):
+Everything in containers (no provider key means stub mode). The image embeds every
+local model, so it runs offline, PDF and DOCX uploads included: 4.77 GB uncompressed
+on linux/arm64, of which 1.89 GB is the Python environment (torch CPU, docling),
+765 MB the docling layout, table and OCR models, 227 MB the embedder and reranker and
+204 MB the X11/GL libraries opencv needs.
 
 ```bash
 VERITY_API_KEYS='["a-long-random-key"]' docker compose up   # or VERITY_API_AUTH_DISABLED=true
@@ -222,21 +316,37 @@ curl -H 'X-API-Key: a-long-random-key' -H 'content-type: application/json' \
   -d '{"question": "What is the notice period?"}' http://127.0.0.1:8000/ask
 ```
 
-Reproducing the v1.0.0 headline calls Anthropic models (the original run cost
-$0.27):
+The published numbers are recomputed from the committed run artefact, with no model
+call:
+
+```bash
+uv run python scripts/generate_headline_results.py --check   # scorecard and README ≡ artefact
+```
+
+A new live evaluation calls paid models (agent and judge): estimate its cost first.
+The threshold is chosen on the dev split and the test split is run once at it, with
+no change to the system in between
+([methodology](docs/evaluation-methodology.md#refusal-deterministic-over-the-agents-decisions)):
 
 ```bash
 export VERITY_ANTHROPIC_API_KEY=sk-ant-...
-uv run verity eval run \
-  --judge live --no-agent-stub --no-warmup \
-  --dataset datasets/eval/questions.jsonl \
-  --scorecard-json scorecards/live-v1.0.0.json \
-  --budget-usd 8.0 --report-only-floors \
-  --floor-refusal-recall 0.6 --floor-ndcg 0.5 --floor-recall 0.75
+uv run verity eval run --judge live --no-agent-stub \
+  --dataset datasets/eval/dev.jsonl --budget-usd 2.0 --report-only-floors
+uv run python scripts/refusal_analysis.py --dev datasets/eval/runs/live/eval_<sha>_dev.json \
+  --out-json scorecards/refusal-analysis.json --out-png docs/figures/reliability.png
+VERITY_CONFIDENCE_THRESHOLD=<chosen> uv run verity eval run --judge live --no-agent-stub \
+  --dataset datasets/eval/test.jsonl --budget-usd 1.6 --report-only-floors
+uv run python scripts/refusal_analysis.py --dev datasets/eval/runs/live/eval_<sha>_dev.json \
+  --test datasets/eval/runs/live/eval_<sha>_test.json \
+  --out-json scorecards/refusal-analysis.json --out-png docs/figures/reliability.png
+uv run python scripts/generate_headline_results.py \
+  --artefact datasets/eval/runs/live/eval_<sha>_test.json --scorecard scorecards/<name>.json
 ```
 
-It writes `datasets/eval/runs/live/eval_<sha>_questions.json` and the scorecard;
-`uv run python scripts/generate_headline_results.py` regenerates the README block.
+Run artefacts in `datasets/eval/runs/live/` are pinned in its `SHA256SUMS` and never
+edited; v1.1.0 used the dev run `eval_6ec544d_dev.json` and the test run
+`eval_969e1d5_test.json`. The v1.0.0 run (`scorecards/live-v1.0.0.json`) used 16
+questions that predate the dev/test split.
 
 ## How this was built
 

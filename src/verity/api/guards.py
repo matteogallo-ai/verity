@@ -43,6 +43,7 @@ class RateLimiter:
     ) -> None:
         self._limit = limit
         self._window_s = window_s
+        self._max_principals = max_principals
         self._clock = clock
         self._max_principals = max_principals
         self._hits: dict[str, deque[float]] = {}
@@ -196,15 +197,18 @@ async def require_api_key(request: Request) -> str:
             raise HTTPException(status_code=401, detail="Missing or invalid X-API-Key.")
         principal = found
     limiter: RateLimiter = request.app.state.rate_limiter
-    retry_after = limiter.hit(principal)
+    _raise_if_limited(limiter.hit(principal))
+    structlog.contextvars.bind_contextvars(principal=principal)
+    return principal
+
+
+def _raise_if_limited(retry_after: float | None) -> None:
     if retry_after is not None:
         raise HTTPException(
             status_code=429,
             detail="Rate limit exceeded.",
             headers=retry_after_header(retry_after),
         )
-    structlog.contextvars.bind_contextvars(principal=principal)
-    return principal
 
 
 # --- uploads ---------------------------------------------------------------------------

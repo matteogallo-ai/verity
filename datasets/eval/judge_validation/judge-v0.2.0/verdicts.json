@@ -1,0 +1,662 @@
+{
+  "cost_usd": 1.30446,
+  "judge_model": "claude-opus-5-5",
+  "prompt_sha256": "aa66e62370a2702666808e6bbb6c4bbcace60df2fca7a23cf7ea1b6dfdc3143a",
+  "prompt_version": "0.2.0",
+  "verdicts": {
+    "A01": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": false,
+          "claim": "The Enterprise edition is priced at US$42.00 per seat per month.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.029744,
+      "verdict": "unsupported"
+    },
+    "A02": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "Acme Corporation is the Provider.",
+          "supported": true
+        },
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "Acme Corporation is liable for data-processing breaches.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.023536,
+      "verdict": "supported"
+    },
+    "A03": {
+      "claims": [
+        {
+          "citation": null,
+          "citation_ok": false,
+          "claim": "Q1 FY2026 gross margin was 72.6%.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.027448,
+      "verdict": "unsupported"
+    },
+    "A04": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "A US$112,500 purchase is above US$50,000.",
+          "supported": true
+        },
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "US$50,000 is the threshold above which purchases require at least three written quotes.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.026416,
+      "verdict": "supported"
+    },
+    "A05": {
+      "claims": [
+        {
+          "citation": null,
+          "citation_ok": false,
+          "claim": "The nightly hotel limit for London is US$488 per night.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.02558,
+      "verdict": "unsupported"
+    },
+    "A06": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "Employees receive a monthly internet allowance of US$50.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.025376,
+      "verdict": "supported"
+    },
+    "A07": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "Employees must report a suspected security incident within one (1) hour of noticing it.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.02926,
+      "verdict": "supported"
+    },
+    "A08": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "A decision was made not to declare a dividend.",
+          "supported": true
+        },
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "The decision not to declare a dividend was made to preserve flexibility for acquisitions.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.022072,
+      "verdict": "supported"
+    },
+    "A09": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": false,
+          "claim": "Employees are allowed to fly business class when the flight is scheduled at more than six (6) hours.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.02514,
+      "verdict": "unsupported"
+    },
+    "A10": {
+      "claims": [
+        {
+          "citation": 1,
+          "citation_ok": true,
+          "claim": "Breaches of confidentiality are excluded from the general exclusion of indirect/consequential damages.",
+          "supported": true
+        },
+        {
+          "citation": null,
+          "citation_ok": false,
+          "claim": "This carve-out for breaches of confidentiality is contained in the Data Processing Addendum.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.033388,
+      "verdict": "unsupported"
+    },
+    "A11": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "The Professional edition of Enterprise Cloud is priced at US$42.00 per seat per month.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.026856,
+      "verdict": "supported"
+    },
+    "A12": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "Acme matches 100% of employee contributions to the 401(k) plan up to 4% of base salary.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.019216,
+      "verdict": "supported"
+    },
+    "A13": {
+      "claims": [
+        {
+          "citation": null,
+          "citation_ok": false,
+          "claim": "Full-year FY2026 gross margin was 71.8%.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.025008,
+      "verdict": "unsupported"
+    },
+    "A14": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "Renewal pricing may increase by no more than 5% per year.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.019664,
+      "verdict": "supported"
+    },
+    "A15": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "The NDA's confidentiality obligations survive for three (3) years after the NDA expires or is terminated.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.023712,
+      "verdict": "supported"
+    },
+    "A16": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": false,
+          "claim": "The NDA's two-year term runs from the date the NDA was signed.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.026904,
+      "verdict": "unsupported"
+    },
+    "A17": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "Acme's Board decided not to declare a dividend for FY2025.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.021048,
+      "verdict": "supported"
+    },
+    "A18": {
+      "claims": [
+        {
+          "citation": null,
+          "citation_ok": false,
+          "claim": "With Premium Support, the Priority 1 response time is not shortened to thirty (30) minutes.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.02304,
+      "verdict": "unsupported"
+    },
+    "A19": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "Personal data is stored in data centers in Frankfurt, Germany (EU).",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.030264,
+      "verdict": "supported"
+    },
+    "A20": {
+      "claims": [
+        {
+          "citation": 1,
+          "citation_ok": true,
+          "claim": "Managed Services revenue was $128.6 million.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.025264,
+      "verdict": "supported"
+    },
+    "A21": {
+      "claims": [
+        {
+          "citation": 1,
+          "citation_ok": true,
+          "claim": "Enterprise Cloud subscription revenue was $312.7 million.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.025432,
+      "verdict": "supported"
+    },
+    "A22": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "A renewal pricing cap (no more than 5% increase per year) applies under the Northwind order form.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.019904,
+      "verdict": "supported"
+    },
+    "A23": {
+      "claims": [
+        {
+          "citation": null,
+          "citation_ok": false,
+          "claim": "The hotel limit that applies in Frankfurt is based on the nightly rate excluding taxes.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.030084,
+      "verdict": "supported"
+    },
+    "A24": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "The four levels are Public, Internal, Confidential, and Restricted.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.024364,
+      "verdict": "supported"
+    },
+    "A25": {
+      "claims": [
+        {
+          "citation": null,
+          "citation_ok": false,
+          "claim": "The Board approved the FY2026 operating budget unanimously.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.026976,
+      "verdict": "unsupported"
+    },
+    "A26": {
+      "claims": [
+        {
+          "citation": 1,
+          "citation_ok": true,
+          "claim": "The liability cap is the greater of $2,000,000 or the total fees paid by Customer during the twelve months preceding the claim.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.02318,
+      "verdict": "supported"
+    },
+    "A27": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "The evidence does not show a 500-seat arrangement for Acme.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.023064,
+      "verdict": "supported"
+    },
+    "A28": {
+      "claims": [
+        {
+          "citation": null,
+          "citation_ok": false,
+          "claim": "For a standard Priority 1 (critical, service unavailable) support request, the response time is not within one (1) hour.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.023136,
+      "verdict": "unsupported"
+    },
+    "A29": {
+      "claims": [
+        {
+          "citation": 1,
+          "citation_ok": true,
+          "claim": "Acme must notify a customer of a confirmed personal-data breach within seventy-two (72) hours of discovery.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.029548,
+      "verdict": "supported"
+    },
+    "A30": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "A gift accepted from a business partner must not be cash or a cash equivalent.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.019528,
+      "verdict": "supported"
+    },
+    "B01": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "Employees receive a one-time home office stipend of US$500.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.025376,
+      "verdict": "supported"
+    },
+    "B02": {
+      "claims": [
+        {
+          "citation": null,
+          "citation_ok": false,
+          "claim": "The Master Services Agreement is not governed by the laws of the State of Delaware.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.03256,
+      "verdict": "unsupported"
+    },
+    "B03": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "Acme's 401(k) matching contributions vest immediately.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.018904,
+      "verdict": "supported"
+    },
+    "B04": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "Personal data is deleted after termination of the Agreement.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.024368,
+      "verdict": "supported"
+    },
+    "B05": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "If Northwind does not respond to a milestone delivery within ten business days, the milestone is deemed accepted.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.022504,
+      "verdict": "supported"
+    },
+    "B06": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "Personal data is stored in data centers in Virginia, United States.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.03012,
+      "verdict": "supported"
+    },
+    "B07": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "Up to 5 unused paid time off days can be carried over to the following year.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.024004,
+      "verdict": "supported"
+    },
+    "B08": {
+      "claims": [
+        {
+          "citation": 1,
+          "citation_ok": true,
+          "claim": "The original agreement required 30 days' notice for termination for convenience.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.023232,
+      "verdict": "supported"
+    },
+    "B09": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "Requests exceeding the limit receive HTTP status 429.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.016988,
+      "verdict": "supported"
+    },
+    "B10": {
+      "claims": [
+        {
+          "citation": null,
+          "citation_ok": false,
+          "claim": "Personal data is retained for 90 days after termination before it is deleted.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.029684,
+      "verdict": "unsupported"
+    },
+    "B11": {
+      "claims": [
+        {
+          "citation": 1,
+          "citation_ok": true,
+          "claim": "Enterprise Cloud subscriptions accounted for approximately 67.0% of Q1 FY2025 total revenue.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.038304,
+      "verdict": "supported"
+    },
+    "B12": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "If a milestone is not rejected within the acceptance period, it is automatically (deemed) accepted.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.022396,
+      "verdict": "supported"
+    },
+    "B13": {
+      "claims": [
+        {
+          "citation": null,
+          "citation_ok": false,
+          "claim": "The Board explicitly decided not to declare a dividend for FY2026.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.021052,
+      "verdict": "unsupported"
+    },
+    "B14": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": false,
+          "claim": "The Board approved an operating expense budget of $402 million.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.023588,
+      "verdict": "unsupported"
+    },
+    "B15": {
+      "claims": [
+        {
+          "citation": 1,
+          "citation_ok": true,
+          "claim": "Unused sick days do not carry over to the next year.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.034044,
+      "verdict": "supported"
+    },
+    "B16": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "Requests exceeding the limit must be retried with exponential backoff.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.017036,
+      "verdict": "supported"
+    },
+    "B17": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "The notice period for terminating the Master Services Agreement for convenience is 60 days' prior written notice.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.02352,
+      "verdict": "supported"
+    },
+    "B18": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "An employee may accept a gift from a business partner with a maximum value of US$100 per person per year.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.01968,
+      "verdict": "supported"
+    },
+    "B19": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "A US$112,500 purchase requires at least three (3) written quotes.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.025368,
+      "verdict": "supported"
+    },
+    "B20": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "Up to 5 unused paid time off days carry over to the next year.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.034164,
+      "verdict": "supported"
+    },
+    "B21": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": false,
+          "claim": "Northwind's current subscription is for 375 named user seats.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.022992,
+      "verdict": "unsupported"
+    },
+    "B22": {
+      "claims": [
+        {
+          "citation": 0,
+          "citation_ok": true,
+          "claim": "The provider may suspend a customer's service without prior notice only when a violation poses an immediate threat to the security or availability of the service.",
+          "supported": true
+        },
+        {
+          "citation": null,
+          "citation_ok": false,
+          "claim": "Northwind is the provider that may suspend the customer's service in this way.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.020424,
+      "verdict": "unsupported"
+    }
+  }
+}

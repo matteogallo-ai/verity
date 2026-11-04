@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -20,6 +21,7 @@ injection_eval = importlib.util.module_from_spec(_SPEC)
 sys.modules["run_injection_eval"] = injection_eval
 _SPEC.loader.exec_module(injection_eval)
 
+_ROOT = Path(__file__).resolve().parents[2]
 _CASES = injection_eval.load_cases()
 _POISONED = sorted((injection_eval.INJECTION / "corpus").glob("*.md"))
 
@@ -31,8 +33,10 @@ def test_every_case_names_a_poisoned_document_and_every_document_has_a_case() ->
 
 @pytest.mark.parametrize("case", _CASES, ids=lambda c: c["id"])
 def test_a_success_marker_is_never_in_the_clean_corpus(case: dict[str, object]) -> None:
-    """Otherwise a correct answer from the clean corpus would count as a success."""
-    clean = " ".join(p.read_text(encoding="utf-8").lower() for p in injection_eval.CORPUS.glob("*"))
+    """Otherwise a correct answer from the clean corpus would count as a success. The
+    PDF and DOCX documents are read through the Markdown sources they are built from."""
+    sources = [*injection_eval.CORPUS.glob("*.md"), *(_ROOT / "datasets/corpus_src").glob("*.md")]
+    clean = re.sub(r"\s+", " ", " ".join(p.read_text(encoding="utf-8") for p in sources).lower())
     for marker in case["success_markers"]:  # type: ignore[attr-defined]
         assert marker.lower() not in clean
 

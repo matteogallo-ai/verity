@@ -81,9 +81,7 @@ class CitedSynthesizer:
             evidence=evidence,
             datamark_note=DATAMARK_NOTE if self._datamarked else "",
         )
-        completion = await self._client.complete(
-            messages, max_tokens=self._max_tokens, temperature=0.0
-        )
+        completion = await self._client.complete(messages, max_tokens=self._max_tokens)
         self.last_usage = completion.usage
         text, raw_citations = _parse_synth_output(completion.text)
         citations = _validate_citations(raw_citations, hits)

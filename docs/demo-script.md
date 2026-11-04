@@ -40,11 +40,12 @@ Terminal:
 ```bash
 VERITY_STORE=memory uv run verity eval run --ci  # pipeline smoke test on stubs, ~10 s
 uv run verity eval compare                   # diff across runs with matching provenance
-jq '.refusal_calibration, .provenance' scorecards/live-v1.0.0.json
+jq '.refusal, .provenance' scorecards/live-v1.1.0.json
 ```
 
-Show `per_refusal` (4 correct refusals, 1 out-of-scope question answered: q-015, see
-the README's open issues) and `per_audit` (answer text, citations and per-claim judge
+Show `refusal.by_reason` (22 refusals, none decided by the threshold; 5 hit
+answerable questions, see the README's open issues) and, in the run artefact,
+`per_audit` (answer text, citations and per-claim judge
 verdicts for each question). Caption: *"The stub run checks the plumbing. The README
 numbers come from the live artefact."*
 

@@ -29,8 +29,38 @@ follows [Semantic Versioning](https://semver.org/).
   cases the clean corpus answers, 4/24 with the mark and 7/24 without; 33/33 controls
   answered in each arm; the mark adds about 75 % input tokens (mean 4,926 against 2,822
   per answer). The set does not separate the arms.
-- `verity.eval.intervals.wilson` is the one Wilson interval; the headline generator
-  uses it.
+- `verity.eval.intervals.wilson` is the one Wilson interval; the headline generator,
+  the judge validation and the injection summary use it.
+- Eval corpus of 21 documents of a fictional company in contracts, HR and finance;
+  the PDF and DOCX files are rendered from Markdown sources in `datasets/corpus_src/`
+  (`scripts/build_corpus_documents.py --check`), so every eval run goes through docling.
+- 95 labelled questions (62 answerable, 33 out-of-scope) with gold chunks resolved from
+  evidence quotes, and a frozen, seeded dev/test split of 39 and 56
+  (`scripts/split_dataset.py --check`).
+- An eval run artefact records its dataset hash, the SHA-256 of every prompt, its
+  duration, its confidence threshold and, per example, the confidence score, the
+  refusal reason, the judge's usage and the models that served it.
+- The headline scorecard is computed from the run artefact alone (schema v5) and
+  `scripts/generate_headline_results.py --check` rebuilds it; every proportion carries
+  its k/n and Wilson 95 % interval, refusals are counted by recorded cause, and
+  faithfulness and citation accuracy are published per question and per claim.
+- Live runs of record v1.1.0: `eval_6ec544d_dev.json`, on which the refusal threshold
+  rule was fixed, and `eval_969e1d5_test.json`, the README scorecard (n=56). A refusal
+  analysis (threshold sweep, reliability diagram, recalibration) is checked against
+  them, and two reruns of the dev run give a run-to-run range per metric
+  (`scripts/noise_band.py`).
+- Judge validation: 60 claims, 40 real and 20 perturbed to be false
+  (`verity.eval.perturb`), labelled blind by a human. Judge prompt v0.1.0, the judge of
+  the runs of record, agrees with κ 0.71 (53/60). An adjudication with the judge's
+  verdict visible, published apart, reaches κ 0.93 with 6 of its 7 label changes
+  towards the judge; the blind result stays the result of record.
+- Judge prompt v0.2.0 delimits the evidence, the answer and the citations, neutralises
+  delimiter tags inside them, datamarks the evidence as `synthesize.prompt` v0.3.0
+  does, and names for each claim the citation that supports it; the code sets
+  `citation_ok` false when that index is missing or not one of the answer's citations.
+  Rejudged on the same blind labels under a $1.30 cap, which stopped it after 52 of
+  the 60 claims: κ 0.60 (44/52), against κ 0.64 (45/52) for v0.1.0 on the same claims.
+  No run of record has been judged by v0.2.0.
 - The API ingests the corpus and loads the embedding and reranker models at startup, in
   the background; `/ready` reports `"preload"` and stays `503` until every corpus file is
   in, and a failed preload is started again by the next `/ready`. With the stub agent and
@@ -53,6 +83,16 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- No sampling parameter is sent to any model: API version 2026-10-21 rejects
+  `temperature`, and the Anthropic SDK moved to 2.x. Reproducibility of the published
+  numbers rests on the committed artefacts (ADR 0007), not on sampling.
+- The live eval judge must be a different model from the agent's.
+- The system card renders from the v1.1.0 scorecard the README uses and reads its k/n
+  directly; an older scorecard schema is refused.
+- Injection cases inj-02 and inj-04 have narrower success markers, since the
+  21-document corpus states their former markers in clean text; the committed
+  injection runs used the former markers on the 6-document corpus of `8547ae5`.
+- ADR 0003 (refusal as the headline feature) is marked superseded by measurement.
 - System card SLOs are approved targets, no longer proposals. A miss is published as
   **SLO not met** with its cause, and the p95 latency is reported cold start included and
   warm, in separate rows, recomputed from the run's per-answer latencies. The v1.0.0 run of
@@ -63,6 +103,10 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Database connection errors are logged without the Postgres password.
+- The Docker image bakes in the docling models, and the smoke test uploads a PDF; one
+  docling converter is shared per process.
+- Tests never read the developer's `.env`.
 - The confidence scorer read a refusal flag given as a string with `bool()`, so
   `"refused": "false"` counted as a refusal. A flag that is not a boolean now makes the
   response unparseable.

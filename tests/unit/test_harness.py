@@ -94,7 +94,7 @@ async def test_harness_produces_full_scorecard_with_stub_labels() -> None:
     judge = StubFaithfulnessJudge()
 
     examples = load_full_dataset(DATASET)
-    assert len(examples) == 19, f"expected 19-question dataset, got {len(examples)}"
+    assert any(e.answerable for e in examples) and any(not e.answerable for e in examples)
 
     evaluator = AgentEvaluator(
         agent=agent,
@@ -108,7 +108,7 @@ async def test_harness_produces_full_scorecard_with_stub_labels() -> None:
 
     # Scorecard shape.
     sc = result.scorecard
-    assert sc.n_examples == 19
+    assert sc.n_examples == len(examples)
     assert sc.git_sha == "test0000"
     assert 0.0 <= sc.retrieval.precision_at_k <= 1.0
     assert 0.0 <= sc.retrieval.recall_at_k <= 1.0
@@ -124,24 +124,25 @@ async def test_harness_produces_full_scorecard_with_stub_labels() -> None:
     assert run.agent_model == "stub-agent"
 
     # Every example got a refusal outcome recorded.
-    assert len(result.per_refusal) == 19
-    out_of_scope_ids = {"q-004", "q-006", "q-014", "q-015", "q-016", "q-017", "q-018", "q-019"}
+    assert len(result.per_refusal) == len(examples)
+    out_of_scope_ids = {e.id for e in examples if not e.answerable}
     observed_out_of_scope = {p.example_id for p in result.per_refusal if not p.expected_answerable}
     assert observed_out_of_scope == out_of_scope_ids
 
 
 @pytest.mark.asyncio
 async def test_harness_refusal_recall_captures_hallucinations_on_near_miss() -> None:
-    """The near-miss questions q-014/q-015/q-016 test whether the agent invents
-    when there's *plausible-looking* adjacent context. The scripted agent stub
-    only answers when a theme matches, so all 5 out-of-scope should be refused
-    → refusal_recall == 1.0 in this configuration. If a future refactor causes
-    the stub to hallucinate on a near-miss, this assertion will catch it."""
+    """The near-miss questions q-014/q-015 test whether the agent invents when there's
+    *plausible-looking* adjacent context. The scripted agent stub only answers when a
+    theme matches; its themes are written for the demo questions q-001 to q-019, so on
+    those every out-of-scope question is refused (refusal_recall == 1.0). The stub's
+    keyword matching says nothing about the later questions, which only a live run
+    measures."""
     retriever = await _seed_retriever()
     agent = create_default_agent(retriever=retriever, client=build_stub_router())
     judge = StubFaithfulnessJudge()
 
-    examples = load_full_dataset(DATASET)
+    examples = [e for e in load_full_dataset(DATASET) if e.id <= "q-019"]
     evaluator = AgentEvaluator(
         agent=agent,
         judge=judge,
@@ -192,6 +193,61 @@ async def test_errored_examples_are_counted_apart_from_every_metric() -> None:
     assert result.scorecard.errored_example_ids == (examples[0].id,)
     assert len(result.per_refusal) == len(examples) - 1
     assert examples[0].id not in {r.example_id for r in result.per_refusal}
+
+
+def _billed_outage_agent(real: object, failing_question: str, cost_usd: float) -> object:
+    """An agent whose answer to ``failing_question`` errors after spending ``cost_usd``."""
+    from verity.types import Answer, AnswerError, ErrorKind, UsageStats
+
+    class _Agent:
+        async def answer(self, question: str) -> Answer:
+            if question == failing_question:
+                return Answer(
+                    query=question,
+                    text="",
+                    error=AnswerError(kind=ErrorKind.PROVIDER_UNAVAILABLE, detail="down"),
+                    usage=UsageStats(input_tokens=400, llm_calls=2, cost_usd=cost_usd),
+                )
+            return await real.answer(question)  # type: ignore[attr-defined]
+
+    return _Agent()
+
+
+def _evaluator(agent: object) -> AgentEvaluator:
+    return AgentEvaluator(
+        agent=agent,  # type: ignore[arg-type]
+        judge=StubFaithfulnessJudge(),
+        embedding_model="fake",
+        judge_model=STUB_JUDGE_MODEL,
+        agent_model="stub-agent",
+        dataset_name="questions",
+    )
+
+
+@pytest.mark.asyncio
+async def test_cost_spent_on_an_errored_example_counts_in_the_run_cost() -> None:
+    examples = load_full_dataset(DATASET)
+    real = create_default_agent(retriever=await _seed_retriever(), client=build_stub_router())
+    agent = _billed_outage_agent(real, examples[0].question, cost_usd=0.5)
+
+    result = await _evaluator(agent).run(examples, git_sha="test0000")
+
+    assert result.errored_cost_usd == pytest.approx(0.5)
+    # The stub agent's answers cost nothing: the mean is the errored spend over every
+    # attempted question.
+    assert result.scorecard.cost_per_query_usd == pytest.approx(0.5 / len(examples))
+
+
+@pytest.mark.asyncio
+async def test_budget_cap_counts_the_cost_of_errored_examples() -> None:
+    from verity.eval.harness import BudgetExceededError
+
+    examples = load_full_dataset(DATASET)
+    real = create_default_agent(retriever=await _seed_retriever(), client=build_stub_router())
+    agent = _billed_outage_agent(real, examples[0].question, cost_usd=0.5)
+
+    with pytest.raises(BudgetExceededError, match=examples[0].id):
+        await _evaluator(agent).run(examples, git_sha="test0000", budget_usd_cap=0.1)
 
 
 @pytest.mark.asyncio

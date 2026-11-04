@@ -46,7 +46,7 @@ class LLMQuestionDecomposer(QuestionDecomposer):
 
     async def decompose(self, question: str) -> list[str]:
         messages = self._prompt.render(question=neutralise(question))
-        completion = await self._client.complete(messages, max_tokens=256, temperature=0.0)
+        completion = await self._client.complete(messages, max_tokens=256)
         self.last_usage = completion.usage
         sub_questions = _parse_sub_questions(completion.text) or [question]
         return sub_questions[: self._max_steps]

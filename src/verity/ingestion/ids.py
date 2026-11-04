@@ -16,8 +16,9 @@ Two identities matter and they must not be conflated:
 and existing callers do not need to know the distinction.
 
 Re-ingesting the same source must produce the same identifiers so the vector store
-upsert stays idempotent and eval labels (``relevant_chunk_ids``) resolve across
-machines and CI runs.
+upsert stays idempotent. A chunk id also follows the parse's character offsets, and a
+PDF parsed by docling on another CPU may chunk differently, so the eval resolves its
+gold chunks from evidence quotes rather than from ids (``verity.eval.labels``).
 """
 
 from __future__ import annotations

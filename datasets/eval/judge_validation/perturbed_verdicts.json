@@ -1,0 +1,218 @@
+{
+  "cost_usd": 0.259568,
+  "judge_model": "claude-opus-5-5",
+  "verdicts": {
+    "A03": {
+      "claims": [
+        {
+          "claim": "Q1 FY2026 gross margin was 72.6%.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.014972,
+      "verdict": "unsupported"
+    },
+    "A04": {
+      "claims": [
+        {
+          "claim": "A US$112,500 purchase is above US$50,000.",
+          "supported": true
+        },
+        {
+          "claim": "US$50,000 is the threshold above which purchases require at least three written quotes.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.012744,
+      "verdict": "supported"
+    },
+    "A05": {
+      "claims": [
+        {
+          "claim": "The nightly hotel limit for London is US$488 per night.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.011744,
+      "verdict": "unsupported"
+    },
+    "A10": {
+      "claims": [
+        {
+          "claim": "Breaches of confidentiality are excepted from the general exclusion of indirect/consequential damages.",
+          "supported": true
+        },
+        {
+          "claim": "This exception for breaches of confidentiality appears in the Data Processing Addendum.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.018964,
+      "verdict": "unsupported"
+    },
+    "A13": {
+      "claims": [
+        {
+          "claim": "Full-year FY2026 gross margin was 71.8%.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.012272,
+      "verdict": "unsupported"
+    },
+    "A18": {
+      "claims": [
+        {
+          "claim": "With Premium Support, the Priority 1 response time is not shortened to thirty (30) minutes.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.011004,
+      "verdict": "unsupported"
+    },
+    "A23": {
+      "claims": [
+        {
+          "claim": "The hotel limit that applies to Frankfurt is based on the nightly rate excluding taxes.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.015668,
+      "verdict": "supported"
+    },
+    "A25": {
+      "claims": [
+        {
+          "claim": "The Board approved the FY2026 operating budget.",
+          "supported": false
+        },
+        {
+          "claim": "The Board's approval of the operating budget was unanimous.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.012244,
+      "verdict": "unsupported"
+    },
+    "A27": {
+      "claims": [
+        {
+          "claim": "The evidence does not show a 500-seat arrangement for Acme.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.013128,
+      "verdict": "supported"
+    },
+    "A28": {
+      "claims": [
+        {
+          "claim": "For a standard Priority 1 (critical, service unavailable) support request, the response time is not within one (1) hour.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.0111,
+      "verdict": "unsupported"
+    },
+    "B02": {
+      "claims": [
+        {
+          "claim": "The Master Services Agreement is not governed by the laws of the State of Delaware.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.01552,
+      "verdict": "unsupported"
+    },
+    "B13": {
+      "claims": [
+        {
+          "claim": "The Board explicitly decided not to declare a dividend for FY2026.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.012888,
+      "verdict": "unsupported"
+    },
+    "B14": {
+      "claims": [
+        {
+          "claim": "The Board approved an operating expense budget of $402 million.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.011456,
+      "verdict": "unsupported"
+    },
+    "B19": {
+      "claims": [
+        {
+          "claim": "A US$112,500 purchase requires at least three (3) written quotes.",
+          "supported": true
+        }
+      ],
+      "cost_usd": 0.011836,
+      "verdict": "supported"
+    },
+    "B21": {
+      "claims": [
+        {
+          "claim": "Northwind's current subscription is for 375 named user seats.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.011116,
+      "verdict": "unsupported"
+    },
+    "B22": {
+      "claims": [
+        {
+          "claim": "Northwind may suspend a customer's service without prior notice only when a violation poses an immediate threat to the security or availability of the service.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.012276,
+      "verdict": "unsupported"
+    },
+    "B26": {
+      "claims": [
+        {
+          "claim": "The NDA is governed by the laws of the State of Delaware.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.015376,
+      "verdict": "unsupported"
+    },
+    "B28": {
+      "claims": [
+        {
+          "claim": "Acme did not pay a dividend in FY2026.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.011584,
+      "verdict": "unsupported"
+    },
+    "B29": {
+      "claims": [
+        {
+          "claim": "Service will not be restored as soon as the threat is removed.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.007484,
+      "verdict": "unsupported"
+    },
+    "B30": {
+      "claims": [
+        {
+          "claim": "Under the Master Services Agreement, a party that breaches confidentiality could not be liable for a broader range of damages.",
+          "supported": false
+        }
+      ],
+      "cost_usd": 0.016192,
+      "verdict": "unsupported"
+    }
+  }
+}
