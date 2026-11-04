@@ -78,7 +78,10 @@ def test_kappa_on_a_class_of_fewer_than_five_is_marked_fragile() -> None:
 def test_check_writes_nothing_and_fails_on_drift(tmp_path: Path) -> None:
     mod = _load("render_judge_validation")
     readme = tmp_path / "README.md"
-    readme.write_text("x\n<!-- JUDGE:START -->\nstale\n<!-- JUDGE:END -->\n")
+    readme.write_text(
+        "x\n<!-- JUDGE:START -->\nstale\n<!-- JUDGE:END -->\n"
+        "<!-- JUDGE-ADJUDICATED:START -->\nstale\n<!-- JUDGE-ADJUDICATED:END -->\n"
+    )
     before = readme.read_text()
     assert mod.main(["--readme", str(readme), "--check"]) == 1
     assert readme.read_text() == before
@@ -104,3 +107,27 @@ def test_judge_label_names_kappa_only_for_the_validated_model(tmp_path: Path) ->
     assert gen.judge_label("claude-opus-5-5", folder) == "judge κ 0.71 vs blind human (n=60)"
     assert gen.judge_label("gpt-4.1", folder) == "judge unvalidated"
     assert gen.judge_label("claude-opus-5-5", tmp_path / "absent") == "judge unvalidated"
+
+
+def test_the_adjudicated_block_sits_beside_the_blind_figures_and_counts_moves_to_the_judge() -> (
+    None
+):
+    mod = _load("render_judge_validation")
+    blind = _agreement()
+    adjudicated = _agreement(judge_unsup_human_sup=0, human_unsup_real=3)
+    adjudicated["agreement_mixed"]["cohen_kappa"] = 0.93
+    adjudicated["adjudication"] = {
+        "n_adjudicated": 10,
+        "n_changed": 7,
+        "n_changed_to_judge": 6,
+        "perturbed_judged_true_blind": {
+            "n": 7,
+            "perturbation stays true": 2,
+            "annotator error": 5,
+        },
+    }
+    block = mod.render_adjudicated_block(adjudicated, blind)
+    assert "| Cohen's κ, all claims | 0.71 | 0.93 |" in block
+    assert "**6 of them to the judge's verdict**" in block
+    assert "validate nothing" in block
+    assert "(fragile: 3 unsupported)" in block

@@ -141,6 +141,22 @@ Disagreements: the judge rejects 6 claims the human accepts and accepts 1 the hu
 Generated from [`datasets/eval/judge_validation/agreement.json`](datasets/eval/judge_validation/agreement.json) (`scripts/render_judge_validation.py --check`); the labels and the key are pinned in `datasets/eval/judge_validation/SHA256SUMS`.
 <!-- JUDGE:END -->
 
+### Adjudicated agreement (not the result of record)
+
+<!-- JUDGE-ADJUDICATED:START -->
+10 claims re-read with both verdicts visible, by the annotator of the blind labels: every disagreement, and every perturbed claim judged true blind. 7 labels changed, **6 of them to the judge's verdict**. The judge's verdict was in view, so a change towards it may be persuasion as much as correction: these figures bound agreement from above and validate nothing. Of the 7 perturbed claims judged true blind, 2 stay true after the change and 5 were annotator misses.
+
+| Measure | Blind (of record) | Adjudicated |
+|---|---|---|
+| Cohen's κ, all claims | 0.71 | 0.93 |
+| Cohen's κ, real claims only (fragile: 3 unsupported) | 0.48 | 1.00 |
+| Observed agreement, all claims | 53/60 · 95 % CI [0.778, 0.942] | 58/60 · 95 % CI [0.886, 0.991] |
+| Perturbed claims the human finds unsupported | 13/20 · 95 % CI [0.433, 0.819] | 18/20 · 95 % CI [0.699, 0.972] |
+| … of which the judge finds unsupported | 12/13 · 95 % CI [0.667, 0.986] | 16/18 · 95 % CI [0.672, 0.969] |
+
+Generated from [`datasets/eval/judge_validation/agreement_adjudicated.json`](datasets/eval/judge_validation/agreement_adjudicated.json); each decision and its reason is in `adjudication.csv`.
+<!-- JUDGE-ADJUDICATED:END -->
+
 ## Open issues: what the numbers do not say
 
 - **The threshold decides nothing on this data.** Every refusal above has a

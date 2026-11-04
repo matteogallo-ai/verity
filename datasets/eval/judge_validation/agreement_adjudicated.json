@@ -1,0 +1,241 @@
+{
+  "adjudication": {
+    "items": [
+      {
+        "adjudicated": "unsupported",
+        "blind": "supported",
+        "category": "annotator error",
+        "changed": true,
+        "item_id": "A03",
+        "judge": "unsupported",
+        "kind": "date",
+        "origin": "perturbed",
+        "reason": "The passage confirms the 72.6% gross margin but does not explicitly establish that it refers to Q1 FY2026."
+      },
+      {
+        "adjudicated": "supported",
+        "blind": "supported",
+        "category": "perturbation stays true",
+        "changed": false,
+        "item_id": "A04",
+        "judge": "supported",
+        "kind": "number",
+        "origin": "perturbed",
+        "reason": "The cited passage explicitly states that purchases above US$50,000 require at least three written quotes. Since US$112,500 exceeds this threshold, the claim is supported."
+      },
+      {
+        "adjudicated": "unsupported",
+        "blind": "supported",
+        "category": "annotator error",
+        "changed": true,
+        "item_id": "A10",
+        "judge": "unsupported",
+        "kind": "entity",
+        "origin": "perturbed",
+        "reason": "The passage establishes an exception for breaches of confidentiality but does not confirm that this provision belongs to the Data Processing Addendum."
+      },
+      {
+        "adjudicated": "unsupported",
+        "blind": "supported",
+        "changed": true,
+        "item_id": "A16",
+        "judge": "unsupported",
+        "kind": null,
+        "origin": "real",
+        "reason": "The passage states that the NDA remains effective for two years from \"the date above,\" but does not explicitly confirm that this is the signing date."
+      },
+      {
+        "adjudicated": "unsupported",
+        "blind": "unsupported",
+        "changed": false,
+        "item_id": "A23",
+        "judge": "supported",
+        "kind": "entity",
+        "origin": "perturbed",
+        "reason": "The cited passage only specifies hotel limits for New York, London, and San Francisco. It does not mention Frankfurt or whether its hotel limit excludes taxes."
+      },
+      {
+        "adjudicated": "unsupported",
+        "blind": "supported",
+        "category": "annotator error",
+        "changed": true,
+        "item_id": "A25",
+        "judge": "unsupported",
+        "kind": "date",
+        "origin": "perturbed",
+        "reason": "The passage confirms that the Board unanimously approved the operating expense budget, but it does not explicitly establish that this was the FY2026 budget."
+      },
+      {
+        "adjudicated": "unsupported",
+        "blind": "supported",
+        "category": "annotator error",
+        "changed": true,
+        "item_id": "A27",
+        "judge": "supported",
+        "kind": "entity",
+        "origin": "perturbed",
+        "reason": "The cited passage explicitly specifies 250 named user seats, not 500. Therefore, the evidence supports the claim that a 500-seat arrangement is not shown."
+      },
+      {
+        "adjudicated": "unsupported",
+        "blind": "supported",
+        "changed": true,
+        "item_id": "B10",
+        "judge": "unsupported",
+        "kind": null,
+        "origin": "real",
+        "reason": "The passage requires personal data to be deleted within 90 days after termination, not retained for exactly 90 days before deletion. It also provides an exception for legally required retention."
+      },
+      {
+        "adjudicated": "supported",
+        "blind": "supported",
+        "category": "perturbation stays true",
+        "changed": false,
+        "item_id": "B19",
+        "judge": "supported",
+        "kind": "number",
+        "origin": "perturbed",
+        "reason": "The cited passage explicitly requires at least three written quotes for purchases above US$50,000. Since US$112,500 exceeds this threshold, the requirement applies, subject to the sole-supplier exception."
+      },
+      {
+        "adjudicated": "unsupported",
+        "blind": "supported",
+        "category": "annotator error",
+        "changed": true,
+        "item_id": "B22",
+        "judge": "unsupported",
+        "kind": "entity",
+        "origin": "perturbed",
+        "reason": "The passage confirms that the provider may suspend service without prior notice only when a violation poses an immediate threat to security or availability. However, it does not establish that the provider is Northwind."
+      }
+    ],
+    "n_adjudicated": 10,
+    "n_changed": 7,
+    "n_changed_to_judge": 6,
+    "note": "adjudicated with the judge's verdict visible, by the annotator of the blind labels; the blind result (agreement.json) is the result of record",
+    "perturbed_judged_true_blind": {
+      "annotator error": 5,
+      "n": 7,
+      "perturbation stays true": 2
+    }
+  },
+  "agreement_mixed": {
+    "cohen_kappa": 0.9250936329588015,
+    "confusion": {
+      "judge_supported/human_supported": 39,
+      "judge_supported/human_unsupported": 2,
+      "judge_unsupported/human_supported": 0,
+      "judge_unsupported/human_unsupported": 19
+    },
+    "n_claims": 60,
+    "observed": {
+      "ci95_wilson": [
+        0.8864,
+        0.9908
+      ],
+      "k": 58,
+      "n": 60,
+      "value": 0.966667
+    }
+  },
+  "agreement_real_only": {
+    "cohen_kappa": 1.0,
+    "confusion": {
+      "judge_supported/human_supported": 37,
+      "judge_supported/human_unsupported": 0,
+      "judge_unsupported/human_supported": 0,
+      "judge_unsupported/human_unsupported": 3
+    },
+    "n_claims": 40,
+    "observed": {
+      "ci95_wilson": [
+        0.9124,
+        1.0
+      ],
+      "k": 40,
+      "n": 40,
+      "value": 1.0
+    }
+  },
+  "judge_without_verdict": [],
+  "notes": [
+    "kappa has no Wilson interval: it is not a proportion; with 60 items it is uncertain by itself",
+    "a perturbed claim counts as detected if any sub-claim the judge made of it is unsupported, even outside the changed span: sensitivity is an upper bound (per-claim detail in perturbed_verdicts.json)"
+  ],
+  "sensitivity": {
+    "by_kind": {
+      "date": {
+        "ci95_wilson": [
+          0.5655,
+          1.0
+        ],
+        "k": 5,
+        "n": 5,
+        "value": 1.0
+      },
+      "entity": {
+        "ci95_wilson": [
+          0.2307,
+          0.8824
+        ],
+        "k": 3,
+        "n": 5,
+        "value": 0.6
+      },
+      "negation": {
+        "ci95_wilson": [
+          0.5655,
+          1.0
+        ],
+        "k": 5,
+        "n": 5,
+        "value": 1.0
+      },
+      "number": {
+        "ci95_wilson": [
+          0.2307,
+          0.8824
+        ],
+        "k": 3,
+        "n": 5,
+        "value": 0.6
+      }
+    },
+    "human_unsupported": {
+      "ci95_wilson": [
+        0.699,
+        0.9721
+      ],
+      "k": 18,
+      "n": 20,
+      "value": 0.9
+    },
+    "judge_detected": {
+      "ci95_wilson": [
+        0.584,
+        0.9193
+      ],
+      "k": 16,
+      "n": 20,
+      "value": 0.8
+    },
+    "judge_detected_among_human_unsupported": {
+      "ci95_wilson": [
+        0.672,
+        0.969
+      ],
+      "k": 16,
+      "n": 18,
+      "value": 0.888889
+    }
+  },
+  "specificity_real": {
+    "ci95_wilson": [
+      0.9059,
+      1.0
+    ],
+    "k": 37,
+    "n": 37,
+    "value": 1.0
+  }
+}

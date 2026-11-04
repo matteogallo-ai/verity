@@ -649,6 +649,11 @@ def adjudicated() -> int:
     result["adjudication"] = {
         "n_adjudicated": len(log),
         "n_changed": sum(1 for e in log if e["changed"]),
+        # The judge's verdict was visible during adjudication: a change that lands on it
+        # may be persuasion as much as correction, so the count is published.
+        "n_changed_to_judge": sum(
+            1 for e in log if e["changed"] and e["adjudicated"] == e["judge"]
+        ),
         "perturbed_judged_true_blind": {
             "n": len(categories),
             STAYS_TRUE: categories.count(STAYS_TRUE),

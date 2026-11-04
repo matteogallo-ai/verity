@@ -5,7 +5,9 @@
 
 The block sits between ``<!-- JUDGE:START -->`` and ``<!-- JUDGE:END -->`` and is
 rendered from ``datasets/eval/judge_validation/agreement.json``: the blind human
-labels are the reference, and nothing in the block is typed by hand.
+labels are the reference, and nothing in the block is typed by hand. A second block,
+between ``<!-- JUDGE-ADJUDICATED:START -->`` and ``<!-- JUDGE-ADJUDICATED:END -->``,
+sets the adjudicated figures of ``agreement_adjudicated.json`` beside the blind ones.
 """
 
 from __future__ import annotations
@@ -19,9 +21,11 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VALIDATION = REPO_ROOT / "datasets" / "eval" / "judge_validation"
 AGREEMENT = VALIDATION / "agreement.json"
+ADJUDICATED = VALIDATION / "agreement_adjudicated.json"
 REJUDGED = VALIDATION / "perturbed_verdicts.json"
 README = REPO_ROOT / "README.md"
 START, END = "<!-- JUDGE:START -->", "<!-- JUDGE:END -->"
+ADJ_START, ADJ_END = "<!-- JUDGE-ADJUDICATED:START -->", "<!-- JUDGE-ADJUDICATED:END -->"
 # Below this many items in the smaller human class, one or two disagreements move κ
 # far enough that its value says little: the figure is published as fragile.
 FRAGILE_BELOW = 5
@@ -104,6 +108,47 @@ def render_block(result: dict[str, Any], judge_model: str) -> str:
     return "\n".join(lines)
 
 
+def render_adjudicated_block(result: dict[str, Any], blind: dict[str, Any]) -> str:
+    """The adjudicated figures, next to the blind ones they never replace."""
+    adj = result["adjudication"]
+    cats = adj["perturbed_judged_true_blind"]
+    mixed, real = result["agreement_mixed"], result["agreement_real_only"]
+
+    def kappa(a: dict[str, Any]) -> str:
+        return "undefined" if a["cohen_kappa"] is None else f"{a['cohen_kappa']:.2f}"
+
+    s, sb = result["sensitivity"], blind["sensitivity"]
+    lines = [
+        f"{adj['n_adjudicated']} claims re-read with both verdicts visible, by the annotator "
+        f"of the blind labels: every disagreement, and every perturbed claim judged true "
+        f"blind. {adj['n_changed']} labels changed, **{adj['n_changed_to_judge']} of them to "
+        "the judge's verdict**. The judge's verdict was in view, so a change towards it may "
+        "be persuasion as much as correction: these figures bound agreement from above and "
+        "validate nothing. Of the "
+        f"{cats['n']} perturbed claims judged true blind, {cats['perturbation stays true']} "
+        f"stay true after the change and {cats['annotator error']} were annotator misses.",
+        "",
+        "| Measure | Blind (of record) | Adjudicated |",
+        "|---|---|---|",
+        f"| Cohen's κ, all claims | {kappa(blind['agreement_mixed'])} | {kappa(mixed)} |",
+        f"| Cohen's κ, real claims only (fragile: {_human_counts(real)[1]} unsupported) | "
+        f"{kappa(blind['agreement_real_only'])} | {kappa(real)} |",
+        f"| Observed agreement, all claims | {_ci(blind['agreement_mixed']['observed'])} | "
+        f"{_ci(mixed['observed'])} |",
+        f"| Perturbed claims the human finds unsupported | {_ci(sb['human_unsupported'])} | "
+        f"{_ci(s['human_unsupported'])} |",
+        f"| … of which the judge finds unsupported | "
+        f"{_ci(sb['judge_detected_among_human_unsupported'])} | "
+        f"{_ci(s['judge_detected_among_human_unsupported'])} |",
+        "",
+        "Generated from "
+        "[`datasets/eval/judge_validation/agreement_adjudicated.json`]"
+        "(datasets/eval/judge_validation/agreement_adjudicated.json); each decision and its "
+        "reason is in `adjudication.csv`.",
+    ]
+    return "\n".join(lines)
+
+
 def replace_block(text: str, block: str, start: str = START, end: str = END) -> str:
     i, j = text.find(start), text.find(end)
     if i == -1 or j == -1 or j < i:
@@ -118,8 +163,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     result = json.loads(AGREEMENT.read_text(encoding="utf-8"))
     judge_model = json.loads(REJUDGED.read_text(encoding="utf-8"))["judge_model"]
+    adjudicated = json.loads(ADJUDICATED.read_text(encoding="utf-8"))
     current = args.readme.read_text(encoding="utf-8")
     rendered = replace_block(current, render_block(result, judge_model))
+    rendered = replace_block(
+        rendered, render_adjudicated_block(adjudicated, result), ADJ_START, ADJ_END
+    )
     if args.check:
         if rendered != current:
             print(f"out of date: {args.readme} — run without --check", file=sys.stderr)
