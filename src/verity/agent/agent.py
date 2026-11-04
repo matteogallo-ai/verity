@@ -52,7 +52,7 @@ from verity.llm.routing import primary_client_identity
 from verity.observability.base import StageSpan, Tracer
 from verity.observability.logging import request_trace
 from verity.observability.tracer import NoOpTracer
-from verity.retrieval.base import RetrievalUnavailableError, Retriever
+from verity.retrieval.base import ModelUnavailableError, RetrievalUnavailableError, Retriever
 from verity.types import (
     NO_CITATION_RATIONALE,
     REFUSAL_TEXT,
@@ -122,6 +122,8 @@ class RagAgent(Agent):
             # refusal: "the provider is down" must not read as "the evidence is weak".
             try:
                 answer = await self._answer(question, trace_id, started, stage_ms, spent)
+            except ModelUnavailableError as exc:
+                kind, error = ErrorKind.MODEL_UNAVAILABLE, exc
             except RetrievalUnavailableError as exc:
                 kind, error = ErrorKind.RETRIEVAL_UNAVAILABLE, exc
             except SpendCapExceededError as exc:

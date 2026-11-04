@@ -31,6 +31,12 @@ class StoreUnavailableError(RetrievalUnavailableError):
     """
 
 
+class ModelUnavailableError(RetrievalUnavailableError):
+    """The local embedding or reranking model could not load or run (weights not in
+    the cache, out of memory). Retrieval cannot proceed; a missing model needs an
+    operator, an out-of-memory error may clear on retry."""
+
+
 class StoreSchemaError(RuntimeError):
     """The store's schema cannot hold what is being written (configuration bug).
 

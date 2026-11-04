@@ -397,6 +397,21 @@ def test_unreachable_postgres_is_a_generic_503(
     assert response.json()["request_id"]
 
 
+@pytest.mark.parametrize("model", ["embedder", "reranker"])
+def test_a_local_model_failure_on_ask_is_a_503_not_a_500(client: TestClient, model: str) -> None:
+    from verity.ingestion import LocalEmbedder
+    from verity.retrieval import CrossEncoderReranker
+
+    target = (LocalEmbedder, "embed") if model == "embedder" else (CrossEncoderReranker, "rerank")
+    client.get("/status")  # the corpus is in before the model breaks
+    with patch.object(*target, side_effect=OSError("model not in the cache")):
+        response = client.post("/ask", json={"question": _QUESTION})
+
+    assert response.status_code == 503
+    assert response.json()["detail"]["error"] == "model_unavailable"
+    assert "cache" not in response.text
+
+
 @pytest.mark.parametrize(
     ("error", "status"),
     [

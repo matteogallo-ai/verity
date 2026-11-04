@@ -17,7 +17,7 @@ and the response. Log events are structlog lines (JSON keys `event`, `trace_id`,
 | `/metrics`, `/metrics/prom` | per-stage latency percentiles, refusal count and rate, session cost | errors: no counter exists; count `answer_failed` lines or `503` responses |
 
 `error_kind` values: `provider_unavailable`, `provider_auth`, `provider_error`,
-`retrieval_unavailable` (`verity.types.ErrorKind`). A refusal is never an error and an
+`retrieval_unavailable`, `model_unavailable` (`verity.types.ErrorKind`). A refusal is never an error and an
 error is never a refusal (C25).
 
 ## 1. LLM provider down, rate-limited (429) or timing out
@@ -63,7 +63,9 @@ Outside the Docker image (which embeds the embedding and reranker models), a fre
 machine or a cleared Hugging Face cache with network access disabled.
 
 - **Symptom.** `/ready` stays `503` with `"preload": "failed"` (or `"loading"` while an
-  attempt runs); `/health` stays `200`. `/ask` answers a generic `500`. `/ingest` answers
+  attempt runs); `/health` stays `200`. `/ask` answers `503` with
+  `{"detail": {"error": "model_unavailable", …}}`, after the decompose call it paid for
+  (counted in the key's budget). `/ingest` answers
   `422` "The document could not be parsed." for any file: the error is blamed on the
   document. The corpus is not ingested, and `/status` lists only what Postgres already
   held.
@@ -71,7 +73,10 @@ machine or a cleared Hugging Face cache with network access disabled.
   reading "We couldn't connect to 'https://huggingface.co' … couldn't find them in the
   cached files" (an `OSError` from the model loader, reproduced with an empty
   `HF_HOME`), then `preload_failed` with the number of failed files. Then
-  `unhandled_error` with that traceback on each `/ask`, and `ingest_failed` on each
+  `model_failed` (with the traceback) and `answer_failed` with
+  `error_kind=model_unavailable` on each `/ask`, which answers `503`
+  (`tests/unit/test_api_hardening.py::test_a_local_model_failure_on_ask_is_a_503_not_a_500`),
+  and `ingest_failed` on each
   upload. The not-ready state and the retry are tested with a loader that fails once
   (`tests/unit/test_readiness.py::test_a_failed_preload_is_not_ready_and_is_retried`);
   the missing cache itself is not.
