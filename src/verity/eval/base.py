@@ -18,6 +18,7 @@ Implementations: :mod:`verity.eval.harness`, :mod:`verity.eval.judge`,
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from verity.types import (
@@ -60,7 +61,7 @@ class Evaluator(Protocol):
 class RunStore(Protocol):
     """Persists and loads eval runs for regression tracking across commits."""
 
-    def save(self, run: EvalRun) -> None: ...
+    def save(self, run: EvalRun) -> Path: ...
 
     def history(self, dataset: str, limit: int = 50) -> list[EvalRun]: ...
 

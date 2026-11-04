@@ -58,7 +58,7 @@ def test_database_url_password_never_appears_in_settings_repr(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("VERITY_DATABASE_URL", "postgresql://u:Hunter2Pw@h:5432/db")
-    settings = Settings()
+    settings = Settings(_env_file=None)
     assert "Hunter2Pw" not in repr(settings)
     assert "Hunter2Pw" not in str(settings.model_dump())
     assert settings.database_url.get_secret_value().endswith("@h:5432/db")

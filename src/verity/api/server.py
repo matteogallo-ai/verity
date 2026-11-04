@@ -20,7 +20,8 @@ from __future__ import annotations
 import html
 import re
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -32,7 +33,8 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 
 from verity import __version__
 from verity.api.aggregator import SessionMetrics, aggregate_spans, to_prometheus
-from verity.api.guards import RateLimiter
+from verity.api.guards import RateLimiter, SpendBudget
+from verity.api.readiness import Readiness
 from verity.api.router import router as api_router
 from verity.api.state import AppRuntime, default_agent_mode
 from verity.config import Settings, get_settings
@@ -79,11 +81,19 @@ def create_app(
             "API authentication is on but VERITY_API_KEYS is empty: set keys, or "
             "VERITY_API_AUTH_DISABLED=true for local development only."
         )
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        # In the background, so /health answers while the models load.
+        app.state.runtime.start_preload()
+        yield
+
     app = FastAPI(
         title="verity",
         version=__version__,
         docs_url="/docs",
         redoc_url=None,
+        lifespan=lifespan,
     )
     if cors_origins:
         app.add_middleware(
@@ -104,10 +114,14 @@ def create_app(
         tracer=runtime_tracer,
     )
     app.state.runtime = runtime
+    readiness = Readiness(runtime)
     app.state.settings = settings
     app.state.rate_limiter = RateLimiter(limit=settings.api_rate_limit_per_minute, window_s=60.0)
-    app.state.auth_failure_limiter = RateLimiter(
-        limit=settings.api_auth_failures_per_minute, window_s=60.0
+    app.state.auth_failures = RateLimiter(
+        limit=settings.api_auth_failures_per_minute, window_s=60.0, max_principals=10_000
+    )
+    app.state.spend_budget = SpendBudget(
+        budget_usd=settings.api_budget_usd, window_s=settings.api_budget_window_s
     )
     _install_request_context(app, settings)
     app.include_router(api_router)
@@ -122,6 +136,14 @@ def create_app(
     @app.get("/health")
     def health() -> JSONResponse:
         return JSONResponse({"status": "ok", "version": __version__})
+
+    @app.get("/ready")
+    async def ready() -> JSONResponse:
+        is_ready, checks = await readiness.check()
+        return JSONResponse(
+            {"status": "ready" if is_ready else "not ready", "checks": checks},
+            status_code=200 if is_ready else 503,
+        )
 
     @app.get("/metrics")
     def metrics() -> JSONResponse:

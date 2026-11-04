@@ -65,3 +65,40 @@ async def test_exhaustion_raises_last_transient() -> None:
 def test_routing_client_requires_at_least_one() -> None:
     with pytest.raises(ValueError):
         MultiProviderRoutingClient([])
+
+
+@pytest.mark.parametrize(
+    ("anthropic_key", "openai_key", "expected"),
+    [
+        ("", "sk-test", [Provider.OPENAI]),
+        ("sk-ant-test", "", [Provider.ANTHROPIC]),
+        ("sk-ant-test", "sk-test", [Provider.ANTHROPIC, Provider.OPENAI]),
+    ],
+)
+def test_default_router_holds_only_providers_with_a_key(
+    monkeypatch: pytest.MonkeyPatch, anthropic_key: str, openai_key: str, expected: list[Provider]
+) -> None:
+    """A provider with no key fails before any request with an error the router does
+    not fall back on, so an OpenAI-only deployment would refuse every question."""
+    from verity.config import get_settings
+    from verity.llm.routing import create_default_routing_client
+
+    monkeypatch.setenv("VERITY_ANTHROPIC_API_KEY", anthropic_key)
+    monkeypatch.setenv("VERITY_OPENAI_API_KEY", openai_key)
+    get_settings.cache_clear()
+    router = create_default_routing_client()
+    assert [client.provider for client in router.clients] == expected
+
+
+def test_default_router_without_any_key_fails_at_construction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from verity.config import get_settings
+    from verity.llm.base import LLMError
+    from verity.llm.routing import create_default_routing_client
+
+    monkeypatch.setenv("VERITY_ANTHROPIC_API_KEY", "")
+    monkeypatch.setenv("VERITY_OPENAI_API_KEY", "")
+    get_settings.cache_clear()
+    with pytest.raises(LLMError, match="API key"):
+        create_default_routing_client()

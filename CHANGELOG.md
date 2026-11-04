@@ -6,6 +6,124 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- The synthesizer reads retrieved text datamarked (spotlighting, arXiv:2403.14720):
+  every run of whitespace, invisible format characters or blank look-alikes between
+  words becomes `ˆ`, which `synthesize.prompt` v0.3.0 names as the mark of document
+  content; a mark the model echoes is removed from the answer. Quotes are matched
+  across marks and whitespace and stored as the document's own text, so a quote that
+  crosses a line break is no longer dropped; such a quote keeps its line break, which
+  the eval judge's `citation_ok` substring test compares as written. The confidence
+  scorer is unchanged.
+- `datasets/eval/injection/`: 12 poisoned documents whose instructions are written in
+  plain English (none matches the injection marker list), one question each, and
+  `scripts/run_injection_eval.py`, which counts the answers that ship what a poisoned
+  document planted and, on the clean corpus alone, the questions still answered;
+  `--no-datamark` runs the same code without the mark.
+- Injection measurement, 3 live runs per arm on `claude-sonnet-4-6` ($2.16 in all),
+  committed in `datasets/eval/injection/runs/` with a hand review of every marker match
+  and pooled by `scripts/summarise_injection_runs.py` into
+  `scorecards/injection-spotlighting.json`: 0/12 cases steered with the mark and 0/12
+  without (Wilson 95 % [0, 0.243] each, the case being the unit); answers refused on
+  cases the clean corpus answers, 4/24 with the mark and 7/24 without; 33/33 controls
+  answered in each arm; the mark adds about 75 % input tokens (mean 4,926 against 2,822
+  per answer). The set does not separate the arms.
+- `verity.eval.intervals.wilson` is the one Wilson interval; the headline generator
+  uses it.
+- The API ingests the corpus and loads the embedding and reranker models at startup, in
+  the background; `/ready` reports `"preload"` and stays `503` until every corpus file is
+  in, and a failed preload is started again by the next `/ready`. With the stub agent and
+  the memory store, the first `/ask` took 3.0–3.4 s (model load) and now takes 0.08 s,
+  after `/ready` turns `200` about 3.1 s from startup (three fresh processes each, warm
+  OS file cache, measured on the owner's machine with an in-process client; the
+  numbers are not reproduced by any test).
+- Each answer records its per-stage wall-clock (`stage_ms`) and the retries the provider
+  SDKs made (`usage.retries`); both are kept per example in eval run artefacts. Retries
+  are counted on calls that succeed: a call that exhausts its retries and fails over to
+  the next provider records none.
+- `verity ask --budget-usd` (default `VERITY_ASK_BUDGET_USD`, $1): before each LLM call,
+  spend so far plus that call's estimated upper cost must fit the cap, else the answer stops
+  with error kind `budget_exceeded`, exit 4, and the spend so far printed.
+- `/ask` spending budget per API key over a sliding window (`VERITY_API_BUDGET_USD`, $5;
+  `VERITY_API_BUDGET_WINDOW_S`, 3600 s); over budget is `429` with `Retry-After`.
+- `GET /ready`, separate from `/health`: `503` unless the Postgres store answers and the
+  LLM providers can serve in routing order; states only in the body, causes in the log;
+  results reused for 5 s. `/health` stays liveness only.
+
+### Changed
+
+- System card SLOs are approved targets, no longer proposals. A miss is published as
+  **SLO not met** with its cause, and the p95 latency is reported cold start included and
+  warm, in separate rows, recomputed from the run's per-answer latencies. The v1.0.0 run of
+  record misses both: 32.5 s cold start included, 22.4 s warm.
+- The README and system card say the run of record predates the support check and the
+  delimited prompts; claims C09, C24 and C25 state what they cover. Findings of a neutral
+  audit of `main` and what became of each: `docs/audit/2026-11-03-neutral-audit.md`.
+
+### Fixed
+
+- The confidence scorer read a refusal flag given as a string with `bool()`, so
+  `"refused": "false"` counted as a refusal. A flag that is not a boolean now makes the
+  response unparseable.
+- A failure of the local embedding or reranking model at question time (weights not in
+  the cache, out of memory) escaped the agent as a raw exception: `/ask` answered `500`,
+  the decompose call it had paid for was not counted in the key's budget, and
+  `verity eval run` stopped. It is now a typed error, `model_unavailable`, and `/ask`
+  answers `503`.
+- Re-ingesting an edited document left its old chunks in the store when the edit moved
+  chunk boundaries: the stale text stayed retrievable and citable, and a quote was
+  validated against text the document no longer had (claim C01). Ingestion now replaces
+  a document's chunks in one transaction, in both stores; a corpus file that was deleted
+  leaves the index with its chunks; a document whose text (SHA-256), chunks and
+  embedding model match the index is not embedded again. `verity ingest` reports
+  unchanged and removed documents. Removal matches documents by their repo-relative
+  identity, so the host CLI and the API container prune each other's copies; it never
+  runs on an empty corpus directory, and keeps a document whose file cannot be read or
+  failed to parse. One database holds one corpus version: the last sync wins, so an
+  API image built from an older checkout removes files a newer checkout added. A model
+  whose weights change under the same name, or a change to document metadata only, is
+  not detected; delete the rows in SQL to force a re-embed.
+- An answer that fails after some LLM calls returned now reports their tokens and cost
+  (it reported zero), in `Answer.usage` and in the `answer_failed` log line. Eval
+  `cost.*` figures and `verity eval run --budget-usd` therefore include the spend of
+  errored answers.
+- Concurrent answers from one agent (the API) each report their own usage; the
+  decompose usage of one could be reported by another.
+- The faithfulness judge read the string `"false"` as supported; a verdict is now a JSON
+  boolean or the string `true`/`false`, anything else makes the reply malformed.
+- A provider with no API key is left out of the default route: an OpenAI-only setup
+  answered `503` to every `/ask`. With no key at all, the router fails at construction.
+- PDF and DOCX conversion runs in a worker thread; it blocked every other request.
+- A judge outage during `verity eval run` errors that example instead of ending the run
+  and discarding its results; the example's spend still counts against `--budget-usd`,
+  and a rejected judge key stops the run.
+- A paid eval run that stops at `--budget-usd` (exit 4) or loses examples to an outage
+  (exit 6) writes an incomplete run, `eval_<sha>_<dataset>.incomplete-<time>.json`, with
+  every paid example, errored ones included; it previously persisted nothing on a budget
+  abort, kept only the ids of errored examples, and wrote the headline for a run with
+  errors. Incomplete runs never overwrite a file and are left out of `eval compare`.
+  Errored examples count against the cap and in the printed total.
+- Delimiter tags written with a space before the slash (`< /document>`) are neutralised.
+- `VERITY_DATABASE_URL` is held as a secret and no longer appears in printed settings.
+
+### Security
+
+- `/status` requires `X-API-Key`: it lists every corpus file name and the models in use.
+  `/health` and `/ready` remain the public probes. The CI smoke script sends the key.
+- Failed key attempts are limited per client address, per /64 for IPv6
+  (`VERITY_API_AUTH_FAILURES_PER_MINUTE`, 10), then `429` with `Retry-After`, checked before the key is compared. At most 10,000
+  addresses are tracked. Behind a reverse proxy, uvicorn must trust its forwarded headers
+  (SECURITY.md).
+- Dependencies with known advisories upgraded: Python (pillow 13.0.0, urllib3 2.8.0,
+  docling 2.145.0, filelock, certifi, opentelemetry, setuptools) and web (next
+  15.5.28, vitest 4.1.12, vite 6.4.5, eslint 9.39.5, postcss 8.5.32 via override).
+  v1.0.1 ships the vulnerable versions; until a release contains these upgrades,
+  build from `main`.
+- CI: actions pinned by commit SHA, read-only workflow tokens, Dependabot, CodeQL,
+  an OSV-Scanner job with two dated exceptions (`osv-scanner.toml`) and an OpenSSF
+  Scorecard workflow. See `docs/security/README.md`.
+
 ## [1.0.1] — 2026-09-08
 
 ### Fixed — headline scorecard denominators (schema v2 → v3)

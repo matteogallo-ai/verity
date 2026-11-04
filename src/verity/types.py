@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, model_validator
@@ -171,6 +171,9 @@ class UsageStats(BaseModel, frozen=True):
     llm_calls: int = 0
     cost_usd: float = 0.0
     latency_ms: float = 0.0
+    # Attempts the provider SDK retried before the call returned: their time is in
+    # ``latency_ms``, and only this count tells a retried call from a slow one.
+    retries: int = 0
 
 
 class ErrorKind(StrEnum):
@@ -180,6 +183,9 @@ class ErrorKind(StrEnum):
     PROVIDER_AUTH = "provider_auth"
     PROVIDER_ERROR = "provider_error"
     RETRIEVAL_UNAVAILABLE = "retrieval_unavailable"
+    MODEL_UNAVAILABLE = "model_unavailable"
+    # A spending cap stopped the answer before its next LLM call.
+    BUDGET_EXCEEDED = "budget_exceeded"
 
 
 class AnswerError(BaseModel, frozen=True):
@@ -213,6 +219,9 @@ class Answer(BaseModel, frozen=True):
     trace_id: TraceId = Field(default_factory=new_id)
     provider_used: Provider | None = None
     model_used: str | None = None
+    # Wall-clock of each agent stage that ran, in ms, so a slow answer can be explained
+    # from the eval artefact instead of from logs that are not kept.
+    stage_ms: dict[str, float] = Field(default_factory=dict)
 
     @model_validator(mode="before")
     @classmethod
@@ -323,6 +332,13 @@ class LatencyMetrics(BaseModel, frozen=True):
     p99_ms: float
 
 
+class IncompleteReason(StrEnum):
+    """Why a run's metrics do not cover its whole dataset."""
+
+    BUDGET_EXCEEDED = "budget_exceeded"
+    ERRORED_EXAMPLES = "errored_examples"
+
+
 class Scorecard(BaseModel, frozen=True):
     """The single artefact the eval harness produces and the README publishes.
 
@@ -348,6 +364,9 @@ class Scorecard(BaseModel, frozen=True):
     # quality metric (an outage is neither a correct nor a wrong refusal) and listed
     # here so a run with failures cannot pass for a clean one.
     errored_example_ids: tuple[str, ...] = ()
+    # Set when the run stopped at its budget cap or lost examples to an outage. Such a
+    # run is kept for its paid results and never stands as a run of record.
+    incomplete_reason: IncompleteReason | None = None
 
 
 class ClaimVerdict(BaseModel, frozen=True):
@@ -406,6 +425,25 @@ class PerExampleAudit(BaseModel, frozen=True):
     # run-level labels). None when not called or in runs recorded before they were stored.
     agent_model_used: str | None = None
     judge_model_used: str | None = None
+    stage_ms: dict[str, float] = Field(default_factory=dict)
+
+
+class ErroredExample(BaseModel, frozen=True):
+    """An example that was paid for but not scored, kept so the spend is accounted
+    for and, when the judge failed, the answer can be judged again without paying
+    the agent twice."""
+
+    example_id: str
+    question: str
+    expected_answerable: bool
+    failed_stage: Literal["agent", "judge"]
+    # The error kind or exception class only: provider messages can quote secrets.
+    error: str
+    answer_text: str = ""
+    citations: tuple[Citation, ...] = ()
+    hits_used: tuple[RetrievalHit, ...] = ()
+    usage: UsageStats = Field(default_factory=UsageStats)
+    stage_ms: dict[str, float] = Field(default_factory=dict)
 
 
 class EvalRun(BaseModel, frozen=True):
@@ -438,9 +476,7 @@ class EvalRun(BaseModel, frozen=True):
     agent_model: str = "unknown"
     notes: str | None = None
     per_audit: tuple[PerExampleAudit, ...] = ()
-    # Agent cost of examples that ended in an infrastructure error: they have no
-    # audit record, but their calls were billed.
-    errored_cost_usd: float = 0.0
+    errored: tuple[ErroredExample, ...] = ()
     # What the run measured with, so its numbers can be tied to exact inputs: the
     # dataset file's SHA-256, each prompt file's SHA-256, and the wall-clock duration.
     # None / empty in runs recorded before they were stored.
@@ -449,3 +485,9 @@ class EvalRun(BaseModel, frozen=True):
     duration_s: float | None = None
     # The refusal threshold the agent ran with: refusals are published at this value.
     confidence_threshold: float | None = None
+
+    @property
+    def errored_cost_usd(self) -> float:
+        """Agent cost of the examples paid for but not scored: they have no audit
+        record, but their calls were billed."""
+        return round(sum(e.usage.cost_usd for e in self.errored), 6)

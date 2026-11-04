@@ -98,8 +98,7 @@ async def test_list_documents_counts_chunks_per_document() -> None:
         text="x",
         source_type=SourceType.MARKDOWN,
     )
-    await store.upsert_documents([doc])
-    await store.upsert([_emb(1, (1.0, 0.0), "one"), _emb(2, (0.0, 1.0), "two")])
+    await store.replace_document(doc, [_emb(1, (1.0, 0.0), "one"), _emb(2, (0.0, 1.0), "two")])
 
     [summary] = await store.list_documents()
     assert (summary.uri, summary.title, summary.n_chunks) == ("file:///a.md", "A", 2)

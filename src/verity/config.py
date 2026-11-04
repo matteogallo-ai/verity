@@ -84,6 +84,10 @@ class Settings(BaseSettings):
     llm_timeout_s: float = Field(default=30.0, gt=0.0)
     llm_max_retries: int = Field(default=2, ge=0)
     model_prices: dict[str, ModelPrice] = Field(default_factory=lambda: dict(DEFAULT_MODEL_PRICES))
+    # Default cap for one `verity ask`. A live answer on the default model cost
+    # $0.012 on average in the run of record (scorecards/live-v1.0.0.json); $1 stops a
+    # runaway answer without getting in the way of a normal one.
+    ask_budget_usd: float = Field(default=1.0, gt=0.0)
 
     # --- Refusal (headline feature) ---------------------------------------------------
     confidence_threshold: float = Field(
@@ -116,9 +120,14 @@ class Settings(BaseSettings):
     # deliberate choice (local development), never the result of a missing variable.
     api_auth_disabled: bool = False
     api_rate_limit_per_minute: int = Field(default=30, gt=0)
-    # Failed X-API-Key attempts per client address (brute force); see SECURITY.md for
-    # the reverse-proxy caveat.
+    # Wrong or missing keys per client address per minute: enough for a mistyped key,
+    # too few to guess one.
     api_auth_failures_per_minute: int = Field(default=10, gt=0)
+    # Spending budget per key over a sliding window, from the cost each /ask reports.
+    # $5 an hour is about 400 live answers at the run-of-record average ($0.012): room
+    # for a team's interactive use, a ceiling on a leaked or looping key.
+    api_budget_usd: float = Field(default=5.0, gt=0.0)
+    api_budget_window_s: float = Field(default=3600.0, gt=0.0)
 
     # --- Observability ----------------------------------------------------------------
     # None → spans stay in the in-process exporter only (backs /metrics).
@@ -138,14 +147,13 @@ class Settings(BaseSettings):
 
     @property
     def has_llm_api_key(self) -> bool:
-        """True when at least one provider key is set to a non-empty value.
+        """True when at least one provider key is set (see :func:`key_is_set`)."""
+        return any(key_is_set(key) for key in (self.anthropic_api_key, self.openai_api_key))
 
-        An empty ``VERITY_*_API_KEY=`` line (as in ``.env.example``) counts as unset.
-        """
-        return any(
-            key is not None and key.get_secret_value()
-            for key in (self.anthropic_api_key, self.openai_api_key)
-        )
+
+def key_is_set(key: SecretStr | None) -> bool:
+    """An empty ``VERITY_*_API_KEY=`` line (as in ``.env.example``) counts as unset."""
+    return key is not None and bool(key.get_secret_value())
 
 
 @lru_cache(maxsize=1)

@@ -193,10 +193,11 @@ bins with their sizes. "Calibrated" is claimed only if the test ECE supports it.
 - **Latency** p50 / p95 / p99 of the end-to-end `agent.answer` wall clock. With
   `--no-warmup` (the v1.0.0 run) the first question's model loading is included and
   `cold_start` is `null`; with warmup, cold start is measured separately.
-- **Cost / query** in USD from token counts × the per-1k prices set in
-  `verity.llm.clients`, averaged over every attempted question. An example that ends
+- **Cost / query** in USD from token counts × the per-million-token list prices in
+  `DEFAULT_MODEL_PRICES` (`verity.config`), overridable with `VERITY_MODEL_PRICES`; not
+  from provider invoices. Averaged over every attempted question: an example that ends
   in an infrastructure error is kept out of the quality metrics, but the calls it made
-  before the error were billed: they count in the cost and in `--budget-usd`.
+  before the error were billed, so they count in the cost and in `--budget-usd`.
 
 ## Judge reliability
 

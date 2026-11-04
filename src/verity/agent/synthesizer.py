@@ -20,9 +20,10 @@ the draft ships or is replaced by a refusal.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
-from verity.agent.evidence import neutralise, render_evidence
+from verity.agent.evidence import DATAMARK, DATAMARK_NOTE, neutralise, render_evidence
 from verity.llm.base import RoutingClient
 from verity.llm.json_output import parse_json_object
 from verity.llm.prompt import load_prompt
@@ -64,15 +65,22 @@ class CitedSynthesizer:
         *,
         prompt_name: str = "synthesize",
         max_tokens: int = 512,
+        datamarked: bool = True,
     ) -> None:
         self._client = client
+        # Off only to measure what the mark changes (scripts/run_injection_eval.py).
+        self._datamarked = datamarked
         self._prompt = load_prompt(prompt_name)
         self._max_tokens = max_tokens
         self.last_usage: UsageStats | None = None
 
     async def synthesize(self, question: str, hits: list[RetrievalHit]) -> SynthesisResult:
-        evidence = render_evidence(hits, with_scores=False)
-        messages = self._prompt.render(question=neutralise(question), evidence=evidence)
+        evidence = render_evidence(hits, with_scores=False, datamarked=self._datamarked)
+        messages = self._prompt.render(
+            question=neutralise(question),
+            evidence=evidence,
+            datamark_note=DATAMARK_NOTE if self._datamarked else "",
+        )
         completion = await self._client.complete(messages, max_tokens=self._max_tokens)
         self.last_usage = completion.usage
         text, raw_citations = _parse_synth_output(completion.text)
@@ -97,7 +105,8 @@ def _parse_synth_output(text: str) -> tuple[str, list[tuple[str, int]]]:
     parsed = parse_json_object(text)
     if parsed is None:
         return "", []
-    answer = str(parsed.get("answer", "")).strip()
+    # A model that echoes marked evidence must not show the mark to the user.
+    answer = str(parsed.get("answer", "")).replace(DATAMARK, " ").strip()
     citations_raw = parsed.get("citations", []) or []
     citations: list[tuple[str, int]] = []
     if isinstance(citations_raw, list):
@@ -117,7 +126,13 @@ def _validate_citations(
     raw_citations: list[tuple[str, int]],
     hits: list[RetrievalHit],
 ) -> tuple[Citation, ...]:
-    """Keep only citations whose quote is a verbatim substring of the referenced chunk.
+    """Keep only citations whose quote is in the referenced chunk, word for word.
+
+    The model reads datamarked evidence, so a quote may join its words with the mark,
+    with spaces, or keep a line break the evidence no longer shows: words must match
+    exactly and in order, whitespace and marks between them may differ. The citation
+    stores the chunk's own text for that span, so ``quote`` is always a verbatim
+    substring of the document.
 
     ``char_start``/``char_end`` are re-anchored to ``document.text`` offsets — the
     chunker guarantees ``document.text[chunk.char_start:chunk.char_end] == chunk.text``,
@@ -128,22 +143,38 @@ def _validate_citations(
         if idx < 0 or idx >= len(hits):
             continue
         chunk = hits[idx].chunk
-        pos = chunk.text.find(quote)
-        if pos < 0:
+        span = _locate(quote, chunk.text)
+        if span is None:
             # LLM invented or paraphrased — reject rather than let a bogus offset ship.
             continue
-        abs_start = chunk.char_start + pos
-        abs_end = abs_start + len(quote)
+        start, end = span
+        abs_start = chunk.char_start + start
+        abs_end = chunk.char_start + end
         out.append(
             Citation(
                 chunk_id=chunk.id,
                 document_id=chunk.document_id,
-                quote=quote,
+                quote=chunk.text[start:end],
                 char_start=abs_start,
                 char_end=abs_end,
             )
         )
     return tuple(out)
+
+
+_WORD_GAP_RE = re.compile(rf"[\s{DATAMARK}]+")
+
+
+def _locate(quote: str, text: str) -> tuple[int, int] | None:
+    """The first span of ``text`` holding ``quote``'s words in order, separated by any
+    whitespace; ``None`` if there is none."""
+    words = [w for w in _WORD_GAP_RE.split(quote) if w]
+    if not words:
+        return None
+    # A literal mark in a document reaches the model as "^" (see evidence.datamark).
+    pattern = r"\s+".join(re.escape(w).replace(r"\^", f"[\\^{DATAMARK}]") for w in words)
+    match = re.search(pattern, text)
+    return None if match is None else (match.start(), match.end())
 
 
 __all__ = ["CitedSynthesizer", "SynthesisResult"]

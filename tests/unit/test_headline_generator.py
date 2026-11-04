@@ -389,13 +389,17 @@ def test_check_fails_when_the_scorecard_differs_from_its_artefact(tmp_path: Path
     payload = json.loads((REPO_ROOT / "scorecards/live-v1.0.0.json").read_text(encoding="utf-8"))
     readme = tmp_path / "README.md"
     readme.write_text("<!-- RESULTS:START -->\n<!-- RESULTS:END -->\n", encoding="utf-8")
+    # A card in tmp_path too: the default one is the committed docs/SYSTEM_CARD.md.
+    card = tmp_path / "SYSTEM_CARD.md"
+    card.write_text("<!-- SYSTEM-CARD:START -->\n<!-- SYSTEM-CARD:END -->\n", encoding="utf-8")
     scorecard.write_text(json.dumps(payload), encoding="utf-8")
-    assert generator.main(["--scorecard", str(scorecard), "--readme", str(readme)]) == 0
-    assert generator.main(["--check", "--scorecard", str(scorecard), "--readme", str(readme)]) == 0
+    args = ["--scorecard", str(scorecard), "--readme", str(readme), "--system-card", str(card)]
+    assert generator.main(args) == 0
+    assert generator.main(["--check", *args]) == 0
 
     payload["answer_quality"]["citation_accuracy"]["micro"]["value"] = 0.9
     scorecard.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    assert generator.main(["--check", "--scorecard", str(scorecard), "--readme", str(readme)]) == 1
+    assert generator.main(["--check", *args]) == 1
 
 
 def test_refusals_are_counted_by_recorded_cause() -> None:
@@ -483,3 +487,141 @@ def test_retrieval_rows_do_not_claim_to_be_deterministic() -> None:
     assert rows
     assert not any("deterministic" in row for row in rows)
     assert "LLM sub-questions" in rows[0]
+
+
+# --- system card block ------------------------------------------------------------------
+
+
+def _committed_scorecard() -> dict:  # type: ignore[type-arg]
+    return json.loads((REPO_ROOT / "scorecards" / "live-v1.0.0.json").read_text(encoding="utf-8"))
+
+
+def _card_rows(payload: dict) -> dict[str, list[str]]:  # type: ignore[type-arg]
+    """Table rows of the rendered system card block, keyed by their first cell."""
+    generator = _load_generator()
+    block = generator.render_system_card_block(payload, scorecard_path=generator.DEFAULT_SCORECARD)
+    rows: dict[str, list[str]] = {}
+    for line in block.splitlines():
+        if line.startswith("| ") and not line.startswith("|---"):
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            rows[cells[0]] = cells[1:]
+    return rows
+
+
+def _row_starting(rows: dict[str, list[str]], prefix: str) -> list[str]:
+    return next(cells for name, cells in rows.items() if name.startswith(prefix))
+
+
+def test_system_card_recovers_counts_from_the_artefact_and_gives_intervals() -> None:
+    rows = _card_rows(_committed_scorecard())
+    # 5 out-of-scope questions, 4 refused; all 4 refusals were out of scope.
+    assert rows["Refusal recall"] == ["0.800", "4/5", "[0.376, 0.964]"]
+    assert rows["Refusal precision"] == ["1.000", "4/4", "[0.510, 1.000]"]
+    # A per-answer hallucination flag is 0 or 1, so the rate gives k back.
+    assert rows["Hallucination rate ↓ (judge)"] == ["0.000", "0/11", "[0.000, 0.259]"]
+    assert rows["Citation accuracy per claim (judge)"] == ["0.618", "21/34", "[0.450, 0.761]"]
+    # A mean of per-question fractions has no k: n is shown, no interval is invented.
+    assert rows["Retrieval nDCG@8, per-question mean"] == ["0.953", "n=11", "no interval"]
+
+
+def test_system_card_slos_are_approved_and_say_what_was_not_measured() -> None:
+    rows = _card_rows(_committed_scorecard())
+    slos = [_row_starting(rows, prefix) for prefix in ("p95", "Error", "Cost")]
+    assert all(cells[0].endswith("(approved)") for cells in slos)
+    assert slos[1][1:] == ["0.000 (0/16, 95 % CI [0.000, 0.194])", "met"]
+    assert slos[2][2] == "met"
+
+
+def test_a_p95_over_target_is_published_as_not_met_with_its_cause() -> None:
+    """Recomputed from the run's per-answer latencies, which must reproduce the
+    scorecard p95; a miss names the answers over target instead of guessing a cause."""
+    rows = _card_rows(_committed_scorecard())
+    cells = _row_starting(rows, "p95 latency of one answer, cold start included")
+    assert cells[0] == "≤ 15,000 ms (approved)"
+    assert cells[1] == "32526.5 ms (n=16, no warmup: the first answer loads the models)"
+    assert cells[2].startswith("**SLO not met**: answers over 15,000 ms: q-003 37684.8 ms, ")
+    assert "q-001 30807.0 ms (first answer, model loading)" in cells[2]
+
+
+def test_the_warm_p95_leaves_out_the_first_answer_and_still_misses() -> None:
+    rows = _card_rows(_committed_scorecard())
+    warm = _row_starting(rows, "p95 latency of one answer, warm")
+    assert warm[1] == "22410.1 ms (n=15, first answer left out)"
+    assert warm[2].startswith("**SLO not met**: answers over 15,000 ms: q-003 37684.8 ms, ")
+    assert "q-001" not in warm[2]
+    # The run kept no per-stage timings or retry counts: the cause of the slow
+    # answers other than the first is said to be unknown, not guessed.
+    assert "not attributed" in warm[2]
+
+
+def test_without_a_run_artefact_the_warm_p95_comes_from_a_warmed_scorecard() -> None:
+    payload = _committed_scorecard()
+    payload["provenance"]["run_sha"] = "0000000"  # no such artefact
+    payload["latency_ms"] = {"cold_start": 8460.1, "p50": 5445.7, "p95": 8949.3, "p99": 10929.3}
+    rows = _card_rows(payload)
+    assert _row_starting(rows, "p95 latency of one answer, warm")[1:] == [
+        "8949.3 ms (n=16, after one warmup answer)",
+        "met",
+    ]
+    assert _row_starting(rows, "p95 latency of one answer, cold start included")[1:] == [
+        "not measured as one sample: the first answer after boot, timed apart, took 8460.1 ms",
+        "not measured",
+    ]
+
+
+def test_a_run_artefact_that_does_not_reproduce_the_scorecard_p95_is_refused() -> None:
+    payload = _committed_scorecard()
+    payload["latency_ms"]["p95"] = 1000.0
+    with pytest.raises(SystemExit, match="does not reproduce"):
+        _card_rows(payload)
+
+
+def test_an_errored_request_is_published_as_a_missed_error_slo() -> None:
+    payload = _committed_scorecard()
+    payload["sample_sizes"]["n_errored"] = 1
+    assert _row_starting(_card_rows(payload), "Error")[1:] == [
+        "0.062 (1/16, 95 % CI [0.011, 0.283])",
+        "**SLO not met**: 1 of 16 requests errored; the scorecard does not record why",
+    ]
+
+
+def test_a_missing_card_marker_writes_neither_file(tmp_path: Path) -> None:
+    generator = _load_generator()
+    readme = tmp_path / "README.md"
+    stale = (REPO_ROOT / "README.md").read_text(encoding="utf-8").replace("| 0.722", "| 0.999")
+    readme.write_text(stale, encoding="utf-8")
+    card = tmp_path / "SYSTEM_CARD.md"
+    card.write_text("no markers\n", encoding="utf-8")
+    with pytest.raises(SystemExit):
+        generator.main(["--readme", str(readme), "--system-card", str(card)])
+    assert readme.read_text(encoding="utf-8") == stale
+    with pytest.raises(SystemExit, match="not found"):
+        generator.main(["--readme", str(readme), "--system-card", str(tmp_path / "absent.md")])
+
+
+def test_a_scorecard_older_than_v5_is_refused_by_the_card() -> None:
+    """Only v5 stores the k/n each row prints; an older scorecard would need them guessed."""
+    payload = _committed_scorecard()
+    payload["schema"] = "verity.scorecard.headline/v3"
+    with pytest.raises(SystemExit, match="v5"):
+        _card_rows(payload)
+
+
+def test_check_covers_the_system_card_and_never_writes_it(tmp_path: Path) -> None:
+    generator = _load_generator()
+    readme = tmp_path / "README.md"
+    readme.write_text((REPO_ROOT / "README.md").read_text(encoding="utf-8"), encoding="utf-8")
+    card = tmp_path / "SYSTEM_CARD.md"
+    committed = (REPO_ROOT / "docs" / "SYSTEM_CARD.md").read_text(encoding="utf-8")
+    args = ["--readme", str(readme), "--system-card", str(card)]
+    card.write_text(committed, encoding="utf-8")
+    # The source link is relative to the card, so a copy elsewhere is regenerated first.
+    assert generator.main(args) == 0
+    args.insert(0, "--check")
+    assert generator.main(args) == 0
+    regenerated = card.read_text(encoding="utf-8")
+    stale = regenerated.replace("| 17/20 |", "| 20/20 |")
+    assert stale != regenerated
+    card.write_text(stale, encoding="utf-8")
+    assert generator.main(args) == 1
+    assert card.read_text(encoding="utf-8") == stale

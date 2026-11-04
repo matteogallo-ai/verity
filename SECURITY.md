@@ -7,6 +7,11 @@
 | 1.0.x | yes |
 | < 1.0 | no |
 
+Security fixes, including dependency upgrades, go to `main` and ship in the next 1.0.x
+patch release. v1.0.1 resolves dependencies with known advisories that `main` has
+upgraded (see `CHANGELOG.md`, Unreleased); until a release contains them, build from
+`main`.
+
 ## Reporting a vulnerability
 
 Use GitHub's private reporting:
@@ -25,22 +30,42 @@ isolation model.
 Stated as the code behaves, each with the test that pins it. The design and the
 rejected alternatives are in [ADR 0006](docs/adr/0006-api-security-baseline.md).
 
-- **Authentication.** `/ask` and `/ingest` require `X-API-Key`; keys come from
+- **Authentication.** `/status`, `/ask` and `/ingest` require `X-API-Key`; keys come from
   `VERITY_API_KEYS` (held as `SecretStr`, compared in constant time, never logged; logs
   carry `principal=key-<n>`). With no key configured the server refuses to start unless
   `VERITY_API_AUTH_DISABLED=true` is set, which is for local development only
   (`tests/unit/test_api_hardening.py`).
-- **Public endpoints.** `/health`, `/status`, `/metrics`, `/metrics/prom` and
-  `/dashboard` need no key. They expose corpus file names, document counts and
-  aggregate latency and cost, never document text.
-- **Rate limit.** 30 requests per minute per key on `/ask` and `/ingest`, sliding
+- **Public endpoints.** `/health`, `/ready`, `/metrics`, `/metrics/prom`, `/dashboard`,
+  `/docs` and `/openapi.json` need no key. They expose readiness states and aggregate
+  latency and cost, never document names or text. `/status`, which lists the corpus file
+  names and the models in use, needs a key.
+- **Failed key attempts.** 10 wrong or missing keys per minute per client address (per
+  /64 for IPv6), then `429` with `Retry-After`, checked before the key is compared. The
+  limit slows one client; long random keys are what makes guessing infeasible. At most
+  10,000 addresses are tracked, so a client with more addresses than that can reset its
+  count, and N API processes allow N × the limit. The address is the TCP peer unless
+  uvicorn trusts the proxy that forwards it, set with `FORWARDED_ALLOW_IPS=<proxy ip>`
+  (`verity serve` passes no value, so uvicorn reads that variable). Under
+  `docker compose` with no such setting, every client reaches the container from the
+  Docker gateway: the limit is then shared, and one client with a wrong key blocks the
+  others for up to a minute.
+- **Rate limit.** 30 requests per minute per key on `/status`, `/ask` and `/ingest`, sliding
   window, `429` with `Retry-After`. In process: N API processes allow N × the limit.
-- **Failed keys.** 10 missing or wrong `X-API-Key` attempts per minute per client
-  address (`VERITY_API_AUTH_FAILURES_PER_MINUTE`); past that the address gets `429`
-  before its key is checked, so a right guess is not confirmed either. The address is
-  the socket peer: behind a reverse proxy every client shares the proxy's address and
-  budget, so a proxy deployment needs its own limit. At most 10 000 addresses are
-  tracked; the least recently seen is forgotten first.
+- **Spending budget.** `/ask` spend per key is capped at `VERITY_API_BUDGET_USD`
+  ($5 by default) over a sliding `VERITY_API_BUDGET_WINDOW_S` (3600 s), counted from
+  the cost each answer reports, including answers that fail after paying for some
+  calls. Over budget is `429` with `Retry-After` and a generic body. A request is
+  admitted while the key is under budget, so the budget can be overshot by the
+  answers in flight when it is crossed. In process: N API processes allow
+  N × the budget, and a restart resets it (`tests/unit/test_api_hardening.py`).
+- **Bounded LLM calls.** Each answer makes at most 3 LLM calls with `max_tokens`
+  256, 512 and 256, each under `VERITY_LLM_TIMEOUT_S` (30 s) and
+  `VERITY_LLM_MAX_RETRIES` (2) per provider. `verity ask` stops before any call
+  whose estimated cost (input bytes as tokens, `max_tokens` as output, the dearest
+  configured provider) would take the answer past `--budget-usd`
+  (`VERITY_ASK_BUDGET_USD`, $1 by default): exit 4, spend so far printed
+  (`tests/unit/test_budget.py`). Bytes bound tokens for OpenAI's tokenizer; for
+  Anthropic's, which is not public, it is an assumption.
 - **Input bounds.** Questions up to 2000 characters (`422`). Request bodies are checked
   on `Content-Length` before parsing (`411` without one, `413` over the limit); uploads
   up to 1 MiB (`413`).
@@ -66,16 +91,21 @@ rejected alternatives are in [ADR 0006](docs/adr/0006-api-security-baseline.md).
 
 ## Threat model
 
-| Threat | Status | Notes |
-|---|---|---|
-| Indirect prompt injection (instructions inside ingested documents) | **Partial** | Evidence, question and draft answer enter the prompts only inside delimiters, with document text unable to close them, and every prompt says they are untrusted data (`tests/unit/test_prompt_injection.py`). Before the scorer runs, a deterministic check refuses a draft that cites a document carrying an injection marker (verdict keys as JSON, "ignore previous instructions", role lines), whose words its quotes do not cover, or whose citations the reranker scores irrelevant (`verity.agent.support`, `tests/unit/test_support.py`). Adversarial eval questions q-017..q-019 run against a poisoned corpus document with a model that obeys it (`tests/unit/test_adversarial.py`). **Not stopped:** an injection paraphrased past the marker list, and a document that states a false fact relevant to the question. The marker list and the thresholds were tuned on the same 16 questions they are checked on. |
-| Corpus poisoning | **Partial** | Upload needs an API key, is size- and type-checked and capped at 200 documents, but any key holder can add a document every other client then retrieves, and with pgvector it persists. Control what is ingested. |
-| Cost / denial of wallet | **Partial** | `/ask` needs a key and is rate-limited per key; a live answer makes 3 LLM calls under SDK timeouts and bounded retries. No per-key spending budget. `verity eval run --budget-usd` caps an eval run; `verity ask` has no cap. |
-| Information disclosure | **Partial** | Answers quote only ingested documents and errors are generic. Every key holder can query every document; the public read-only endpoints list corpus file names. |
-| Secret leakage | **Mitigated** | Provider keys and API keys are read from the environment only and held as `SecretStr`, so `repr()` / `str()` / `model_dump()` of the settings do not show them (`tests/unit/test_config.py::test_api_keys_never_appear_in_settings_repr`); API keys are never logged. The raw provider key is passed to the provider SDK client. |
-| Fabricated citations | **Mitigated** | A citation is kept only if its quote is a verbatim substring of the cited chunk (`tests/unit/test_citation_verbatim_invariant.py`, claim C01); an answer left without a citation is refused (`no_citation`). This does not prove the answer text is faithful. |
-| Third-party model download | **Partial** | The Docker image embeds the embedding and reranker models. Outside it, the first run downloads them from Hugging Face, and the first PDF ingestion makes docling download its layout and OCR models (~500 MB, including from ModelScope); the image does not embed those, so a PDF upload in the container fails with a generic `422`. |
-| Dependency vulnerabilities | **Partial** | Dependencies are pinned in `uv.lock` and `web/pnpm-lock.yaml`; no automated vulnerability scan runs. |
+[`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) goes through the OWASP Top 10 for LLM
+Applications 2025 item by item: whether each applies, the code that mitigates it, the
+tests that prove it, and what is not stopped. The residual risks that matter most for a
+deployment:
 
-This document is updated in the same pull request as any change to the posture
-above.
+- Every key holder reads every document, and can add one that every other client then
+  retrieves, persistently on pgvector; no upload is logged with its key (LLM08, LLM04).
+- An injection paraphrased past the marker list, or a false fact stated plainly in a
+  relevant document, is not stopped (LLM01, LLM09). The eval judge prompt has no
+  untrusted-content delimiters (LLM01).
+- Questions and retrieved passages go to the LLM provider (LLM02).
+- The `/ask` spending budget is per process and resets on restart, and failed attempts
+  a provider bills are not counted (LLM10). The dependency scan misses advisories not
+  yet in the OSV database, the base image and the models downloaded at run time
+  (LLM03; [`docs/security/README.md`](docs/security/README.md)).
+
+This document and the threat model are updated in the same pull request as any change
+to the posture above.

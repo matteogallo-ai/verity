@@ -13,6 +13,7 @@ key is needed to prove the pipeline is wired correctly (not that the model behav
 
 from __future__ import annotations
 
+import inspect
 import time
 from collections.abc import Callable
 from typing import Any, NoReturn
@@ -145,6 +146,16 @@ class AnthropicClient(LLMClient):
                 raise ProviderUnavailableError(f"anthropic init failed: {exc}") from exc
         return self._client
 
+    async def ping(self) -> None:
+        """Reach the provider without spending tokens: the Models API is not billed.
+        Raises the same typed errors as :meth:`complete`."""
+        client = self._get_client()
+        try:
+            await client.models.retrieve(self._model)
+        # Every vendor failure is translated to a typed Verity error and re-raised.
+        except Exception as exc:
+            _raise_translated(exc, sdk=_lazy_anthropic(), provider="anthropic")
+
     async def complete(
         self,
         messages: list[Message],
@@ -155,12 +166,13 @@ class AnthropicClient(LLMClient):
         started = time.perf_counter()
         system, chat = _split_system(messages)
         try:
-            resp = await client.messages.create(
+            raw = await client.messages.with_raw_response.create(
                 model=self._model,
                 max_tokens=max_tokens,
                 system=system,
                 messages=[{"role": m.role.value, "content": m.content} for m in chat],
             )
+            resp = await _parsed(raw)
         # Every vendor failure is translated to a typed Verity error and re-raised.
         except Exception as exc:
             _raise_translated(exc, sdk=_lazy_anthropic(), provider="anthropic")
@@ -179,6 +191,7 @@ class AnthropicClient(LLMClient):
                 llm_calls=1,
                 cost_usd=self.cost_usd(input_tokens=input_tokens, output_tokens=output_tokens),
                 latency_ms=round(elapsed_ms, 2),
+                retries=int(getattr(raw, "retries_taken", 0) or 0),
             ),
         )
 
@@ -249,6 +262,16 @@ class OpenAIClient(LLMClient):
                 raise ProviderUnavailableError(f"openai init failed: {exc}") from exc
         return self._client
 
+    async def ping(self) -> None:
+        """Reach the provider without spending tokens: the Models API is not billed.
+        Raises the same typed errors as :meth:`complete`."""
+        client = self._get_client()
+        try:
+            await client.models.retrieve(self._model)
+        # Every vendor failure is translated to a typed Verity error and re-raised.
+        except Exception as exc:
+            _raise_translated(exc, sdk=_lazy_openai(), provider="openai")
+
     async def complete(
         self,
         messages: list[Message],
@@ -258,11 +281,12 @@ class OpenAIClient(LLMClient):
         client = self._get_client()
         started = time.perf_counter()
         try:
-            resp = await client.chat.completions.create(
+            raw = await client.chat.completions.with_raw_response.create(
                 model=self._model,
                 max_tokens=max_tokens,
                 messages=[{"role": m.role.value, "content": m.content} for m in messages],
             )
+            resp = await _parsed(raw)
         # Every vendor failure is translated to a typed Verity error and re-raised.
         except Exception as exc:
             _raise_translated(exc, sdk=_lazy_openai(), provider="openai")
@@ -282,6 +306,7 @@ class OpenAIClient(LLMClient):
                 llm_calls=1,
                 cost_usd=self.cost_usd(input_tokens=input_tokens, output_tokens=output_tokens),
                 latency_ms=round(elapsed_ms, 2),
+                retries=int(getattr(raw, "retries_taken", 0) or 0),
             ),
         )
 
@@ -289,6 +314,13 @@ class OpenAIClient(LLMClient):
 # --------------------------------------------------------------------------------------
 # Shared helpers
 # --------------------------------------------------------------------------------------
+
+
+async def _parsed(raw: Any) -> Any:
+    """The typed body of a raw SDK response. The raw form is requested for its
+    ``retries_taken``; one SDK parses synchronously, the other returns an awaitable."""
+    parsed = raw.parse()
+    return await parsed if inspect.isawaitable(parsed) else parsed
 
 
 def _split_system(messages: list[Message]) -> tuple[str, list[Message]]:

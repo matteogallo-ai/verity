@@ -4,8 +4,9 @@ of the referenced source document at ``[char_start:char_end]``.
 Two guarantees are stacked:
 
 1. :mod:`verity.agent.synthesizer._validate_citations` drops any citation whose
-   ``quote`` is not present in the referenced chunk (``chunk.text.find(quote)``
-   returns -1 → skip). No paraphrased citation ever ships.
+   words are not in the referenced chunk in order (whitespace between them may
+   differ) and stores the chunk's own text for the span. No paraphrased citation
+   ever ships.
 2. The offsets are re-anchored to ``document.text`` via
    ``chunk.char_start + position_of_quote_in_chunk`` — the chunker's offset invariant
    guarantees ``document.text[chunk.char_start:chunk.char_end] == chunk.text``,

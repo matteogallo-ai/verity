@@ -14,6 +14,27 @@ import json
 from collections.abc import Mapping
 from typing import Any
 
+# json.loads recurses in C once per nesting level. A long run of brackets raises
+# RecursionError on the main thread but overflows the stack of a thread with a small
+# one (512 KiB by default on macOS) and kills the process, so depth is checked before
+# decoding. The prompts ask for two or three levels; brackets inside strings count too,
+# which only makes the bound stricter.
+_MAX_NESTING = 64
+
+
+def load_json(text: str) -> Any:
+    """``json.loads`` for model output: :class:`ValueError` (``JSONDecodeError`` is
+    one) on invalid JSON or on nesting deeper than :data:`_MAX_NESTING`."""
+    depth = 0
+    for char in text:
+        if char in "[{":
+            depth += 1
+            if depth > _MAX_NESTING:
+                raise ValueError(f"JSON nested deeper than {_MAX_NESTING} levels")
+        elif char in "]}":
+            depth -= 1
+    return json.loads(text)
+
 
 def first_json_object(text: str) -> str:
     """Return the outermost ``{...}`` slice of ``text``.
@@ -44,8 +65,8 @@ def parse_json_object(text: str) -> dict[str, Any] | None:
     """
     candidate = first_json_object(text) or text
     try:
-        parsed = json.loads(candidate)
-    except json.JSONDecodeError:
+        parsed = load_json(candidate)
+    except ValueError:
         return None
     if isinstance(parsed, list):
         parsed = next((item for item in parsed if isinstance(item, dict)), None)
@@ -64,4 +85,17 @@ def first_matching(mapping: Mapping[str, Any], keys: tuple[str, ...]) -> Any:
     return None
 
 
-__all__ = ["first_json_object", "first_matching", "parse_json_object"]
+def strict_bool(value: Any) -> bool | None:
+    """A JSON boolean, or the string ``"true"`` / ``"false"`` in any case; else ``None``.
+
+    ``bool("false")`` is ``True``, so a model that quotes its booleans would flip every
+    verdict. Other values (``0``, ``"no"``, ``null``) are refused rather than guessed.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return {"true": True, "false": False}.get(value.strip().lower())
+    return None
+
+
+__all__ = ["first_json_object", "first_matching", "load_json", "parse_json_object", "strict_bool"]

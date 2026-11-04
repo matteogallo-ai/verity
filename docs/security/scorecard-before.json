@@ -1,0 +1,384 @@
+{
+  "date": "2026-11-02T20:12:20Z",
+  "repo": {
+    "name": "github.com/matteogallo-ai/verity",
+    "commit": "a0c5e8fbe3697af760955bae29d0e6dfb1e100d4"
+  },
+  "scorecard": {
+    "version": "v5.6.0",
+    "commit": "61e84743356275f6ffca23b1b2f2cb945e19eb96"
+  },
+  "score": 3.3,
+  "checks": [
+    {
+      "details": null,
+      "score": 10,
+      "reason": "no binaries found in the repo",
+      "name": "Binary-Artifacts",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/61e84743356275f6ffca23b1b2f2cb945e19eb96/docs/checks.md#binary-artifacts",
+        "short": "Determines if the project has generated executable (binary) artifacts in the source repository."
+      }
+    },
+    {
+      "details": [
+        "Info: 'allow deletion' disabled on branch 'main'",
+        "Info: 'force pushes' disabled on branch 'main'",
+        "Info: 'branch protection settings apply to administrators' is required to merge on branch 'main'",
+        "Warn: 'stale review dismissal' is disabled on branch 'main'",
+        "Warn: branch 'main' does not require approvers",
+        "Warn: codeowners review is not required on branch 'main'",
+        "Warn: 'last push approval' is disabled on branch 'main'",
+        "Warn: 'up-to-date branches' is disabled on branch 'main'",
+        "Info: status check found to merge onto on branch 'main'",
+        "Info: PRs are required in order to make changes on branch 'main'"
+      ],
+      "score": 3,
+      "reason": "branch protection is not maximal on development and all release branches",
+      "name": "Branch-Protection",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/61e84743356275f6ffca23b1b2f2cb945e19eb96/docs/checks.md#branch-protection",
+        "short": "Determines if the default and release branches are protected with GitHub's branch protection settings."
+      }
+    },
+    {
+      "details": null,
+      "score": 10,
+      "reason": "2 out of 2 merged PRs checked by a CI test -- score normalized to 10",
+      "name": "CI-Tests",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/61e84743356275f6ffca23b1b2f2cb945e19eb96/docs/checks.md#ci-tests",
+        "short": "Determines if the project runs tests before pull requests are merged."
+      }
+    },
+    {
+      "details": null,
+      "score": 0,
+      "reason": "no effort to earn an OpenSSF best practices badge detected",
+      "name": "CII-Best-Practices",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/61e84743356275f6ffca23b1b2f2cb945e19eb96/docs/checks.md#cii-best-practices",
+        "short": "Determines if the project has an OpenSSF (formerly CII) Best Practices Badge."
+      }
+    },
+    {
+      "details": null,
+      "score": 0,
+      "reason": "Found 0/2 approved changesets -- score normalized to 0",
+      "name": "Code-Review",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/61e84743356275f6ffca23b1b2f2cb945e19eb96/docs/checks.md#code-review",
+        "short": "Determines if the project requires human code review before pull requests (aka merge requests) are merged."
+      }
+    },
+    {
+      "details": [
+        "Info: found contributions from: gallarti"
+      ],
+      "score": 3,
+      "reason": "project has 1 contributing companies or organizations -- score normalized to 3",
+      "name": "Contributors",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/61e84743356275f6ffca23b1b2f2cb945e19eb96/docs/checks.md#contributors",
+        "short": "Determines if the project has a set of contributors from multiple organizations (e.g., companies)."
+      }
+    },
+    {
+      "details": null,
+      "score": 10,
+      "reason": "no dangerous workflow patterns detected",
+      "name": "Dangerous-Workflow",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/61e84743356275f6ffca23b1b2f2cb945e19eb96/docs/checks.md#dangerous-workflow",
+        "short": "Determines if the project's GitHub Action workflows avoid dangerous patterns."
+      }
+    },
+    {
+      "details": [
+        "Warn: no dependency update tool configurations found"
+      ],
+      "score": 0,
+      "reason": "no update tool detected",
+      "name": "Dependency-Update-Tool",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/61e84743356275f6ffca23b1b2f2cb945e19eb96/docs/checks.md#dependency-update-tool",
+        "short": "Determines if the project uses a dependency update tool."
+      }
+    },
+    {
+      "details": [
+        "Warn: no fuzzer integrations found"
+      ],
+      "score": 0,
+      "reason": "project is not fuzzed",
+      "name": "Fuzzing",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/61e84743356275f6ffca23b1b2f2cb945e19eb96/docs/checks.md#fuzzing",
+        "short": "Determines if the project uses fuzzing."
+      }
+    },
+    {
+      "details": [
+        "Info: project has a license file: LICENSE:0",
+        "Info: FSF or OSI recognized license: MIT License: LICENSE:0"
+      ],
+      "score": 10,
+      "reason": "license file detected",
+      "name": "License",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/61e84743356275f6ffca23b1b2f2cb945e19eb96/docs/checks.md#license",
+        "short": "Determines if the project has defined a license."
+      }
+    },
+    {
+      "details": [
+        "Warn: Repository was created within the last 90 days."
+      ],
+      "score": 0,
+      "reason": "project was created within the last 90 days. Please review its contents carefully",
+      "name": "Maintained",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/61e84743356275f6ffca23b1b2f2cb945e19eb96/docs/checks.md#maintained",
+        "short": "Determines if the project is \"actively maintained\"."
+      }
+    },
+    {
+      "details": [
+        "Warn: no GitHub/GitLab publishing workflow detected."
+      ],
+      "score": -1,
+      "reason": "packaging workflow not detected",
+      "name": "Packaging",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/61e84743356275f6ffca23b1b2f2cb945e19eb96/docs/checks.md#packaging",
+        "short": "Determines if the project is published as a package that others can easily download, install, easily update, and uninstall."
+      }
+    },
+    {
+      "details": [
+        "Warn: GitHub-owned GitHubAction not pinned by hash: .github/workflows/ci.yml:195: update your workflow using https://app.stepsecurity.io/secureworkflow/matteogallo-ai/verity/ci.yml/main?enable=pin",
+        "Warn: third-party GitHubAction not pinned by hash: .github/workflows/ci.yml:198: update your workflow using https://app.stepsecurity.io/secureworkflow/matteogallo-ai/verity/ci.yml/main?enable=pin",
+        "Warn: GitHub-owned GitHubAction not pinned by hash: .github/workflows/ci.yml:230: update your workflow using https://app.stepsecurity.io/secureworkflow/matteogallo-ai/verity/ci.yml/main?enable=pin",
+        "Warn: GitHub-owned GitHubAction not pinned by hash: .github/workflows/ci.yml:242: update your workflow using https://app.stepsecurity.io/secureworkflow/matteogallo-ai/verity/ci.yml/main?enable=pin",
+        "Warn: GitHub-owned GitHubAction not pinned by hash: .github/workflows/ci.yml:245: update your workflow using https://app.stepsecurity.io/secureworkflow/matteogallo-ai/verity/ci.yml/main?enable=pin",
+        "Warn: GitHub-owned GitHubAction not pinned by hash: .github/workflows/ci.yml:18: update your workflow using https://app.stepsecurity.io/secureworkflow/matteogallo-ai/verity/ci.yml/main?enable=pin",
+        "Warn: third-party GitHubAction not pinned by hash: .github/workflows/ci.yml:21: update your workflow using https://app.stepsecurity.io/secureworkflow/matteogallo-ai/verity/ci.yml/main?enable=pin",
+        "Warn: GitHub-owned GitHubAction not pinned by hash: .github/workflows/ci.yml:59: update your workflow using https://app.stepsecurity.io/secureworkflow/matteogallo-ai/verity/ci.yml/main?enable=pin",
+        "Warn: GitHub-owned GitHubAction not pinned by hash: .github/workflows/ci.yml:68: update your workflow using https://app.stepsecurity.io/secureworkflow/matteogallo-ai/verity/ci.yml/main?enable=pin",
+        "Warn: GitHub-owned GitHubAction not pinned by hash: .github/workflows/ci.yml:71: update your workflow using https://app.stepsecurity.io/secureworkflow/matteogallo-ai/verity/ci.yml/main?enable=pin",
+        "Warn: GitHub-owned GitHubAction not pinned by hash: .github/workflows/ci.yml:83: update your workflow using https://app.stepsecurity.io/secureworkflow/matteogallo-ai/verity/ci.yml/main?enable=pin",
+        "Warn: GitHub-owned GitHubAction not pinned by hash: .github/workflows/ci.yml:88: update your workflow using https://app.stepsecurity.io/secureworkflow/matteogallo-ai/verity/ci.yml/main?enable=pin",
+        "Warn: GitHub-owned GitHubAction not pinned by hash: .github/workflows/ci.yml:117: update your workflow using https://app.stepsecurity.io/secureworkflow/matteogallo-ai/verity/ci.yml/main?enable=pin",
+        "Warn: third-party GitHubAction not pinned by hash: .github/workflows/ci.yml:120: update your workflow using https://app.stepsecurity.io/secureworkflow/matteogallo-ai/verity/ci.yml/main?enable=pin",
+        "Warn: GitHub-owned GitHubAction not pinned by hash: .github/workflows/ci.yml:156: update your workflow using https://app.stepsecurity.io/secureworkflow/matteogallo-ai/verity/ci.yml/main?enable=pin",
+        "Warn: third-party GitHubAction not pinned by hash: .github/workflows/ci.yml:159: update your workflow using https://app.stepsecurity.io/secureworkflow/matteogallo-ai/verity/ci.yml/main?enable=pin",
+        "Warn: containerImage not pinned by hash: Dockerfile:5: pin your Docker image by updating python:3.12-slim to python:3.12-slim@sha256:b18b261e1b4974b4f321451ad5251ded85abb22c2b8b262da527dda1d031ab30",
+        "Warn: containerImage not pinned by hash: Dockerfile:32: pin your Docker image by updating python:3.12-slim to python:3.12-slim@sha256:b18b261e1b4974b4f321451ad5251ded85abb22c2b8b262da527dda1d031ab30",
+        "Warn: downloadThenRun not pinned by hash: scripts/docker_smoke.sh:24",
+        "Warn: downloadThenRun not pinned by hash: scripts/docker_smoke.sh:36",
+        "Info:   0 out of  12 GitHub-owned GitHubAction dependencies pinned",
+        "Info:   0 out of   4 third-party GitHubAction dependencies pinned",
+        "Info:   0 out of   2 containerImage dependencies pinned",
+        "Info:   0 out of   2 downloadThenRun dependencies pinned"
+      ],
+      "score": 0,
+      "reason": "dependency not pinned by hash detected -- score normalized to 0",
+      "name": "Pinned-Dependencies",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/61e84743356275f6ffca23b1b2f2cb945e19eb96/docs/checks.md#pinned-dependencies",
+        "short": "Determines if the project has declared and pinned the dependencies of its build process."
+      }
+    },
+    {
+      "details": [
+        "Warn: 0 commits out of 30 are checked with a SAST tool"
+      ],
+      "score": 0,
+      "reason": "SAST tool is not run on all commits -- score normalized to 0",
+      "name": "SAST",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/61e84743356275f6ffca23b1b2f2cb945e19eb96/docs/checks.md#sast",
+        "short": "Determines if the project uses static code analysis."
+      }
+    },
+    {
+      "details": [
+        "Info: security policy file detected: SECURITY.md:1",
+        "Info: Found linked content: SECURITY.md:1",
+        "Info: Found disclosure, vulnerability, and/or timelines in security policy: SECURITY.md:1",
+        "Info: Found text in security policy: SECURITY.md:1"
+      ],
+      "score": 10,
+      "reason": "security policy file detected",
+      "name": "Security-Policy",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/61e84743356275f6ffca23b1b2f2cb945e19eb96/docs/checks.md#security-policy",
+        "short": "Determines if the project has published a security policy."
+      }
+    },
+    {
+      "details": null,
+      "score": -1,
+      "reason": "no releases found",
+      "name": "Signed-Releases",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/61e84743356275f6ffca23b1b2f2cb945e19eb96/docs/checks.md#signed-releases",
+        "short": "Determines if the project cryptographically signs release artifacts."
+      }
+    },
+    {
+      "details": [
+        "Warn: no topLevel permission defined: .github/workflows/ci.yml:1",
+        "Info: no jobLevel write permissions found"
+      ],
+      "score": 0,
+      "reason": "detected GitHub workflow tokens with excessive permissions",
+      "name": "Token-Permissions",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/61e84743356275f6ffca23b1b2f2cb945e19eb96/docs/checks.md#token-permissions",
+        "short": "Determines if the project's workflows follow the principle of least privilege."
+      }
+    },
+    {
+      "details": [
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-3804",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4320",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4189",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4190",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4191",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4192",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4193",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4194",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4195",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4208",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-567q-5qvw-pf92",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-6627-m3xw-93mp",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-69hj-f68j-2879",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-8mx5-7m5m-r77g",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-9c4x-gm8v-wgc4",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-9vhv-jxww-xfm5",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-cwqr-hh33-gh44",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-fq56-3cx3-fjxp",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-j8f7-rjxc-mr56",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-m462-7rxw-wvpg",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-rfpc-qcw5-3pc4",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-v4x8-3wr5-3wq8",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-xcq7-p3pf-p88h",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4326",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4327",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4328",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4329",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4330",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4331",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4332",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4333",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4334",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4335",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4336",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4337",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4338",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4339",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4340",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4341",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4342",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4343",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-22hg-r758-rrw9",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-24rc-8hj2-v98c",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-254f-3936-288h",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-332p-7hrc-92wf",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-462x-pgg6-55fp",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-5xm2-6676-qcp9",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-65qm-jvmh-6pqg",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-74r2-7ff9-mjj2",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-78g4-xqwv-q3g8",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-c6hw-5grf-ff96",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-f2g6-542v-9j58",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-fc9g-5qg7-mf45",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-g7cr-3p24-7wf7",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-gg2r-wvfm-q9rx",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-j4m9-6w36-pw47",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-jg86-v3jv-hrpm",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-mrfp-p49p-3hf2",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-p4wg-p73j-c528",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-q45j-58j2-45rg",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-rfgq-q3w2-pmv2",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-vx6w-vv9f-6gvg",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-w889-685w-c8fh",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-xvh5-g6gv-559v",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-xmj3-9gf7-h52w",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4175",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4176",
+        "Warn: Project is vulnerable to: https://osv.dev/PYSEC-2026-4177",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-xffm-g5w8-qvg7",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-82fw-gwwq-j7x9",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-qxg6-89mg-rqv8",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-6j4f-fj2g-mc7p",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-q2hr-2g5m-vwhr",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-qhr7-859c-m2p7",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-g3hv-75wg-m249",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-2464-fhr4-w9xw",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-2xp9-vwfh-vxw4",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-36qx-fr4f-26g5",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-3g8h-86w9-wvmq",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-3h52-269p-cp9r",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-3x4c-7xq6-9pq8",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-4342-x723-ch2f",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-4633-3j49-mh5q",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-4c39-4ccg-62r3",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-4jqv-mc3x-m676",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-67rr-84xm-4c7r",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-68g3-v927-f742",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-89xv-2m56-2m9x",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-8h8q-6873-q5fj",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-955p-x3mx-jcvp",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-9g9p-9gw9-jx7f",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-9qr9-h5gf-34mp",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-c4j6-fc7j-m34r",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-f82v-jwr5-mffw",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-ffhc-5mcf-pf4q",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-g5qg-72qw-gw5v",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-ggv3-7p47-pfv8",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-gx5p-jg67-6x7h",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-h25m-26qc-wcjf",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-h64f-5h5j-jqjh",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-m99w-x7hq-7vfj",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-mcj8-r9mp-w47p",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-mg66-mrh9-m8jx",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-mwv6-3258-q52c",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-p293-qw3h-jr36",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-p3m5-59mp-jv5r",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-p9j2-gv94-2wf4",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-q4gf-8mx6-v5v3",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-vfv6-92ff-j949",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-w37m-7fhw-fmv9",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-wfc6-r584-vfw7",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-xv57-4mr9-wg8v",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-6g55-p6wh-862q",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-fxqj-rqcc-2cmp",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-qx2v-qp2m-jg93",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-r28c-9q8g-f849",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-f88m-g3jw-g9cj",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-rgj7-g3m4-5g8c",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-wq5f-xc86-pv6w",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-68fv-2mgg-jv7q",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-5gmw-xhrv-c9v3",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-85c8-ppgw-ccpr",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-587h-7wmj-h5pm",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-698v-4r3x-3vcv",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-9jrq-w75r-8gcw",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-r825-w8mm-5pxw",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-rq7h-c2jc-7f22",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-5xrq-8626-4rwp",
+        "Warn: Project is vulnerable to: https://osv.dev/GHSA-9crc-q9x8-hgqq"
+      ],
+      "score": 0,
+      "reason": "129 existing vulnerabilities detected",
+      "name": "Vulnerabilities",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/61e84743356275f6ffca23b1b2f2cb945e19eb96/docs/checks.md#vulnerabilities",
+        "short": "Determines if the project has open, known unfixed vulnerabilities."
+      }
+    }
+  ],
+  "metadata": null
+}

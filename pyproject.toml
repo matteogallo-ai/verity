@@ -4,21 +4,21 @@ version = "1.0.1"
 description = "Evaluated, observable RAG agent platform for enterprise documents."
 readme = "README.md"
 requires-python = ">=3.12"
-license = { text = "MIT" }
+license = "MIT"
 authors = [{ name = "Matteo Gallo" }]
 keywords = ["rag", "evaluation", "observability", "llm", "agent", "retrieval"]
 
 dependencies = [
-  "fastapi>=0.115",
+  "fastapi>=0.162.0",
   "python-multipart>=0.0.9",
-  "uvicorn[standard]>=0.32",
-  "pydantic>=2.9",
-  "pydantic-settings>=2.6",
-  "psycopg[binary]>=3.2",
-  "typer>=0.12",
+  "uvicorn[standard]>=0.54.0",
+  "pydantic>=2.14.2",
+  "pydantic-settings>=2.16.2",
+  "psycopg[binary]>=3.3.6",
+  "typer>=0.27.3",
   "rich>=13.9",
   "structlog>=24.4",
-  "opentelemetry-api>=1.27",
+  "opentelemetry-api>=1.45.2",
   "opentelemetry-sdk>=1.27",
   "httpx>=0.27",
   # 2.x is the first line that sends API version 2026-10-21 (no sampling
@@ -27,16 +27,16 @@ dependencies = [
   "anthropic>=2.0,<3.0",
   # Pinned to the 3.x line: matches the ``chat.completions.create`` signature
   # asserted by the SDK-schema smoke test.
-  "openai>=3.0,<4.0",
+  "openai>=3.42.0,<4.0",
   "rank-bm25>=0.2.2",
-  "numpy>=1.26",  # imported by retrieval.memory_store
-  "sentence-transformers>=3.2",
+  "numpy>=2.5.4",  # imported by retrieval.memory_store
+  "sentence-transformers>=6.2.0",
   "docling>=2.0",
-  "trafilatura>=2.0",
+  "trafilatura>=2.3.1",
   # Not imported directly: declared so [tool.uv.sources] can route them to the
   # CPU-only PyTorch index (uv sources apply to direct dependencies only).
   # sentence-transformers and docling pull them in transitively.
-  "torch>=2.4",
+  "torch>=2.15.0",
   "torchvision>=0.19",
 ]
 
@@ -50,15 +50,15 @@ Repository = "https://github.com/matteogallo-ai/verity"
 [project.optional-dependencies]
 # OTLP trace export to a collector (VERITY_OTEL_ENDPOINT). Optional: it pulls in
 # protobuf and an HTTP stack the local demo does not need.
-otlp = ["opentelemetry-exporter-otlp-proto-http>=1.27"]
+otlp = ["opentelemetry-exporter-otlp-proto-http>=1.45.2"]
 
 [dependency-groups]
 dev = [
-  "pytest>=8.3",
-  "pytest-asyncio>=0.24",
+  "pytest>=9.2.0",
+  "pytest-asyncio>=1.4.1",
   "pytest-cov>=6.0",
-  "ruff>=0.7",
-  "mypy>=1.13",
+  "ruff>=0.17.3",
+  "mypy>=2.4.1",
   "vulture>=2.16",
   "deptry>=0.25.1",
   "pytest-socket>=0.8.1",
@@ -66,6 +66,8 @@ dev = [
   "types-pyyaml>=6",
   "matplotlib>=3.11.2",
   "scikit-learn>=1.9.0",
+  "hypothesis>=6.170.14",
+  "mutmut>=3.8.1",
 ]
 
 [tool.ruff]
@@ -81,14 +83,20 @@ ignore = ["E501"]  # line length handled by formatter
 known-first-party = ["verity"]
 
 [tool.vulture]
-paths = ["src", "scripts/refusal_analysis.py", "scripts/judge_agreement.py"]
+paths = [
+  "src",
+  "scripts/refusal_analysis.py",
+  "scripts/judge_agreement.py",
+  "scripts/generate_headline_results.py",
+  "scripts/summarise_injection_runs.py",
+]
 min_confidence = 60
 # Called by a framework, not by our code: Typer commands, FastAPI routes, pydantic validators.
 ignore_decorators = ["@app.*", "@router.*", "@*_app.command", "@model_validator"]
 ignore_names = [
   # pydantic / pydantic-settings fields read by the framework or serialized to JSON.
   "model_config", "cited", "version", "reference_answer", "tags", "answer_text",
-  "refusal_rationale", "judge_usage",
+  "refusal_rationale", "judge_usage", "failed_stage",
   # Parameters of Protocol method signatures that mirror third-party APIs
   # (sentence-transformers encode / predict).
   "sentences", "normalize_embeddings", "show_progress_bar", "convert_to_numpy",
@@ -99,9 +107,8 @@ ignore_names = [
   "RetrievalMetric", "evaluate", "latest", "dim", "get_chunks", "count_chunks",
   # OpenTelemetry SpanExporter interface, called by the span processor.
   "export",
-  # State asserted by tests: tracer OTLP status (test_tracer.py), rate-limiter memory
-  # bound (test_api_hardening.py).
-  "otlp_enabled", "n_principals",
+  # Tracer state asserted by tests/unit/test_tracer.py (OTLP active or not).
+  "otlp_enabled",
 ]
 
 [tool.deptry.per_rule_ignores]
@@ -141,6 +148,43 @@ markers = [
   "slow: loads the local embedding / reranker models; excluded from the fast lane",
 ]
 
+# Mutation testing (`make mutation`, report in docs/quality/mutation.md). Only the
+# modules that decide what ships are mutated: the citation verbatim check, the support
+# checks, the model-output parser, the refusal and retrieval metrics, the headline
+# aggregation and rank fusion. Mutants run against the fast lane only.
+[tool.mutmut]
+source_paths = ["src/verity"]
+# A worker forked from the process that already ran the suite inherits its threads and
+# native state (torch, anyio portals) and dies with SIGSEGV on macOS on unmutated
+# code; a dedicated fork server keeps workers clean. The Objective-C runtime still
+# aborts forked children unless OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES (set by
+# `make mutation`).
+process_isolation = "forkserver"
+only_mutate = [
+  "src/verity/agent/synthesizer.py",
+  "src/verity/agent/support.py",
+  "src/verity/llm/json_output.py",
+  "src/verity/eval/refusal.py",
+  "src/verity/eval/retrieval_metric.py",
+  "src/verity/eval/headline.py",
+  "src/verity/retrieval/fusion.py",
+]
+# Files and directories the fast lane reads from the checkout.
+also_copy = [
+  "prompts", "migrations", "datasets", "scorecards", "scripts", "docs", "README.md",
+  "Dockerfile", "docker-compose.yml", "web/tests",
+]
+# Left out: the three files that assert on structlog.testing.capture_logs. mutmut calls
+# pytest several times in one process, and loggers cached on first use by an earlier
+# call bypass the capture, so they fail on unmutated code. None of them targets a
+# mutated module.
+pytest_add_cli_args = [
+  "-m", "not integration and not slow", "-p", "no:cacheprovider", "--no-cov",
+  "--ignore=tests/unit/test_request_log.py",
+  "--ignore=tests/unit/test_tracer.py",
+  "--ignore=tests/unit/test_chunker.py",
+]
+
 [tool.coverage.run]
 branch = true
 source = ["src/verity"]
@@ -158,7 +202,8 @@ url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
 [build-system]
-requires = ["hatchling"]
+# 1.27 is the first hatchling that reads `license` as an SPDX expression (PEP 639).
+requires = ["hatchling>=1.33.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]

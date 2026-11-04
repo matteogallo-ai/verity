@@ -292,10 +292,14 @@ def write_headline_scorecard(
         except (json.JSONDecodeError, OSError):
             existing = None
         if isinstance(existing, dict) and not _existing_is_stub(existing):
+            # A provenance that is not an object counts as live; the message must
+            # still be built without calling .get on it.
+            prov = existing.get("provenance")
+            prov = prov if isinstance(prov, dict) else {}
             raise StubOverwritesLiveScorecardError(
                 f"refusing to overwrite live scorecard at {path.name} with a stub run "
-                f"(existing agent={existing.get('provenance', {}).get('agent_model')!r}, "
-                f"judge={existing.get('provenance', {}).get('judge_model')!r}). "
+                f"(existing agent={prov.get('agent_model')!r}, "
+                f"judge={prov.get('judge_model')!r}). "
                 "Pass allow_overwrite=True if this is intentional."
             )
     path.parent.mkdir(parents=True, exist_ok=True)

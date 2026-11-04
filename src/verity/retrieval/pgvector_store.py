@@ -1,12 +1,14 @@
 """Postgres + pgvector implementation of the :class:`VectorStore` protocol.
 
-Only the primitives live here: upsert, dense_search, sparse_search, get_chunks.
+Only the primitives live here: writes (replace and delete a document's chunks),
+dense_search, sparse_search, get_chunks.
 Fusion and rerank live in :mod:`verity.retrieval.hybrid`.
 
 Connection model: every operation opens its own :class:`psycopg.AsyncConnection` and
-closes it on return. That is enough for the ingestion CLI and the retrieval
-scorecard; under concurrent load, a :class:`psycopg_pool.AsyncConnectionPool` behind
-``_connect`` would avoid one connection setup per call without touching callers.
+closes it on return, and there is no pool. The API uses this store by default, so each
+``/ask`` opens two connections per sub-question (dense and sparse search run
+concurrently). A :class:`psycopg_pool.AsyncConnectionPool` behind ``_connect`` would
+remove that setup cost without touching callers; it has not been measured as needed.
 """
 
 from __future__ import annotations
@@ -21,8 +23,13 @@ from psycopg.rows import dict_row, tuple_row
 
 from verity.config import get_settings
 from verity.db.redact import redact_conninfo
-from verity.retrieval.base import DocumentSummary, StoreSchemaError, StoreUnavailableError
-from verity.types import Chunk, EmbeddedChunk, RetrievalHit, RetrieverKind
+from verity.retrieval.base import (
+    DocumentSummary,
+    IndexedDocument,
+    StoreSchemaError,
+    StoreUnavailableError,
+)
+from verity.types import Chunk, Document, EmbeddedChunk, RetrievalHit, RetrieverKind
 
 
 def _vector_literal(embedding: Sequence[float]) -> str:
@@ -118,59 +125,27 @@ class PgVectorStore:
             self._schema_checked = True
         return conn
 
-    async def upsert(self, chunks: list[EmbeddedChunk]) -> None:
-        """Insert or update chunks + parent documents in a single transaction.
+    async def ping(self) -> None:
+        """One round trip to Postgres through the connection path every query uses, so
+        the first ping also checks the schema. A refused connection raises
+        :class:`StoreUnavailableError`."""
+        conn = await self._connect()
+        try:
+            await conn.execute("SELECT 1")
+        finally:
+            await conn.close()
 
-        The document row is upserted first (so the FK on chunks resolves) using the
-        parent metadata carried on each chunk's parent; since a Chunk doesn't hold
-        the Document reference at runtime, callers hand us EmbeddedChunk plus, in
-        the pipeline, a ``upsert_documents`` step. Here we assume ``documents`` are
-        already present — see :meth:`upsert_documents`.
+    async def upsert(self, chunks: list[EmbeddedChunk]) -> None:
+        """Insert or update chunks, in one transaction, of documents already stored.
+
+        It never removes a chunk, so ingestion goes through :meth:`replace_document`.
         """
         if not chunks:
             return
         conn = await self._connect()
         try:
             async with conn.transaction(), conn.cursor(row_factory=dict_row) as cur:
-                for embedded in chunks:
-                    c = embedded.chunk
-                    await cur.execute(
-                        """
-                        INSERT INTO chunks (
-                            id, document_id, ordinal, char_start, char_end,
-                            section, page, text, metadata, embedding, embedding_model
-                        )
-                        VALUES (
-                            %(id)s, %(document_id)s, %(ordinal)s, %(char_start)s, %(char_end)s,
-                            %(section)s, %(page)s, %(text)s, %(metadata)s,
-                            %(embedding)s::vector, %(embedding_model)s
-                        )
-                        ON CONFLICT (id) DO UPDATE SET
-                            document_id = EXCLUDED.document_id,
-                            ordinal = EXCLUDED.ordinal,
-                            char_start = EXCLUDED.char_start,
-                            char_end = EXCLUDED.char_end,
-                            section = EXCLUDED.section,
-                            page = EXCLUDED.page,
-                            text = EXCLUDED.text,
-                            metadata = EXCLUDED.metadata,
-                            embedding = EXCLUDED.embedding,
-                            embedding_model = EXCLUDED.embedding_model
-                        """,
-                        {
-                            "id": str(c.id),
-                            "document_id": str(c.document_id),
-                            "ordinal": c.ordinal,
-                            "char_start": c.char_start,
-                            "char_end": c.char_end,
-                            "section": c.section,
-                            "page": c.page,
-                            "text": c.text,
-                            "metadata": json.dumps(c.metadata),
-                            "embedding": _vector_literal(embedded.embedding),
-                            "embedding_model": embedded.model,
-                        },
-                    )
+                await _insert_chunks(cur, chunks)
         finally:
             await conn.close()
 
@@ -199,43 +174,56 @@ class PgVectorStore:
             for row in rows
         ]
 
-    async def upsert_documents(self, documents: Sequence[Any]) -> None:
-        """Upsert ``Document`` rows. Kept off the ``VectorStore`` protocol on purpose
-        so the retrieval-side API stays chunk-centric; the pipeline calls this
-        before upserting chunks."""
-        if not documents:
-            return
+    async def indexed_document(self, document_id: str) -> IndexedDocument | None:
+        conn = await self._connect()
+        try:
+            async with conn.cursor(row_factory=dict_row) as cur:
+                # Same digest as content_sha256: SHA-256 of the text as UTF-8.
+                await cur.execute(
+                    """
+                    SELECT encode(sha256(convert_to(d.text, 'UTF8')), 'hex') AS sha,
+                           array_remove(array_agg(c.id::text), NULL) AS chunk_ids,
+                           array_remove(array_agg(DISTINCT c.embedding_model), NULL) AS models
+                      FROM documents d LEFT JOIN chunks c ON c.document_id = d.id
+                     WHERE d.id = %(id)s
+                     GROUP BY d.id
+                    """,
+                    {"id": document_id},
+                )
+                row = await cur.fetchone()
+        finally:
+            await conn.close()
+        if row is None:
+            return None
+        return IndexedDocument(
+            content_sha256=str(row["sha"]),
+            chunk_ids=frozenset(row["chunk_ids"]),
+            embedding_models=frozenset(row["models"]),
+        )
+
+    async def replace_document(self, document: Document, chunks: list[EmbeddedChunk]) -> None:
         conn = await self._connect()
         try:
             async with conn.transaction(), conn.cursor(row_factory=dict_row) as cur:
-                for doc in documents:
-                    await cur.execute(
-                        """
-                        INSERT INTO documents (
-                            id, source_type, uri, title, text, metadata, ingested_at
-                        )
-                        VALUES (
-                            %(id)s, %(source_type)s, %(uri)s, %(title)s,
-                            %(text)s, %(metadata)s, %(ingested_at)s
-                        )
-                        ON CONFLICT (id) DO UPDATE SET
-                            source_type = EXCLUDED.source_type,
-                            uri = EXCLUDED.uri,
-                            title = EXCLUDED.title,
-                            text = EXCLUDED.text,
-                            metadata = EXCLUDED.metadata,
-                            ingested_at = EXCLUDED.ingested_at
-                        """,
-                        {
-                            "id": str(doc.id),
-                            "source_type": doc.source_type.value,
-                            "uri": doc.uri,
-                            "title": doc.title,
-                            "text": doc.text,
-                            "metadata": json.dumps(doc.metadata),
-                            "ingested_at": doc.ingested_at,
-                        },
-                    )
+                await _upsert_documents(cur, [document])
+                await cur.execute(
+                    "DELETE FROM chunks WHERE document_id = %(id)s", {"id": str(document.id)}
+                )
+                await _insert_chunks(cur, chunks)
+        finally:
+            await conn.close()
+
+    async def delete_documents(self, document_ids: Sequence[str]) -> None:
+        if not document_ids:
+            return
+        conn = await self._connect()
+        try:
+            async with conn.transaction():
+                # Chunks go with their document (ON DELETE CASCADE).
+                await conn.execute(
+                    "DELETE FROM documents WHERE id = ANY(%(ids)s::uuid[])",
+                    {"ids": list(document_ids)},
+                )
         finally:
             await conn.close()
 
@@ -365,6 +353,79 @@ def _row_to_chunk(row: dict[str, Any]) -> Chunk:
         page=row.get("page"),
         metadata=metadata,
     )
+
+
+async def _insert_chunks(cur: Any, chunks: list[EmbeddedChunk]) -> None:
+    for embedded in chunks:
+        c = embedded.chunk
+        await cur.execute(
+            """
+            INSERT INTO chunks (
+                id, document_id, ordinal, char_start, char_end,
+                section, page, text, metadata, embedding, embedding_model
+            )
+            VALUES (
+                %(id)s, %(document_id)s, %(ordinal)s, %(char_start)s, %(char_end)s,
+                %(section)s, %(page)s, %(text)s, %(metadata)s,
+                %(embedding)s::vector, %(embedding_model)s
+            )
+            ON CONFLICT (id) DO UPDATE SET
+                document_id = EXCLUDED.document_id,
+                ordinal = EXCLUDED.ordinal,
+                char_start = EXCLUDED.char_start,
+                char_end = EXCLUDED.char_end,
+                section = EXCLUDED.section,
+                page = EXCLUDED.page,
+                text = EXCLUDED.text,
+                metadata = EXCLUDED.metadata,
+                embedding = EXCLUDED.embedding,
+                embedding_model = EXCLUDED.embedding_model
+            """,
+            {
+                "id": str(c.id),
+                "document_id": str(c.document_id),
+                "ordinal": c.ordinal,
+                "char_start": c.char_start,
+                "char_end": c.char_end,
+                "section": c.section,
+                "page": c.page,
+                "text": c.text,
+                "metadata": json.dumps(c.metadata),
+                "embedding": _vector_literal(embedded.embedding),
+                "embedding_model": embedded.model,
+            },
+        )
+
+
+async def _upsert_documents(cur: Any, documents: Sequence[Any]) -> None:
+    for doc in documents:
+        await cur.execute(
+            """
+            INSERT INTO documents (
+                id, source_type, uri, title, text, metadata, ingested_at
+            )
+            VALUES (
+                %(id)s, %(source_type)s, %(uri)s, %(title)s,
+                %(text)s, %(metadata)s, %(ingested_at)s
+            )
+            ON CONFLICT (id) DO UPDATE SET
+                source_type = EXCLUDED.source_type,
+                uri = EXCLUDED.uri,
+                title = EXCLUDED.title,
+                text = EXCLUDED.text,
+                metadata = EXCLUDED.metadata,
+                ingested_at = EXCLUDED.ingested_at
+            """,
+            {
+                "id": str(doc.id),
+                "source_type": doc.source_type.value,
+                "uri": doc.uri,
+                "title": doc.title,
+                "text": doc.text,
+                "metadata": json.dumps(doc.metadata),
+                "ingested_at": doc.ingested_at,
+            },
+        )
 
 
 __all__ = [

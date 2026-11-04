@@ -16,6 +16,7 @@ from verity import __version__
 from verity.config import get_settings
 
 if TYPE_CHECKING:
+    from verity.eval.harness import HarnessResult
     from verity.retrieval.base import Retriever
     from verity.runtime import StoreKind
     from verity.types import Answer, RetrievalHit
@@ -60,9 +61,12 @@ def ingest(
 ) -> None:
     """Ingest documents into the index.
 
-    Runs parse → chunk → embed → upsert. Errors per source are logged and skipped so
-    a single bad file does not sink the whole batch; a store schema error (wrong
-    embedding dimension, migrations not applied) stops the run with exit code 2.
+    Runs parse → chunk → embed → store. A document whose text, chunks and embedding
+    model match the index is skipped; an edited one has its chunks replaced. Given a
+    directory, documents whose file left it are removed. Errors per source are logged
+    and skipped so a single bad file does not sink the whole batch; a store schema
+    error (wrong embedding dimension, migrations not applied) stops the run with exit
+    code 2.
     """
     # Local imports keep `verity version` and `verity db upgrade` cheap when the
     # heavy ingestion deps (docling, torch) are not needed for the invoked command.
@@ -72,9 +76,10 @@ def ingest(
         StructureAwareChunker,
         create_default_parser,
     )
-    from verity.ingestion.pipeline import discover_sources
+    from verity.ingestion.pipeline import IngestionResult, discover_sources
     from verity.retrieval import PgVectorStore
     from verity.retrieval.base import StoreSchemaError, StoreUnavailableError
+    from verity.runtime import prune_missing
 
     uris = discover_sources(str(path))
     if not uris:
@@ -93,8 +98,16 @@ def ingest(
         + (" [yellow](dry run — no writes)[/yellow]" if dry_run else "")
     )
     pipeline = IngestionPipeline(parser=parser, chunker=chunker, embedder=embedder, sink=sink)
+
+    async def _run() -> tuple[IngestionResult, list[str]]:
+        result = await pipeline.ingest(uris)
+        removed = (
+            await prune_missing(sink, path, uris) if sink is not None and path.is_dir() else []
+        )
+        return result, removed
+
     try:
-        result = asyncio.run(pipeline.ingest(uris))
+        result, removed = asyncio.run(_run())
     except (StoreSchemaError, StoreUnavailableError) as exc:
         console.print(f"[red]Ingestion stopped:[/red] {exc}")
         raise typer.Exit(code=2) from exc
@@ -103,6 +116,10 @@ def ingest(
     table.add_column("Metric")
     table.add_column("Value", justify="right")
     table.add_row("documents", str(result.n_documents))
+    if sink is not None:
+        # A dry run has no store to compare with or remove from.
+        table.add_row("unchanged (not embedded)", str(result.unchanged))
+        table.add_row("removed (file gone)", str(len(removed)))
     table.add_row("chunks", str(result.n_chunks))
     table.add_row("failures", str(len(result.failures)))
     table.add_row("elapsed", f"{result.elapsed_s:.2f}s")
@@ -161,17 +178,36 @@ def ask(
             )
         ),
     ] = False,
+    budget_usd: Annotated[
+        float | None,
+        typer.Option(
+            help=(
+                "Spending cap in USD for this answer. Before each LLM call the spend so "
+                "far plus that call's estimated upper cost must fit, else the answer stops "
+                "(exit 4). Default: VERITY_ASK_BUDGET_USD."
+            ),
+        ),
+    ] = None,
 ) -> None:
-    """Answer a question with citations. Refuses when the evidence is weak."""
+    """Answer a question with citations. Refuses when the evidence is weak.
+
+    Exit codes: 3 the answer failed (provider or store); 4 the spending cap stopped it.
+    """
     from verity.agent import create_default_agent
     from verity.agent.scripted_stub import build_stub_router
     from verity.llm import create_default_routing_client
+    from verity.llm.budget import SpendCappedClient
+
+    cap = budget_usd if budget_usd is not None else get_settings().ask_budget_usd
+    if cap <= 0:
+        raise typer.BadParameter("--budget-usd must be positive")
 
     if not stub:
         _require_llm_api_key()
 
     retriever, _ = asyncio.run(_build_retriever(corpus=corpus, store=store, no_rerank=False))
-    client = build_stub_router() if stub else create_default_routing_client()
+    router = build_stub_router() if stub else create_default_routing_client()
+    client = SpendCappedClient(router, cap_usd=cap)
     agent = create_default_agent(retriever=retriever, client=client)
     answer = asyncio.run(agent.answer(question))
     _print_answer(answer)
@@ -395,9 +431,10 @@ async def _build_retriever(
 ) -> tuple[Retriever, str]:
     """Build the retriever on the chosen store, after ingesting ``corpus`` into it.
 
-    The upsert is idempotent (content-derived ids), so with pgvector a run re-embeds
-    the corpus but never duplicates it, and its numbers never depend on what an
-    earlier process left in the database. Returns ``(retriever, store_name)`` so
+    Ingesting syncs the store's corpus documents with the directory (unchanged ones
+    are not embedded again, edited ones are replaced, removed files leave). Documents
+    from other sources, such as API uploads to the same database, stay and are
+    retrieved too. Returns ``(retriever, store_name)`` so
     the scorecard records where the numbers came from.
     """
     from verity.runtime import build_local_components, build_retriever, ingest_corpus
@@ -428,14 +465,18 @@ async def _run_retrieve(
 
 def _print_answer(answer: Answer) -> None:
     """Render an :class:`Answer` for the terminal — refuses visibly when refused."""
+    from verity.types import ErrorKind
+
     if answer.confidence is None:
-        kind = answer.error.kind.value if answer.error else "unknown"
+        kind = answer.error.kind if answer.error else None
         detail = answer.error.detail if answer.error else ""
         console.print(
-            f"[bold red]ERROR[/bold red] ({kind}) · trace_id=[dim]{answer.trace_id}[/dim]"
+            f"[bold red]ERROR[/bold red] ({kind.value if kind else 'unknown'}) · "
+            f"trace_id=[dim]{answer.trace_id}[/dim]"
         )
         console.print(detail)
-        raise typer.Exit(code=3)
+        _print_usage(answer)
+        raise typer.Exit(code=4 if kind is ErrorKind.BUDGET_EXCEEDED else 3)
     header = (
         "[bold red]REFUSED[/bold red]"
         if answer.confidence.refused
@@ -462,6 +503,11 @@ def _print_answer(answer: Answer) -> None:
             cit.add_row(str(i), str(c.chunk_id), f"{c.char_start}-{c.char_end}", c.quote)
         console.print(cit)
 
+    _print_usage(answer)
+
+
+def _print_usage(answer: Answer) -> None:
+    """Tokens and cost, also of a failed answer: what it spent before it stopped."""
     console.print()
     usage = Table(show_header=False, box=None)
     usage.add_column(style="dim")
@@ -706,29 +752,36 @@ def eval_run(
         f"agent=[bold]{agent_model}[/bold] · judge=[bold]{judge_model}[/bold] · "
         f"backend={backend_name} · n={len(examples)}"
     )
-    try:
-        result = asyncio.run(evaluator.run(examples, git_sha=git_sha, budget_usd_cap=budget_usd))
-    except BudgetExceededError as exc:
-        console.print(f"[red]{exc}[/red]")
-        raise typer.Exit(code=4) from exc
-
-    _print_scorecard(result)
-
     from verity.eval.run_store import StubOverwritesLiveError
 
     effective_runs_dir = resolve_runs_dir(runs_dir, judge_mode=judge_mode, agent_stub=agent_stub)
     run_store = FileRunStore(effective_runs_dir)
-    run = result.as_eval_run(
-        dataset_sha256=hashlib.sha256(dataset.read_bytes()).hexdigest(),
-        # create_default_agent above builds its scorer from these settings.
-        confidence_threshold=settings.confidence_threshold,
-    )
+    dataset_sha256 = hashlib.sha256(dataset.read_bytes()).hexdigest()
+    # create_default_agent above builds its scorer from these settings.
+    threshold = settings.confidence_threshold
     try:
-        run_store.save(run)
+        result = asyncio.run(evaluator.run(examples, git_sha=git_sha, budget_usd_cap=budget_usd))
+    except BudgetExceededError as exc:
+        console.print(f"[red]{exc}[/red]")
+        if exc.result is not None:
+            # The examples paid before the abort are written, not thrown away.
+            partial_path = run_store.save(
+                exc.result.as_eval_run(
+                    dataset_sha256=dataset_sha256, confidence_threshold=threshold
+                )
+            )
+            console.print(f"[yellow]Persisted incomplete run[/yellow] {partial_path}")
+            _print_total_cost(exc.result)
+        raise typer.Exit(code=4) from exc
+
+    _print_scorecard(result)
+
+    run = result.as_eval_run(dataset_sha256=dataset_sha256, confidence_threshold=threshold)
+    try:
+        path = run_store.save(run)
     except StubOverwritesLiveError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=5) from exc
-    path = run_store.path_for(run.scorecard.git_sha, run.scorecard.dataset)
     console.print(f"[green]Persisted[/green] {path}")
 
     # JSON write is deliberately UNCONDITIONAL and happens BEFORE any floor
@@ -736,7 +789,8 @@ def eval_run(
     # prevent the artefact from being written to disk. A paid run that fails a
     # floor and loses its scorecard invites a re-spend, which contradicts the
     # "one run of record" invariant.
-    if scorecard_json is not None:
+    # An incomplete run never becomes the published headline.
+    if scorecard_json is not None and result.scorecard.incomplete_reason is None:
         from verity.eval import write_headline_scorecard
         from verity.eval.headline import StubOverwritesLiveScorecardError
 
@@ -749,24 +803,12 @@ def eval_run(
             raise typer.Exit(code=5) from exc
         console.print(f"[green]Wrote headline scorecard[/green] {headline_path}")
 
-    # Real total_cost_usd — displayed at the end for the operator to eyeball
-    # before the live artefact is committed.
-    total_cost = (
-        sum(a.usage.cost_usd for a in result.answers)
-        + result.errored_cost_usd
-        + result.judge_cost_usd
-    )
-    console.print(
-        f"[dim]total observed cost:[/dim] "
-        f"[bold]${total_cost:.4f}[/bold] "
-        f"(agent ${total_cost - result.judge_cost_usd:.4f}, "
-        f"judge ${result.judge_cost_usd:.4f})"
-    )
+    _print_total_cost(result)
 
     if result.scorecard.errored_example_ids:
         # Metrics cover fewer questions than the scorecard's n: the run is
         # incomplete and must not pass as a run of record, even with report-only
-        # floors. The artefacts above are kept for diagnosis.
+        # floors. Its artefact above is kept for its paid examples.
         console.print(
             f"[red]{len(result.scorecard.errored_example_ids)} example(s) errored: "
             "the run is incomplete; do not publish it.[/red]"
@@ -886,6 +928,19 @@ def _display_path(path: Path) -> str:
     resolved = path.resolve()
     cwd = Path.cwd()
     return (resolved.relative_to(cwd) if resolved.is_relative_to(cwd) else resolved).as_posix()
+
+
+def _print_total_cost(result: HarnessResult) -> None:
+    """Everything the run paid for, errored examples included, for the operator to
+    check before the artefact is committed."""
+    agent = sum(a.usage.cost_usd for a in result.answers) + sum(
+        e.usage.cost_usd for e in result.errored
+    )
+    console.print(
+        f"[dim]total observed cost:[/dim] "
+        f"[bold]${agent + result.judge_cost_usd:.4f}[/bold] "
+        f"(agent ${agent:.4f}, judge ${result.judge_cost_usd:.4f})"
+    )
 
 
 def _print_scorecard(result) -> None:  # type: ignore[no-untyped-def]

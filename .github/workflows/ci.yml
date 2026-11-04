@@ -10,15 +10,19 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# No job writes to the repository: read is enough for every one of them.
+permissions:
+  contents: read
+
 jobs:
   quality:
     name: lint · typecheck · test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
 
@@ -75,7 +79,7 @@ jobs:
         run: uv run pytest -m "slow and not integration" --cov-append
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage
           path: coverage.xml
@@ -84,10 +88,10 @@ jobs:
     name: stale narrative (rule 2)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
 
@@ -99,12 +103,12 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
 
@@ -133,10 +137,10 @@ jobs:
     env:
       VERITY_DATABASE_URL: postgresql://verity:verity@localhost:5432/verity
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
 
@@ -172,10 +176,10 @@ jobs:
     env:
       VERITY_DATABASE_URL: postgresql://verity:verity@localhost:5432/verity
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
 
@@ -211,10 +215,10 @@ jobs:
     # and the stub judge, no API keys. Its numbers are not quality measures; the
     # published scorecard comes from a live run (see docs/evaluation-methodology.md).
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
 
@@ -244,7 +248,7 @@ jobs:
     # Builds the image, brings up db → migrate → ingest → app with Compose and checks
     # /health, a non-empty /status corpus, 401 without a key and one stub /ask.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Compose smoke test
         run: scripts/docker_smoke.sh
@@ -256,10 +260,10 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
 
@@ -280,3 +284,18 @@ jobs:
 
       - name: Build (next build)
         run: pnpm build
+
+  osv-scanner:
+    name: osv-scanner (known vulnerabilities in uv.lock and web/pnpm-lock.yaml)
+    runs-on: ubuntu-latest
+    # Dependabot proposes updates on its weekly schedule; this job fails the PR that
+    # resolves a package with a known vulnerability (OSV database) today. Accepted
+    # exceptions, each with its reason and expiry date, live in osv-scanner.toml.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: No known vulnerability in the lockfiles
+        # The image the osv-scanner-action runs, by digest: the action itself
+        # references it by the mutable tag v2.7.0, which a commit pin does not freeze.
+        uses: docker://ghcr.io/google/osv-scanner-action@sha256:d54770fe0b09493894e76a02aaed9f51a0513fa57c5186452a755d257b0068a6 # v2.7.0
+        with:
+          args: --config=./osv-scanner.toml --lockfile=./uv.lock --lockfile=./web/pnpm-lock.yaml

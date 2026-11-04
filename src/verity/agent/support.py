@@ -22,6 +22,18 @@ also pass two checks computed from data the documents cannot rewrite.
 What this does not stop: an injection paraphrased past the marker list, or a poisoned
 document that is relevant to the question and states a false answer verbatim. That is
 corpus poisoning; the defence is control over what is ingested (see SECURITY.md).
+
+What this gets wrong by design:
+- Coverage compares words, not meaning: "may not terminate" is fully covered by a
+  quote saying "may terminate". A lexical polarity rule, measured on the live runs,
+  refused correct answers ("No, ... is explicitly prohibited"), so polarity is left to
+  the confidence scorer (docs/audit/2026-11-03-neutral-audit.md).
+- Coverage does not check figures: "60 days" is covered by a quote saying "30 days"
+  if the other words match. A rule requiring every number and date to be quoted,
+  measured on the live runs, refused correct answers that compute or restate a figure
+  (docs/audit/2026-11-03-figure-rule-measurement.md), so it is not applied.
+- The marker list is fixed patterns: a benign document with a ``System:`` line or a
+  ``"score":`` key is distrusted as a whole, and every answer citing it is refused.
 """
 
 from __future__ import annotations

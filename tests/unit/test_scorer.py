@@ -67,3 +67,26 @@ async def test_score_clamped_to_unit_interval() -> None:
     c = await scorer.score("q?", "answer", hits=[])
     assert c.score == 1.0
     assert not c.refused
+
+
+@pytest.mark.parametrize(
+    ("flag", "refused", "reason"),
+    [
+        ("false", False, None),
+        ("TRUE", True, "model_refused"),
+        # bool("no") and bool(0) are a guess either way: the reply is malformed.
+        ("no", True, "scorer_unparseable"),
+        (0, True, "scorer_unparseable"),
+        (None, True, "scorer_unparseable"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_the_refusal_flag_is_read_as_a_strict_boolean(
+    flag: object, refused: bool, reason: str | None
+) -> None:
+    scorer = LLMConfidenceScorer(
+        _router(json.dumps({"score": 0.9, "refused": flag, "rationale": "r"})), threshold=0.5
+    )
+    c = await scorer.score("q?", "answer", hits=[])
+    assert c.refused is refused
+    assert (c.reason.value if c.reason else None) == reason

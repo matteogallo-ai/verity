@@ -23,8 +23,13 @@ traced span (latency, hit count).
 Two `VectorStore` implementations exist:
 - `PgVectorStore` (default, `VERITY_STORE=pgvector`): pgvector HNSW dense search +
   Postgres full-text search (`ts_rank` over the OR of the query's lexemes). Used by the
-  API, `make demo`, every CLI command and the CI retrieval gate. The corpus is upserted
-  on first use; ids are content-addressed, so re-ingesting is a no-op.
+  API, `make demo`, every CLI command and the CI retrieval gate. The corpus is synced
+  on first use. A document's id comes from its path (or URL, or upload digest) and stays
+  the same across edits; its text's SHA-256, its chunk ids and the embedding model are
+  compared with what the store holds. A match is skipped without embedding; a mismatch
+  replaces all of the document's chunks in one transaction, so an edit never leaves an
+  old chunk retrievable; a document whose file left the corpus directory is deleted
+  with its chunks.
 - `InMemoryVectorStore` (`VERITY_STORE=memory`, `--store memory`): cosine dense search +
   BM25 (`rank-bm25`). Used by the unit tests and wherever no database is available.
 
@@ -57,7 +62,7 @@ and the extra missing, startup logs the warning `otlp_export_disabled`. Logs are
 authenticated principal. Each request ends with one line: `answer_done` carries the
 decision (answered or refused), the refusal reason, per-stage latency, tokens and cost;
 `answer_failed` carries `decision=error`, the error kind, the latency of the stages
-reached and the tokens and cost of the calls made before the failure.
+reached, and the tokens and cost of the LLM calls that returned before the failure.
 
 ### 6. Evaluation (`verity.eval`)
 Runs the whole agent over the labeled dataset and emits a `Scorecard` saved as JSON with
@@ -89,3 +94,35 @@ question
 
 Every stage contributes to `usage` (tokens, cost, latency) and to the trace, so the same
 run yields the user's answer, the observability data, and the eval inputs.
+
+## What I'd do differently
+
+Each item is a decision recorded in an ADR, or a limit stated in
+[`SYSTEM_CARD.md`](SYSTEM_CARD.md) or [`THREAT_MODEL.md`](THREAT_MODEL.md), that cost a
+rework or still costs trust.
+
+- **Write the ADR after the spike, not before.** ADR 0004 committed the prompts to
+  PromptLang before any integration existed; it never did, the docs carried a disclaimer
+  until ADR 0005 superseded it with the 140-line parser that was there all
+  along. ADR 0002 named "scorecard history" as Postgres data, which was never built; its
+  amendment records the JSON files that were.
+- **Build the eval set before the claim.** ADR 0003 called the refusal "calibrated"
+  while nothing measured calibration, and an external audit had to take the word back
+  (C21 is roadmap). The 0.55 threshold and the support-check thresholds were chosen on
+  the same 16 questions the v1.0.0 run reports on. A frozen dev/test split and a judge checked
+  against human labels (C27, C28) come first; a headline number comes after.
+- **Instrument for the SLOs from the first endpoint.** The code emits per-stage spans
+  but no end-to-end latency series and no error counter, so the SLOs in the system card
+  are measured from log lines. A request-level span and an `answer_failed` counter
+  cost a few lines when the router was written. Likewise readiness: `/health` shipped
+  checking no dependency, and only the runbook exposed it; `/ready` is separate.
+- **Apply a defence to every input of its kind, with one test over all of them.** The
+  untrusted-content delimiters cover the three serving prompts; the eval judge prompt,
+  which reads the same documents, was left out, and the test enumerates prompt names
+  instead of reading the `prompts/` directory.
+- **Decide the access model in the schema.** Single tenancy is stated in SECURITY.md and
+  ADR 0006 but not in the data: `documents` has no owner, uploads are not logged with
+  the key that made them, and no endpoint deletes a document. Recording the uploader and
+  a delete path at the first migration would have made corpus poisoning recoverable.
+- **Use the secret type for every credential.** Provider and API keys are `SecretStr`;
+  the Postgres DSN, password included, stayed a plain string.

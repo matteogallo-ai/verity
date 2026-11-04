@@ -7,9 +7,11 @@ deterministic token-hash backends. The fake embedder reports 384 dimensions to m
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence
-from contextlib import contextmanager
+import time
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
@@ -56,26 +58,51 @@ class FakeRerankerBackend:
         return [float(len(set(q.lower().split()) & set(p.lower().split()))) for q, p in sentences]
 
 
+async def _preloaded(self: Any) -> None:
+    self.preload_state = "ok"
+
+
 @contextmanager
-def api_app(tmp_path: Path, settings: Settings, *, store: str = "memory") -> Iterator[TestClient]:
+def api_app(
+    tmp_path: Path,
+    settings: Settings,
+    *,
+    store: str = "memory",
+    agent_mode: str = "stub",
+    embedder_factory: Callable[[str], Any] | None = None,
+    reranker_factory: Callable[[str], Any] | None = None,
+    wait_for_preload: bool = True,
+) -> Iterator[TestClient]:
     """The app on the in-memory store unless ``store`` says otherwise: the fast lane
-    has no database."""
+    has no database. A ``live`` agent builds its provider clients but calls none.
+
+    The app's startup runs, so the corpus and models preload; the client is handed
+    over once that is settled unless ``wait_for_preload`` is false. With Postgres
+    the preload is skipped, as there is no database to preload into."""
     settings = settings.model_copy(update={"store": store})
     with (
         patch(
             "verity.ingestion.embedder._default_backend_factory",
-            return_value=FakeEmbeddingBackend(384),
+            embedder_factory or (lambda _model: FakeEmbeddingBackend(384)),
         ),
         patch(
             "verity.retrieval.reranker._default_backend_factory",
-            return_value=FakeRerankerBackend(),
+            reranker_factory or (lambda _model: FakeRerankerBackend()),
         ),
+        patch("verity.api.state.AppRuntime._preload", _preloaded)
+        if store != "memory"
+        else nullcontext(),
     ):
         app = create_app(
             runs_dir=tmp_path / "runs",
             corpus_dir=Path("datasets/corpus"),
-            agent_mode="stub",
+            agent_mode=agent_mode,
             cors_origins=(),
             settings=settings,
         )
-        yield TestClient(app, raise_server_exceptions=False)
+        with TestClient(app, raise_server_exceptions=False) as client:
+            deadline = time.monotonic() + 30
+            while wait_for_preload and app.state.runtime.preload_state == "loading":
+                assert time.monotonic() < deadline, "preload did not settle"
+                time.sleep(0.01)
+            yield client

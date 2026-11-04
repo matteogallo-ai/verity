@@ -14,6 +14,7 @@ end-to-end via the same scripted responder the CLI ``--stub`` flag uses.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Sequence
 from pathlib import Path
@@ -251,3 +252,38 @@ async def test_tokens_spent_before_an_error_stay_in_the_answer_usage() -> None:
     assert answer.usage.input_tokens == 100 + 300
     assert answer.usage.output_tokens == 20 + 80
     assert answer.usage.cost_usd == pytest.approx(0.010 + 0.030)
+
+
+class _PerQuestionDecomposeCost(StubLLMClient):
+    """Bills the decompose call by question, every other call nothing, and yields to
+    the event loop on each call so concurrent answers interleave."""
+
+    def __init__(self, cost_by_question: dict[str, float]) -> None:
+        from verity.agent.scripted_stub import scripted_responder
+
+        super().__init__(scripted_responder())
+        self._cost_by_question = cost_by_question
+
+    async def complete(self, messages: list[Message], *, max_tokens: int = 1024) -> Completion:
+        await asyncio.sleep(0)
+        base = await super().complete(messages, max_tokens=max_tokens)
+        cost = 0.0
+        if "decompose" in messages[0].content.lower():
+            cost = next(c for q, c in self._cost_by_question.items() if q in messages[-1].content)
+        return base.model_copy(update={"usage": UsageStats(llm_calls=1, cost_usd=cost)})
+
+
+@pytest.mark.asyncio
+async def test_concurrent_answers_each_report_their_own_usage() -> None:
+    """One agent serves every API request: usage must not leak between them."""
+    first = "What is the notice period for terminating the agreement?"
+    second = "How many days of annual leave do employees get?"
+    client = _PerQuestionDecomposeCost({first: 0.001, second: 0.002})
+    agent = create_default_agent(
+        retriever=await _seed_retriever(), client=MultiProviderRoutingClient([client])
+    )
+
+    a, b = await asyncio.gather(agent.answer(first), agent.answer(second))
+
+    assert a.usage.cost_usd == pytest.approx(0.001)
+    assert b.usage.cost_usd == pytest.approx(0.002)

@@ -8,6 +8,7 @@ Cited answers with verbatim quotes. Refusal when the citations do not support th
 Every published number traceable to the run artefact that produced it.
 
 [![ci](https://github.com/matteogallo-ai/verity/actions/workflows/ci.yml/badge.svg)](https://github.com/matteogallo-ai/verity/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/matteogallo-ai/verity/badge)](https://scorecard.dev/viewer/?uri=github.com/matteogallo-ai/verity)
 [![license: MIT](https://img.shields.io/badge/license-MIT-black.svg)](LICENSE)
 ![python](https://img.shields.io/badge/python-3.12-blue.svg)
 
@@ -63,7 +64,10 @@ CI job `claims` runs those tests.
 - HTTP API with `/status`, `/ask` and content-addressed `/ingest` (C18), and a Next.js UI with citation highlighting and a provenance badge (C19).
 - Provider API keys held as secrets, absent from any printed settings (C20).
 - `docker compose up`: non-root image, Postgres, migrations, corpus ingestion and the API in order, smoke-tested in CI (C26).
-- API hardening: API keys on `/ask` and `/ingest`, per-key rate limit, failed-key throttling, bounded inputs, file-type allow-list, generic errors with a request ID (C23).
+- API hardening: API keys on `/status`, `/ask` and `/ingest`, per-key rate limit, a limit on failed key attempts, bounded inputs, file-type allow-list, generic errors with a request ID (C23).
+- Bounded spend: per-key spending budget on `/ask`, a per-answer cap on `verity ask` checked before each LLM call, bounded `max_tokens` and timeouts (C31).
+- Liveness and readiness split: `/health` answers while the process lives; `/ready` answers `503` until the corpus and the local models are loaded at startup, and unless Postgres answers and the LLM providers can serve as routing uses them, without spending tokens (C32).
+- Retrieved text reaches the synthesizer datamarked (spotlighting): a mark between every pair of words lets its prompt label all of it as document content. Against 12 naturally worded poisoned documents, 3 live runs per arm, no case was steered with or without the mark (0/12 each, Wilson 95 % [0, 0.243]), though the attacks made answerable questions refuse (4/24 answers with the mark, 7/24 without): this set does not show an effect of the mark (C33).
 - Prompt-injection defence: delimited, untrusted-labelled evidence, and a deterministic support check (citation coverage, cited relevance, injection markers) the model's score cannot override; adversarial eval questions (C24).
 - Provider and store outages reported as errors (HTTP 503), never as refusals (C25).
 - Judge validated against blind human labels on 60 claims, real and perturbed to be false: κ, agreement, specificity and sensitivity with n and intervals, generated from a pinned artefact (C27).
@@ -114,6 +118,9 @@ refusal cause, confidence score, per-claim judge verdict) is
 The run used the in-memory store (BM25 sparse arm); `verity eval run` defaults to
 pgvector (`--store memory` reproduces it). Definitions:
 [`docs/evaluation-methodology.md`](docs/evaluation-methodology.md).
+Each proportion with its k/n and Wilson 95 % interval, the approved SLOs and whether
+this run meets them, the intended use and the known limits:
+[`docs/SYSTEM_CARD.md`](docs/SYSTEM_CARD.md), generated from the same scorecard.
 
 ## Judge validation
 
@@ -160,6 +167,10 @@ Generated from [`datasets/eval/judge_validation/agreement_adjudicated.json`](dat
 
 ## Open issues: what the numbers do not say
 
+- **The runs predate the current prompts.** Both v1.1.0 runs used
+  `synthesize.prompt` v0.2.0 and judge prompt v0.1.0: the datamarked synthesis (C33)
+  and the delimited judge came after them, and no live run of the current pipeline is
+  published here.
 - **The threshold decides nothing on this data.** Every refusal above has a
   deterministic cause (no citation, low citation coverage, irrelevant citation,
   suspected injection) or is the scorer's own refusal; none is `below_threshold`.
@@ -201,7 +212,7 @@ Not implemented, or implemented without a test. Each item is a `roadmap` row in
 
 - Web-page ingestion: the trafilatura parser exists but no test exercises it (C30).
 - Calibrated refusal: the measured test ECE (0.116) does not support it (C21).
-- A judge from a different model family, and a second human annotator (C32).
+- A judge from a different model family, and a second human annotator (C34).
 
 ## Architecture
 
@@ -246,7 +257,8 @@ flowchart LR
     scorecard --> readme["README results table<br/>(generated)"]
 ```
 
-Stage-by-stage description: [`docs/architecture.md`](docs/architecture.md).
+Stage-by-stage description, and what I'd do differently:
+[`docs/architecture.md`](docs/architecture.md#what-id-do-differently).
 
 ## Quickstart
 
@@ -261,7 +273,8 @@ The first run downloads the embedding and reranker models (~200 MB) into the
 Hugging Face cache. `make demo` needs Docker (for pgvector), Node 22 and corepack.
 
 pgvector is the default store (`VERITY_STORE`, or `--store` on the CLI); every command
-that reads the corpus first upserts it, idempotently:
+that reads the corpus first syncs it: unchanged documents are skipped, edited ones have
+their chunks replaced, and documents whose file was removed leave the index:
 
 ```bash
 docker compose up -d db                    # pgvector on :5432
@@ -367,5 +380,6 @@ uv run python scripts/generate_headline_results.py --check   # README ≡ scorec
 ```
 
 [`CLAUDE.md`](CLAUDE.md) is the working guide for coding agents. See
-[CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). Licensed under
+[CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), the
+[threat model](docs/THREAT_MODEL.md) and the [runbook](docs/RUNBOOK.md). Licensed under
 [MIT](LICENSE).

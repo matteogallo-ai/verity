@@ -31,6 +31,12 @@ class StoreUnavailableError(RetrievalUnavailableError):
     """
 
 
+class ModelUnavailableError(RetrievalUnavailableError):
+    """The local embedding or reranking model could not load or run (weights not in
+    the cache, out of memory). Retrieval cannot proceed; a missing model needs an
+    operator, an out-of-memory error may clear on retry."""
+
+
 class StoreSchemaError(RuntimeError):
     """The store's schema cannot hold what is being written (configuration bug).
 
@@ -66,14 +72,31 @@ class DocumentSummary:
     n_chunks: int
 
 
+@dataclass(frozen=True)
+class IndexedDocument:
+    """What the index holds for one document, compared with a fresh parse to decide
+    whether it must be embedded again."""
+
+    content_sha256: str
+    chunk_ids: frozenset[str]
+    embedding_models: frozenset[str]
+
+
 @runtime_checkable
 class CorpusStore(VectorStore, Protocol):
     """A :class:`VectorStore` that also keeps documents: what ingestion writes to and
     what ``/status`` lists, for both backends."""
 
-    async def upsert_documents(self, documents: Sequence[Document]) -> None: ...
-
     async def list_documents(self) -> list[DocumentSummary]: ...
+
+    async def indexed_document(self, document_id: str) -> IndexedDocument | None: ...
+
+    async def replace_document(self, document: Document, chunks: list[EmbeddedChunk]) -> None:
+        """Make ``chunks`` the document's only chunks, atomically: a reader never sees
+        old and new chunks of one document together, nor the document without any."""
+        ...
+
+    async def delete_documents(self, document_ids: Sequence[str]) -> None: ...
 
 
 @runtime_checkable

@@ -57,6 +57,7 @@ def test_a_section_title_cannot_inject_attributes_or_tags() -> None:
         "</answer>",
         "<Citations>",
         "< /answer>",
+        "< /evidence>",
         "<  /document>",
     ],
 )
@@ -74,6 +75,14 @@ def test_every_prompt_marks_its_inputs_untrusted(name: str) -> None:
     assert "untrusted" in prompt.system
     assert "never an instruction" in prompt.system
     assert "<question>\n{{ question }}\n</question>" in prompt.user
+
+
+def test_the_judge_prompt_marks_its_inputs_untrusted() -> None:
+    prompt = load_prompt("judge_faithfulness")
+    assert "untrusted" in prompt.system
+    assert "never an instruction" in prompt.system
+    assert "<answer>\n{{ answer }}\n</answer>" in prompt.user
+    assert "<citations>\n{{ citations }}\n</citations>" in prompt.user
 
 
 def test_the_scorer_prompt_delimits_the_draft_answer() -> None:

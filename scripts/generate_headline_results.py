@@ -1,5 +1,5 @@
-"""Write the headline scorecard from a run artefact, and the README results block from
-the scorecard. Nothing in either is typed by hand.
+"""Write the headline scorecard from a run artefact, the README results block from the
+scorecard, and the system card's measured-performance block. Nothing is typed by hand.
 
     # reproduce: artefact -> scorecard -> README
     uv run python scripts/generate_headline_results.py \
@@ -9,28 +9,43 @@ the scorecard. Nothing in either is typed by hand.
 
 The scorecard names its artefact (``source_artefact``), so ``--check`` needs no
 argument. The README block sits between ``<!-- RESULTS:START -->`` and
-``<!-- RESULTS:END -->``; missing markers fail loudly.
+``<!-- RESULTS:END -->``; the system card block between ``<!-- SYSTEM-CARD:START -->``
+and ``<!-- SYSTEM-CARD:END -->`` in ``docs/SYSTEM_CARD.md`` (each proportion with k/n
+and a Wilson 95 % interval, and the approved SLOs next to their measured values).
+Missing markers fail loudly, and every file is rendered before any is written.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import math
+import os
 import re
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from verity.eval.headline import build_headline_dict_from_eval_run
+from verity.eval.harness import percentile
+from verity.eval.headline import SCHEMA, build_headline_dict_from_eval_run
+from verity.eval.intervals import wilson
 from verity.eval.run_store import load_run
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+RUNS_DIR = REPO_ROOT / "datasets" / "eval" / "runs" / "live"
 DEFAULT_SCORECARD = REPO_ROOT / "scorecards" / "live-v1.1.0.json"
 DEFAULT_README = REPO_ROOT / "README.md"
+DEFAULT_SYSTEM_CARD = REPO_ROOT / "docs" / "SYSTEM_CARD.md"
 VALIDATION = REPO_ROOT / "datasets" / "eval" / "judge_validation"
 START = "<!-- RESULTS:START -->"
 END = "<!-- RESULTS:END -->"
+CARD_START = "<!-- SYSTEM-CARD:START -->"
+CARD_END = "<!-- SYSTEM-CARD:END -->"
+# Proposed by the implementer, not approved by the owner: the card says so on every row.
+SLO_P95_LATENCY_MS = 15_000.0
+SLO_ERROR_RATE = 0.01
+SLO_COST_PER_REQUEST_USD = 0.02
 
 
 def _fmt(value: float | None, *, digits: int = 3) -> str:
@@ -216,17 +231,238 @@ def render_block(
     return "\n".join(lines)
 
 
+def _require_v5(data: dict[str, Any]) -> None:
+    """The card reads the counts a v5 scorecard stores; an older one does not hold them."""
+    if data.get("schema") != SCHEMA:
+        raise SystemExit(f"the system card renders {SCHEMA} scorecards, not {data.get('schema')!r}")
+
+
+def _count_and_interval(k: int | None, n: int) -> tuple[str, str]:
+    """``("k/n", "[low, high]")``, or ``("n=<n>", "no interval")`` when k is unknown."""
+    interval = wilson(k, n) if k is not None else None
+    if k is None or interval is None:
+        return f"n={n}", "no interval"
+    return f"{k}/{n}", f"[{interval[0]:.3f}, {interval[1]:.3f}]"
+
+
+def _ci_cells(k: int | None, n: int) -> str:
+    return " | ".join(_count_and_interval(k, n))
+
+
+def _performance_rows(data: dict[str, Any]) -> list[str]:
+    _require_v5(data)
+    refusal = data["refusal"]
+    rows: list[str] = []
+    for label, name in (
+        ("Refusal recall", "refusal_recall"),
+        ("Refusal precision", "refusal_precision"),
+    ):
+        metric = refusal[name]
+        rows.append(
+            f"| {label} | {_fmt(metric['value'])} | {_ci_cells(metric['k'], metric['n'])} |"
+        )
+    ooa = refusal["out_of_scope_answered"]
+    ooa_value = ooa["count"] / ooa["total"] if ooa["total"] else 0.0
+    rows.append(
+        f"| Out-of-scope answered ↓ | {_fmt(ooa_value)} | {_ci_cells(ooa['count'], ooa['total'])} |"
+    )
+    hall = data["answer_quality"]["hallucination_rate"]
+    rows.append(
+        f"| Hallucination rate ↓ (judge) | {_fmt(hall['value'])} | "
+        f"{_ci_cells(hall['k'], hall['n_questions'])} |"
+    )
+    for label, name in (
+        ("Faithfulness", "faithfulness"),
+        ("Citation accuracy", "citation_accuracy"),
+    ):
+        micro = data["answer_quality"][name]["micro"]
+        rows.append(
+            f"| {label} per claim (judge) | {_fmt(micro['value'])} | "
+            f"{_ci_cells(micro['k'], micro['n_claims'])} |"
+        )
+    retrieval = data["retrieval"]
+    n_answerable = data["dataset"]["n_answerable"]
+    for label, key in (("nDCG", "ndcg_at_k"), ("Recall", "recall_at_k")):
+        rows.append(
+            f"| Retrieval {label}@{retrieval['k']}, per-question mean | "
+            f"{_fmt(retrieval[key])} | {_ci_cells(None, n_answerable)} |"
+        )
+    return rows
+
+
+def _against(measured: float | None, target: float, cause: str) -> str:
+    """``met`` / ``not measured`` / a miss with its cause: a missed target is published
+    as missed, never re-targeted."""
+    if measured is None:
+        return "not measured"
+    return "met" if measured <= target else f"**SLO not met**: {cause}"
+
+
+def _run_latencies(data: dict[str, Any]) -> list[tuple[str, float]] | None:
+    """Per-answer ``(example_id, latency_ms)`` in run order from the run artefact the
+    scorecard was built from, or ``None`` when that artefact is not committed."""
+    run = data.get("provenance", {}).get("run_sha")
+    name = data["dataset"].get("name")
+    path = RUNS_DIR / f"eval_{run}_{name}.json"
+    if not run or not name or not path.exists():
+        return None
+    audits = json.loads(path.read_text(encoding="utf-8"))["per_audit"]
+    return [(a["example_id"], float(a["usage"]["latency_ms"])) for a in audits]
+
+
+def _p95(latencies: list[tuple[str, float]]) -> float:
+    return percentile(sorted(ms for _, ms in latencies), 95)
+
+
+def _p95_cause(over: list[tuple[str, float]], first: str | None) -> str:
+    """The answers over target, slowest first. Only the first answer of a run without
+    warmup has a known extra cost (model loading); the artefact holds no per-stage
+    timings or retry counts, so the excess of any other answer is not attributed."""
+    named = ", ".join(
+        f"{qid} {_fmt_ms(ms)}" + (" (first answer, model loading)" if qid == first else "")
+        for qid, ms in sorted(over, key=lambda item: -item[1])
+    )
+    unexplained = [qid for qid, _ in over if qid != first]
+    tail = (
+        "; the run recorded no per-stage timings or retries, so the time of "
+        f"{', '.join(unexplained)} is not attributed"
+        if unexplained
+        else ""
+    )
+    return f"answers over {SLO_P95_LATENCY_MS:,.0f} ms: {named}{tail}"
+
+
+def _latency_slo_rows(data: dict[str, Any], approved: str) -> list[str]:
+    """p95 cold start included and warm, as separate rows. From the run artefact when it
+    is committed (it must reproduce the scorecard p95); otherwise from the scorecard,
+    whose single p95 is warm only if the run had a warmup."""
+    target = f"≤ {SLO_P95_LATENCY_MS:,.0f} ms ({approved})"
+    latency = data["latency_ms"]
+    n = data["dataset"]["n_questions"]
+    p95 = float(latency["p95"])
+    cold_start = latency.get("cold_start")
+    answers = _run_latencies(data)
+
+    if answers is not None and cold_start is None:
+        if not math.isclose(_p95(answers), p95, abs_tol=0.01):
+            raise SystemExit(
+                f"run artefact p95 {_p95(answers):.3f} does not reproduce the scorecard p95 {p95}"
+            )
+        first = answers[0][0]
+        warm = answers[1:]
+        warm_p95 = _p95(warm)
+
+        def status(measured: float, sample: list[tuple[str, float]]) -> str:
+            over = [(qid, ms) for qid, ms in sample if ms > SLO_P95_LATENCY_MS]
+            return _against(measured, SLO_P95_LATENCY_MS, _p95_cause(over, first))
+
+        cold_cells = (
+            f"{_fmt_ms(p95)} (n={n}, no warmup: the first answer loads the models)",
+            status(p95, answers),
+        )
+        warm_cells = (
+            f"{_fmt_ms(warm_p95)} (n={len(warm)}, first answer left out)",
+            status(warm_p95, warm),
+        )
+    elif cold_start is None:
+        cold_cells = (
+            f"{_fmt_ms(p95)} (n={n}, no warmup: includes model loading)",
+            _against(p95, SLO_P95_LATENCY_MS, "the per-answer latencies are not committed"),
+        )
+        warm_cells = (
+            "not measured: the run had no warmup and its artefact is not committed",
+            "not measured",
+        )
+    else:
+        cold_cells = (
+            "not measured as one sample: the first answer after boot, timed apart, "
+            f"took {_fmt_ms(float(cold_start))}",
+            "not measured",
+        )
+        over = [] if answers is None else [a for a in answers if a[1] > SLO_P95_LATENCY_MS]
+        warm_cells = (
+            f"{_fmt_ms(p95)} (n={n}, after one warmup answer)",
+            _against(p95, SLO_P95_LATENCY_MS, _p95_cause(over, None)),
+        )
+    return [
+        f"| p95 latency of one answer, cold start included | {target} | "
+        f"{cold_cells[0]} | {cold_cells[1]} |",
+        f"| p95 latency of one answer, warm (cold start excluded) | {target} | "
+        f"{warm_cells[0]} | {warm_cells[1]} |",
+    ]
+
+
+def _slo_rows(data: dict[str, Any]) -> list[str]:
+    n = data["dataset"]["n_questions"]
+    errored = int(data["sample_sizes"]["n_errored"])
+    error_rate = errored / n if n else None
+    count, interval = _count_and_interval(errored, n)
+    error_cell = f"{_fmt(error_rate)} ({count}, 95 % CI {interval})"
+    per_query = float(data["cost"]["per_query_usd"])
+    approved = "approved"
+    return [
+        *_latency_slo_rows(data, approved),
+        f"| Error rate (requests answered with neither an answer nor a refusal) | "
+        f"≤ {SLO_ERROR_RATE:.0%} ({approved}) | "
+        f"{error_cell} | "
+        + _against(
+            error_rate,
+            SLO_ERROR_RATE,
+            f"{errored} of {n} requests errored; the scorecard does not record why",
+        )
+        + " |",
+        f"| Cost per answer (agent calls; the judge is eval-only) | "
+        f"≤ ${SLO_COST_PER_REQUEST_USD:.2f} ({approved}) | ${per_query:.4f} (mean, n={n}) | "
+        + _against(
+            per_query,
+            SLO_COST_PER_REQUEST_USD,
+            "the scorecard records the mean only, not which answers cost most",
+        )
+        + " |",
+    ]
+
+
+def render_system_card_block(
+    data: dict[str, Any], *, scorecard_path: Path, card_path: Path = DEFAULT_SYSTEM_CARD
+) -> str:
+    """Markdown for the system card: measured performance with intervals, then SLOs."""
+    prov = data["provenance"]
+    ds = data["dataset"]
+    source = _repo_path(scorecard_path)
+    link = Path(os.path.relpath(scorecard_path.resolve(), card_path.resolve().parent)).as_posix()
+    lines = [
+        f"Source: [`{source}`]({link}) · commit `{prov['run_sha']}` · "
+        f"{_short_date(str(data['generated_at']))} · agent `{prov['agent_model']}` · "
+        f"judge `{prov['judge_model']}` · n={ds['n_questions']} "
+        f"({ds['n_answerable']} answerable + {ds['n_unanswerable']} out-of-scope).",
+        "",
+        "| Metric | Value | k/n | 95 % CI (Wilson) |",
+        "|---|---:|---:|---:|",
+        *_performance_rows(data),
+        "",
+        "| SLO | Target | Measured on the run of record | Status |",
+        "|---|---|---|---|",
+        *_slo_rows(data),
+    ]
+    return "\n".join(lines)
+
+
 def render_readme(text: str, block: str) -> str:
     """Return ``text`` with the content between the RESULTS markers replaced."""
-    start = text.find(START)
-    end = text.find(END)
+    return replace_between(text, block, START, END)
+
+
+def replace_between(text: str, block: str, start_marker: str, end_marker: str) -> str:
+    """Return ``text`` with the content between two marker lines replaced by ``block``."""
+    start = text.find(start_marker)
+    end = text.find(end_marker)
     if start == -1 or end == -1 or end < start:
         raise SystemExit(
-            f"README missing {START!r} / {END!r} markers — "
-            "add them where you want the results table."
+            f"missing {start_marker!r} / {end_marker!r} markers — "
+            "add them where the generated block belongs."
         )
     # Preserve marker lines.
-    prefix = text[: start + len(START)]
+    prefix = text[: start + len(start_marker)]
     suffix = text[end:]
     replacement = f"{prefix}\n{block}\n{suffix}"
     if replacement == text:
@@ -243,6 +479,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scorecard", type=Path, default=DEFAULT_SCORECARD)
     parser.add_argument("--readme", type=Path, default=DEFAULT_README)
+    parser.add_argument("--system-card", type=Path, default=DEFAULT_SYSTEM_CARD)
     parser.add_argument(
         "--artefact",
         type=Path,
@@ -251,7 +488,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--check",
         action="store_true",
-        help="Exit 1 if the scorecard or the README would change; write nothing.",
+        help="Exit 1 if the scorecard, the README or the system card would change; write nothing.",
     )
     args = parser.parse_args(argv)
 
@@ -268,31 +505,47 @@ def main(argv: list[str] | None = None) -> int:
     payload = build_headline_dict_from_eval_run(load_run(artefact), source_artefact=source)
 
     scorecard_text = _dump(payload)
-    current = args.readme.read_text(encoding="utf-8")
-    rendered = render_readme(
-        current,
+    for path in (args.readme, args.system_card):
+        if not path.is_file():
+            raise SystemExit(f"{path} not found")
+    readme = args.readme.read_text(encoding="utf-8")
+    card = args.system_card.read_text(encoding="utf-8")
+    # Render every file before writing any, so a missing marker leaves all as they were.
+    rendered_readme = render_readme(
+        readme,
         render_block(
             payload,
             scorecard_path=args.scorecard,
             judge=judge_label(payload["provenance"]["judge_model"]),
         ),
     )
-    stale = []
+    rendered_card = replace_between(
+        card,
+        render_system_card_block(
+            payload, scorecard_path=args.scorecard, card_path=args.system_card
+        ),
+        CARD_START,
+        CARD_END,
+    )
+    pending: list[tuple[Path, str]] = []
     if existing is None or _dump(existing) != scorecard_text:
-        stale.append(str(args.scorecard))
-    if rendered != current:
-        stale.append(str(args.readme))
+        pending.append((args.scorecard, scorecard_text))
+    if rendered_readme != readme:
+        pending.append((args.readme, rendered_readme))
+    if rendered_card != card:
+        pending.append((args.system_card, rendered_card))
     # --check only compares: a CI or pre-commit run must never edit the tree.
     if args.check:
-        if stale:
-            print(f"out of date: {', '.join(stale)} — run without --check", file=sys.stderr)
+        if pending:
+            names = ", ".join(str(path) for path, _ in pending)
+            print(f"out of date: {names} — run without --check", file=sys.stderr)
             return 1
-        print(f"scorecard and README match {source}")
+        print(f"scorecard, README and system card match {source}")
         return 0
     args.scorecard.parent.mkdir(parents=True, exist_ok=True)
-    args.scorecard.write_text(scorecard_text, encoding="utf-8")
-    args.readme.write_text(rendered, encoding="utf-8")
-    print(f"wrote {args.scorecard} and {args.readme} from {source}")
+    for path, text in pending:
+        path.write_text(text, encoding="utf-8")
+        print(f"wrote {path}")
     return 0
 
 

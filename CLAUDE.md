@@ -25,7 +25,7 @@ src/verity/
   llm/                clients (Anthropic, OpenAI, stub), routing (fallback), prompt loader, json_output
   eval/               retrieval_metric, refusal, judge, harness, headline (scorecard v3), run_store
   observability/      tracer (OTel in-memory), logging (structlog), warmup
-  api/                server (/health, /metrics, /dashboard), router (/status, /ask, /ingest), state
+  api/                server (/health, /ready, /metrics, /dashboard), router (/status, /ask, /ingest), state
   db/                 SQL migration runner
 prompts/              *.prompt files loaded by verity.llm.prompt
 migrations/           numbered SQL files (pgvector schema)
@@ -56,12 +56,13 @@ uv run python scripts/check_claims.py                      # CLAIMS.md ≡ passi
 uv run python scripts/check_claims.py --no-run             # structure only, no tests executed
 uv run python scripts/check_stale_narrative.py             # no sprint labels / future tense / bare TODO
 uv run python scripts/check_commit_messages.py main..HEAD  # Conventional Commits on the branch
-uv run python scripts/generate_headline_results.py --check # README results block ≡ scorecard
+uv run python scripts/generate_headline_results.py --check # scorecard ≡ artefact, README + SYSTEM_CARD blocks ≡ scorecards
 uv run python scripts/build_corpus_documents.py --check    # PDF/DOCX corpus ≡ sources
 uv run python scripts/split_dataset.py --check             # dev/test split ≡ seed
 uv run python scripts/recompute_live_aggregates.py --check # live runs: *.recomputed.json current
 uv run python scripts/refusal_analysis.py --check --dev datasets/eval/runs/live/eval_6ec544d_dev.json \
   --test datasets/eval/runs/live/eval_969e1d5_test.json --out-json scorecards/refusal-analysis.json
+uv run python scripts/summarise_injection_runs.py --check  # injection runs + review ≡ scorecard
 uv run python -m tests.docling_fixture                     # refresh the parsed PDF/DOCX fixture of the fast lane
 VERITY_STORE=memory uv run verity eval run --ci            # pipeline smoke test on stubs (no keys, no db)
 VERITY_API_AUTH_DISABLED=true uv run verity serve --port 8000  # API on pgvector, dev: no auth, stub without LLM key
@@ -75,7 +76,8 @@ cd web && corepack pnpm lint && corepack pnpm typecheck && corepack pnpm test
 
 - `make demo`, CI and the tests never call a paid model. Any live run (`--judge live`,
   `--no-agent-stub`, `verity ask` without `--stub`) needs a cost estimate and approval.
-- The README results block is generated; edit `scorecards/` or the generator, never the block.
+- The README results block and the docs/SYSTEM_CARD.md block are generated; edit `scorecards/`
+  or the generator, never the blocks.
 - Changing a non-comment line of a `prompts/*.prompt` file changes model behaviour.
 - `datasets/eval/runs/live/` holds runs of record, pinned in its `SHA256SUMS`; never
   modify them, even a derived aggregate. Recomputations go in `*.recomputed.json`.
@@ -118,7 +120,8 @@ generate.
   (e.g. pydantic `SecretStr`).
 - Any paid model call without a cost estimate and explicit approval.
 - Commits over ~400 changed lines (lockfiles and generated artefacts excluded).
-- Pushing, tagging or publishing: the human does that.
+- Pushing to main, force-pushing, tagging or publishing: the human does that. Pushing a work
+  branch and opening a PR is allowed; GitHub rulesets protect main and release tags.
 
 ### Report format (end of every work unit, in French for Matteo)
 1. What changed, point by point. 2. Evidence: commands + outputs. 3. Audit findings disproved,

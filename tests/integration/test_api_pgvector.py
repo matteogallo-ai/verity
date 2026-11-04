@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.integration.db import database_url
 from verity.api import create_app
 from verity.config import Settings
 from verity.db import apply_pending
@@ -25,7 +26,7 @@ CORPUS = Path("datasets/corpus")
 
 @pytest.fixture(scope="module")
 def client(tmp_path_factory: pytest.TempPathFactory) -> TestClient:
-    url = os.environ.get("VERITY_DATABASE_URL", "postgresql://verity:verity@localhost:5432/verity")
+    url = database_url()
     apply_pending(url)
     os.environ.setdefault("VERITY_DATABASE_URL", url)
     settings = Settings(api_auth_disabled=True)

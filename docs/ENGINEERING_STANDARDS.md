@@ -110,6 +110,36 @@ metric.**
 A tag is created only when: CI is green · `claims` is green · CHANGELOG entry exists ·
 docs are in sync · a live artefact exists if behaviour changed · `SECURITY.md` reviewed.
 
+### 12. The supply chain is part of the product
+Reference: OpenSSF Scorecard (19 checks). Every repo has: Dependabot (ecosystem + github-actions) ·
+actions pinned by full SHA · `permissions: contents: read` by default, widened per job with a
+reason · CodeQL · OSV-Scanner on lockfiles · no `pull_request_target` checkout of PR code ·
+secret scanning + push protection · the Scorecard Action with a live badge. Published artefacts
+carry provenance (npm provenance or `actions/attest-build-provenance`, SLSA Build L2).
+- *Failure:* green CI, but unpinned third-party actions with write tokens, and nobody notices a
+  vulnerable dependency.
+
+### 13. Every LLM system ships its threat model and system card
+- `docs/THREAT_MODEL.md` walks the OWASP Top 10 for LLM Applications 2025 item by item:
+  applicable or not (with the reason), the mitigation, and the test that proves it.
+- `docs/SYSTEM_CARD.md`: intended use, out of scope, data, measured performance with n and
+  confidence intervals, known limits, owner. Regenerated or reviewed whenever prompts, models or
+  data change.
+- *Failure:* "secure against prompt injection" in a README, with no test and no list of what was
+  not covered.
+
+### 14. Operations are measured, not assumed
+- Written SLOs (p95 latency, error rate, cost per request), measured values from committed
+  artefacts, and `docs/RUNBOOK.md` for the five most likely failures.
+- Before claiming that a change improved a metric, measure the noise band (the same run repeated)
+  and report the delta against it.
+- *Failure:* "fast and cheap" with no number; a 3-point "improvement" that is run-to-run noise.
+
+### Definition of Done
+A repo is done only when every line of `docs/DEFINITION_OF_DONE.md` is checked or marked
+N/A with a written reason, and a context-free agent has audited it as a senior looking for the
+flaw, with every finding fixed or refuted in writing.
+
 ---
 
 ## How AI-assisted work flows here
@@ -164,7 +194,8 @@ generate.
   (e.g. pydantic `SecretStr`).
 - Any paid model call without a cost estimate and explicit approval.
 - Commits over ~400 changed lines (lockfiles and generated artefacts excluded).
-- Pushing, tagging or publishing: the human does that.
+- Pushing to main, force-pushing, tagging or publishing: the human does that. Pushing a work
+  branch and opening a PR is allowed; GitHub rulesets protect main and release tags.
 
 ### Report format (end of every work unit, in French for Matteo)
 1. What changed, point by point. 2. Evidence: commands + outputs. 3. Audit findings disproved,

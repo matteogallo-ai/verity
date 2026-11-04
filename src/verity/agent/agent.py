@@ -47,11 +47,12 @@ from verity.llm.base import (
     ProviderUnavailableError,
     RoutingClient,
 )
+from verity.llm.budget import SpendCapExceededError
 from verity.llm.routing import primary_client_identity
 from verity.observability.base import StageSpan, Tracer
 from verity.observability.logging import request_trace
 from verity.observability.tracer import NoOpTracer
-from verity.retrieval.base import RetrievalUnavailableError, Retriever
+from verity.retrieval.base import ModelUnavailableError, RetrievalUnavailableError, Retriever
 from verity.types import (
     NO_CITATION_RATIONALE,
     REFUSAL_TEXT,
@@ -113,16 +114,20 @@ class RagAgent(Agent):
             started = time.perf_counter()
             # Filled as each stage ends, so an error line shows how far the request got.
             stage_ms: dict[str, float] = {}
-            # Each billed call's usage, appended as it returns: an error on a later
-            # call must not erase what the earlier ones cost.
+            # Usage of each LLM call that returned, so a failure later in the request
+            # still reports what it cost: spending caps count errored answers too.
             spent: list[UsageStats] = []
             error: Exception
             # An infrastructure failure is returned as a typed error, never as a
             # refusal: "the provider is down" must not read as "the evidence is weak".
             try:
                 answer = await self._answer(question, trace_id, started, stage_ms, spent)
+            except ModelUnavailableError as exc:
+                kind, error = ErrorKind.MODEL_UNAVAILABLE, exc
             except RetrievalUnavailableError as exc:
                 kind, error = ErrorKind.RETRIEVAL_UNAVAILABLE, exc
+            except SpendCapExceededError as exc:
+                kind, error = ErrorKind.BUDGET_EXCEEDED, exc
             except AuthenticationError as exc:
                 kind, error = ErrorKind.PROVIDER_AUTH, exc
             except ProviderUnavailableError as exc:
@@ -222,6 +227,7 @@ class RagAgent(Agent):
                 trace_id=trace_id,
                 provider_used=provider_used,
                 model_used=model_used,
+                stage_ms=dict(stage_ms),
             )
 
         return Answer(
@@ -234,6 +240,7 @@ class RagAgent(Agent):
             trace_id=trace_id,
             provider_used=provider_used,
             model_used=model_used,
+            stage_ms=dict(stage_ms),
         )
 
     async def _collect_hits(self, sub_questions: list[str]) -> list[RetrievalHit]:
@@ -306,6 +313,7 @@ def _error_answer(
         error=AnswerError(kind=kind, detail=f"{type(exc).__name__}: {exc}"),
         usage=usage,
         trace_id=trace_id,
+        stage_ms=dict(stage_ms),
     )
 
 
@@ -330,6 +338,7 @@ def _aggregate_usage(*parts: UsageStats | None, latency_ms: float) -> UsageStats
     output_tokens = 0
     llm_calls = 0
     cost_usd = 0.0
+    retries = 0
     for part in parts:
         if part is None:
             continue
@@ -337,12 +346,14 @@ def _aggregate_usage(*parts: UsageStats | None, latency_ms: float) -> UsageStats
         output_tokens += part.output_tokens
         llm_calls += part.llm_calls
         cost_usd += part.cost_usd
+        retries += part.retries
     return UsageStats(
         input_tokens=input_tokens,
         output_tokens=output_tokens,
         llm_calls=llm_calls,
         cost_usd=cost_usd,
         latency_ms=latency_ms,
+        retries=retries,
     )
 
 

@@ -27,7 +27,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import cast
+from typing import Literal
 
 import structlog
 
@@ -41,12 +41,15 @@ from verity.eval.retrieval_metric import (
     PerExampleScore,
     macro_average,
 )
+from verity.llm.base import AuthenticationError, LLMError
 from verity.llm.prompt import prompt_sha256
 from verity.types import (
     Answer,
     AnswerMetrics,
+    ErroredExample,
     EvalExample,
     EvalRun,
+    IncompleteReason,
     LatencyMetrics,
     PerExampleAudit,
     Provider,
@@ -63,7 +66,14 @@ class BudgetExceededError(RuntimeError):
     Aborts the harness mid-loop so the operator does not accidentally spend
     beyond the pre-agreed ceiling. The ``verity eval run`` CLI surfaces this
     as a distinct exit code so scripts can distinguish "cost cap hit" from
-    "metric floor missed"."""
+    "metric floor missed".
+
+    ``result`` holds every example paid for before the abort, so the caller can
+    persist the spend instead of losing it."""
+
+    def __init__(self, message: str, *, result: HarnessResult | None = None) -> None:
+        super().__init__(message)
+        self.result = result
 
 
 @dataclass(frozen=True)
@@ -110,13 +120,9 @@ class HarnessResult:
     per_retrieval: list[PerExampleScore] = field(default_factory=list)
     per_answer: list[PerExampleAnswerMetrics] = field(default_factory=list)
     per_refusal: list[PerExampleRefusal] = field(default_factory=list)
-    # Per-call judge cost accumulator — the harness sums it across the loop so
-    # the run's total cost is exact (see ``errored_cost_usd``). Zero in ``--judge stub`` mode.
+    # Per-call judge cost accumulator: the run's total cost is the scored answers'
+    # cost + ``errored_cost_usd`` + this. Zero in ``--judge stub`` mode.
     judge_cost_usd: float = 0.0
-    # Agent cost of the examples that ended in an infrastructure error: their calls
-    # before the error were billed. ``answers`` holds only the scored examples, so
-    # the run's total cost is ``sum(answers) + errored_cost_usd + judge_cost_usd``.
-    errored_cost_usd: float = 0.0
     # Per-call judge provenance stamps — one entry per dataset example. Used by
     # ``build_headline_dict`` to emit a truthful aggregate ("who actually
     # served each judge call") rather than a boot-time model_label.
@@ -127,6 +133,14 @@ class HarnessResult:
     per_audit: list[PerExampleAudit] = field(default_factory=list)
     prompt_sha256: dict[str, str] = field(default_factory=dict)
     duration_s: float | None = None
+    # Examples paid for but not scored (agent or judge outage), in dataset order.
+    errored: list[ErroredExample] = field(default_factory=list)
+
+    @property
+    def errored_cost_usd(self) -> float:
+        """Agent cost of the examples paid for but not scored: their calls before the
+        error were billed, and ``answers`` holds only the scored examples."""
+        return round(sum(e.usage.cost_usd for e in self.errored), 6)
 
     def as_eval_run(
         self,
@@ -142,7 +156,7 @@ class HarnessResult:
             agent_model=self.agent_model,
             notes=notes,
             per_audit=tuple(self.per_audit),
-            errored_cost_usd=self.errored_cost_usd,
+            errored=tuple(self.errored),
             dataset_sha256=dataset_sha256,
             prompt_sha256=self.prompt_sha256,
             duration_s=self.duration_s,
@@ -179,24 +193,6 @@ class AgentEvaluator(Evaluator):
         result = await self.run(dataset, git_sha=git_sha)
         return result.scorecard
 
-    @staticmethod
-    def _check_budget(
-        cap: float | None,
-        example_id: str,
-        answers: list[Answer],
-        errored_cost_usd: float,
-        judge_cost_usd: float,
-    ) -> None:
-        """Abort once everything billed so far, errored examples included, exceeds ``cap``."""
-        if cap is None:
-            return
-        cumulative = sum(a.usage.cost_usd for a in answers) + errored_cost_usd + judge_cost_usd
-        if cumulative > cap:
-            raise BudgetExceededError(
-                f"Aborted after {example_id}: cumulative cost "
-                f"${cumulative:.4f} exceeded budget cap ${cap:.2f}"
-            )
-
     async def run(
         self,
         dataset: list[EvalExample],
@@ -230,25 +226,44 @@ class AgentEvaluator(Evaluator):
 
         prompts = prompt_sha256()
         started = time.monotonic()
-        errored: list[str] = []
-        errored_cost_usd = 0.0
+        errored: list[ErroredExample] = []
+        budget_message: str | None = None
         for example in dataset:
             answer = await self._agent.answer(example.question)
             if answer.confidence is None:
-                errored_cost_usd += answer.usage.cost_usd
                 # An infrastructure failure is not a refusal and not an answer: it is
-                # kept out of every quality metric and reported by id instead.
-                errored.append(example.id)
-                log.error(
-                    "harness_example_errored",
-                    example_id=example.id,
-                    error_kind=answer.error.kind.value if answer.error else None,
+                # kept out of every quality metric and recorded with what it cost.
+                error_kind = answer.error.kind.value if answer.error else "unknown"
+                errored.append(_errored(example, answer, "agent", error_kind))
+                log.error("harness_example_errored", example_id=example.id, error_kind=error_kind)
+                budget_message = _check_budget(
+                    budget_usd_cap, example.id, answers, errored, judge_cost_usd
                 )
-                self._check_budget(
-                    budget_usd_cap, example.id, answers, errored_cost_usd, judge_cost_usd
-                )
+                if budget_message:
+                    break
                 continue
             confidence = answer.confidence
+            # Answer quality: judge every example (refusals get a well-defined
+            # convention in the judge — see judge.py docstring). Judged before anything
+            # is recorded, so a judge outage leaves no half-scored example behind.
+            try:
+                answer_metrics = await self._judge.judge(example, answer)
+            except AuthenticationError:
+                # A rejected key fails every example alike; carrying on would spend the
+                # agent on the whole dataset for no score.
+                raise
+            except LLMError as exc:
+                # Every call before this one is paid for: an outage costs this example,
+                # not the run. The paid answer is kept so it can be judged again, and
+                # its spend still counts against the cap.
+                errored.append(_errored(example, answer, "judge", type(exc).__name__))
+                log.error("harness_judge_errored", example_id=example.id, error=type(exc).__name__)
+                budget_message = _check_budget(
+                    budget_usd_cap, example.id, answers, errored, judge_cost_usd
+                )
+                if budget_message:
+                    break
+                continue
             answers.append(answer)
             log.info(
                 "harness_answered",
@@ -267,9 +282,6 @@ class AgentEvaluator(Evaluator):
                     )
                 )
 
-            # Answer quality: judge every example (refusals get a well-defined
-            # convention in the judge — see judge.py docstring).
-            answer_metrics = await self._judge.judge(example, answer)
             per_answer.append(
                 PerExampleAnswerMetrics(example_id=example.id, metrics=answer_metrics)
             )
@@ -325,18 +337,21 @@ class AgentEvaluator(Evaluator):
                     judge_usage=judge_last_usage,
                     agent_model_used=answer.model_used,
                     judge_model_used=getattr(self._judge, "last_model", None),
+                    stage_ms=answer.stage_ms,
                 )
             )
 
-            self._check_budget(
-                budget_usd_cap, example.id, answers, errored_cost_usd, judge_cost_usd
+            budget_message = _check_budget(
+                budget_usd_cap, example.id, answers, errored, judge_cost_usd
             )
+            if budget_message:
+                break
 
         duration_s = round(time.monotonic() - started, 3)
         retrieval_agg = _aggregate_retrieval(per_retrieval, k=self._k)
         answer_agg = _aggregate_answer(per_audit, per_refusal)
         latency = _latency_percentiles(answers)
-        cost_per_query = _mean_cost(answers, errored_cost_usd, n_errored=len(errored))
+        cost_per_query = _mean_cost(answers, errored)
 
         scorecard = Scorecard(
             git_sha=git_sha,
@@ -348,9 +363,16 @@ class AgentEvaluator(Evaluator):
             latency=latency,
             cost_per_query_usd=cost_per_query,
             cold_start_ms=cold_start_ms,
-            errored_example_ids=tuple(errored),
+            errored_example_ids=tuple(e.example_id for e in errored),
+            incomplete_reason=(
+                IncompleteReason.BUDGET_EXCEEDED
+                if budget_message
+                else IncompleteReason.ERRORED_EXAMPLES
+                if errored
+                else None
+            ),
         )
-        return HarnessResult(
+        result = HarnessResult(
             scorecard=scorecard,
             embedding_model=self._embedding_model,
             judge_model=self._judge_model,
@@ -360,12 +382,32 @@ class AgentEvaluator(Evaluator):
             per_answer=per_answer,
             per_refusal=per_refusal,
             judge_cost_usd=round(judge_cost_usd, 6),
-            errored_cost_usd=round(errored_cost_usd, 6),
             judge_stamps=judge_stamps,
             per_audit=per_audit,
             prompt_sha256=prompts,
             duration_s=duration_s,
+            errored=errored,
         )
+        if budget_message:
+            raise BudgetExceededError(budget_message, result=result)
+        return result
+
+
+def _errored(
+    example: EvalExample, answer: Answer, stage: Literal["agent", "judge"], error: str
+) -> ErroredExample:
+    return ErroredExample(
+        example_id=example.id,
+        question=example.question,
+        expected_answerable=example.answerable,
+        failed_stage=stage,
+        error=error,
+        answer_text=answer.text,
+        citations=answer.citations,
+        hits_used=answer.hits_used,
+        usage=answer.usage,
+        stage_ms=answer.stage_ms,
+    )
 
 
 def _aggregate_retrieval(per_example: list[PerExampleScore], *, k: int) -> RetrievalMetrics:
@@ -407,13 +449,13 @@ def _latency_percentiles(answers: list[Answer]) -> LatencyMetrics:
         return LatencyMetrics(p50_ms=0.0, p95_ms=0.0, p99_ms=0.0)
     values = sorted(a.usage.latency_ms for a in answers)
     return LatencyMetrics(
-        p50_ms=_percentile(values, 50),
-        p95_ms=_percentile(values, 95),
-        p99_ms=_percentile(values, 99),
+        p50_ms=percentile(values, 50),
+        p95_ms=percentile(values, 95),
+        p99_ms=percentile(values, 99),
     )
 
 
-def _percentile(sorted_values: list[float], pct: float) -> float:
+def percentile(sorted_values: list[float], pct: float) -> float:
     if not sorted_values:
         return 0.0
     if len(sorted_values) == 1:
@@ -427,18 +469,37 @@ def _percentile(sorted_values: list[float], pct: float) -> float:
     return float(sorted_values[low] + (sorted_values[high] - sorted_values[low]) * frac)
 
 
-def _mean_cost(answers: list[Answer], errored_cost_usd: float, *, n_errored: int) -> float:
+def _check_budget(
+    cap: float | None,
+    example_id: str,
+    answers: list[Answer],
+    errored: list[ErroredExample],
+    judge_cost_usd: float,
+) -> str | None:
+    """The abort message once everything paid so far exceeds ``cap``, else ``None``."""
+    if cap is None:
+        return None
+    cumulative = (
+        sum(a.usage.cost_usd for a in answers)
+        + sum(e.usage.cost_usd for e in errored)
+        + judge_cost_usd
+    )
+    if cumulative > cap:
+        return (
+            f"Aborted after {example_id}: cumulative cost "
+            f"${cumulative:.4f} exceeded budget cap ${cap:.2f}"
+        )
+    return None
+
+
+def _mean_cost(answers: list[Answer], errored: list[ErroredExample]) -> float:
     """Mean agent cost per attempted question: an errored example was attempted and
     its calls before the error were billed."""
-    attempted = len(answers) + n_errored
+    attempted = len(answers) + len(errored)
     if not attempted:
         return 0.0
-    total = sum(a.usage.cost_usd for a in answers) + errored_cost_usd
+    total = sum(a.usage.cost_usd for a in answers) + sum(e.usage.cost_usd for e in errored)
     return float(total) / attempted
-
-
-# Silence a stray import warning if AnswerMetrics ever changes shape.
-_ = cast
 
 
 __all__ = [

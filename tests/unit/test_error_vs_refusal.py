@@ -4,10 +4,11 @@ always a refusal (reason ``no_citation``), never an answer."""
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import pytest
 
-from tests.unit.test_agent import _seed_retriever
+from tests.unit.test_agent import _CountingStubClient, _seed_retriever
 from verity.agent.agent import create_default_agent
 from verity.agent.scorer import LLMConfidenceScorer
 from verity.agent.scripted_stub import scripted_responder
@@ -21,6 +22,7 @@ from verity.types import (
     REFUSAL_TEXT,
     Answer,
     AnswerError,
+    Completion,
     Confidence,
     ErrorKind,
     Message,
@@ -178,3 +180,89 @@ async def test_store_down_is_an_error_not_a_refusal() -> None:
     assert answer.error is not None
     assert answer.error.kind is ErrorKind.RETRIEVAL_UNAVAILABLE
     assert "store down" in answer.error.detail
+
+
+class _ScorerDownClient(_CountingStubClient):
+    """Decompose and synthesize succeed and are billed; the scorer's provider is down."""
+
+    async def complete(self, messages: list[Message], **kwargs: Any) -> Completion:
+        if "assess whether" in messages[0].content.lower():
+            raise ProviderUnavailableError("scorer provider down")
+        return await super().complete(messages, **kwargs)
+
+
+@pytest.mark.asyncio
+async def test_an_errored_answer_still_reports_the_tokens_it_spent() -> None:
+    """A spending cap counts errored answers: their usage must not read as zero."""
+    agent = create_default_agent(
+        retriever=await _seed_retriever(),
+        client=MultiProviderRoutingClient([_ScorerDownClient()]),
+    )
+
+    answer = await agent.answer(_ANSWERABLE)
+
+    assert answer.error is not None
+    assert answer.error.kind is ErrorKind.PROVIDER_UNAVAILABLE
+    assert answer.usage.llm_calls == 2
+    assert answer.usage.input_tokens == 100 + 300
+    assert answer.usage.output_tokens == 20 + 80
+    assert answer.usage.cost_usd == pytest.approx(0.010 + 0.030)
+
+
+class _BrokenModel:
+    """A local model whose weights cannot be loaded or whose inference fails."""
+
+    def __init__(self, exc: Exception) -> None:
+        self._exc = exc
+
+    async def embed(self, texts: list[str]) -> list[tuple[float, ...]]:
+        raise self._exc
+
+    async def rerank(self, query: str, hits: list[Any], top_k: int) -> list[Any]:
+        raise self._exc
+
+
+@pytest.mark.parametrize("stage", ["embedder", "reranker"])
+@pytest.mark.parametrize(
+    "exc", [OSError("model not in the cache"), RuntimeError("CUDA out of memory")]
+)
+@pytest.mark.asyncio
+async def test_a_local_model_failure_is_a_typed_error_that_keeps_its_spend(
+    stage: str, exc: Exception
+) -> None:
+    seeded = await _seed_retriever()
+    broken = _BrokenModel(exc)
+    retriever = HybridRetriever(
+        store=seeded._store,
+        embedder=broken if stage == "embedder" else seeded._embedder,  # type: ignore[arg-type]
+        reranker=broken if stage == "reranker" else seeded._reranker,  # type: ignore[arg-type]
+    )
+    agent = create_default_agent(
+        retriever=retriever, client=MultiProviderRoutingClient([_CountingStubClient()])
+    )
+
+    answer = await agent.answer(_ANSWERABLE)
+
+    assert answer.confidence is None
+    assert answer.error is not None
+    assert answer.error.kind is ErrorKind.MODEL_UNAVAILABLE
+    assert str(exc) in answer.error.detail
+    # The decompose call was paid before retrieval failed.
+    assert answer.usage.llm_calls == 1 and answer.usage.cost_usd > 0
+
+
+@pytest.mark.asyncio
+async def test_an_embedder_that_returns_no_vector_is_a_model_error() -> None:
+    seeded = await _seed_retriever()
+
+    class _Empty:
+        async def embed(self, texts: list[str]) -> list[tuple[float, ...]]:
+            return []
+
+    retriever = HybridRetriever(store=seeded._store, embedder=_Empty(), reranker=None)  # type: ignore[arg-type]
+    agent = create_default_agent(
+        retriever=retriever, client=MultiProviderRoutingClient([_CountingStubClient()])
+    )
+    answer = await agent.answer(_ANSWERABLE)
+    assert answer.error is not None
+    assert answer.error.kind is ErrorKind.MODEL_UNAVAILABLE

@@ -39,7 +39,7 @@ from dataclasses import dataclass
 from verity.agent.evidence import neutralise, render_evidence
 from verity.eval.base import FaithfulnessJudge
 from verity.llm.base import RoutingClient
-from verity.llm.json_output import first_matching, parse_json_object
+from verity.llm.json_output import first_matching, parse_json_object, strict_bool
 from verity.llm.prompt import load_prompt
 from verity.llm.routing import primary_client_identity
 from verity.types import (
@@ -331,8 +331,10 @@ def _parse_judge_output(text: str) -> tuple[tuple[ClaimVerdict, ...], int, int, 
             return None
         claim_text_raw = first_matching(entry, _JUDGE_CLAIM_TEXT_KEYS)
         claim_text = str(claim_text_raw).strip() if claim_text_raw is not None else ""
-        is_supported = bool(first_matching(entry, _JUDGE_SUPPORTED_KEYS))
-        is_citation_ok = bool(first_matching(entry, _JUDGE_CITATION_OK_KEYS))
+        is_supported = strict_bool(first_matching(entry, _JUDGE_SUPPORTED_KEYS))
+        is_citation_ok = strict_bool(first_matching(entry, _JUDGE_CITATION_OK_KEYS))
+        if is_supported is None or is_citation_ok is None:
+            return None
         verdicts.append(
             ClaimVerdict(claim=claim_text, supported=is_supported, citation_ok=is_citation_ok)
         )

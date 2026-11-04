@@ -13,10 +13,11 @@ this module resilient to minor docling API drift.
 
 from __future__ import annotations
 
+import asyncio
 import functools
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 from verity.ingestion.ids import document_id_for_uri
@@ -133,7 +134,11 @@ class DoclingParser:
 
     async def parse(self, uri: str, raw: bytes | None = None) -> Document:
         source_type = SourceType.PDF if uri.lower().endswith(".pdf") else SourceType.DOCX
-        converter = self._converter or _lazy_converter()
+        # Building the converter loads docling's models and converting runs them: both are
+        # CPU-bound, so they go to a worker thread, as the embedder and reranker do.
+        converter = self._converter
+        if converter is None:
+            converter = await asyncio.to_thread(_lazy_converter)
 
         parsed_uri = urlparse(uri)
         source_path: Path
@@ -155,7 +160,7 @@ class DoclingParser:
                     cleanup = source_path
 
         try:
-            result = converter.convert(str(source_path))
+            result = await asyncio.to_thread(converter.convert, str(source_path))
             docling_doc = getattr(result, "document", result)
             text, sections = _flatten(docling_doc)
         finally:
@@ -183,7 +188,3 @@ def _title_from_sections(sections: tuple[Section, ...], text: str) -> str | None
         first_line = text.strip().splitlines()[0]
         return first_line[:120] if first_line else None
     return None
-
-
-# Re-export cast so mypy is happy with the TYPE_CHECKING guard.
-_ = cast

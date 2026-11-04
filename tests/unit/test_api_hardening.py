@@ -66,6 +66,13 @@ def test_wrong_key_is_401(client: TestClient) -> None:
     assert r.status_code == 401
 
 
+def test_status_needs_a_key(client: TestClient) -> None:
+    """/status lists every document URI and the model provenance."""
+    del client.headers["X-API-Key"]
+    assert client.get("/status").status_code == 401
+    assert client.get("/status", headers={"X-API-Key": _KEY}).status_code == 200
+
+
 def test_health_stays_public(client: TestClient) -> None:
     del client.headers["X-API-Key"]
     assert client.get("/health").status_code == 200
@@ -101,6 +108,14 @@ def test_rate_limit_is_per_key_and_answers_429_with_retry_after(tmp_path: Path) 
         assert other.status_code == 200
 
 
+def test_status_counts_toward_the_per_key_rate_limit(tmp_path: Path) -> None:
+    with api_app(tmp_path, _settings(api_rate_limit_per_minute=2)) as c:
+        c.headers["X-API-Key"] = _KEY
+        assert c.get("/status").status_code == 200
+        assert c.get("/status").status_code == 200
+        assert c.post("/ask", json={"question": _QUESTION}).status_code == 429
+
+
 def test_rate_limiter_window_slides() -> None:
     now = [0.0]
     limiter = RateLimiter(limit=2, window_s=60.0, clock=lambda: now[0])
@@ -112,40 +127,159 @@ def test_rate_limiter_window_slides() -> None:
     assert limiter.hit("k") is None
 
 
-def test_repeated_bad_keys_are_throttled_per_client_even_for_the_right_key(
-    tmp_path: Path,
-) -> None:
-    """Brute force: after N failed keys from one client, that client is answered 429
-    without the key being checked, so a correct guess is not confirmed either."""
+def test_failed_key_attempts_are_rate_limited_per_client(tmp_path: Path) -> None:
     with api_app(tmp_path, _settings(api_auth_failures_per_minute=3)) as c:
         for _ in range(3):
-            r = c.post("/ask", json={"question": _QUESTION}, headers={"X-API-Key": "guess"})
-            assert r.status_code == 401
-        blocked = c.post("/ask", json={"question": _QUESTION}, headers={"X-API-Key": _KEY})
+            assert c.get("/status", headers={"X-API-Key": "guess"}).status_code == 401
+        blocked = c.get("/status", headers={"X-API-Key": "guess"})
         assert blocked.status_code == 429
         assert int(blocked.headers["Retry-After"]) >= 1
+        # Checked before the key: a correct guess from a blocked client learns nothing.
+        assert c.get("/status", headers={"X-API-Key": _KEY}).status_code == 429
 
 
-def test_valid_requests_do_not_consume_the_auth_failure_budget(tmp_path: Path) -> None:
-    with api_app(tmp_path, _settings(api_auth_failures_per_minute=1)) as c:
+def test_successful_requests_do_not_count_as_failed_attempts(tmp_path: Path) -> None:
+    with api_app(tmp_path, _settings(api_auth_failures_per_minute=2)) as c:
         c.headers["X-API-Key"] = _KEY
-        for _ in range(3):
-            assert c.post("/ask", json={"question": _QUESTION}).status_code == 200
+        for _ in range(5):
+            assert c.get("/status").status_code == 200
 
 
-def test_auth_failure_buckets_are_bounded() -> None:
-    limiter = RateLimiter(limit=1, window_s=60.0, max_principals=2)
-    for client in ("a", "b", "c"):
-        assert limiter.hit(client) is None
-    assert limiter.n_principals == 2
+def test_rate_limiter_peek_does_not_record_a_hit() -> None:
+    limiter = RateLimiter(limit=1, window_s=60.0, clock=lambda: 0.0)
+    assert limiter.blocked("ip") is None
+    assert limiter.hit("ip") is None
+    assert limiter.blocked("ip") is not None
 
 
-def test_retry_after_does_not_record_a_hit() -> None:
-    limiter = RateLimiter(limit=1, window_s=60.0)
-    assert limiter.retry_after("k") is None
-    assert limiter.retry_after("k") is None
-    assert limiter.hit("k") is None
-    assert limiter.retry_after("k") is not None
+def test_rate_limiter_memory_is_bounded() -> None:
+    """Failed attempts are keyed by client address, which a client chooses."""
+    now = [0.0]
+    limiter = RateLimiter(limit=1, window_s=60.0, clock=lambda: now[0], max_principals=100)
+    for n in range(1000):
+        limiter.hit(f"10.0.{n // 256}.{n % 256}")
+    assert len(limiter) <= 100
+    now[0] = 61.0
+    limiter.hit("10.9.9.9")
+    assert len(limiter) == 1
+
+
+def test_eviction_drops_expired_buckets_before_a_live_one() -> None:
+    now = [0.0]
+    limiter = RateLimiter(limit=1, window_s=60.0, clock=lambda: now[0], max_principals=3)
+    limiter.hit("old-1")
+    limiter.hit("old-2")
+    now[0] = 50.0
+    limiter.hit("blocked")
+    now[0] = 70.0
+    limiter.hit("new")
+    assert limiter.blocked("blocked") is not None
+
+
+@pytest.mark.parametrize(
+    ("first", "second", "shared"),
+    [
+        ("2001:db8::1", "2001:db8::ffff:1", True),
+        ("2001:db8::1", "2001:db8:0:1::1", False),
+        ("192.0.2.1", "192.0.2.2", False),
+        ("::ffff:192.0.2.1", "192.0.2.1", True),
+        ("testclient", "testclient", True),
+    ],
+)
+def test_failed_attempts_are_counted_per_ipv6_64(first: str, second: str, shared: bool) -> None:
+    """One IPv6 host usually holds a whole /64: counted per address, it would get ten
+    attempts per address."""
+    from verity.api.guards import client_bucket
+
+    assert (client_bucket(first) == client_bucket(second)) is shared
+
+
+# --- spending budget -------------------------------------------------------------------
+
+
+def _bill_every_answer(client: TestClient, cost_usd: float, *, error: bool = False) -> None:
+    """Make every stub answer report ``cost_usd``; with ``error``, also fail it."""
+    from verity.types import AnswerError, ErrorKind
+
+    runtime = client.app.state.runtime  # type: ignore[attr-defined]
+    real_ask = runtime.ask
+
+    async def _billed(question: str):  # type: ignore[no-untyped-def]
+        answer = await real_ask(question)
+        update: dict[str, object] = {
+            "usage": answer.usage.model_copy(update={"cost_usd": cost_usd})
+        }
+        if error:
+            update |= {
+                "confidence": None,
+                "error": AnswerError(kind=ErrorKind.PROVIDER_UNAVAILABLE, detail="down"),
+            }
+        return answer.model_copy(update=update)
+
+    runtime.ask = _billed
+
+
+def test_spending_budget_is_per_key_and_answers_429_with_retry_after(tmp_path: Path) -> None:
+    second = "second-key-0123456789"
+    settings = _settings(api_keys=(SecretStr(_KEY), SecretStr(second)), api_budget_usd=0.05)
+    with api_app(tmp_path, settings) as c:
+        _bill_every_answer(c, 0.03)
+        c.headers["X-API-Key"] = _KEY
+        assert c.post("/ask", json={"question": _QUESTION}).status_code == 200
+        # $0.03 spent is under $0.05: admitted, and this answer takes the key over.
+        assert c.post("/ask", json={"question": _QUESTION}).status_code == 200
+        limited = c.post("/ask", json={"question": _QUESTION})
+        assert limited.status_code == 429
+        assert limited.json()["detail"] == "Spending budget exceeded."
+        assert 1 <= int(limited.headers["Retry-After"]) <= 3600
+        other = c.post("/ask", json={"question": _QUESTION}, headers={"X-API-Key": second})
+        assert other.status_code == 200
+
+
+def test_an_answer_that_errors_after_spending_counts_against_the_budget(
+    tmp_path: Path,
+) -> None:
+    with api_app(tmp_path, _settings(api_budget_usd=0.05)) as c:
+        _bill_every_answer(c, 0.06, error=True)
+        c.headers["X-API-Key"] = _KEY
+        assert c.post("/ask", json={"question": _QUESTION}).status_code == 503
+        assert c.post("/ask", json={"question": _QUESTION}).status_code == 429
+
+
+def test_spend_budget_window_slides() -> None:
+    from verity.api.guards import SpendBudget
+
+    now = [0.0]
+    budget = SpendBudget(budget_usd=1.0, window_s=3600.0, clock=lambda: now[0])
+    assert budget.exhausted("k") is None
+    budget.record("k", 0.6)
+    now[0] = 100.0
+    budget.record("k", 0.6)
+    retry = budget.exhausted("k")
+    # Under budget again once the first $0.60 leaves the window, at t=3600.
+    assert retry is not None and retry == pytest.approx(3500.0)
+    assert budget.exhausted("other") is None
+    now[0] = 3600.5
+    assert budget.exhausted("k") is None
+
+
+def test_spend_budget_retry_waits_for_as_many_entries_as_needed() -> None:
+    from verity.api.guards import SpendBudget
+
+    now = [0.0]
+    budget = SpendBudget(budget_usd=1.0, window_s=3600.0, clock=lambda: now[0])
+    for at in (0.0, 10.0, 20.0):
+        now[0] = at
+        budget.record("k", 0.5)
+    # $1.50 spent: under $1.00 only once the first two entries have expired, at t=3610.
+    assert budget.exhausted("k") == pytest.approx(3590.0)
+
+
+def test_spend_budget_rejects_a_non_positive_budget() -> None:
+    from verity.api.guards import SpendBudget
+
+    with pytest.raises(ValueError, match="positive"):
+        SpendBudget(budget_usd=0.0, window_s=60.0)
 
 
 # --- input bounds ----------------------------------------------------------------------
@@ -264,6 +398,21 @@ def test_unreachable_postgres_is_a_generic_503(
     assert response.json()["detail"]["error"] == "retrieval_unavailable"
     assert "10.0.0.1" not in response.text
     assert response.json()["request_id"]
+
+
+@pytest.mark.parametrize("model", ["embedder", "reranker"])
+def test_a_local_model_failure_on_ask_is_a_503_not_a_500(client: TestClient, model: str) -> None:
+    from verity.ingestion import LocalEmbedder
+    from verity.retrieval import CrossEncoderReranker
+
+    target = (LocalEmbedder, "embed") if model == "embedder" else (CrossEncoderReranker, "rerank")
+    client.get("/status")  # the corpus is in before the model breaks
+    with patch.object(*target, side_effect=OSError("model not in the cache")):
+        response = client.post("/ask", json={"question": _QUESTION})
+
+    assert response.status_code == 503
+    assert response.json()["detail"]["error"] == "model_unavailable"
+    assert "cache" not in response.text
 
 
 @pytest.mark.parametrize(
