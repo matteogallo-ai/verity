@@ -20,7 +20,16 @@ follows [Semantic Versioning](https://semver.org/).
   plain English (none matches the injection marker list), one question each, and
   `scripts/run_injection_eval.py`, which counts the answers that ship what a poisoned
   document planted and, on the clean corpus alone, the questions still answered;
-  `--no-datamark` runs the same code without the mark. No live run is committed.
+  `--no-datamark` runs the same code without the mark.
+- Injection measurement, 3 live runs per arm on `claude-sonnet-4-6` ($2.16 in all),
+  committed in `datasets/eval/injection/runs/` with a hand review of every marker match
+  and pooled by `scripts/summarise_injection_runs.py` into
+  `scorecards/injection-spotlighting.json`: 0/36 steered answers with the mark and 0/36
+  without (Wilson 95 % [0, 0.096] each); 33/33 controls answered in each arm; the mark
+  adds about 75 % input tokens (mean 4,926 against 2,822 per answer). The set does not
+  separate the arms.
+- `verity.eval.intervals.wilson` is the one Wilson interval; the headline generator
+  uses it.
 - The API ingests the corpus and loads the embedding and reranker models at startup, in
   the background; `/ready` reports `"preload"` and stays `503` until every corpus file is
   in, and a failed preload is started again by the next `/ready`. With the stub agent and

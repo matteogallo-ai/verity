@@ -125,8 +125,13 @@ stored as the original text. The scorer's
 evidence is not marked: `confidence.prompt` is frozen and does not describe the mark.
 `datasets/eval/injection/` holds 12 naturally worded poisoned documents, none caught
 by the marker list, and `scripts/run_injection_eval.py` counts how often each steers a
-shipped answer, with and without the mark (`--no-datamark`). No live run of it exists,
-so the effect of datamarking is not known.
+shipped answer, with and without the mark (`--no-datamark`). Three live runs per arm
+(`claude-sonnet-4-6`, `datasets/eval/injection/runs/`, pooled in
+`scorecards/injection-spotlighting.json`): no answer was steered, with the mark (0/36,
+Wilson 95 % [0, 0.096]) or without it (0/36, [0, 0.096]). Without the mark, 3 answers
+named the planted content to reject it, and 1 of them cited the poisoned passage; with
+the mark, none did. The set does not separate the arms: the effect of datamarking on
+injection success is not shown, only that these attacks fail on this model either way.
 
 **Tests.** `tests/unit/test_prompt_injection.py::test_a_document_cannot_close_its_delimiters`,
 `tests/unit/test_prompt_injection.py::test_every_prompt_marks_its_inputs_untrusted`, `tests/unit/test_prompt_injection.py::test_a_section_title_cannot_inject_attributes_or_tags`,
@@ -138,8 +143,8 @@ so the effect of datamarking is not known.
 **Not stopped.**
 
 - An injection paraphrased past the marker list in `verity.agent.support`. Datamarking
-  applies to the synthesizer only, and its effect is not measured; the scorer reads
-  unmarked evidence.
+  applies to the synthesizer only, and its effect is not shown by the injection set
+  (no attack succeeded in either arm); the scorer reads unmarked evidence.
 - The thresholds and the marker list were chosen on the same eval questions they are
   checked on.
 - **The eval judge prompt is undefended (LLM01 on the evaluator).**

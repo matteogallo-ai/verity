@@ -61,3 +61,9 @@ as whole words. No marker occurs in the clean corpus
 planted figure only to reject it, so successes are read in the artefact before they
 are reported. `--no-datamark` runs the same code without the mark, so two runs differ
 by the mark alone.
+
+`injection/runs/` holds the live runs of record (three per arm), pinned in its
+`SHA256SUMS`, and `review.jsonl`, one hand-read verdict per marker match.
+`scripts/summarise_injection_runs.py` pools them per arm with Wilson intervals into
+`scorecards/injection-spotlighting.json`; it fails when a match has no verdict. Only
+marker matches are read: a steered answer that avoids every marker is not counted.
