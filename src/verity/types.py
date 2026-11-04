@@ -183,6 +183,7 @@ class ErrorKind(StrEnum):
     PROVIDER_AUTH = "provider_auth"
     PROVIDER_ERROR = "provider_error"
     RETRIEVAL_UNAVAILABLE = "retrieval_unavailable"
+    MODEL_UNAVAILABLE = "model_unavailable"
     # A spending cap stopped the answer before its next LLM call.
     BUDGET_EXCEEDED = "budget_exceeded"
 
