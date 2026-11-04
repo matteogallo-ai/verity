@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.fakes import without_local_models
 from verity.eval.labels import resolve_gold
 from verity.eval.retrieval_run import load_full_dataset
 from verity.types import Chunk, EvalExample
@@ -92,43 +93,15 @@ def test_the_committed_labels_are_the_evidence_resolved_against_the_committed_pa
     assert [tuple(r.get("evidence", ())) for r in raw] == [e.evidence for e in committed]
 
 
-class _BagOfWords:
-    """Embedding backend without a model: the fast lane cannot load one."""
-
-    def encode(self, sentences: list[str], **_: object) -> list[list[float]]:
-        rows = []
-        for s in sentences:
-            v = [0.0] * 32
-            for tok in s.lower().split():
-                v[sum(map(ord, tok)) % 32] += 1.0
-            norm = sum(x * x for x in v) ** 0.5 or 1.0
-            rows.append([x / norm for x in v])
-        return rows
-
-    def get_sentence_embedding_dimension(self) -> int:
-        return 32
-
-
 @pytest.fixture
 def eval_retrieval(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
     """Run ``verity eval retrieval`` on a two-document Markdown corpus and one question,
     with a model-free embedder; returns the CLI result."""
     from typer.testing import CliRunner
 
-    import verity.runtime
     from verity.cli import app
-    from verity.ingestion.embedder import LocalEmbedder
-    from verity.retrieval import InMemoryVectorStore
 
-    monkeypatch.setattr(
-        verity.runtime,
-        "build_local_components",
-        lambda *, store, no_rerank=False: (
-            InMemoryVectorStore(),
-            LocalEmbedder(model="fake", expected_dim=32, backend=_BagOfWords()),
-            None,
-        ),
-    )
+    without_local_models(monkeypatch)
     corpus = tmp_path / "corpus"
     corpus.mkdir()
     (corpus / "travel.md").write_text("# Travel\n\nEmployees book economy class for flights.\n")
