@@ -1,0 +1,161 @@
+{
+  "agreement_mixed": {
+    "cohen_kappa": 0.5968992248062016,
+    "confusion": {
+      "judge_supported/human_supported": 35,
+      "judge_supported/human_unsupported": 1,
+      "judge_unsupported/human_supported": 7,
+      "judge_unsupported/human_unsupported": 9
+    },
+    "n_claims": 52,
+    "observed": {
+      "ci95_wilson": [
+        0.7248,
+        0.9199
+      ],
+      "k": 44,
+      "n": 52,
+      "value": 0.846154
+    }
+  },
+  "agreement_real_only": {
+    "cohen_kappa": 0.37209302325581384,
+    "confusion": {
+      "judge_supported/human_supported": 32,
+      "judge_supported/human_unsupported": 0,
+      "judge_unsupported/human_supported": 3,
+      "judge_unsupported/human_unsupported": 1
+    },
+    "n_claims": 36,
+    "observed": {
+      "ci95_wilson": [
+        0.7817,
+        0.9713
+      ],
+      "k": 33,
+      "n": 36,
+      "value": 0.916667
+    }
+  },
+  "citation_named": {
+    "k": 40,
+    "n": 57
+  },
+  "complete": false,
+  "cost_usd": 1.30446,
+  "judge_model": "claude-opus-5-5",
+  "judge_without_verdict": [
+    "B23",
+    "B24",
+    "B25",
+    "B26",
+    "B27",
+    "B28",
+    "B29",
+    "B30"
+  ],
+  "n_items": 60,
+  "n_judged": 52,
+  "notes": [
+    "kappa has no Wilson interval: it is not a proportion; with 60 items it is uncertain by itself",
+    "a perturbed claim counts as detected if any sub-claim the judge made of it is unsupported, even outside the changed span: sensitivity is an upper bound (per-claim detail in perturbed_verdicts.json)",
+    "every claim, real or perturbed, is judged as a one-claim answer with its answer's citations and extracts: one protocol, unlike v0.1.0"
+  ],
+  "prompt_sha256": "aa66e62370a2702666808e6bbb6c4bbcace60df2fca7a23cf7ea1b6dfdc3143a",
+  "prompt_version": "0.2.0",
+  "sensitivity": {
+    "by_kind": {
+      "date": {
+        "ci95_wilson": [
+          0.5101,
+          1.0
+        ],
+        "k": 4,
+        "n": 4,
+        "value": 1.0
+      },
+      "entity": {
+        "ci95_wilson": [
+          0.15,
+          0.85
+        ],
+        "k": 2,
+        "n": 4,
+        "value": 0.5
+      },
+      "negation": {
+        "ci95_wilson": [
+          0.4385,
+          1.0
+        ],
+        "k": 3,
+        "n": 3,
+        "value": 1.0
+      },
+      "number": {
+        "ci95_wilson": [
+          0.2307,
+          0.8824
+        ],
+        "k": 3,
+        "n": 5,
+        "value": 0.6
+      }
+    },
+    "human_unsupported": {
+      "ci95_wilson": [
+        0.4329,
+        0.8188
+      ],
+      "k": 13,
+      "n": 20,
+      "value": 0.65
+    },
+    "judge_detected": {
+      "ci95_wilson": [
+        0.505,
+        0.8982
+      ],
+      "k": 12,
+      "n": 16,
+      "value": 0.75
+    },
+    "judge_detected_among_human_unsupported": {
+      "ci95_wilson": [
+        0.565,
+        0.9801
+      ],
+      "k": 8,
+      "n": 9,
+      "value": 0.888889
+    }
+  },
+  "specificity_real": {
+    "ci95_wilson": [
+      0.7762,
+      0.9704
+    ],
+    "k": 32,
+    "n": 35,
+    "value": 0.914286
+  },
+  "v010_on_the_same_claims": {
+    "cohen_kappa": 0.636,
+    "confusion": {
+      "judge_supported/human_supported": 36,
+      "judge_supported/human_unsupported": 1,
+      "judge_unsupported/human_supported": 6,
+      "judge_unsupported/human_unsupported": 9
+    },
+    "n_claims": 52,
+    "observed": {
+      "ci95_wilson": [
+        0.7473,
+        0.9332
+      ],
+      "k": 45,
+      "n": 52,
+      "value": 0.865385
+    }
+  }
+}

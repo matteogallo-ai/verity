@@ -129,7 +129,7 @@ labels is the result of record; an adjudication of the disagreements, published
 separately, does not replace it.
 
 <!-- JUDGE:START -->
-Judge `claude-opus-5-5` with judge prompt v0.1.0 (`prompts/judge_faithfulness.prompt`, sha256 `2c5f8eca49ba`) against **blind human labels**, the reference: 60 claims labelled without origin or judge verdict, 40 real claims (16 from the dev run, 24 from the test run) and 20 claims perturbed to be false (one number, date, negation or entity changed). The κ below belongs to this prompt version: a changed judge prompt is a new judge and needs its own κ.
+Judge `claude-opus-5-5` with judge prompt v0.1.0 (`datasets/eval/judge_validation/judge_faithfulness.v0.1.0.prompt`, sha256 `2c5f8eca49ba`) against **blind human labels**, the reference: 60 claims labelled without origin or judge verdict, 40 real claims (16 from the dev run, 24 from the test run) and 20 claims perturbed to be false (one number, date, negation or entity changed). The κ below belongs to this prompt version: a changed judge prompt is a new judge and needs its own κ.
 
 | Measure | Value | n · notes |
 |---|---|---|
@@ -164,6 +164,25 @@ Generated from [`datasets/eval/judge_validation/agreement.json`](datasets/eval/j
 
 Generated from [`datasets/eval/judge_validation/agreement_adjudicated.json`](datasets/eval/judge_validation/agreement_adjudicated.json); each decision and its reason is in `adjudication.csv`.
 <!-- JUDGE-ADJUDICATED:END -->
+
+### Judge prompt v0.2.0 (not the judge of the runs of record)
+
+<!-- JUDGE-V2:START -->
+Judge `claude-opus-5-5` with judge prompt v0.2.0 (sha256 `aa66e62370a2`), the prompt in `prompts/`: its inputs are delimited and its evidence datamarked, and it names the citation of each claim. Rejudged against the same blind labels, for $1.30, on **52 of 60 claims only: the budget stopped the rejudge**, so the figures below are incomplete. Every claim, real or perturbed, is judged as a one-claim answer; v0.1.0 used the live whole-answer verdict for the real claims, so a change on real claims mixes the prompt and the protocol. The runs of record were judged by v0.1.0: their answer-quality figures carry the v0.1.0 κ above.
+
+| Measure | v0.1.0 (runs of record) | v0.2.0 |
+|---|---|---|
+| Cohen's κ, all claims judged | 0.71 (60) | 0.60 (52) |
+| Cohen's κ, the same 52 claims | 0.64 | 0.60 |
+| Observed agreement, the same 52 claims | 45/52 · 95 % CI [0.747, 0.933] | 44/52 · 95 % CI [0.725, 0.920] |
+| Cohen's κ, real claims only (fragile: 1 unsupported) | 0.48 | 0.37 |
+| Judge specificity on real claims | 37/39 · 95 % CI [0.831, 0.986] | 32/35 · 95 % CI [0.776, 0.970] |
+| Sensitivity on perturbed claims (upper bound) | 16/20 · 95 % CI [0.584, 0.919] | 12/16 · 95 % CI [0.505, 0.898] |
+
+The judge named a valid citation it found supporting for 40 of the 57 claims it returned. The blind labels judge support only, so this count is not validated against a human.
+
+Generated from [`datasets/eval/judge_validation/judge-v0.2.0/agreement.json`](datasets/eval/judge_validation/judge-v0.2.0/agreement.json); per-claim verdicts in `verdicts.json` beside it.
+<!-- JUDGE-V2:END -->
 
 ## Open issues: what the numbers do not say
 
