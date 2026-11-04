@@ -23,8 +23,12 @@ One JSON object per line:
 - `relevant_chunk_ids` are generated: `scripts/build_eval_labels.py` marks every chunk
   that contains one of the `evidence` quotes. Chunk ids are deterministic (uuid5 of a
   path-independent document identity plus the chunk's ordinal and offsets, see
-  `verity.ingestion.ids`), so they are stable across machines.
-  `tests/integration/test_eval_labels_integrity.py` checks labels and split are current.
+  `verity.ingestion.ids`), but offsets follow the parse, and docling parses the corpus
+  PDFs differently on other CPUs: the committed ids are the labelling machine's parse,
+  pinned against the committed docling fixture by `tests/unit/test_eval_labels.py`.
+  `verity eval run` and `verity eval retrieval` resolve the gold again from the
+  evidence against the chunks they ingest. `tests/integration/test_eval_labels_integrity.py`
+  checks that every quote is in a chunk of a live parse and that the split is current.
 - `tags`: `single-hop`, `multi-hop` (evidence in at least two documents), `negation`,
   `numeric`, `out-of-corpus`, `near-miss` (close to the corpus but not answerable from
   it), `false-premise`, `adversarial` (prompt injection in the question, or q-017 to

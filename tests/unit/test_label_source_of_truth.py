@@ -47,23 +47,13 @@ def stub_run(tmp_path_factory: pytest.TempPathFactory) -> tuple[str, dict]:
     scorecard = tmp_path / "sc.json"
     runs_dir = tmp_path / "runs"
     # The conftest's function-scoped memory-store fixture does not reach a module
-    # fixture; without it the run would open the default pgvector store.
-    with pytest.MonkeyPatch.context() as mp:
-        mp.setenv("VERITY_STORE", "memory")
-        get_settings.cache_clear()
-        result = runner.invoke(
-            app,
-            [
-                "eval",
-                "run",
-                "--ci",
-                "--runs-dir",
-                str(runs_dir),
-                "--scorecard-json",
-                str(scorecard),
-            ],
-            env={"COLUMNS": "200", "TERM": "dumb", "NO_COLOR": "1"},
-        )
+    # fixture; without the variable the run would open the default pgvector store.
+    get_settings.cache_clear()
+    result = runner.invoke(
+        app,
+        ["eval", "run", "--ci", "--runs-dir", str(runs_dir), "--scorecard-json", str(scorecard)],
+        env={"COLUMNS": "200", "TERM": "dumb", "NO_COLOR": "1", "VERITY_STORE": "memory"},
+    )
     get_settings.cache_clear()
     assert result.exit_code == 0, f"stub run failed: {result.output}"
     assert scorecard.is_file()

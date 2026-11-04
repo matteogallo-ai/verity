@@ -25,8 +25,8 @@ def _corpus_pdf_and_docx_from_the_fixture() -> Iterator[None]:
     """Most unit tests seed a retriever from ``datasets/corpus``. Its PDF and DOCX
     documents would need docling's models, which a fresh runner does not have and
     cannot download (the lane blocks the network), so their parsed form comes from
-    the committed fixture (see ``tests/docling_fixture.py``; checked against a live
-    parse in the slow lane). Uploads (``raw`` bytes) and the docling tests that pass
+    the committed fixture (see ``tests/docling_fixture.py``; the committed gold
+    ids are pinned to it in ``tests/unit/test_eval_labels.py``). Uploads (``raw`` bytes) and the docling tests that pass
     their own converter still run docling."""
     from tests import docling_fixture
     from verity.ingestion.parsers.docling_parser import DoclingParser

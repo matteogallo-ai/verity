@@ -367,7 +367,7 @@ def eval_retrieval(
     retriever, backend_name, chunks = asyncio.run(
         _build_retriever(corpus=corpus, store=store, no_rerank=no_rerank)
     )
-    examples = [e for e in _gold_from_evidence(examples, chunks) if e.relevant_chunk_ids]
+    examples = _gold_from_evidence(examples, chunks)
 
     scorecard = asyncio.run(
         run_retrieval_eval(

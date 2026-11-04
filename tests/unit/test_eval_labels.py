@@ -109,11 +109,10 @@ class _BagOfWords:
         return 32
 
 
-def test_eval_retrieval_scores_against_the_evidence_when_committed_ids_are_stale(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """What the GitHub runner hit: its parse of a document gave other chunk ids than the
-    labelling machine's, and every gold chunk of that document read as missed."""
+@pytest.fixture
+def eval_retrieval(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
+    """Run ``verity eval retrieval`` on a two-document Markdown corpus and one question,
+    with a model-free embedder; returns the CLI result."""
     from typer.testing import CliRunner
 
     import verity.runtime
@@ -134,39 +133,46 @@ def test_eval_retrieval_scores_against_the_evidence_when_committed_ids_are_stale
     corpus.mkdir()
     (corpus / "travel.md").write_text("# Travel\n\nEmployees book economy class for flights.\n")
     (corpus / "leave.md").write_text("# Leave\n\nEmployees get twenty days of annual leave.\n")
-    dataset = tmp_path / "q.jsonl"
-    dataset.write_text(
-        json.dumps(
-            {
-                "id": "q-1",
-                "question": "Which class do employees book for flights?",
-                "answerable": True,
-                "reference_answer": "Economy.",
-                "evidence": ["Employees book economy class for flights."],
-                "relevant_chunk_ids": [str(uuid.uuid4())],
-            }
-        )
-        + "\n"
-    )
 
-    result = CliRunner().invoke(
-        app,
-        [
-            "eval",
-            "retrieval",
-            "--corpus",
-            str(corpus),
-            "--dataset",
-            str(dataset),
-            "--store",
-            "memory",
-            "--no-rerank",
-            "--k",
-            "1",
-            "--runs-dir",
-            str(tmp_path / "runs"),
-            "--floor-recall",
-            "1.0",
-        ],
-    )
+    def run(evidence: list[str], committed_ids: list[str]):  # type: ignore[no-untyped-def]
+        dataset = tmp_path / "q.jsonl"
+        record = {
+            "id": "q-1",
+            "question": "Which class do employees book for flights?",
+            "answerable": True,
+            "reference_answer": "Economy.",
+            "evidence": evidence,
+            "relevant_chunk_ids": committed_ids,
+        }
+        dataset.write_text(json.dumps(record) + "\n")
+        args = ["eval", "retrieval", "--corpus", str(corpus), "--dataset", str(dataset)]
+        args += ["--store", "memory", "--no-rerank", "--k", "1"]
+        args += ["--runs-dir", str(tmp_path / "runs"), "--floor-recall", "1.0"]
+        return CliRunner().invoke(app, args)
+
+    return run
+
+
+def test_eval_retrieval_scores_against_the_evidence_when_committed_ids_are_stale(
+    eval_retrieval,  # type: ignore[no-untyped-def]
+) -> None:
+    """What the GitHub runner hit: its parse of a document gave other chunk ids than the
+    labelling machine's, and every gold chunk of that document read as missed."""
+    result = eval_retrieval(["Employees book economy class for flights."], [str(uuid.uuid4())])
     assert result.exit_code == 0, result.output
+
+
+def test_eval_retrieval_scores_a_question_with_evidence_and_no_committed_ids(
+    eval_retrieval,  # type: ignore[no-untyped-def]
+) -> None:
+    result = eval_retrieval(["Employees book economy class for flights."], [])
+    assert result.exit_code == 0, result.output
+    assert "n=1" in result.output
+
+
+def test_eval_retrieval_exits_2_when_a_quote_is_in_no_chunk(
+    eval_retrieval,  # type: ignore[no-untyped-def]
+) -> None:
+    result = eval_retrieval(["Employees fly business class."], [str(uuid.uuid4())])
+    assert result.exit_code == 2, result.output
+    assert "q-1: no chunk contains 'Employees fly business class.'" in result.output

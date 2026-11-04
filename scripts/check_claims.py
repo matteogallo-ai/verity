@@ -204,7 +204,8 @@ def run_pytest(nodeids: list[str], root: Path) -> tuple[dict[str, str], str]:
 
 def _defined(path: Path, parts: list[str]) -> bool:
     """Whether ``path`` defines the class/function chain ``parts``, read with ``ast``:
-    no import, so it needs neither Postgres nor the models the test itself needs."""
+    no import, so it needs neither Postgres nor the models the test itself needs. A
+    test method a class inherits from a base class reads as not defined."""
     body: list[ast.stmt] = ast.parse(path.read_text(encoding="utf-8")).body
     for i, name in enumerate(parts):
         node = next(

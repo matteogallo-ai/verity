@@ -24,14 +24,19 @@ from verity.types import EvalExample, RetrievalMetrics
 
 
 def load_dataset(path: Path) -> list[EvalExample]:
-    """Read a JSONL dataset and return the answerable-and-labeled subset only.
+    """Read a JSONL dataset and return the answerable subset with evidence or gold ids.
 
-    Out-of-scope questions (empty ``relevant_chunk_ids``) are filtered *here*, so
-    every caller of this function sees the exact set that retrieval metrics are
-    defined over. See ``docs/evaluation-methodology.md`` — refusal calibration is
-    the eval track for the unanswerable half.
+    Out-of-scope questions (no evidence, empty ``relevant_chunk_ids``) are filtered
+    *here*, so every caller sees the set that retrieval metrics are defined over once
+    the gold is resolved from the evidence (``verity.eval.labels``). See
+    ``docs/evaluation-methodology.md`` — refusal calibration is the eval track for the
+    unanswerable half.
     """
-    return [ex for ex in load_full_dataset(path) if ex.answerable and ex.relevant_chunk_ids]
+    return [
+        ex
+        for ex in load_full_dataset(path)
+        if ex.answerable and (ex.evidence or ex.relevant_chunk_ids)
+    ]
 
 
 def load_full_dataset(path: Path) -> list[EvalExample]:

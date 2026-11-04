@@ -10,6 +10,10 @@ or an unanswerable question carries evidence.
 
     uv run python scripts/build_eval_labels.py           # rewrite the labels
     uv run python scripts/build_eval_labels.py --check   # exit 1 if they would change
+
+``--check`` compares against this machine's parse: where docling parses the PDFs
+differently it reports stale ids while every quote still resolves, which is what the
+eval relies on (see ``verity.eval.labels``).
 """
 
 from __future__ import annotations
