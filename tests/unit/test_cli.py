@@ -479,3 +479,39 @@ def test_a_budget_abort_persists_what_was_paid(
     run = json.loads(saved[0].read_text(encoding="utf-8"))
     assert run["scorecard"]["incomplete_reason"] == IncompleteReason.BUDGET_EXCEEDED.value
     assert run["per_audit"]
+
+
+@pytest.mark.parametrize(
+    ("flags", "expected"),
+    [
+        ([], {"budget_usd_cap": None, "warmup": True}),
+        (["--budget-usd", "1.3", "--no-warmup"], {"budget_usd_cap": 1.3, "warmup": False}),
+    ],
+)
+def test_eval_run_hands_its_budget_cap_and_warmup_to_the_evaluator(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, flags: list[str], expected: dict[str, object]
+) -> None:
+    """The budget cap is the guard on a paid run and ``--no-warmup`` changes what the
+    latency percentiles cover: both must reach the evaluator. The shared stub run
+    above ignores them, so this test pins them on their own; ``run`` stops at once,
+    before any example."""
+    from tests.fakes import without_local_models
+    from verity.eval import AgentEvaluator, BudgetExceededError
+
+    without_local_models(monkeypatch)
+    seen: dict[str, object] = {}
+    original_init = AgentEvaluator.__init__
+
+    def _init(self: AgentEvaluator, *args: object, **kwargs: object) -> None:
+        seen["warmup"] = kwargs.get("warmup", True)
+        original_init(self, *args, **kwargs)  # type: ignore[arg-type]
+
+    async def _run(self: AgentEvaluator, *args: object, **kwargs: object) -> object:
+        seen["budget_usd_cap"] = kwargs.get("budget_usd_cap")
+        raise BudgetExceededError("stopped before the first example")
+
+    monkeypatch.setattr(AgentEvaluator, "__init__", _init)
+    monkeypatch.setattr(AgentEvaluator, "run", _run)
+    result = runner.invoke(app, ["eval", "run", "--ci", "--runs-dir", str(tmp_path), *flags])
+    assert result.exit_code == 4, result.output
+    assert seen == expected
