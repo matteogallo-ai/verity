@@ -36,6 +36,33 @@ def _clean(output: str) -> str:
     return re.sub(r"\s+", " ", without_ansi).strip()
 
 
+@pytest.fixture(scope="module")
+def _stub_harness_results() -> dict[str, object]:
+    return {}
+
+
+@pytest.fixture
+def shared_stub_harness(
+    _stub_harness_results: dict[str, object], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Serve one stub harness run to every test of the module that asks for it.
+
+    These tests pin what the CLI does with a finished run (floors, exit codes, what
+    it persists); the run itself is the same stub evaluation of the full dataset,
+    minutes on a CI runner, so it is computed once. A test that changes the run
+    (an outage inside it) does not request this fixture."""
+    from verity.eval import AgentEvaluator
+
+    original = AgentEvaluator.run
+
+    async def _once(self: AgentEvaluator, *args: object, **kwargs: object) -> object:
+        if "run" not in _stub_harness_results:
+            _stub_harness_results["run"] = await original(self, *args, **kwargs)  # type: ignore[arg-type]
+        return _stub_harness_results["run"]
+
+    monkeypatch.setattr(AgentEvaluator, "run", _once)
+
+
 def test_version_command() -> None:
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
@@ -43,7 +70,7 @@ def test_version_command() -> None:
 
 
 @pytest.mark.slow
-def test_eval_run_ci_exits_clean(tmp_path: Path) -> None:
+def test_eval_run_ci_exits_clean(tmp_path: Path, shared_stub_harness: None) -> None:
     """Hermetic on ``--runs-dir tmp_path`` so the test never writes to the real
     ``datasets/eval/runs/`` tree. A pre-release audit exposed that the two
     prior tests running without ``--runs-dir`` would clobber whatever sat at
@@ -54,7 +81,9 @@ def test_eval_run_ci_exits_clean(tmp_path: Path) -> None:
 
 
 @pytest.mark.slow
-def test_eval_run_report_only_floors_writes_json_and_exits_zero(tmp_path: Path) -> None:
+def test_eval_run_report_only_floors_writes_json_and_exits_zero(
+    tmp_path: Path, shared_stub_harness: None
+) -> None:
     """One-shot LIVE-run invariant, exercised on the stub:
 
     ``--report-only-floors`` + an impossible floor must
@@ -93,7 +122,7 @@ def test_eval_run_report_only_floors_writes_json_and_exits_zero(tmp_path: Path) 
 
 
 @pytest.mark.slow
-def test_eval_run_fatal_floors_exit_two_on_stub(tmp_path: Path) -> None:
+def test_eval_run_fatal_floors_exit_two_on_stub(tmp_path: Path, shared_stub_harness: None) -> None:
     """Same impossible floor WITHOUT --report-only-floors → exit 2 (CI behaviour).
 
     Hermetic on ``--runs-dir tmp_path`` — see the note on
@@ -424,7 +453,7 @@ def test_eval_run_with_errored_examples_exits_six(
 
 @pytest.mark.slow  # the CLI builds the real embedder and reranker
 def test_a_budget_abort_persists_what_was_paid(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, shared_stub_harness: None
 ) -> None:
     from verity.eval import AgentEvaluator, BudgetExceededError
     from verity.types import IncompleteReason
