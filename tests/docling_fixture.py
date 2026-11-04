@@ -4,8 +4,8 @@ The fast test lane runs without network and without docling's models (a fresh CI
 runner has neither the layout models nor RapidOCR's). Its tests seed retrievers from
 ``datasets/corpus``, so they read the parsed text of the PDF/DOCX documents from
 ``tests/fixtures/docling_corpus.json`` instead of running docling.
-``tests/unit/test_docling_corpus_fixture.py`` (slow lane, real docling) fails when the
-fixture no longer matches a live parse.
+The fixture is the labelling machine's parse: the committed gold chunk ids are pinned
+to it (``tests/unit/test_eval_labels.py``).
 
     uv run python -m tests.docling_fixture   # rewrite the fixture after a corpus change
 """

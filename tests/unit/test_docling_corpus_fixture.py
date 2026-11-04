@@ -1,22 +1,17 @@
-"""The committed docling fixture is what docling produces for the corpus today.
+"""The committed docling fixture stands in for every corpus PDF and DOCX.
 
-Slow lane: runs the real docling models. On failure, regenerate with
-``uv run python -m tests.docling_fixture`` and review the diff.
+The fixture is the labelling machine's parse; the committed gold chunk ids are pinned
+to it (``tests/unit/test_eval_labels.py``). A live parse is not compared to it byte
+for byte: docling's layout model parses the corpus PDFs differently on other CPUs (on
+the GitHub runner, numbered headings became list items), so that comparison failed on
+hardware, not on a change. ``tests/integration/test_eval_labels_integrity.py`` checks,
+on the live parse, the part the eval depends on: every evidence quote is in a chunk.
+Regenerate after a corpus or docling change with ``uv run python -m tests.docling_fixture``.
 """
 
 from __future__ import annotations
 
-import pytest
-
 from tests import docling_fixture
-
-pytestmark = pytest.mark.slow
-
-
-@pytest.mark.asyncio
-async def test_fixture_matches_a_live_docling_parse() -> None:
-    live = await docling_fixture.parse_live()
-    assert docling_fixture.render(live) == docling_fixture.FIXTURE.read_text(encoding="utf-8")
 
 
 def test_fixture_covers_every_pdf_and_docx_in_the_corpus() -> None:

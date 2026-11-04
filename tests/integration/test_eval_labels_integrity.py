@@ -1,9 +1,10 @@
-"""The committed eval labels and the dev/test split are exactly what the scripts produce.
+"""Every evidence quote is in a chunk of this machine's parse, and the dev/test split is
+the seeded one.
 
-Guards two regressions: chunk ids that stop resolving (``document_id_for_uri`` deriving
-ids from machine paths, a chunker change), and a dataset edited by hand without
-re-running ``scripts/build_eval_labels.py`` or ``scripts/split_dataset.py``. Every
-answerable question's evidence quotes must each be found in a chunk.
+The committed chunk ids are the labelling machine's parse and are pinned against the
+committed docling fixture in the fast lane (``tests/unit/test_eval_labels.py``); a live
+parse on other hardware may chunk the PDFs differently, and the eval resolves its gold
+from the quotes, so what must hold here is that every quote is still found.
 
 Integration lane: parsing the corpus loads docling (PDF and DOCX documents).
 """
@@ -35,12 +36,10 @@ def _records(path: Path) -> list[dict[str, object]]:
     return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
 
 
-def test_committed_labels_are_the_evidence_resolved_against_the_corpus() -> None:
+def test_every_evidence_quote_is_in_a_chunk_of_the_live_parse() -> None:
     labels = _script("build_eval_labels")
-    committed = _records(labels.DATASET_PATH)
-    relabelled, problems = labels.label(committed, asyncio.run(labels._load_chunks()))
+    _, problems = labels.label(_records(labels.DATASET_PATH), asyncio.run(labels._load_chunks()))
     assert problems == []
-    assert relabelled == committed, "run `uv run python scripts/build_eval_labels.py`"
 
 
 def test_committed_split_is_the_seeded_split() -> None:
