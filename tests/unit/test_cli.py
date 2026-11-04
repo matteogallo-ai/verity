@@ -503,7 +503,7 @@ def test_eval_run_hands_its_budget_cap_and_warmup_to_the_evaluator(
     original_init = AgentEvaluator.__init__
 
     def _init(self: AgentEvaluator, *args: object, **kwargs: object) -> None:
-        seen["warmup"] = kwargs.get("warmup", True)
+        seen["warmup"] = kwargs.get("warmup", "not passed")
         original_init(self, *args, **kwargs)  # type: ignore[arg-type]
 
     async def _run(self: AgentEvaluator, *args: object, **kwargs: object) -> object:
