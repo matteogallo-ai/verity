@@ -36,7 +36,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from verity.agent.evidence import neutralise, render_evidence
+from verity.agent.evidence import DATAMARK_NOTE, neutralise, render_evidence
 from verity.eval.base import FaithfulnessJudge
 from verity.llm.base import RoutingClient
 from verity.llm.json_output import first_matching, parse_json_object, strict_bool
@@ -260,7 +260,8 @@ class LLMFaithfulnessJudge(FaithfulnessJudge):
             )
 
         messages = self._prompt.render(
-            evidence=render_evidence(list(answer.hits_used), with_scores=False),
+            evidence=render_evidence(list(answer.hits_used), with_scores=False, datamarked=True),
+            datamark_note=DATAMARK_NOTE,
             answer=neutralise(answer.text),
             citations=_render_citations(answer),
         )
@@ -280,7 +281,10 @@ class LLMFaithfulnessJudge(FaithfulnessJudge):
                 refusal_precision=0.0,
                 refusal_recall=0.0,
             )
-        verdicts, supported, citation_ok, total = parsed
+        verdicts = _check_citations(parsed[0], len(answer.citations))
+        total = len(verdicts)
+        supported = sum(1 for v in verdicts if v.supported)
+        citation_ok = sum(1 for v in verdicts if v.citation_ok)
         self.last_claims = verdicts
         faithfulness = supported / total if total else 0.0
         citation_accuracy = citation_ok / total if total else 0.0
@@ -303,6 +307,28 @@ _JUDGE_CLAIMS_KEYS = ("claims", "atomic_claims", "assessments", "verdicts")
 _JUDGE_SUPPORTED_KEYS = ("supported", "is_supported", "grounded")
 _JUDGE_CITATION_OK_KEYS = ("citation_ok", "citation_supports", "citation_valid")
 _JUDGE_CLAIM_TEXT_KEYS = ("claim", "text", "statement")
+
+
+def _citation_index(value: object) -> int | None:
+    """A JSON integer naming a citation, else ``None``. ``True`` is an ``int`` in Python
+    and ``"0"`` or ``0.0`` are guesses: none of them names a citation."""
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    return None
+
+
+def _check_citations(
+    verdicts: tuple[ClaimVerdict, ...], n_citations: int
+) -> tuple[ClaimVerdict, ...]:
+    """``citation_ok`` holds only when the judge named a citation of this answer: a
+    citation that is right for one claim says nothing about the others (audit finding
+    M1). ``supported`` is left as judged, on all the evidence."""
+    return tuple(
+        v
+        if v.citation is not None and 0 <= v.citation < n_citations
+        else v.model_copy(update={"citation_ok": False})
+        for v in verdicts
+    )
 
 
 def _parse_judge_output(text: str) -> tuple[tuple[ClaimVerdict, ...], int, int, int] | None:
@@ -336,7 +362,12 @@ def _parse_judge_output(text: str) -> tuple[tuple[ClaimVerdict, ...], int, int, 
         if is_supported is None or is_citation_ok is None:
             return None
         verdicts.append(
-            ClaimVerdict(claim=claim_text, supported=is_supported, citation_ok=is_citation_ok)
+            ClaimVerdict(
+                claim=claim_text,
+                supported=is_supported,
+                citation_ok=is_citation_ok,
+                citation=_citation_index(entry.get("citation")),
+            )
         )
         if is_supported:
             supported += 1

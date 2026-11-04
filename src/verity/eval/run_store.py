@@ -203,8 +203,8 @@ _PROVENANCE_FIELDS = (
 
 
 def _without_unset_fields(record: dict[str, object]) -> dict[str, object]:
-    """Drop ``stage_ms``, the ``retries`` of each usage record and the provenance fields
-    when they carry nothing.
+    """Drop ``stage_ms``, the ``retries`` of each usage record, the citation index of each
+    judged claim and the provenance fields when they carry nothing.
 
     Runs recorded before these fields existed then save again byte for byte, so a
     rejudge or a headline regeneration never rewrites a run of record."""
@@ -217,6 +217,10 @@ def _without_unset_fields(record: dict[str, object]) -> dict[str, object]:
         usage = record.get(key)
         if isinstance(usage, dict) and not usage.get("retries"):
             usage.pop("retries", None)
+    claims = record.get("judge_claims")
+    for claim in claims if isinstance(claims, list) else ():
+        if isinstance(claim, dict) and claim.get("citation") is None:
+            claim.pop("citation", None)
     return record
 
 

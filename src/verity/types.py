@@ -382,6 +382,9 @@ class ClaimVerdict(BaseModel, frozen=True):
     claim: str
     supported: bool
     citation_ok: bool
+    # Index into the answer's citations that the judge named as supporting the claim
+    # (judge prompt v0.2.0 on); None when it named none, and in earlier runs.
+    citation: int | None = None
 
 
 class PerExampleAudit(BaseModel, frozen=True):
