@@ -143,3 +143,25 @@ def test_check_tests_reports_missing_files(tmp_path: Path) -> None:
 def test_repository_claims_are_structurally_consistent() -> None:
     root = SCRIPT.parents[1]
     assert cc.main(["--root", str(root), "--no-run"]) == 0
+
+
+@pytest.mark.parametrize(
+    "nodeid",
+    ["tests/t.py::test_renamed", "tests/t.py::TestBox::test_gone", "tests/t.py::Missing::test_a"],
+)
+def test_a_listed_test_that_is_not_defined_is_reported_without_running(
+    tmp_path: Path, nodeid: str
+) -> None:
+    """A renamed test makes pytest abort the whole claims run in CI, where Postgres is;
+    the structure check catches it on any machine."""
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "t.py").write_text(
+        "def test_kept():\n    pass\n"
+        "class TestBox:\n    def test_kept(self):\n        pass\n"
+        "async def test_async():\n    pass\n"
+    )
+    kept = ["tests/t.py::test_kept", "tests/t.py::TestBox::test_kept", "tests/t.py::test_async"]
+    claims = [cc.Claim("C01", "shipped", [*kept, "tests/t.py", nodeid])]
+    assert cc.check_tests(claims, tmp_path, run=False) == [
+        f"C01: test not defined in its file: {nodeid}"
+    ]
