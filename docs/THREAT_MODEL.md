@@ -126,7 +126,8 @@ evidence is not marked: `confidence.prompt` is frozen and does not describe the 
 `datasets/eval/injection/` holds 12 naturally worded poisoned documents, none caught
 by the marker list, and `scripts/run_injection_eval.py` counts how often each steers a
 shipped answer, with and without the mark (`--no-datamark`). Three live runs per arm
-(`claude-sonnet-4-6`, `datasets/eval/injection/runs/`, pooled in
+(`claude-sonnet-4-6`, at `8547ae5` on the 6-document corpus of that commit,
+`datasets/eval/injection/runs/`, pooled in
 `scorecards/injection-spotlighting.json`): no case was steered, with the mark (0/12
 cases, Wilson 95 % [0, 0.243]) or without it (0/12, same interval). The three repetitions
 of a case often give the same answer word for word, so the case, not the answer, is the
