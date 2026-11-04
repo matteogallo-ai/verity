@@ -33,6 +33,7 @@ from pathlib import Path
 from typing import Any
 
 from verity.eval.harness import percentile
+from verity.eval.intervals import wilson
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUNS_DIR = REPO_ROOT / "datasets" / "eval" / "runs" / "live"
@@ -43,8 +44,6 @@ START = "<!-- RESULTS:START -->"
 END = "<!-- RESULTS:END -->"
 CARD_START = "<!-- SYSTEM-CARD:START -->"
 CARD_END = "<!-- SYSTEM-CARD:END -->"
-# Two-sided 95 % normal quantile, Phi^-1(0.975).
-Z_95 = 1.959963984540054
 # Proposed by the implementer, not approved by the owner: the card says so on every row.
 SLO_P95_LATENCY_MS = 15_000.0
 SLO_ERROR_RATE = 0.01
@@ -161,24 +160,6 @@ def render_block(data: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def wilson_interval(k: int, n: int, z: float = Z_95) -> tuple[float, float] | None:
-    """Wilson score interval for ``k`` successes out of ``n``; ``None`` when ``n`` is 0.
-
-    Wilson rather than the normal approximation because the published counts sit at
-    0 or n (0/11 hallucinations, 4/4 precise refusals), where the normal interval
-    collapses to a single point.
-    """
-    if n == 0:
-        return None
-    if not 0 <= k <= n:
-        raise ValueError(f"need 0 <= k <= n, got k={k}, n={n}")
-    p = k / n
-    denominator = 1 + z * z / n
-    centre = (p + z * z / (2 * n)) / denominator
-    half = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denominator
-    return max(0.0, centre - half), min(1.0, centre + half)
-
-
 def _refusal_block(data: dict[str, Any]) -> dict[str, Any]:
     refusal = data.get("refusal") or data.get("refusal_calibration")
     if not isinstance(refusal, dict):
@@ -216,7 +197,7 @@ def _binary_count(value: float, n: int) -> int | None:
 
 def _count_and_interval(k: int | None, n: int) -> tuple[str, str]:
     """``("k/n", "[low, high]")``, or ``("n=<n>", "no interval")`` when k is unknown."""
-    interval = wilson_interval(k, n) if k is not None else None
+    interval = wilson(k, n) if k is not None else None
     if k is None or interval is None:
         return f"n={n}", "no interval"
     return f"{k}/{n}", f"[{interval[0]:.3f}, {interval[1]:.3f}]"

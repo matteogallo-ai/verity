@@ -370,29 +370,6 @@ def test_check_mode_never_writes_the_readme(tmp_path: Path) -> None:
 # --- system card block ------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    ("k", "n", "low", "high"),
-    [
-        # Reference values of the Wilson (1927) score interval at z = 1.96.
-        (5, 10, 0.236593, 0.763407),
-        (0, 10, 0.0, 0.277533),
-        (10, 10, 0.722467, 1.0),
-        (17, 22, 0.565600, 0.898770),
-    ],
-)
-def test_wilson_interval_matches_reference_values(k: int, n: int, low: float, high: float) -> None:
-    generator = _load_generator()
-    assert generator.wilson_interval(k, n) == pytest.approx((low, high), abs=1e-6)
-
-
-def test_wilson_interval_is_none_without_observations_and_rejects_impossible_counts() -> None:
-    generator = _load_generator()
-    assert generator.wilson_interval(0, 0) is None
-    for k, n in ((-1, 5), (6, 5)):
-        with pytest.raises(ValueError):
-            generator.wilson_interval(k, n)
-
-
 def _committed_scorecard() -> dict:  # type: ignore[type-arg]
     return json.loads((REPO_ROOT / "scorecards" / "live-v1.0.0.json").read_text(encoding="utf-8"))
 
