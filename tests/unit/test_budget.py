@@ -132,8 +132,8 @@ def test_ask_stops_at_the_budget_with_exit_4_and_prints_the_spend(
     import verity.agent.scripted_stub
     import verity.cli
 
-    async def _retriever(**_: object) -> tuple[object, str]:
-        return await _seed_retriever(), "memory"
+    async def _retriever(**_: object) -> tuple[object, str, list[object]]:
+        return await _seed_retriever(), "memory", []
 
     monkeypatch.setattr(verity.cli, "_build_retriever", _retriever)
     monkeypatch.setattr(

@@ -1,10 +1,9 @@
 """Fill ``relevant_chunk_ids`` in the eval dataset from each question's ``evidence``.
 
-Every answerable question lists, in ``evidence``, verbatim quotes from the corpus that
-together answer it. A chunk is gold for the question when it contains one of the
-quotes (whitespace-normalised). The corpus is parsed and chunked in dry-run mode: no
-database, no embedding model. Matching is plain substring lookup on purpose: using
-the retriever to label the retriever would defeat the benchmark.
+The gold chunks of a question are those holding one of its ``evidence`` quotes
+(``verity.eval.labels``, which the eval also applies to the chunks it ingests). The
+committed ids are the labelling machine's parse; the corpus is parsed and chunked in
+dry-run mode: no database, no embedding model.
 
 Fails (exit 1) when an answerable question has no evidence, a quote matches no chunk,
 or an unanswerable question carries evidence.
@@ -18,10 +17,10 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import re
 import sys
 from pathlib import Path
 
+from verity.eval.labels import gold_chunk_ids
 from verity.ingestion import StructureAwareChunker, create_default_parser
 from verity.ingestion.pipeline import IngestionPipeline, discover_sources
 from verity.types import Chunk
@@ -49,10 +48,6 @@ class _NullEmbedder:
         return []
 
 
-def _normalise(text: str) -> str:
-    return re.sub(r"\s+", " ", text).strip()
-
-
 async def _load_chunks() -> list[Chunk]:
     pipeline = IngestionPipeline(
         parser=create_default_parser(), chunker=StructureAwareChunker(), embedder=_NullEmbedder()
@@ -63,21 +58,17 @@ async def _load_chunks() -> list[Chunk]:
 
 def label(records: list[dict], chunks: list[Chunk]) -> tuple[list[dict], list[str]]:  # type: ignore[type-arg]
     """The records with ``relevant_chunk_ids`` filled, and every labelling problem."""
-    texts = [(str(c.id), _normalise(c.text)) for c in chunks]
     problems: list[str] = []
     out: list[dict] = []  # type: ignore[type-arg]
     for record in records:
         qid, evidence = record["id"], record.get("evidence", [])
-        ids: list[str] = []
         if record["answerable"] and not evidence:
             problems.append(f"{qid}: answerable but has no evidence")
         if not record["answerable"] and evidence:
             problems.append(f"{qid}: unanswerable but has evidence")
-        for quote in evidence:
-            hits = [cid for cid, text in texts if _normalise(quote) in text]
-            if not hits:
-                problems.append(f"{qid}: no chunk contains {quote!r}")
-            ids.extend(h for h in hits if h not in ids)
+        found, missing = gold_chunk_ids(evidence, chunks)
+        problems.extend(f"{qid}: no chunk contains {quote!r}" for quote in missing)
+        ids = [str(cid) for cid in found]
         out.append({**record, "relevant_chunk_ids": ids})
     return out, problems
 

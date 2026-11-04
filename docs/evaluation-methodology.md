@@ -42,7 +42,12 @@ is a bug.
 | `tags` | the categories above |
 
 `scripts/build_eval_labels.py` resolves `evidence` to chunk ids by substring match
-(never with the retriever it evaluates) and fails if a quote matches no chunk.
+(never with the retriever it evaluates) and fails if a quote matches no chunk. The
+committed ids are the labelling machine's parse. `verity eval run` and `verity eval
+retrieval` resolve the gold again, by the same match, against the chunks they ingest,
+and exit 2 if a quote is in no chunk: docling's layout model parses the corpus PDFs
+differently on other CPUs (on the GitHub runner, numbered headings became list items),
+which moves offsets and so chunk ids, not the quotes.
 
 A false-premise question counts as unanswerable: the fact it asks about does not exist
 in the corpus, so the expected outcome is a refusal. An answer that corrects the

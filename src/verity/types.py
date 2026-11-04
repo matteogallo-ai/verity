@@ -308,6 +308,9 @@ class EvalExample(BaseModel, frozen=True):
     answerable: bool
     reference_answer: str | None = None  # None iff not answerable
     relevant_chunk_ids: tuple[ChunkId, ...] = ()  # gold retrieval labels
+    # Verbatim corpus quotes answering the question; the eval resolves the gold
+    # chunks from them (``verity.eval.labels``).
+    evidence: tuple[str, ...] = ()
     tags: tuple[str, ...] = ()
 
 

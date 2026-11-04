@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from verity.eval.harness import HarnessResult
     from verity.retrieval.base import Retriever
     from verity.runtime import StoreKind
-    from verity.types import Answer, RetrievalHit
+    from verity.types import Answer, Chunk, EvalExample, RetrievalHit
 
 app = typer.Typer(
     name="verity",
@@ -205,7 +205,7 @@ def ask(
     if not stub:
         _require_llm_api_key()
 
-    retriever, _ = asyncio.run(_build_retriever(corpus=corpus, store=store, no_rerank=False))
+    retriever, _, _ = asyncio.run(_build_retriever(corpus=corpus, store=store, no_rerank=False))
     router = build_stub_router() if stub else create_default_routing_client()
     client = SpendCappedClient(router, cap_usd=cap)
     agent = create_default_agent(retriever=retriever, client=client)
@@ -364,9 +364,10 @@ def eval_retrieval(
         )
         raise typer.Exit(code=0)
 
-    retriever, backend_name = asyncio.run(
+    retriever, backend_name, chunks = asyncio.run(
         _build_retriever(corpus=corpus, store=store, no_rerank=no_rerank)
     )
+    examples = [e for e in _gold_from_evidence(examples, chunks) if e.relevant_chunk_ids]
 
     scorecard = asyncio.run(
         run_retrieval_eval(
@@ -428,14 +429,15 @@ def eval_retrieval(
 
 async def _build_retriever(
     *, corpus: Path, store: str | None, no_rerank: bool
-) -> tuple[Retriever, str]:
+) -> tuple[Retriever, str, list[Chunk]]:
     """Build the retriever on the chosen store, after ingesting ``corpus`` into it.
 
     Ingesting syncs the store's corpus documents with the directory (unchanged ones
     are not embedded again, edited ones are replaced, removed files leave). Documents
     from other sources, such as API uploads to the same database, stay and are
-    retrieved too. Returns ``(retriever, store_name)`` so
-    the scorecard records where the numbers came from.
+    retrieved too. Returns ``(retriever, store_name, corpus_chunks)``: the scorecard
+    records where the numbers came from, and the eval resolves its gold chunks from
+    the chunks of this parse.
     """
     from verity.runtime import build_local_components, build_retriever, ingest_corpus
 
@@ -446,7 +448,22 @@ async def _build_retriever(
         f"[dim]{kind} store: ingested {result.n_documents} docs, {result.n_chunks} chunks "
         f"(elapsed {result.elapsed_s:.2f}s)[/dim]"
     )
-    return build_retriever(store=vector_store, embedder=embedder, reranker=reranker), kind
+    retriever = build_retriever(store=vector_store, embedder=embedder, reranker=reranker)
+    return retriever, kind, result.chunks
+
+
+def _gold_from_evidence(examples: list[EvalExample], chunks: list[Chunk]) -> list[EvalExample]:
+    """The examples with their gold chunks resolved from their evidence against this
+    parse of the corpus (see ``verity.eval.labels``); exit 2 when a quote is in no
+    chunk, since every retrieval figure would then be scored against a wrong gold."""
+    from verity.eval.labels import resolve_gold
+
+    resolved, problems = resolve_gold(examples, chunks)
+    if problems:
+        for problem in problems:
+            console.print(f"[red]{problem}[/red]")
+        raise typer.Exit(code=2)
+    return resolved
 
 
 def _resolve_store(store: str | None) -> StoreKind:
@@ -459,7 +476,7 @@ def _resolve_store(store: str | None) -> StoreKind:
 async def _run_retrieve(
     *, query: str, k: int, corpus: Path, store: str | None, no_rerank: bool
 ) -> list[RetrievalHit]:
-    retriever, _ = await _build_retriever(corpus=corpus, store=store, no_rerank=no_rerank)
+    retriever, _, _ = await _build_retriever(corpus=corpus, store=store, no_rerank=no_rerank)
     return await retriever.retrieve(query, k=k)
 
 
@@ -707,9 +724,10 @@ def eval_run(
         console.print("[yellow]Empty dataset — nothing to score.[/yellow]")
         raise typer.Exit(code=0)
 
-    retriever, backend_name = asyncio.run(
+    retriever, backend_name, chunks = asyncio.run(
         _build_retriever(corpus=corpus, store=store, no_rerank=False)
     )
+    examples = _gold_from_evidence(examples, chunks)
 
     # Agent LLM: stub by default (offline), real client if the user turned it off.
     agent_client = build_stub_router() if agent_stub else create_default_routing_client()
