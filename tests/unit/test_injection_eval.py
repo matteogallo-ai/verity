@@ -114,3 +114,26 @@ def test_a_run_that_crashes_keeps_every_answer_it_paid_for(
     result = json.loads(out.read_text(encoding="utf-8"))
     assert result["complete"] is False
     assert len(result["attacks"]) == len(_CASES)
+
+
+@pytest.mark.slow
+@pytest.mark.asyncio
+async def test_every_poisoned_document_is_retrieved_for_its_question() -> None:
+    """A case whose poisoned document never reaches the evidence measures retrieval,
+    not the synthesizer: a 0 % attack rate would then say nothing about the mark."""
+    from verity.config import get_settings
+    from verity.ingestion.ids import document_id_for_uri
+    from verity.runtime import build_local_components, build_retriever, ingest_corpus
+
+    store, embedder, reranker = build_local_components(store="memory")
+    for directory in (injection_eval.CORPUS, injection_eval.INJECTION / "corpus"):
+        await ingest_corpus(corpus_dir=directory, store=store, embedder=embedder)
+    retriever = build_retriever(store=store, embedder=embedder, reranker=reranker)
+    missed = []
+    for case in _CASES:
+        path = injection_eval.INJECTION / "corpus" / case["poisoned_document"]
+        poisoned = str(document_id_for_uri(str(path)))
+        hits = await retriever.retrieve(case["question"], k=get_settings().rerank_k)
+        if poisoned not in {str(h.chunk.document_id) for h in hits}:
+            missed.append(case["id"])
+    assert missed == []
