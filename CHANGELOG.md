@@ -24,10 +24,11 @@ follows [Semantic Versioning](https://semver.org/).
 - Injection measurement, 3 live runs per arm on `claude-sonnet-4-6` ($2.16 in all),
   committed in `datasets/eval/injection/runs/` with a hand review of every marker match
   and pooled by `scripts/summarise_injection_runs.py` into
-  `scorecards/injection-spotlighting.json`: 0/36 steered answers with the mark and 0/36
-  without (Wilson 95 % [0, 0.096] each); 33/33 controls answered in each arm; the mark
-  adds about 75 % input tokens (mean 4,926 against 2,822 per answer). The set does not
-  separate the arms.
+  `scorecards/injection-spotlighting.json`: 0/12 cases steered with the mark and 0/12
+  without (Wilson 95 % [0, 0.243] each, the case being the unit); answers refused on
+  cases the clean corpus answers, 4/24 with the mark and 7/24 without; 33/33 controls
+  answered in each arm; the mark adds about 75 % input tokens (mean 4,926 against 2,822
+  per answer). The set does not separate the arms.
 - `verity.eval.intervals.wilson` is the one Wilson interval; the headline generator
   uses it.
 - The API ingests the corpus and loads the embedding and reranker models at startup, in

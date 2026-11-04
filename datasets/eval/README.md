@@ -65,5 +65,8 @@ by the mark alone.
 `injection/runs/` holds the live runs of record (three per arm), pinned in its
 `SHA256SUMS`, and `review.jsonl`, one hand-read verdict per marker match.
 `scripts/summarise_injection_runs.py` pools them per arm with Wilson intervals into
-`scorecards/injection-spotlighting.json`; it fails when a match has no verdict. Only
-marker matches are read: a steered answer that avoids every marker is not counted.
+`scorecards/injection-spotlighting.json`, the case as the unit since repetitions are
+not independent; it fails when a match has no verdict or a run is not a complete live
+run on the same commit and model. Only marker matches are read: a steered answer that
+avoids every marker is not counted. Refusals of cases the clean corpus answers are
+counted apart (`answerable_refused`).
