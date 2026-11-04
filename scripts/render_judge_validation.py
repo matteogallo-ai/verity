@@ -249,15 +249,22 @@ def render_adjudicated_block(result: dict[str, Any], blind: dict[str, Any]) -> s
 
 def render_v2_block(result: dict[str, Any], blind: dict[str, Any]) -> str:
     """The rejudge with the current judge prompt, beside the κ of the runs of record."""
-    s, sb = result["sensitivity"], blind["sensitivity"]
+    s, old = result["sensitivity"], result["v010_on_the_same_claims"]
+    so = old["sensitivity"]
     mixed, real = result["agreement_mixed"], result["agreement_real_only"]
     named = result["citation_named"]
-    same = result["v010_on_the_same_claims"]
+    stopped = []
+    if result["n_unjudged"]:
+        stopped.append(f"the budget stopped the rejudge before {result['n_unjudged']}")
+    if result["n_malformed"]:
+        stopped.append(f"{result['n_malformed']} got malformed output")
     scope = (
         f"all {result['n_items']} claims"
         if result["complete"]
-        else f"**{result['n_judged']} of {result['n_items']} claims only: the budget stopped "
-        "the rejudge**, so the figures below are incomplete"
+        else f"**{result['n_judged']} of {result['n_items']} claims only: "
+        f"{' and '.join(stopped)}**, so the figures below are incomplete and both prompts "
+        "are compared on those claims; the unjudged ones are the last in id order, not a "
+        "random sample"
     )
 
     def kappa(a: dict[str, Any]) -> str:
@@ -267,25 +274,27 @@ def render_v2_block(result: dict[str, Any], blind: dict[str, Any]) -> str:
         f"Judge `{result['judge_model']}` with judge prompt v{result['prompt_version']} "
         f"(sha256 `{result['prompt_sha256'][:12]}`), the prompt in `prompts/`: its inputs are "
         "delimited and its evidence datamarked, and it names the citation of each claim. "
-        f"Rejudged against the same blind labels, for ${result['cost_usd']:.2f}, on "
+        f"Rejudged against the same blind labels, for ${result['cost_usd']:.4f}, on "
         f"{scope}. Every claim, real or perturbed, is judged as a one-claim "
         "answer; v0.1.0 used the live whole-answer verdict for the real claims, so a change "
         "on real claims mixes the prompt and the protocol. The runs of record were judged by "
         "v0.1.0: their answer-quality figures carry the v0.1.0 κ above.",
         "",
-        "| Measure | v0.1.0 (runs of record) | v0.2.0 |",
+        f"| Measure, on the {mixed['n_claims']} claims v0.2.0 judged | v0.1.0 (runs of record) "
+        "| v0.2.0 |",
         "|---|---|---|",
-        f"| Cohen's κ, all claims judged | {kappa(blind['agreement_mixed'])} "
-        f"({blind['agreement_mixed']['n_claims']}) | {kappa(mixed)} ({mixed['n_claims']}) |",
-        f"| Cohen's κ, the same {same['n_claims']} claims | {kappa(same)} | {kappa(mixed)} |",
-        f"| Observed agreement, the same {same['n_claims']} claims | {_ci(same['observed'])} | "
+        f"| Cohen's κ, all claims | {kappa(old['agreement_mixed'])} | {kappa(mixed)} |",
+        f"| Observed agreement | {_ci(old['agreement_mixed']['observed'])} | "
         f"{_ci(mixed['observed'])} |",
         f"| Cohen's κ, real claims only (fragile: {_human_counts(real)[1]} unsupported) | "
-        f"{kappa(blind['agreement_real_only'])} | {kappa(real)} |",
-        f"| Judge specificity on real claims | {_ci(blind['specificity_real'])} | "
+        f"{kappa(old['agreement_real_only'])} | {kappa(real)} |",
+        f"| Judge specificity on real claims | {_ci(old['specificity_real'])} | "
         f"{_ci(result['specificity_real'])} |",
-        f"| Sensitivity on perturbed claims (upper bound) | {_ci(sb['judge_detected'])} | "
+        f"| Sensitivity on perturbed claims (upper bound) | {_ci(so['judge_detected'])} | "
         f"{_ci(s['judge_detected'])} |",
+        "",
+        f"On all 60 claims v0.1.0 has κ {kappa(blind['agreement_mixed'])}, the figure of "
+        "record above.",
         "",
         f"The judge named a valid citation it found supporting for {named['k']} of the "
         f"{named['n']} claims it returned. The blind labels judge support only, so this "

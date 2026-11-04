@@ -176,7 +176,9 @@ and `tests/unit/test_judge_injection.py`.
   - *Not covered.* No adversarial eval of the judge exists: the judge validation
     measures agreement on claims that rarely had the injected note in the judge's
     context, so the robustness of either prompt to injection is not measured. No run
-    of record has been judged by v0.2.0.
+    of record has been judged by v0.2.0. The citation quotes in `<citations>` are
+    neutralised but not datamarked: they are verbatim document text, so an injected
+    sentence a draft quotes reaches the judge unmarked inside that block.
 
 ## LLM02 Sensitive information disclosure
 

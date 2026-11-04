@@ -603,8 +603,11 @@ def test_the_v2_kappa_uses_the_blind_labels_and_says_when_it_is_incomplete(
     assert partial["complete"] is False
     assert partial["n_judged"] == 3 and partial["n_items"] == 8
     assert partial["agreement_mixed"]["n_claims"] == 3
-    # v0.1.0 on the same claims, so the two judges are compared on one set.
-    assert partial["v010_on_the_same_claims"]["n_claims"] == 3
+    # v0.1.0 on the same claims, every measure, so the two judges are compared on one set.
+    same = partial["v010_on_the_same_claims"]
+    assert same["agreement_mixed"]["n_claims"] == 3
+    assert same["specificity_real"]["n"] + same["sensitivity"]["judge_detected"]["n"] <= 3
+    assert (partial["n_unjudged"], partial["n_malformed"]) == (5, 0)
     asyncio.run(mod.judge_all(_CitingJudge(catch=("not",)), 1.0, **_V2))
     assert mod.main(["kappa-v2"]) == 0
     full = json.loads(mod.V2_RESULT.read_text())
@@ -613,3 +616,18 @@ def test_the_v2_kappa_uses_the_blind_labels_and_says_when_it_is_incomplete(
     assert full["citation_named"] == {"k": 8, "n": 8}
     # The blind labels and the result of record are never written.
     assert not mod.RESULT.exists()
+
+
+def test_a_malformed_v2_verdict_is_not_blamed_on_the_budget(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mod = _module(tmp_path, monkeypatch)
+    assert mod.main(["export", str(_save_run(tmp_path))]) == 0
+    key = json.loads(mod.KEY.read_text())["items"]
+    _annotate(mod, {i: U if v["origin"] == "perturbed" else S for i, v in key.items()})
+    asyncio.run(mod.judge_perturbed(_FakeJudge(catch=("not",)), budget_usd=1.0))
+    asyncio.run(mod.judge_all(_CitingJudge(catch=(), malformed=("Acme",)), 1.0, **_V2))
+    assert mod.main(["kappa-v2"]) == 0
+    result = json.loads(mod.V2_RESULT.read_text())
+    assert result["n_unjudged"] == 0 and result["n_malformed"] >= 1
+    assert result["complete"] is False

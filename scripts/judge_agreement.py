@@ -331,8 +331,8 @@ async def judge_perturbed(judge: Judge, budget_usd: float) -> dict[str, Any]:
     once ``budget_usd`` is spent; malformed judge output counts as no verdict.
 
     Each verdict is written as soon as it is paid for, and a rerun skips the items
-    already in the file: a provider error stops the loop without losing them, and
-    ``budget_usd`` bounds this invocation's spend."""
+    already in the file: a provider error stops the loop without losing them. The budget
+    is checked before each call, so the last call can take the spend past it."""
     return await _judge_items(judge, _perturbed_items(_read_json(KEY)), REJUDGED, budget_usd, {})
 
 
@@ -477,17 +477,16 @@ def kappa_v2() -> int:
     if isinstance(v010, str):
         print(v010, file=sys.stderr)
         return 1
-    # When the budget stops the rejudge early, the two κ cover different claims; this
-    # one compares the judges on the same set.
-    result["v010_on_the_same_claims"] = _agreement(
-        [
-            (old, human[i])
-            for i in sorted(key)
-            if judge[i] is not None and (old := v010[1][i]) is not None
-        ]
+    # When the rejudge stops early, its claims are not a random sample of the 60: every
+    # v0.1.0 measure is recomputed on the same claims so each row compares like with like.
+    result["v010_on_the_same_claims"] = measure(
+        key, {i: (v010[1][i] if judge[i] is not None else None) for i in key}, human
     )
     claims = [c for v in verdicts.values() for c in v["claims"]]
     n_judged = sum(1 for v in judge.values() if v is not None)
+    # Malformed output is stored with no verdict and skipped on resume: it is counted
+    # apart from the claims the budget left unjudged, so neither is blamed on the other.
+    n_unjudged = sum(1 for i in key if i not in verdicts)
     result.update(
         {
             "judge_model": rejudged["judge_model"],
@@ -497,6 +496,8 @@ def kappa_v2() -> int:
             "n_items": len(key),
             "n_judged": n_judged,
             "complete": n_judged == len(key),
+            "n_unjudged": n_unjudged,
+            "n_malformed": len(key) - n_judged - n_unjudged,
             # Named and in range; the human labels say nothing about citations, so this
             # is a count, not an agreement.
             "citation_named": {

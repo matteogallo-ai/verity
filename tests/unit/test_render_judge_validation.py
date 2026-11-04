@@ -100,8 +100,10 @@ def _v2(n_judged: int = 60) -> dict[str, Any]:
             "citation_named": {"k": 55, "n": 62},
         }
     )
-    same = _agreement()["agreement_mixed"]
-    result["v010_on_the_same_claims"] = {**same, "n_claims": n_judged, "cohen_kappa": 0.64}
+    result["n_unjudged"], result["n_malformed"] = 60 - n_judged, 0
+    same = _agreement()
+    same["agreement_mixed"]["cohen_kappa"] = 0.64
+    result["v010_on_the_same_claims"] = same
     return result
 
 
@@ -225,17 +227,18 @@ def test_the_v010_kappa_is_labelled_from_the_prompt_the_runs_recorded(tmp_path: 
 
 def test_the_v2_block_compares_with_v010_and_names_its_protocol() -> None:
     block = _load("render_judge_validation").render_v2_block(_v2(), _agreement())
-    assert "| Cohen's κ, all claims judged | 0.71 (60) | 0.85 (60) |" in block
-    assert "| Cohen's κ, the same 60 claims | 0.64 | 0.85 |" in block
+    assert "| Cohen's κ, all claims | 0.64 | 0.85 |" in block
+    assert "On all 60 claims v0.1.0 has κ 0.71" in block
     assert "judge prompt v0.2.0 (sha256 `abababababab`)" in block
-    assert "for $1.23, on all 60 claims." in block
+    assert "for $1.2340, on all 60 claims." in block
     assert "mixes the prompt and the protocol" in block
     assert "55 of the 62 claims" in block and "not validated against a human" in block
 
 
 def test_an_incomplete_rejudge_is_published_as_incomplete() -> None:
     block = _load("render_judge_validation").render_v2_block(_v2(n_judged=52), _agreement())
-    assert "**52 of 60 claims only: the budget stopped the rejudge**" in block
+    assert "**52 of 60 claims only: the budget stopped the rejudge before 8**" in block
+    assert "not a random sample" in block
     assert "incomplete" in block
 
 
