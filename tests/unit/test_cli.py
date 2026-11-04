@@ -49,8 +49,9 @@ def shared_stub_harness(
 
     These tests pin what the CLI does with a finished run (floors, exit codes, what
     it persists); the run itself is the same stub evaluation of the full dataset,
-    minutes on a CI runner, so it is computed once. A test that changes the run
-    (an outage inside it) does not request this fixture."""
+    minutes on a CI runner, so it is computed once. The cached run ignores the
+    arguments of later calls (budget cap, warmup): a test that pins those, or that
+    changes the run (an outage inside it), does not request this fixture."""
     from verity.eval import AgentEvaluator
 
     original = AgentEvaluator.run
