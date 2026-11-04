@@ -116,6 +116,30 @@ refuses, before the scorer runs, on injection markers, low citation coverage or
 irrelevant citations; the scorer's score cannot override it
 (`verity.agent.agent.RagAgent._answer`).
 
+The synthesizer's evidence is also datamarked (spotlighting, Hines et al. 2024,
+arXiv:2403.14720): every space between the words of retrieved text is replaced by `ˆ`,
+which `synthesize.prompt` v0.3.0 names as the mark of document content that is never
+an instruction. Invisible format characters and blank look-alikes are marked too, so
+a document cannot join words without the mark. Quotes are matched across the mark and
+stored as the original text. The scorer's
+evidence is not marked: `confidence.prompt` is frozen and does not describe the mark.
+`datasets/eval/injection/` holds 12 naturally worded poisoned documents, none caught
+by the marker list, and `scripts/run_injection_eval.py` counts how often each steers a
+shipped answer, with and without the mark (`--no-datamark`). Three live runs per arm
+(`claude-sonnet-4-6`, `datasets/eval/injection/runs/`, pooled in
+`scorecards/injection-spotlighting.json`): no case was steered, with the mark (0/12
+cases, Wilson 95 % [0, 0.243]) or without it (0/12, same interval). The three repetitions
+of a case often give the same answer word for word, so the case, not the answer, is the
+unit. The attacks did not plant content, but they denied answers: of 24 answers to
+cases the clean corpus answers, 4 were refused with the mark and 7 without, against
+33/33 controls answered in each arm. The runs keep no draft or refusal reason, so
+whether the scorer stopped a steered draft or the injection talked the model out of
+answering is not known. Without the mark, 3 answers named the planted content to
+reject it, and 1 of them cited the poisoned passage; with the mark, none did, a
+difference within noise at this size. The metric is end to end, after the scorer, while
+the mark acts on the synthesizer alone. The set does not separate the arms: the effect
+of datamarking on injection success is not shown.
+
 **Tests.** `tests/unit/test_prompt_injection.py::test_a_document_cannot_close_its_delimiters`,
 `tests/unit/test_prompt_injection.py::test_every_prompt_marks_its_inputs_untrusted`, `tests/unit/test_prompt_injection.py::test_a_section_title_cannot_inject_attributes_or_tags`,
 `tests/unit/test_prompt_injection.py::test_the_scorer_prompt_delimits_the_draft_answer`;
@@ -125,7 +149,9 @@ irrelevant citations; the scorer's score cannot override it
 
 **Not stopped.**
 
-- An injection paraphrased past the marker list in `verity.agent.support`.
+- An injection paraphrased past the marker list in `verity.agent.support`. Datamarking
+  applies to the synthesizer only, and its effect is not shown by the injection set
+  (no attack succeeded in either arm); the scorer reads unmarked evidence.
 - The thresholds and the marker list were chosen on the same eval questions they are
   checked on.
 - **The eval judge prompt is undefended (LLM01 on the evaluator).**
