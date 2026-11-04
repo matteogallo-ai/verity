@@ -76,7 +76,13 @@ jobs:
         run: uv run pytest -m "not integration and not slow"
 
       - name: Pytest — slow lane (loads the local embedding / reranker models)
-        run: uv run pytest -m "slow and not integration" --cov-append
+        # The runner log shows a line only at a newline: -v prints one per test, and a
+        # test stuck past faulthandler_timeout dumps every thread's stack, so a hang
+        # names itself instead of running silently until the job is cancelled.
+        timeout-minutes: 40
+        run: >-
+          uv run pytest -m "slow and not integration" --cov-append -v
+          -o faulthandler_timeout=900
 
       - name: Upload coverage
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
