@@ -594,6 +594,7 @@ def test_the_v2_kappa_uses_the_blind_labels_and_says_when_it_is_incomplete(
     assert mod.main(["export", str(_save_run(tmp_path))]) == 0
     key = json.loads(mod.KEY.read_text())["items"]
     _annotate(mod, {i: U if v["origin"] == "perturbed" else S for i, v in key.items()})
+    asyncio.run(mod.judge_perturbed(_FakeJudge(catch=("not",)), budget_usd=1.0))
     assert mod.main(["kappa-v2"]) == 1  # nothing judged yet
     # The budget stops the judge after three of the eight claims.
     asyncio.run(mod.judge_all(_CitingJudge(catch=("not",)), 0.025, **_V2))
@@ -602,6 +603,8 @@ def test_the_v2_kappa_uses_the_blind_labels_and_says_when_it_is_incomplete(
     assert partial["complete"] is False
     assert partial["n_judged"] == 3 and partial["n_items"] == 8
     assert partial["agreement_mixed"]["n_claims"] == 3
+    # v0.1.0 on the same claims, so the two judges are compared on one set.
+    assert partial["v010_on_the_same_claims"]["n_claims"] == 3
     asyncio.run(mod.judge_all(_CitingJudge(catch=("not",)), 1.0, **_V2))
     assert mod.main(["kappa-v2"]) == 0
     full = json.loads(mod.V2_RESULT.read_text())

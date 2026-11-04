@@ -85,15 +85,45 @@ def test_kappa_on_a_class_of_fewer_than_five_is_marked_fragile() -> None:
     assert "fragile" not in mixed_row
 
 
+def _v2(n_judged: int = 60) -> dict[str, Any]:
+    result = _agreement(judge_unsup_human_sup=2)
+    result["agreement_mixed"]["cohen_kappa"] = 0.85
+    result.update(
+        {
+            "judge_model": "claude-opus-5-5",
+            "prompt_version": "0.2.0",
+            "prompt_sha256": "ab" * 32,
+            "cost_usd": 1.234,
+            "n_items": 60,
+            "n_judged": n_judged,
+            "complete": n_judged == 60,
+            "citation_named": {"k": 55, "n": 62},
+        }
+    )
+    same = _agreement()["agreement_mixed"]
+    result["v010_on_the_same_claims"] = {**same, "n_claims": n_judged, "cohen_kappa": 0.64}
+    return result
+
+
+def _offline(mod: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Provenance and the v0.2.0 artefact from fixtures, not from the repository."""
+    monkeypatch.setattr(mod, "provenance", _prov)
+    v2 = tmp_path / "v2.json"
+    v2.write_text(json.dumps(_v2()))
+    monkeypatch.setattr(mod, "V2_AGREEMENT", v2)
+    monkeypatch.setattr(mod, "check_current_prompt", lambda result: None)
+
+
 def test_check_writes_nothing_and_fails_on_drift(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     mod = _load("render_judge_validation")
-    monkeypatch.setattr(mod, "provenance", _prov)
+    _offline(mod, monkeypatch, tmp_path)
     readme = tmp_path / "README.md"
     readme.write_text(
         "x\n<!-- JUDGE:START -->\nstale\n<!-- JUDGE:END -->\n"
         "<!-- JUDGE-ADJUDICATED:START -->\nstale\n<!-- JUDGE-ADJUDICATED:END -->\n"
+        "<!-- JUDGE-V2:START -->\nstale\n<!-- JUDGE-V2:END -->\n"
     )
     before = readme.read_text()
     assert mod.main(["--readme", str(readme), "--check"]) == 1
@@ -102,7 +132,7 @@ def test_check_writes_nothing_and_fails_on_drift(
 
 def test_missing_markers_fail_loudly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     mod = _load("render_judge_validation")
-    monkeypatch.setattr(mod, "provenance", _prov)
+    _offline(mod, monkeypatch, tmp_path)
     readme = tmp_path / "README.md"
     readme.write_text("no markers\n")
     with pytest.raises(SystemExit, match="markers"):
@@ -179,10 +209,34 @@ def test_the_committed_provenance_matches_the_runs_and_the_key() -> None:
 def test_a_changed_judge_prompt_refuses_to_render(tmp_path: Path) -> None:
     """κ measured with one prompt must not be published under another."""
     mod = _load("render_judge_validation")
+    measured = {"prompt_sha256": mod._sha256(mod.JUDGE_PROMPT)}
+    mod.check_current_prompt(measured)
     changed = tmp_path / "judge_faithfulness.prompt"
     changed.write_text(mod.JUDGE_PROMPT.read_text() + "\n# any edit makes a new judge\n")
     with pytest.raises(SystemExit, match="changed since"):
-        mod.provenance(prompt=changed)
+        mod.check_current_prompt(measured, prompt=changed)
+
+
+def test_the_v010_kappa_is_labelled_from_the_prompt_the_runs_recorded(tmp_path: Path) -> None:
+    mod = _load("render_judge_validation")
+    with pytest.raises(SystemExit, match="not the judge prompt the runs recorded"):
+        mod.provenance(prompt=mod.JUDGE_PROMPT)
+
+
+def test_the_v2_block_compares_with_v010_and_names_its_protocol() -> None:
+    block = _load("render_judge_validation").render_v2_block(_v2(), _agreement())
+    assert "| Cohen's κ, all claims judged | 0.71 (60) | 0.85 (60) |" in block
+    assert "| Cohen's κ, the same 60 claims | 0.64 | 0.85 |" in block
+    assert "judge prompt v0.2.0 (sha256 `abababababab`)" in block
+    assert "for $1.23, on all 60 claims." in block
+    assert "mixes the prompt and the protocol" in block
+    assert "55 of the 62 claims" in block and "not validated against a human" in block
+
+
+def test_an_incomplete_rejudge_is_published_as_incomplete() -> None:
+    block = _load("render_judge_validation").render_v2_block(_v2(n_judged=52), _agreement())
+    assert "**52 of 60 claims only: the budget stopped the rejudge**" in block
+    assert "incomplete" in block
 
 
 def test_the_injection_count_does_not_depend_on_the_working_directory(

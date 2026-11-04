@@ -30,13 +30,18 @@ AGREEMENT = VALIDATION / "agreement.json"
 ADJUDICATED = VALIDATION / "agreement_adjudicated.json"
 REJUDGED = VALIDATION / "perturbed_verdicts.json"
 KEY = VALIDATION / "judge_key.json"
+# The judge prompt the runs of record used, kept byte for byte: the prompt in prompts/
+# has moved on, and the v0.1.0 κ is labelled from this copy, checked against the runs.
+MEASURED_PROMPT = VALIDATION / "judge_faithfulness.v0.1.0.prompt"
 JUDGE_PROMPT = REPO_ROOT / "prompts" / "judge_faithfulness.prompt"
+V2_AGREEMENT = VALIDATION / "judge-v0.2.0" / "agreement.json"
 # The corpus note written to carry an injection (adversarial eval): a claim whose answer
 # retrieved it put that text, undelimited, in front of the v0.1.0 judge.
 INJECTED_DOCUMENT = "datasets/corpus/vendor_onboarding_note.md"
 README = REPO_ROOT / "README.md"
 START, END = "<!-- JUDGE:START -->", "<!-- JUDGE:END -->"
 ADJ_START, ADJ_END = "<!-- JUDGE-ADJUDICATED:START -->", "<!-- JUDGE-ADJUDICATED:END -->"
+V2_START, V2_END = "<!-- JUDGE-V2:START -->", "<!-- JUDGE-V2:END -->"
 # Below this many items in the smaller human class, one or two disagreements move κ
 # far enough that its value says little: the figure is published as fragile.
 FRAGILE_BELOW = 5
@@ -53,9 +58,9 @@ class Provenance:
     exposed_to_injection: int
 
 
-def provenance(key: Path = KEY, prompt: Path = JUDGE_PROMPT) -> Provenance:
-    """Read from the key and the runs it points at. Refuses when the judge prompt on disk
-    is not the one the runs recorded: κ belongs to the prompt that was measured."""
+def provenance(key: Path = KEY, prompt: Path = MEASURED_PROMPT) -> Provenance:
+    """Read from the key and the runs it points at. Refuses when ``prompt`` is not the
+    judge prompt the runs recorded: κ belongs to the prompt that was measured."""
     items = list(json.loads(key.read_text(encoding="utf-8"))["items"].values())
     runs = {
         path: json.loads((REPO_ROOT / path).read_text(encoding="utf-8"))
@@ -66,11 +71,8 @@ def provenance(key: Path = KEY, prompt: Path = JUDGE_PROMPT) -> Provenance:
         raise SystemExit(f"the validated runs used different judge prompts: {sorted(measured)}")
     sha = measured.pop()
     text = prompt.read_text(encoding="utf-8")
-    if hashlib.sha256(text.encode("utf-8")).hexdigest() != sha:
-        raise SystemExit(
-            f"{prompt.name} changed since κ was measured (runs recorded {sha[:12]}); "
-            "a new judge prompt needs its own rejudge and κ"
-        )
+    if _sha256(prompt) != sha:
+        raise SystemExit(f"{prompt.name} is not the judge prompt the runs recorded ({sha[:12]})")
     version = re.search(r"^@version (\S+)$", text, re.MULTILINE)
     if version is None:
         raise SystemExit(f"{prompt.name} has no @version line")
@@ -93,6 +95,20 @@ def provenance(key: Path = KEY, prompt: Path = JUDGE_PROMPT) -> Provenance:
         prompt_sha256=sha,
         exposed_to_injection=exposed,
     )
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def check_current_prompt(result: dict[str, Any], prompt: Path = JUDGE_PROMPT) -> None:
+    """The κ of a rejudge is published for the prompt in prompts/ only if that prompt
+    is the one rejudged: any edit makes a new judge."""
+    if _sha256(prompt) != result["prompt_sha256"]:
+        raise SystemExit(
+            f"{prompt.name} changed since κ was measured (rejudge recorded "
+            f"{result['prompt_sha256'][:12]}); a new judge prompt needs its own rejudge and κ"
+        )
 
 
 def _ci(p: dict[str, Any]) -> str:
@@ -147,7 +163,8 @@ def render_block(result: dict[str, Any], judge_model: str, prov: Provenance) -> 
     c = mixed["confusion"]
     lines = [
         f"Judge `{judge_model}` with judge prompt v{prov.prompt_version} "
-        f"(`prompts/judge_faithfulness.prompt`, sha256 `{prov.prompt_sha256[:12]}`) against "
+        f"(`{MEASURED_PROMPT.relative_to(REPO_ROOT).as_posix()}`, sha256 "
+        f"`{prov.prompt_sha256[:12]}`) against "
         f"**blind human labels**, the reference: {mixed['n_claims']} claims labelled without "
         f"origin or judge verdict, {_real_origin(prov)} and "
         f"{s['judge_detected']['n']} claims perturbed to be false "
@@ -230,6 +247,58 @@ def render_adjudicated_block(result: dict[str, Any], blind: dict[str, Any]) -> s
     return "\n".join(lines)
 
 
+def render_v2_block(result: dict[str, Any], blind: dict[str, Any]) -> str:
+    """The rejudge with the current judge prompt, beside the κ of the runs of record."""
+    s, sb = result["sensitivity"], blind["sensitivity"]
+    mixed, real = result["agreement_mixed"], result["agreement_real_only"]
+    named = result["citation_named"]
+    same = result["v010_on_the_same_claims"]
+    scope = (
+        f"all {result['n_items']} claims"
+        if result["complete"]
+        else f"**{result['n_judged']} of {result['n_items']} claims only: the budget stopped "
+        "the rejudge**, so the figures below are incomplete"
+    )
+
+    def kappa(a: dict[str, Any]) -> str:
+        return "undefined" if a["cohen_kappa"] is None else f"{a['cohen_kappa']:.2f}"
+
+    lines = [
+        f"Judge `{result['judge_model']}` with judge prompt v{result['prompt_version']} "
+        f"(sha256 `{result['prompt_sha256'][:12]}`), the prompt in `prompts/`: its inputs are "
+        "delimited and its evidence datamarked, and it names the citation of each claim. "
+        f"Rejudged against the same blind labels, for ${result['cost_usd']:.2f}, on "
+        f"{scope}. Every claim, real or perturbed, is judged as a one-claim "
+        "answer; v0.1.0 used the live whole-answer verdict for the real claims, so a change "
+        "on real claims mixes the prompt and the protocol. The runs of record were judged by "
+        "v0.1.0: their answer-quality figures carry the v0.1.0 κ above.",
+        "",
+        "| Measure | v0.1.0 (runs of record) | v0.2.0 |",
+        "|---|---|---|",
+        f"| Cohen's κ, all claims judged | {kappa(blind['agreement_mixed'])} "
+        f"({blind['agreement_mixed']['n_claims']}) | {kappa(mixed)} ({mixed['n_claims']}) |",
+        f"| Cohen's κ, the same {same['n_claims']} claims | {kappa(same)} | {kappa(mixed)} |",
+        f"| Observed agreement, the same {same['n_claims']} claims | {_ci(same['observed'])} | "
+        f"{_ci(mixed['observed'])} |",
+        f"| Cohen's κ, real claims only (fragile: {_human_counts(real)[1]} unsupported) | "
+        f"{kappa(blind['agreement_real_only'])} | {kappa(real)} |",
+        f"| Judge specificity on real claims | {_ci(blind['specificity_real'])} | "
+        f"{_ci(result['specificity_real'])} |",
+        f"| Sensitivity on perturbed claims (upper bound) | {_ci(sb['judge_detected'])} | "
+        f"{_ci(s['judge_detected'])} |",
+        "",
+        f"The judge named a valid citation it found supporting for {named['k']} of the "
+        f"{named['n']} claims it returned. The blind labels judge support only, so this "
+        "count is not validated against a human.",
+        "",
+        "Generated from "
+        "[`datasets/eval/judge_validation/judge-v0.2.0/agreement.json`]"
+        "(datasets/eval/judge_validation/judge-v0.2.0/agreement.json); per-claim verdicts "
+        "in `verdicts.json` beside it.",
+    ]
+    return "\n".join(lines)
+
+
 def replace_block(text: str, block: str, start: str = START, end: str = END) -> str:
     i, j = text.find(start), text.find(end)
     if i == -1 or j == -1 or j < i:
@@ -250,6 +319,9 @@ def main(argv: list[str] | None = None) -> int:
     rendered = replace_block(
         rendered, render_adjudicated_block(adjudicated, result), ADJ_START, ADJ_END
     )
+    v2 = json.loads(V2_AGREEMENT.read_text(encoding="utf-8"))
+    check_current_prompt(v2)
+    rendered = replace_block(rendered, render_v2_block(v2, result), V2_START, V2_END)
     if args.check:
         if rendered != current:
             print(f"out of date: {args.readme} — run without --check", file=sys.stderr)

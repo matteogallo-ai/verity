@@ -473,6 +473,19 @@ def kappa_v2() -> int:
     judge = {i: verdicts.get(i, {}).get("verdict") for i in key}
     human = {r["item_id"]: r["human_verdict"].strip().lower() for r in rows}
     result = measure(key, judge, human)
+    v010 = _inputs()
+    if isinstance(v010, str):
+        print(v010, file=sys.stderr)
+        return 1
+    # When the budget stops the rejudge early, the two κ cover different claims; this
+    # one compares the judges on the same set.
+    result["v010_on_the_same_claims"] = _agreement(
+        [
+            (old, human[i])
+            for i in sorted(key)
+            if judge[i] is not None and (old := v010[1][i]) is not None
+        ]
+    )
     claims = [c for v in verdicts.values() for c in v["claims"]]
     n_judged = sum(1 for v in judge.values() if v is not None)
     result.update(
