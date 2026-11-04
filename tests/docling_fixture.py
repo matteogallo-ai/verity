@@ -5,7 +5,9 @@ runner has neither the layout models nor RapidOCR's). Its tests seed retrievers 
 ``datasets/corpus``, so they read the parsed text of the PDF/DOCX documents from
 ``tests/fixtures/docling_corpus.json`` instead of running docling.
 The fixture is the labelling machine's parse: the committed gold chunk ids are pinned
-to it (``tests/unit/test_eval_labels.py``).
+to it (``tests/unit/test_eval_labels.py``). Each entry stores the sha256 of the file
+it was parsed from, so a rebuilt corpus file fails the fast lane until the fixture and
+the labels are regenerated.
 
     uv run python -m tests.docling_fixture   # rewrite the fixture after a corpus change
 """
@@ -13,6 +15,7 @@ to it (``tests/unit/test_eval_labels.py``).
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 from pathlib import Path
 
@@ -27,6 +30,10 @@ SUFFIXES = (".pdf", ".docx")
 
 def corpus_files() -> list[Path]:
     return sorted(p for p in CORPUS.iterdir() if p.suffix in SUFFIXES)
+
+
+def sha256_of(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _entry(doc: Document) -> dict[str, object]:
@@ -45,7 +52,10 @@ async def parse_live() -> dict[str, dict[str, object]]:
     parser = DoclingParser()
     # Raw bytes: the unit-test conftest serves corpus paths from this fixture and only
     # lets uploads through to docling, so a live parse must look like an upload.
-    return {p.name: _entry(await parser.parse(str(p), raw=p.read_bytes())) for p in corpus_files()}
+    return {
+        p.name: {**_entry(await parser.parse(str(p), raw=p.read_bytes())), "sha256": sha256_of(p)}
+        for p in corpus_files()
+    }
 
 
 def load() -> dict[str, dict[str, object]]:
@@ -56,7 +66,8 @@ def load() -> dict[str, dict[str, object]]:
 def document(uri: str, entry: dict[str, object]) -> Document:
     """The Document docling would return for ``uri``; ``ingested_at`` is the only
     field that differs from a live parse."""
-    return Document.model_validate({**entry, "id": document_id_for_uri(uri), "uri": uri})
+    fields = {k: v for k, v in entry.items() if k != "sha256"}
+    return Document.model_validate({**fields, "id": document_id_for_uri(uri), "uri": uri})
 
 
 def render(data: dict[str, dict[str, object]]) -> str:
