@@ -8,6 +8,10 @@ sensitivity on the perturbed ones, and Cohen's κ on the mixed set.
     uv run python scripts/judge_agreement.py estimate
     # 3. PAID: the judge reads each perturbed claim against its answer's evidence
     uv run python scripts/judge_agreement.py rejudge --budget-usd 0.60
+    #    PAID, for a new judge prompt: every claim, real and perturbed, as a one-claim
+    #    answer (cost: `estimate --all`), then its κ against the same blind labels
+    uv run python scripts/judge_agreement.py rejudge-v2 --budget-usd 1.30
+    uv run python scripts/judge_agreement.py kappa-v2
     # 4. a human fills `human_verdict` (supported / unsupported) in both CSVs
     # 5. sensitivity on the perturbed claims, κ on all 60, the final CSV
     uv run python scripts/judge_agreement.py kappa
@@ -70,6 +74,10 @@ FINAL_CSV = OUT_DIR / "claims_annotated.csv"
 RESULT = OUT_DIR / "agreement.json"
 ADJUDICATION = OUT_DIR / "adjudication.csv"
 ADJUDICATED = OUT_DIR / "agreement_adjudicated.json"
+# Judge prompt v0.2.0 is a new judge: its verdicts and κ go beside those of v0.1.0,
+# which stay the measurement of the runs of record.
+V2_VERDICTS = OUT_DIR / "judge-v0.2.0" / "verdicts.json"
+V2_RESULT = OUT_DIR / "judge-v0.2.0" / "agreement.json"
 ADJ_COLUMNS = [
     "item_id",
     "claim",
@@ -272,11 +280,12 @@ def _audit(run: str, claim_id: str) -> PerExampleAudit:
     return next(a for a in load_run(REPO_ROOT / run).per_audit if a.example_id == example_id)
 
 
-def estimate() -> int:
-    """Cost of ``rejudge`` from the judge calls the runs recorded: each perturbed claim
-    is judged against the same evidence as its answer, with a one-claim answer."""
+def estimate(*, every_claim: bool = False) -> int:
+    """Cost of ``rejudge`` (or of ``rejudge-v2`` with ``every_claim``) from the judge
+    calls the runs recorded: each claim is judged against the same evidence as its
+    answer, with a one-claim answer."""
     key = json.loads(KEY.read_text(encoding="utf-8"))
-    n = len(_perturbed_items(key))
+    n = len(key["items"] if every_claim else _perturbed_items(key))
     calls = [
         a.judge_usage
         for run in key["runs"]
@@ -316,12 +325,6 @@ class Judge(Protocol):
     async def judge(self, example: EvalExample, answer: Answer) -> AnswerMetrics: ...
 
 
-def _save(judge: Judge, spent: float, verdicts: dict[str, Any]) -> dict[str, Any]:
-    result = {"judge_model": judge.model, "cost_usd": round(spent, 6), "verdicts": verdicts}
-    REJUDGED.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    return result
-
-
 async def judge_perturbed(judge: Judge, budget_usd: float) -> dict[str, Any]:
     """Judge each perturbed claim as a one-claim answer, with its answer's citations
     and extracts. A claim the judge finds unsupported is detected. Stops before a call
@@ -330,15 +333,43 @@ async def judge_perturbed(judge: Judge, budget_usd: float) -> dict[str, Any]:
     Each verdict is written as soon as it is paid for, and a rerun skips the items
     already in the file: a provider error stops the loop without losing them, and
     ``budget_usd`` bounds this invocation's spend."""
+    return await _judge_items(judge, _perturbed_items(_read_json(KEY)), REJUDGED, budget_usd, {})
+
+
+async def judge_all(
+    judge: Judge, budget_usd: float, *, prompt_version: str, prompt_sha256: str
+) -> dict[str, Any]:
+    """Every claim of the key, real ones too, judged as a one-claim answer like the
+    perturbed ones: one protocol for all 60, where v0.1.0 had the live whole-answer
+    verdict for the real claims. Same budget and resume rules as ``judge_perturbed``;
+    a resume under another prompt is refused, since it would mix two judges."""
+    header = {"prompt_version": prompt_version, "prompt_sha256": prompt_sha256}
+    previous = _read_json(V2_VERDICTS)
+    if previous and previous.get("prompt_sha256") != prompt_sha256:
+        raise SystemExit(
+            f"{_rel(V2_VERDICTS)} holds verdicts of another judge prompt "
+            f"({str(previous.get('prompt_sha256'))[:12]}): move it before rejudging"
+        )
+    return await _judge_items(judge, _read_json(KEY)["items"], V2_VERDICTS, budget_usd, header)
+
+
+async def _judge_items(
+    judge: Judge,
+    items: dict[str, dict[str, Any]],
+    path: Path,
+    budget_usd: float,
+    header: dict[str, str],
+) -> dict[str, Any]:
     from verity.llm.base import LLMError
 
-    key = json.loads(KEY.read_text(encoding="utf-8"))
-    previous = json.loads(REJUDGED.read_text(encoding="utf-8")) if REJUDGED.is_file() else {}
+    previous = _read_json(path)
     verdicts: dict[str, Any] = dict(previous.get("verdicts", {}))
     total = float(previous.get("cost_usd", 0.0))
     spent = 0.0
-    result = {"judge_model": judge.model, "cost_usd": total, "verdicts": verdicts}
-    for item_id, item in sorted(_perturbed_items(key).items()):
+    # v0.1.0 kept claim and support only; a judge that names citations keeps them too.
+    fields = {"claim", "supported", "citation", "citation_ok"} if header else {"claim", "supported"}
+    result = {**header, "judge_model": judge.model, "cost_usd": total, "verdicts": verdicts}
+    for item_id, item in sorted(items.items()):
         if item_id in verdicts:
             continue
         if spent >= budget_usd:
@@ -375,11 +406,22 @@ async def judge_perturbed(judge: Judge, budget_usd: float) -> dict[str, Any]:
         detected = any(not v.supported for v in claims)
         verdicts[item_id] = {
             "verdict": (LABELS[1] if detected else LABELS[0]) if claims else None,
-            "claims": [{"claim": v.claim, "supported": v.supported} for v in claims],
+            "claims": [v.model_dump(include=fields) for v in claims],
             "cost_usd": cost,
         }
-        result = _save(judge, total, verdicts)
+        result = {**header, "judge_model": judge.model, "cost_usd": round(total, 6)}
+        result["verdicts"] = verdicts
+        _write_json(path, result)
     return result
+
+
+def _read_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+
+
+def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def rejudge(budget_usd: float) -> int:
@@ -392,6 +434,71 @@ def rejudge(budget_usd: float) -> int:
     judge = LLMFaithfulnessJudge(create_judge_client(agent_client=create_default_routing_client()))
     result = asyncio.run(judge_perturbed(judge, budget_usd))
     print(f"{len(result['verdicts'])} perturbed claims judged, ${result['cost_usd']:.4f}")
+    return 0
+
+
+def rejudge_v2(budget_usd: float) -> int:
+    from verity.eval.judge import LLMFaithfulnessJudge
+    from verity.llm import create_default_routing_client
+    from verity.llm.prompt import load_prompt, prompt_sha256
+    from verity.llm.routing import create_judge_client
+
+    judge = LLMFaithfulnessJudge(create_judge_client(agent_client=create_default_routing_client()))
+    result = asyncio.run(
+        judge_all(
+            judge,
+            budget_usd,
+            prompt_version=load_prompt("judge_faithfulness").version,
+            prompt_sha256=prompt_sha256()["judge_faithfulness"],
+        )
+    )
+    n = len(json.loads(KEY.read_text(encoding="utf-8"))["items"])
+    print(f"{len(result['verdicts'])}/{n} claims judged, ${result['cost_usd']:.4f}")
+    return 0
+
+
+def kappa_v2() -> int:
+    """κ of the v0.2.0 judge against the blind labels, on the claims it judged. Writes
+    only V2_RESULT; ``complete`` is false when the budget stopped the rejudge early."""
+    key = json.loads(KEY.read_text(encoding="utf-8"))["items"]
+    rows = _blind(key)
+    if isinstance(rows, str):
+        print(rows, file=sys.stderr)
+        return 1
+    if not V2_VERDICTS.is_file():
+        print(f"{_rel(V2_VERDICTS)} missing: run `rejudge-v2` first", file=sys.stderr)
+        return 1
+    rejudged = json.loads(V2_VERDICTS.read_text(encoding="utf-8"))
+    verdicts = rejudged["verdicts"]
+    judge = {i: verdicts.get(i, {}).get("verdict") for i in key}
+    human = {r["item_id"]: r["human_verdict"].strip().lower() for r in rows}
+    result = measure(key, judge, human)
+    claims = [c for v in verdicts.values() for c in v["claims"]]
+    n_judged = sum(1 for v in judge.values() if v is not None)
+    result.update(
+        {
+            "judge_model": rejudged["judge_model"],
+            "prompt_version": rejudged["prompt_version"],
+            "prompt_sha256": rejudged["prompt_sha256"],
+            "cost_usd": rejudged["cost_usd"],
+            "n_items": len(key),
+            "n_judged": n_judged,
+            "complete": n_judged == len(key),
+            # Named and in range; the human labels say nothing about citations, so this
+            # is a count, not an agreement.
+            "citation_named": {
+                "k": sum(1 for c in claims if c.get("citation") is not None and c["citation_ok"]),
+                "n": len(claims),
+            },
+        }
+    )
+    result["notes"] = [
+        *result["notes"],
+        "every claim, real or perturbed, is judged as a one-claim answer with its "
+        "answer's citations and extracts: one protocol, unlike v0.1.0",
+    ]
+    V2_RESULT.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps({k: result[k] for k in ("n_judged", "n_items", "complete")}))
     return 0
 
 
@@ -448,12 +555,8 @@ def _agreement(pairs: Sequence[tuple[str, str]]) -> dict[str, Any]:
     }
 
 
-def _inputs() -> tuple[dict[str, Any], dict[str, str | None], list[dict[str, str]]] | str:
-    """The key, the judge's verdict per item and the blind rows, or why they are unusable."""
-    key = json.loads(KEY.read_text(encoding="utf-8"))["items"]
-    if not REJUDGED.is_file():
-        return f"{_rel(REJUDGED)} missing: run `rejudge` first"
-    rejudged = json.loads(REJUDGED.read_text(encoding="utf-8"))["verdicts"]
+def _blind(key: dict[str, Any]) -> list[dict[str, str]] | str:
+    """The blind rows, or why they do not label exactly the claims of ``key``."""
     rows = _read_annotations()
     unknown = [r["item_id"] for r in rows if r["item_id"] not in key]
     ids = [r["item_id"] for r in rows]
@@ -465,6 +568,18 @@ def _inputs() -> tuple[dict[str, Any], dict[str, str | None], list[dict[str, str
     bad = [r["item_id"] for r in rows if r["human_verdict"].strip().lower() not in LABELS]
     if bad:
         return f"human_verdict must be one of {LABELS}; fix: {', '.join(bad)}"
+    return rows
+
+
+def _inputs() -> tuple[dict[str, Any], dict[str, str | None], list[dict[str, str]]] | str:
+    """The key, the judge's verdict per item and the blind rows, or why they are unusable."""
+    key = json.loads(KEY.read_text(encoding="utf-8"))["items"]
+    if not REJUDGED.is_file():
+        return f"{_rel(REJUDGED)} missing: run `rejudge` first"
+    rejudged = json.loads(REJUDGED.read_text(encoding="utf-8"))["verdicts"]
+    rows = _blind(key)
+    if isinstance(rows, str):
+        return rows
     judge: dict[str, str | None] = {
         i: (
             rejudged.get(i, {}).get("verdict")
@@ -675,9 +790,13 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     ex = sub.add_parser("export")
     ex.add_argument("runs", type=Path, nargs="+")
-    sub.add_parser("estimate")
+    es = sub.add_parser("estimate")
+    es.add_argument("--all", action="store_true", help="every claim, for rejudge-v2")
     rj = sub.add_parser("rejudge")
     rj.add_argument("--budget-usd", type=float, required=True)
+    rj2 = sub.add_parser("rejudge-v2")
+    rj2.add_argument("--budget-usd", type=float, required=True)
+    sub.add_parser("kappa-v2")
     sub.add_parser("kappa")
     sub.add_parser("adjudication-export")
     sub.add_parser("adjudicated")
@@ -685,9 +804,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "export":
         return export(args.runs)
     if args.command == "estimate":
-        return estimate()
+        return estimate(every_claim=args.all)
     if args.command == "rejudge":
         return rejudge(args.budget_usd)
+    if args.command == "rejudge-v2":
+        return rejudge_v2(args.budget_usd)
+    if args.command == "kappa-v2":
+        return kappa_v2()
     if args.command == "adjudication-export":
         return adjudication_export()
     if args.command == "adjudicated":

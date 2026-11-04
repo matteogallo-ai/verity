@@ -63,7 +63,7 @@ def _module(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     monkeypatch.setattr(
         module, "CSV_FILES", (tmp_path / "out" / "m1.csv", tmp_path / "out" / "m2.csv")
     )
-    for name in ("KEY", "REJUDGED", "FINAL_CSV", "RESULT"):
+    for name in ("KEY", "REJUDGED", "FINAL_CSV", "RESULT", "V2_VERDICTS", "V2_RESULT"):
         monkeypatch.setattr(module, name, tmp_path / "out" / f"{name.lower()}.json")
     entities = tmp_path / "entities.json"
     entities.write_text(json.dumps({"_doc": "x", "company": ["Acme", "Northwind"]}))
@@ -532,3 +532,81 @@ def test_adjudicated_refuses_a_missing_decision_reason_or_an_altered_blind_label
         writer.writerows(rows)
     assert mod.main(["adjudicated"]) == 1
     assert not mod.ADJUDICATED.exists()
+
+
+class _CitingJudge(_FakeJudge):
+    """``_FakeJudge`` that names citation 1 for every claim, as judge prompt v0.2.0 does."""
+
+    async def judge(self, example: EvalExample, answer: Answer) -> AnswerMetrics:
+        await super().judge(example, answer)
+        self.last_claims = tuple(
+            v.model_copy(update={"citation": 1}) for v in self.last_claims or ()
+        )
+        return _metrics()
+
+
+_V2 = {"prompt_version": "0.2.0", "prompt_sha256": "f" * 64}
+
+
+def _annotate(mod: ModuleType, verdict: dict[str, str]) -> None:
+    for path in mod.CSV_FILES:
+        with path.open(newline="", encoding="utf-8") as fh:
+            rows = list(csv.DictReader(fh))
+        for r in rows:
+            r["human_verdict"] = verdict[r["item_id"]]
+        with path.open("w", newline="", encoding="utf-8") as fh:
+            writer = csv.DictWriter(fh, fieldnames=list(rows[0]))
+            writer.writeheader()
+            writer.writerows(rows)
+
+
+def test_the_v2_rejudge_judges_every_claim_and_records_its_prompt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Real and perturbed claims go through one protocol, a one-claim answer; the
+    v0.1.0 verdicts are never written."""
+    mod = _module(tmp_path, monkeypatch)
+    assert mod.main(["export", str(_save_run(tmp_path))]) == 0
+    key = json.loads(mod.KEY.read_text())["items"]
+    result = asyncio.run(mod.judge_all(_CitingJudge(catch=("not",)), 1.0, **_V2))
+    assert set(result["verdicts"]) == set(key)
+    assert (result["prompt_version"], result["prompt_sha256"]) == ("0.2.0", "f" * 64)
+    claim = next(iter(result["verdicts"].values()))["claims"][0]
+    assert (claim["citation"], claim["citation_ok"]) == (1, True)
+    assert not mod.REJUDGED.exists()
+
+
+def test_the_v2_rejudge_refuses_to_resume_under_another_prompt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mod = _module(tmp_path, monkeypatch)
+    assert mod.main(["export", str(_save_run(tmp_path))]) == 0
+    asyncio.run(mod.judge_all(_CitingJudge(catch=()), 0.015, **_V2))
+    other = {"prompt_version": "0.2.1", "prompt_sha256": "e" * 64}
+    with pytest.raises(SystemExit, match="another judge prompt"):
+        asyncio.run(mod.judge_all(_CitingJudge(catch=()), 1.0, **other))
+
+
+def test_the_v2_kappa_uses_the_blind_labels_and_says_when_it_is_incomplete(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mod = _module(tmp_path, monkeypatch)
+    assert mod.main(["export", str(_save_run(tmp_path))]) == 0
+    key = json.loads(mod.KEY.read_text())["items"]
+    _annotate(mod, {i: U if v["origin"] == "perturbed" else S for i, v in key.items()})
+    assert mod.main(["kappa-v2"]) == 1  # nothing judged yet
+    # The budget stops the judge after three of the eight claims.
+    asyncio.run(mod.judge_all(_CitingJudge(catch=("not",)), 0.025, **_V2))
+    assert mod.main(["kappa-v2"]) == 0
+    partial = json.loads(mod.V2_RESULT.read_text())
+    assert partial["complete"] is False
+    assert partial["n_judged"] == 3 and partial["n_items"] == 8
+    assert partial["agreement_mixed"]["n_claims"] == 3
+    asyncio.run(mod.judge_all(_CitingJudge(catch=("not",)), 1.0, **_V2))
+    assert mod.main(["kappa-v2"]) == 0
+    full = json.loads(mod.V2_RESULT.read_text())
+    assert full["complete"] is True and full["agreement_mixed"]["n_claims"] == 8
+    assert full["prompt_version"] == "0.2.0" and full["cost_usd"] == pytest.approx(0.08)
+    assert full["citation_named"] == {"k": 8, "n": 8}
+    # The blind labels and the result of record are never written.
+    assert not mod.RESULT.exists()
