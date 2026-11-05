@@ -25,6 +25,11 @@ What holds on the returned :class:`Answer`:
   self-report and is not calibrated). A refused answer's text is a fixed "I don't know"
   with the rationale;
 - ``hits_used`` and ``usage`` are populated for observability and eval.
+
+With ``checks=False`` the agent is the naive RAG baseline the eval compares against
+(docs/preregistration/naive-rag-baseline.md): the draft ships as the synthesizer wrote
+it, with no citation gate, no support check, no scorer call and no threshold. Only the
+synthesizer's verbatim filter remains, because a citation must point at a span.
 """
 
 from __future__ import annotations
@@ -39,7 +44,7 @@ from verity.agent.base import Agent, ConfidenceScorer, QuestionDecomposer
 from verity.agent.decomposer import LLMQuestionDecomposer
 from verity.agent.scorer import LLMConfidenceScorer
 from verity.agent.support import check_support
-from verity.agent.synthesizer import CitedSynthesizer
+from verity.agent.synthesizer import CitedSynthesizer, SynthesisResult
 from verity.config import get_settings
 from verity.llm.base import (
     AuthenticationError,
@@ -70,6 +75,11 @@ from verity.types import (
 
 log = structlog.get_logger(__name__)
 
+# The naive baseline never scores: 1.0 records "shipped without a gate", not a belief.
+NAIVE_CONFIDENCE = Confidence(
+    score=1.0, refused=False, rationale="checks disabled: naive RAG baseline, draft shipped"
+)
+
 
 class RagAgent(Agent):
     """The public entry point the CLI and the API call."""
@@ -85,8 +95,10 @@ class RagAgent(Agent):
         tracer: Tracer | None = None,
         preferred_provider: Provider | None = None,
         preferred_model: str | None = None,
+        checks: bool = True,
     ) -> None:
         settings = get_settings()
+        self._checks = checks
         self._retriever = retriever
         self._decomposer = decomposer
         self._synthesizer = synthesizer
@@ -175,6 +187,11 @@ class RagAgent(Agent):
             _record_usage(span, spent, synthesis.usage)
             span.set_attribute("n_citations", len(synthesis.citations))
 
+        if not self._checks:
+            return self._shipped(
+                question, synthesis, hits, NAIVE_CONFIDENCE, trace_id, started, stage_ms, spent
+            )
+
         async with self._stage("agent.confidence", trace_id, stage_ms) as span:
             # Deterministic gates before the scorer: a draft with no verified citation,
             # or whose citations do not cover it or are irrelevant to the question, is
@@ -204,6 +221,21 @@ class RagAgent(Agent):
             span.set_attribute("refused", bool(confidence.refused))
             span.set_attribute("citation_coverage", support.coverage)
 
+        return self._shipped(
+            question, synthesis, hits, confidence, trace_id, started, stage_ms, spent
+        )
+
+    def _shipped(
+        self,
+        question: str,
+        synthesis: SynthesisResult,
+        hits: list[RetrievalHit],
+        confidence: Confidence,
+        trace_id: TraceId,
+        started: float,
+        stage_ms: dict[str, float],
+        spent: list[UsageStats],
+    ) -> Answer:
         # Latency is the measured wall-clock, not a sum of per-call latencies:
         # the calls partially overlap, so summing would over-count.
         latency_ms = round((time.perf_counter() - started) * 1000, 2)
@@ -241,6 +273,7 @@ class RagAgent(Agent):
             provider_used=provider_used,
             model_used=model_used,
             stage_ms=dict(stage_ms),
+            checks_disabled=not self._checks,
         )
 
     async def _collect_hits(self, sub_questions: list[str]) -> list[RetrievalHit]:
@@ -362,6 +395,7 @@ def create_default_agent(
     retriever: Retriever,
     client: RoutingClient,
     tracer: Tracer | None = None,
+    checks: bool = True,
 ) -> RagAgent:
     """Wire the default agent: LLM-based decomposer + synthesizer + scorer.
 
@@ -380,6 +414,7 @@ def create_default_agent(
         tracer=tracer,
         preferred_provider=preferred_provider,
         preferred_model=preferred_model,
+        checks=checks,
     )
 
 

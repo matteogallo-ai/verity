@@ -287,3 +287,40 @@ async def test_concurrent_answers_each_report_their_own_usage() -> None:
 
     assert a.usage.cost_usd == pytest.approx(0.001)
     assert b.usage.cost_usd == pytest.approx(0.002)
+
+
+@pytest.mark.asyncio
+async def test_without_checks_the_draft_ships_unscored_where_verity_refuses() -> None:
+    """The naive RAG baseline: same decompose, retrieve and synthesize, no gate after."""
+    from verity.types import REFUSAL_TEXT
+
+    retriever = await _seed_retriever()
+    question = "What is the CEO's home address?"
+    checked = await create_default_agent(retriever=retriever, client=build_stub_router()).answer(
+        question
+    )
+    assert checked.confidence is not None and checked.confidence.refused
+
+    counting = _CountingStubClient()
+    naive = create_default_agent(
+        retriever=retriever, client=MultiProviderRoutingClient([counting]), checks=False
+    )
+    answer = await naive.answer(question)
+
+    assert answer.confidence is not None
+    assert not answer.confidence.refused
+    assert answer.confidence.reason is None
+    assert "checks disabled" in answer.confidence.rationale
+    assert answer.text != REFUSAL_TEXT
+    # Decompose + synthesize only: the scorer is not called.
+    assert len(counting.calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_without_checks_citations_are_still_verbatim() -> None:
+    retriever = await _seed_retriever()
+    naive = create_default_agent(retriever=retriever, client=build_stub_router(), checks=False)
+    answer = await naive.answer("What is the notice period for terminating the agreement?")
+    for c in answer.citations:
+        chunk = next(h.chunk for h in answer.hits_used if h.chunk.id == c.chunk_id)
+        assert c.quote in chunk.text

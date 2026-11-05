@@ -515,3 +515,37 @@ def test_eval_run_hands_its_budget_cap_and_warmup_to_the_evaluator(
     result = runner.invoke(app, ["eval", "run", "--ci", "--runs-dir", str(tmp_path), *flags])
     assert result.exit_code == 4, result.output
     assert seen == expected
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize(
+    ("flags", "expected"),
+    [
+        ([], {"dataset_name": "questions", "checks": True}),
+        (["--naive-baseline"], {"dataset_name": "questions-naive-baseline", "checks": False}),
+    ],
+)
+def test_naive_baseline_runs_an_unchecked_agent_under_its_own_artefact_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, flags: list[str], expected: dict[str, object]
+) -> None:
+    """Both arms run at one commit: the name keeps the second from overwriting the first."""
+    from tests.fakes import without_local_models
+    from verity.eval import AgentEvaluator, BudgetExceededError
+
+    without_local_models(monkeypatch)
+    seen: dict[str, object] = {}
+    original_init = AgentEvaluator.__init__
+
+    def _init(self: AgentEvaluator, *args: object, **kwargs: object) -> None:
+        seen["dataset_name"] = kwargs.get("dataset_name")
+        seen["checks"] = kwargs["agent"]._checks  # type: ignore[attr-defined]
+        original_init(self, *args, **kwargs)  # type: ignore[arg-type]
+
+    async def _run(self: AgentEvaluator, *args: object, **kwargs: object) -> object:
+        raise BudgetExceededError("stopped before the first example")
+
+    monkeypatch.setattr(AgentEvaluator, "__init__", _init)
+    monkeypatch.setattr(AgentEvaluator, "run", _run)
+    result = runner.invoke(app, ["eval", "run", "--ci", "--runs-dir", str(tmp_path), *flags])
+    assert result.exit_code == 4, result.output
+    assert seen == expected

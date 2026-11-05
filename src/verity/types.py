@@ -222,12 +222,16 @@ class Answer(BaseModel, frozen=True):
     # Wall-clock of each agent stage that ran, in ms, so a slow answer can be explained
     # from the eval artefact instead of from logs that are not kept.
     stage_ms: dict[str, float] = Field(default_factory=dict)
+    # Set only by the naive RAG baseline the eval measures Verity against: its uncited
+    # drafts must ship, or the baseline would keep one of the checks it is meant to lack.
+    checks_disabled: bool = False
 
     @model_validator(mode="before")
     @classmethod
     def _uncited_answers_are_refusals(cls, data: Any) -> Any:
         """Exactly one of ``confidence`` / ``error``; an answer that is not refused
-        and carries no citation is converted into a refusal (``no_citation``).
+        and carries no citation is converted into a refusal (``no_citation``), unless
+        ``checks_disabled`` marks it as a naive-baseline answer.
 
         The agent already refuses such drafts; this holds the invariant for every
         other way an Answer is built, so no caller can ship uncited text.
@@ -245,7 +249,7 @@ class Answer(BaseModel, frozen=True):
             if isinstance(confidence, Confidence)
             else Confidence.model_validate(confidence)
         )
-        if conf.refused or data.get("citations"):
+        if conf.refused or data.get("citations") or data.get("checks_disabled"):
             return data
         return {
             **data,

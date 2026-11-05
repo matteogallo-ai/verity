@@ -48,6 +48,17 @@ def test_uncited_unrefused_answer_becomes_a_no_citation_refusal() -> None:
     assert answer.text == REFUSAL_TEXT
 
 
+def test_a_naive_baseline_answer_ships_uncited() -> None:
+    answer = Answer(
+        query="q",
+        text="A fluent answer with nothing behind it.",
+        confidence=Confidence(score=1.0, refused=False, rationale="checks disabled"),
+        checks_disabled=True,
+    )
+    assert answer.confidence is not None and not answer.confidence.refused
+    assert answer.text == "A fluent answer with nothing behind it."
+
+
 def test_answer_needs_exactly_one_of_confidence_or_error() -> None:
     with pytest.raises(ValueError, match="exactly one"):
         Answer(query="q", text="")
