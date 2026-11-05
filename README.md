@@ -58,7 +58,6 @@ CI job `claims` runs those tests.
 - Live run artefacts protected from being overwritten by stub runs (C12).
 - 95 questions over 21 documents (≥ 25 unanswerable, ≥ 5 adversarial) with a frozen, seeded dev/test split; per-question and per-claim aggregates (C28).
 - README results generated from the scorecard and checked in CI (C13); CLI labels match scorecard keys (C14).
-- 95 questions over 21 documents (≥ 25 unanswerable, ≥ 5 adversarial) with a frozen, seeded dev/test split; per-question and per-claim aggregates (C28).
 - SDK call signatures (C15) and LLM output parsers (C16) tested against the shapes real models produce.
 - Per-stage tracing behind `/metrics`, `/metrics/prom` and `/dashboard` (C17); optional OTLP export, bounded in-memory spans (C29).
 - HTTP API with `/status`, `/ask` and content-addressed `/ingest` (C18), and a Next.js UI with citation highlighting and a provenance badge (C19).
