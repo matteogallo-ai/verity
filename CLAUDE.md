@@ -36,6 +36,8 @@ scorecards/           committed live scorecard (source of docs/results.md and th
 scripts/              check_claims, check_stale_narrative, check_commit_messages,
                       generate_headline_results, build_eval_labels,
                       build_corpus_documents, split_dataset
+scripts/demo/         record_demo.sh (compose stack + UI recording), record.py, media.py
+docs/media/           README GIF, demo MP4 and the demo-run.json of their live take
 tests/unit/           fast + slow lanes; tests/integration/ needs Postgres
 web/                  Next.js 15 UI (pnpm, vitest)
 ```
@@ -70,6 +72,7 @@ VERITY_API_AUTH_DISABLED=true uv run verity serve --port 8000  # API on pgvector
 make demo                                                  # pgvector + API + web UI, stub mode
 VERITY_API_AUTH_DISABLED=true docker compose up            # db → migrate → ingest → app on 127.0.0.1:8000 (C26)
 scripts/docker_smoke.sh                                    # build + compose + /health /status /ask (CI job docker)
+scripts/demo/record_demo.sh stub|live                      # README GIF + docs/media MP4 (live: 3 paid answers, $0.50 cap)
 cd web && corepack pnpm lint && corepack pnpm typecheck && corepack pnpm test
 ```
 

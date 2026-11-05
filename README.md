@@ -14,6 +14,17 @@ Every published number traceable to the run artefact that produced it.
 
 </div>
 
+<p align="center">
+  <img src="docs/media/verity-demo.gif" width="900"
+       alt="Verity UI: a question gets an answer with clickable citations whose source chunk is highlighted; a question about the CEO's home address is refused.">
+  <br>
+  <sub>Live recording on the demo corpus (agent <code>claude-sonnet-4-6</code>): a cited
+  answer, then an out-of-corpus question refused. Waits for the model are sped up; the
+  real latency and cost of each answer are in
+  <a href="docs/media/demo-run.json"><code>demo-run.json</code></a>.
+  Two-minute walkthrough with the traces: <a href="docs/media/verity-demo.mp4">MP4</a>.</sub>
+</p>
+
 ## What it is
 
 Enterprise RAG demos answer confidently and are wrong just often enough to be
@@ -35,7 +46,9 @@ One live run on the held-out `test` split, n = 56, agent `claude-sonnet-4-6`, co
 Click a citation and the source pane highlights the exact clause; out-of-corpus
 questions get *"I don't know based on the provided documents"*
 ([refusal screenshot](docs/assets/screenshot-refusal.png)). Both are captures of
-`make demo`, which runs the scripted stub agent offline.
+`make demo`, which runs the scripted stub agent offline. The recording above comes
+from `scripts/demo/record_demo.sh live` (Docker, three paid answers); `stub` runs the
+same script at no cost.
 
 ## Quickstart
 

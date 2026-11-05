@@ -1,0 +1,12 @@
+# Overlay of docker-compose.yml for scripts/demo/record_demo.sh. The API's spending
+# budget becomes the demo's: SERVER_BUDGET_USD of scripts/demo/media.py over a window
+# longer than any recording session, so it never refills mid-session.
+# tests/unit/test_demo_media.py keeps this value equal to the one in media.py.
+services:
+  app:
+    environment:
+      VERITY_API_BUDGET_USD: "0.3"
+      VERITY_API_BUDGET_WINDOW_S: "86400"
+      # A retried call may have been billed although its usage is never reported, which
+      # would escape the budget; the recorder aborts on the resulting 503 instead.
+      VERITY_LLM_MAX_RETRIES: "0"
