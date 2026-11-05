@@ -1,4 +1,4 @@
-"""The README judge-validation block and the judge label come from the artefacts."""
+"""The judge-validation blocks of docs/results.md and the judge label come from the artefacts."""
 
 from __future__ import annotations
 
@@ -64,7 +64,7 @@ def _prov() -> Any:
     )
 
 
-def test_the_committed_readme_matches_the_agreement_artefact() -> None:
+def test_the_committed_results_doc_matches_the_agreement_artefact() -> None:
     assert _load("render_judge_validation").main(["--check"]) == 0
 
 
@@ -121,24 +121,24 @@ def test_check_writes_nothing_and_fails_on_drift(
 ) -> None:
     mod = _load("render_judge_validation")
     _offline(mod, monkeypatch, tmp_path)
-    readme = tmp_path / "README.md"
-    readme.write_text(
+    doc = tmp_path / "results.md"
+    doc.write_text(
         "x\n<!-- JUDGE:START -->\nstale\n<!-- JUDGE:END -->\n"
         "<!-- JUDGE-ADJUDICATED:START -->\nstale\n<!-- JUDGE-ADJUDICATED:END -->\n"
         "<!-- JUDGE-V2:START -->\nstale\n<!-- JUDGE-V2:END -->\n"
     )
-    before = readme.read_text()
-    assert mod.main(["--readme", str(readme), "--check"]) == 1
-    assert readme.read_text() == before
+    before = doc.read_text()
+    assert mod.main(["--results-doc", str(doc), "--check"]) == 1
+    assert doc.read_text() == before
 
 
 def test_missing_markers_fail_loudly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     mod = _load("render_judge_validation")
     _offline(mod, monkeypatch, tmp_path)
-    readme = tmp_path / "README.md"
-    readme.write_text("no markers\n")
+    doc = tmp_path / "results.md"
+    doc.write_text("no markers\n")
     with pytest.raises(SystemExit, match="markers"):
-        mod.main(["--readme", str(readme)])
+        mod.main(["--results-doc", str(doc)])
 
 
 def _validation(tmp_path: Path, model: str) -> Path:

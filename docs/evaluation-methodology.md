@@ -6,7 +6,7 @@ is a bug.
 
 ## Principles
 
-1. **Every published number comes from an artefact.** The README results table is
+1. **Every published number comes from an artefact.** The results table in `docs/results.md` is
    generated from `scorecards/live-v1.1.0.json` by
    `scripts/generate_headline_results.py`; CI runs it with `--check`.
 2. **CI eval runs on stubs and is a pipeline smoke test.** With `--judge stub` (the
@@ -103,7 +103,7 @@ or claims). A ratio over an empty set is `null`, never 0 or 1.
 
 ### Uncertainty
 
-Every proportion in the scorecard and the README block (per-claim faithfulness and
+Every proportion in the scorecard and the results table (per-claim faithfulness and
 citation accuracy, hallucination rate, refusal precision and recall, unanswerable
 answered) is published as `k/n` with its 95 % Wilson score interval
 (`verity.eval.intervals`), computed by `verity.eval.headline` from the artefact.
@@ -217,7 +217,7 @@ model different from the agent's (`VERITY_JUDGE_ANTHROPIC_MODEL`, default
 `claude-opus-5-5`). It has a single client and no fallback, so the model named in the
 scorecard is the one that judged; a judge equal to the agent's model stops the run.
 Whatever the judge, Cohen's κ against human labels is required before its numbers are
-published as validated; until then the README marks them "judge unvalidated", and
+published as validated; until then the results table marks them "judge unvalidated", and
 `scripts/generate_headline_results.py` names κ only for the model it was measured on. κ alone
 cannot validate this judge: it marked 161 of the 164 live claims supported, so on a
 sample of real claims its labels are almost all "supported" and κ is undefined or
@@ -241,8 +241,8 @@ reference and are published as labelled, pinned with the key in
 `datasets/eval/judge_validation/SHA256SUMS`. κ on real claims alone is marked fragile
 when the smaller human class holds fewer than five claims. The disagreements, and
 the perturbed claims the annotator judged true, are adjudicated afterwards with the
-judge's verdict visible; that adjudication is published in its own files and README
-section and never rewrites the blind labels or `agreement.json`. One annotator gives
+judge's verdict visible; that adjudication is published in its own files and its own
+section of `docs/results.md` and never rewrites the blind labels or `agreement.json`. One annotator gives
 no inter-annotator agreement. v1.1.0
 was judged by `claude-opus-5-5` (no OpenAI key was available), a different Claude
 model from the agent, not a different family. Claim-level verdicts are

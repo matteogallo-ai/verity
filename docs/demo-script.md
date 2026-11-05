@@ -17,7 +17,7 @@ answer.
 ## Beats
 
 ### 0:00–0:10 — the claim
-Open the README results table. Caption: *"Refuses when the evidence is weak.
+Open the results table (`docs/results.md`). Caption: *"Refuses when the evidence is weak.
 Numbers from one live run (n = 16), committed as an artefact."*
 
 ### 0:10–0:35 — cited answer
@@ -44,10 +44,10 @@ jq '.refusal, .provenance' scorecards/live-v1.1.0.json
 ```
 
 Show `refusal.by_reason` (22 refusals, none decided by the threshold; 5 hit
-answerable questions, see the README's open issues) and, in the run artefact,
+answerable questions, see the open issues in `docs/results.md`) and, in the run artefact,
 `per_audit` (answer text, citations and per-claim judge
-verdicts for each question). Caption: *"The stub run checks the plumbing. The README
+verdicts for each question). Caption: *"The stub run checks the plumbing. The published
 numbers come from the live artefact."*
 
 ### 1:25–1:30 — close
-Architecture diagram in the README, then the repo link.
+Architecture diagram (`docs/architecture.md`), then the repo link.

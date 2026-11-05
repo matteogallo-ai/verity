@@ -5,6 +5,80 @@ speaking the domain model in `verity/types.py`. Nothing crosses a stage boundary
 those frozen types, which is what makes each stage independently testable and each
 metric independently attributable.
 
+## The problem it addresses
+
+Enterprise RAG demos answer confidently and are wrong just often enough to be
+dangerous: a fluent, cited-looking answer with no real grounding is the failure that
+matters for contracts, filings and policies.
+
+Verity drafts an answer, checks deterministically that its citations cover and
+match it, asks a scorer model how well the evidence supports it, and refuses when a
+check fails, the scorer refuses, or the score is below a threshold. It publishes faithfulness, citation accuracy,
+hallucination rate and refusal precision / recall from one live run whose
+per-question audit trail is committed next to the code.
+
+## What it looks like in the UI
+
+**Cited answer**: click a citation and the source pane highlights the exact clause.
+The confidence readout shows the scorer's self-reported score, the rerank scores and
+the evidence hits. A provenance badge names the model that answered.
+
+![Cited answer with source panel + confidence readout](assets/screenshot-answer.png)
+
+**Refusal**: for questions the corpus does not cover, the agent returns *"I don't
+know based on the provided documents"* with the scorer's rationale.
+
+![Refusal on an out-of-scope question](assets/screenshot-refusal.png)
+
+*Both screenshots are captures of `make demo`, which runs the scripted stub agent
+offline: the badge reads `stub-agent` and the scores are the stub's canned values.*
+
+## Diagram
+
+```mermaid
+flowchart LR
+    subgraph Ingest["Ingestion"]
+        docs[/"documents<br/>MD · TXT · PDF · DOCX (web untested)"/] --> parser[parser<br/>structure-aware]
+        parser --> chunker[chunker]
+        chunker --> embedder[BAAI/bge-small-en-v1.5]
+    end
+
+    embedder --> pg[(pgvector, default<br/>HNSW + FTS)]
+    embedder --> mem[(in-memory store<br/>cosine + BM25)]
+
+    subgraph Retrieve["Hybrid retrieval"]
+        query[/"query"/] --> dense[dense search]
+        query --> sparse[sparse search]
+        dense --> rrf[RRF fusion]
+        sparse --> rrf
+        rrf --> rerank[cross-encoder<br/>ms-marco-MiniLM]
+    end
+
+    mem -.->|VERITY_STORE=memory| dense
+    pg --> dense
+    pg --> sparse
+
+    subgraph Agent["Agent"]
+        rerank --> decompose[decompose]
+        decompose --> synthesize[synthesize<br/>+ verbatim citations]
+        synthesize --> score[confidence scorer]
+        score -->|below threshold or refused| refuse[REFUSE<br/>with rationale]
+        score -->|otherwise| ship[Answer + citations]
+    end
+
+    subgraph Eval["Evaluation"]
+        ship --> judge[LLM judge<br/>supported · citation_ok]
+        refuse --> refusal[refusal metrics<br/>TP/FP/FN/TN]
+        judge --> scorecard["scorecards/live-v1.1.0.json<br/>+ per-question audit"]
+        refusal --> scorecard
+    end
+
+    scorecard --> readme["docs/results.md table<br/>+ README key result (generated)"]
+```
+
+Each box is described stage by stage below; the decisions that cost a rework are under
+[What I'd do differently](#what-id-do-differently).
+
 ## Stages
 
 ### 1. Ingestion (`verity.ingestion`)
@@ -126,3 +200,11 @@ rework or still costs trust.
   a delete path at the first migration would have made corpus poisoning recoverable.
 - **Use the secret type for every credential.** Provider and API keys are `SecretStr`;
   the Postgres DSN, password included, stayed a plain string.
+
+## Stack
+
+Python 3.12 · FastAPI · Postgres + pgvector (or an in-memory store) · local
+embeddings and cross-encoder reranker (offline, no keys) · Anthropic and OpenAI
+clients behind an ordered fallback router · OpenTelemetry spans (in-process) +
+structlog · Next.js 15 UI. Tooling: uv · ruff · mypy strict · vulture · deptry ·
+pytest · GitHub Actions. Eval history is kept as versioned JSON files.
