@@ -49,6 +49,11 @@ make demo                                  # pgvector + API :8000 + Next.js :300
 The first run downloads the embedding and reranker models (~200 MB) into the
 Hugging Face cache. `make demo` needs Docker (for pgvector), Node 22 and corepack.
 
+## Against a naive RAG baseline
+
+<!-- BASELINE:START -->
+<!-- BASELINE:END -->
+
 ## Features
 
 Each feature maps to its implementation and tests in [`docs/CLAIMS.md`](docs/CLAIMS.md);
