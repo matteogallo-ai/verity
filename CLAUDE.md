@@ -62,6 +62,7 @@ uv run python scripts/generate_headline_results.py --check # scorecard ≡ artef
 uv run python scripts/compare_naive_baseline.py --check   # README baseline block ≡ the two pinned runs
 uv run python scripts/build_corpus_documents.py --check    # PDF/DOCX corpus ≡ sources
 uv run python scripts/split_dataset.py --check             # dev/test split ≡ seed
+uv run python scripts/build_completion_subset.py --check   # baseline completion files ≡ seed + the two e644a98 runs
 uv run python scripts/recompute_live_aggregates.py --check # live runs: *.recomputed.json current
 uv run python scripts/refusal_analysis.py --check --dev datasets/eval/runs/live/eval_6ec544d_dev.json \
   --test datasets/eval/runs/live/eval_969e1d5_test.json --out-json scorecards/refusal-analysis.json
