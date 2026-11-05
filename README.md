@@ -52,7 +52,7 @@ Hugging Face cache. `make demo` needs Docker (for pgvector), Node 22 and corepac
 ## Against a naive RAG baseline
 
 <!-- BASELINE:START -->
-> **Incomplete runs.** Verity completed 23 of 39 (budget_exceeded); the naive arm completed 28 of 39 (budget_exceeded). As pre-registered, the arms are compared on the 23 questions both completed: 21 answerable, 2 unanswerable.
+> **Incomplete runs.** Verity completed 23 of 39 (budget_exceeded); the naive arm completed 28 of 39 (budget_exceeded). As pre-registered, the arms are compared on the 23 questions both completed: 21 answerable, 2 unanswerable. Completed by one arm only: `q-061`, `q-063`, `q-065`, `q-067`, `q-070`. Completed by neither: `q-072`, `q-075`, `q-076`, `q-077`, `q-080`, `q-084`, `q-087`, `q-088`, `q-090`, `q-091`, `q-093`.
 
 Dev split, n = 23 compared, same questions, agent `claude-sonnet-4-6`, judge `claude-opus-5-5`, both arms at commit `e644a98`. The naive arm ships the synthesizer's draft with no citation gate, support check, scorer or threshold. Metrics and reading rule were [pre-registered](docs/preregistration/naive-rag-baseline.md) before the runs: Wilson 95 % intervals that overlap read *not distinguishable*.
 
@@ -74,7 +74,10 @@ On these 23 questions the checks refused 5 answerable questions, and the naive a
 no measured hallucination either: no difference is distinguishable. The budget stopped
 both arms early (the pre-registered estimate, $1.91, was below what the runs cost), and
 the dev questions run in id order, which leaves 11 of the 13 unanswerable questions
-after the point where Verity stopped: the unanswerable rows rest on 2 questions.
+after the point where Verity stopped: the unanswerable rows rest on 2 questions. The
+naive arm's two answers to them (q-006, q-017) both say the evidence does not hold the
+answer; the pre-registered patterns match only the first, hence 1/2 on the
+self-abstention row.
 
 ## Features
 

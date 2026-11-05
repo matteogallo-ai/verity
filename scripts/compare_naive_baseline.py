@@ -34,6 +34,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 PREREGISTRATION = "docs/preregistration/naive-rag-baseline.md"
 DEFAULT_SCORECARD = REPO_ROOT / "scorecards" / "naive-baseline-comparison.json"
 DEFAULT_README = REPO_ROOT / "README.md"
+DATASET = REPO_ROOT / "datasets" / "eval" / "dev.jsonl"
 START, END = "<!-- BASELINE:START -->", "<!-- BASELINE:END -->"
 # Copied verbatim from the pre-registration; a test holds the two equal.
 ABSTENTION_PATTERNS = (
@@ -140,14 +141,19 @@ def read(verity: dict[str, Any], naive: dict[str, Any]) -> str:
     return f"distinguishable: Verity {direction}"
 
 
-def build(verity_path: Path, naive_path: Path) -> dict[str, Any]:
+def build(verity_path: Path, naive_path: Path, dataset: Path = DATASET) -> dict[str, Any]:
     verity_run, naive_run = load_run(verity_path), load_run(naive_path)
+    digest = hashlib.sha256(dataset.read_bytes()).hexdigest()
+    for run in (verity_run, naive_run):
+        if run.dataset_sha256 not in (None, digest):
+            raise SystemExit(f"{dataset} is not the dataset the runs used")
+    all_ids = [json.loads(line)["id"] for line in dataset.read_text().splitlines() if line.strip()]
     in_naive = {a.example_id for a in naive_run.per_audit}
     # Pre-registered: an incomplete arm is compared on the questions both completed.
     compared = [a.example_id for a in verity_run.per_audit if a.example_id in in_naive]
     if not compared:
         raise SystemExit("the two arms completed no question in common")
-    dataset = {a.example_id for a in (*verity_run.per_audit, *naive_run.per_audit)}
+    completed_by_any = {a.example_id for a in (*verity_run.per_audit, *naive_run.per_audit)}
     arms = {
         "verity": arm_metrics(verity_run, verity_path, compared),
         "naive": arm_metrics(naive_run, naive_path, compared),
@@ -160,7 +166,8 @@ def build(verity_path: Path, naive_path: Path) -> dict[str, Any]:
         "preregistration": PREREGISTRATION,
         "n_dataset": verity_run.scorecard.n_examples,
         "compared_ids": compared,
-        "completed_by_one_arm_only": sorted(dataset - set(compared)),
+        "completed_by_one_arm_only": sorted(completed_by_any - set(compared)),
+        "completed_by_neither_arm": sorted(set(all_ids) - completed_by_any),
         "arms": arms,
         "readings": readings,
     }
@@ -194,7 +201,9 @@ def render_block(data: dict[str, Any], scorecard_path: Path = DEFAULT_SCORECARD)
             "> **Incomplete runs.** "
             + "; ".join(incomplete)
             + f". As pre-registered, the arms are compared on the {v['n_examples']} questions "
-            f"both completed: {v['n_examples'] - n_unans} answerable, {n_unans} unanswerable.",
+            f"both completed: {v['n_examples'] - n_unans} answerable, {n_unans} unanswerable. "
+            f"Completed by one arm only: {_ids(data['completed_by_one_arm_only'])}. "
+            f"Completed by neither: {_ids(data['completed_by_neither_arm'])}.",
             "",
         ]
     lines += [
@@ -229,6 +238,10 @@ def render_block(data: dict[str, Any], scorecard_path: Path = DEFAULT_SCORECARD)
         "(`scripts/compare_naive_baseline.py --check`).",
     ]
     return "\n".join(lines)
+
+
+def _ids(ids: list[str]) -> str:
+    return ", ".join(f"`{i}`" for i in ids) if ids else "none"
 
 
 def replace_block(text: str, block: str) -> str:

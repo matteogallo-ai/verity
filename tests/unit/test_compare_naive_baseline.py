@@ -85,3 +85,44 @@ def test_the_comparison_runs_on_the_questions_both_arms_completed() -> None:
         assert arm["metrics"]["answerable_answered"]["n"] + arm["metrics"]["unanswerable_answered"][
             "n"
         ] == len(data["compared_ids"])
+
+
+def _committed_copy(tmp_path: Path) -> tuple[Path, Path, list[str]]:
+    import shutil
+
+    scorecard, readme = tmp_path / "cmp.json", tmp_path / "README.md"
+    shutil.copy(REPO_ROOT / "scorecards/naive-baseline-comparison.json", scorecard)
+    shutil.copy(REPO_ROOT / "README.md", readme)
+    return scorecard, readme, ["--scorecard", str(scorecard), "--readme", str(readme)]
+
+
+@pytest.mark.parametrize("target", ["scorecard", "readme"])
+def test_check_fails_on_drift_and_writes_nothing(tmp_path: Path, target: str) -> None:
+    mod = _load()
+    scorecard, readme, args = _committed_copy(tmp_path)
+    # The block links its scorecard by path: render once so only the drift below differs.
+    assert mod.main(args) == 0
+    assert mod.main(["--check", *args]) == 0
+    path = scorecard if target == "scorecard" else readme
+    text = path.read_text()
+    stale = text.replace("not distinguishable", "distinguishable: Verity lower", 1)
+    assert stale != text
+    path.write_text(stale)
+    assert mod.main(["--check", *args]) == 1
+    assert path.read_text() == stale
+
+
+def test_arms_are_compared_on_the_questions_both_completed(tmp_path: Path) -> None:
+    """Cut the naive arm to its first 10 audits: only those 10 are compared."""
+    import json
+
+    data = json.loads((REPO_ROOT / "scorecards/naive-baseline-comparison.json").read_text())
+    naive = json.loads((REPO_ROOT / data["arms"]["naive"]["source_artefact"]).read_text())
+    naive["per_audit"] = naive["per_audit"][:10]
+    cut = tmp_path / "naive.json"
+    cut.write_text(json.dumps(naive))
+    built = _load().build(REPO_ROOT / data["arms"]["verity"]["source_artefact"], cut)
+    first_ten = [a["example_id"] for a in naive["per_audit"]]
+    assert built["compared_ids"] == first_ten
+    assert built["arms"]["verity"]["n_examples"] == 10
+    assert set(built["completed_by_one_arm_only"]) == set(data["compared_ids"]) - set(first_ten)
