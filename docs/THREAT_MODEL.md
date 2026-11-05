@@ -172,7 +172,7 @@ and `tests/unit/test_judge_injection.py`.
     in `<evidence>`, `<answer>` and `<citations>` blocks whose tags are neutralised
     inside them, datamarks the evidence as the synthesis prompt does, and says the
     content is untrusted. It is a new judge: its κ against the same blind labels is
-    published apart in the README, and the runs of record keep the v0.1.0 one.
+    published apart in `docs/results.md`, and the runs of record keep the v0.1.0 one.
   - *Not covered.* No adversarial eval of the judge exists: the judge validation
     measures agreement on claims that rarely had the injected note in the judge's
     context, so the robustness of either prompt to injection is not measured. No run

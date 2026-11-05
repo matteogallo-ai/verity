@@ -1,4 +1,4 @@
-"""The headline scorecard JSON: the file the README's results block renders from.
+"""The headline scorecard JSON: the file docs/results.md and the README's key result render from.
 
 It is computed from one :class:`~verity.types.EvalRun` artefact and nothing else
 (:func:`build_headline_dict_from_eval_run`), so ``scripts/generate_headline_results.py

@@ -42,7 +42,7 @@ recomputation is in
 
 Every value in the table is copied from the committed scorecard JSON by
 [`scripts/generate_headline_results.py`](../scripts/generate_headline_results.py);
-`--check` fails CI if the README drifts. Each answer-quality metric carries its
+`--check` fails CI if this table or the README's key result drifts. Each answer-quality metric carries its
 `scope` and `n_denominator`. The full audit trail (per-question answer, citations,
 refusal cause, confidence score, per-claim judge verdict) is
 [`datasets/eval/runs/live/eval_969e1d5_test.json`](../datasets/eval/runs/live/eval_969e1d5_test.json).

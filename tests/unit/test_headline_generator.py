@@ -1,4 +1,4 @@
-"""Headline scorecard round-trip: artefact -> headline dict -> README render.
+"""Headline scorecard round-trip: artefact -> headline dict -> docs/results.md and README.
 
 The generator script is what the mission requires ("README results table is
 generated from that JSON by a script — never hand-typed"). This test asserts:
@@ -9,7 +9,7 @@ generated from that JSON by a script — never hand-typed"). This test asserts:
    raw numeric values from the JSON — no client-side reformatting that could
    silently drift the published number.
 3. Running the generator twice on the same JSON is a no-op (idempotence).
-4. Missing markers in the README fail LOUDLY (the whole point).
+4. Missing markers in docs/results.md or the README fail LOUDLY (the whole point).
 """
 
 from __future__ import annotations
@@ -382,7 +382,7 @@ def test_check_mode_never_writes_the_docs(tmp_path: Path, marker: str) -> None:
 def test_the_key_result_carries_k_n_and_both_intervals() -> None:
     """The one number on the README's first screen keeps its interval and its counterweight."""
     generator = _load_generator()
-    payload = json.loads(Path("scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
+    payload = json.loads((REPO_ROOT / "scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
     block = generator.render_key_result(payload)
     assert "**Refusal recall 0.850**: 17/20" in block
     assert "Wilson 95 % CI [0.640, 0.948]" in block
@@ -392,14 +392,37 @@ def test_the_key_result_carries_k_n_and_both_intervals() -> None:
 
 def test_the_key_result_warns_when_the_scorecard_is_a_stub() -> None:
     generator = _load_generator()
-    payload = json.loads(Path("scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
+    payload = json.loads((REPO_ROOT / "scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
     payload["provenance"]["agent_model"] = "stub-agent"
     assert "Generated on stubs" in generator.render_key_result(payload)
 
 
+def test_only_the_test_split_is_called_held_out() -> None:
+    generator = _load_generator()
+    payload = json.loads((REPO_ROOT / "scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
+    assert "held-out `test` split" in generator.render_key_result(payload)
+    payload["dataset"]["name"] = "dev"
+    block = generator.render_key_result(payload)
+    assert "held-out" not in block and "`dev` dataset" in block
+
+
+def test_a_readme_without_key_result_markers_fails_loudly(tmp_path: Path) -> None:
+    generator = _load_generator()
+    readme, results = tmp_path / "README.md", tmp_path / "results.md"
+    readme.write_text("no markers\n", encoding="utf-8")
+    results.write_text("<!-- RESULTS:START -->\n<!-- RESULTS:END -->\n", encoding="utf-8")
+    card = tmp_path / "SYSTEM_CARD.md"
+    card.write_text("<!-- SYSTEM-CARD:START -->\n<!-- SYSTEM-CARD:END -->\n", encoding="utf-8")
+    with pytest.raises(SystemExit, match="KEY-RESULT"):
+        generator.main(
+            ["--readme", str(readme), "--results-doc", str(results), "--system-card", str(card)]
+        )
+    assert readme.read_text(encoding="utf-8") == "no markers\n"
+
+
 def test_results_links_are_relative_to_the_doc_they_sit_in() -> None:
     generator = _load_generator()
-    payload = json.loads(Path("scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
+    payload = json.loads((REPO_ROOT / "scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
     assert "](../scorecards/live-v1.1.0.json)" in generator.render_block(payload)
 
 

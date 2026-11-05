@@ -90,9 +90,9 @@ Human audits caught what the agents and CI did not:
    aggregation while the code averaged per question, a Docker image that cannot
    serve live answers, an API with no input limits or prompt-injection defence,
    pgvector described as the default store, docstrings contradicting the code, and
-   sprint-era narrative in shipped files. This README, `docs/CLAIMS.md` and the
+   sprint-era narrative in shipped files. The README, `docs/CLAIMS.md` and the
    `claims` / `stale-narrative` CI jobs are the first part of the response; the
-   Roadmap lists what remains.
+   README's [Roadmap](../README.md#roadmap) lists what remains.
 
 ## Checks
 
@@ -106,7 +106,7 @@ VERITY_DATABASE_URL=postgresql://verity:verity@localhost:5432/verity \
   uv run pytest -m integration                     # needs pgvector
 uv run python scripts/check_claims.py              # docs/CLAIMS.md ≡ tests ≡ README
 uv run python scripts/check_stale_narrative.py
-uv run python scripts/generate_headline_results.py --check   # README ≡ scorecard
+uv run python scripts/generate_headline_results.py --check   # scorecard, docs/results.md and README ≡ artefact
 ```
 
 [`CLAUDE.md`](../CLAUDE.md) is the working guide for coding agents. See

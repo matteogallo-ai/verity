@@ -474,7 +474,7 @@ def render_key_result(
         f"{recall['k']}/{recall['n']} unanswerable questions refused, Wilson 95 % CI "
         f"{_bracket(recall['ci95_wilson'])}, at refusal precision {_fmt(precision['value'])} "
         f"({precision['k']}/{precision['n']}, CI {_bracket(precision['ci95_wilson'])}).",
-        f"One live run on the held-out `{ds['name']}` split, n = {ds['n_questions']}, "
+        f"One live run on the {_split_label(ds['name'])}, n = {ds['n_questions']}, "
         f"agent `{prov['agent_model'].split()[0]}`, commit `{prov['run_sha']}`. "
         f"Every metric, the judge's validation and the limits: "
         f"[`docs/results.md`]({_link(results_doc, readme_path)}).",
@@ -483,6 +483,11 @@ def render_key_result(
         lines.append("")
         lines.append("> ⚠️ **Generated on stubs**: this describes the scripted stubs, not Verity.")
     return "\n".join(lines)
+
+
+def _split_label(name: str) -> str:
+    # Only the test split is held out: dev chose the threshold, so calling it held-out would overstate.
+    return "held-out `test` split" if name == "test" else f"`{name}` dataset"
 
 
 def _bracket(ci: list[float] | None) -> str:

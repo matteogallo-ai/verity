@@ -73,7 +73,7 @@ flowchart LR
         refusal --> scorecard
     end
 
-    scorecard --> readme["README results table<br/>(generated)"]
+    scorecard --> readme["docs/results.md table<br/>+ README key result (generated)"]
 ```
 
 Each box is described stage by stage below; the decisions that cost a rework are under
