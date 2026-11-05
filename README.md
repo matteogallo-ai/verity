@@ -14,62 +14,12 @@ Every published number traceable to the run artefact that produced it.
 
 </div>
 
-## The problem
+## What it is
 
 Enterprise RAG demos answer confidently and are wrong just often enough to be
-dangerous: a fluent, cited-looking answer with no real grounding is the failure that
-matters for contracts, filings and policies.
-
-Verity drafts an answer, checks deterministically that its citations cover and
-match it, asks a scorer model how well the evidence supports it, and refuses when a
-check fails, the scorer refuses, or the score is below a threshold. It publishes faithfulness, citation accuracy,
-hallucination rate and refusal precision / recall from one live run whose
-per-question audit trail is committed next to the code.
-
-## What it looks like
-
-**Cited answer**: click a citation and the source pane highlights the exact clause.
-The confidence readout shows the scorer's self-reported score, the rerank scores and
-the evidence hits. A provenance badge names the model that answered.
-
-![Cited answer with source panel + confidence readout](docs/assets/screenshot-answer.png)
-
-**Refusal**: for questions the corpus does not cover, the agent returns *"I don't
-know based on the provided documents"* with the scorer's rationale.
-
-![Refusal on an out-of-scope question](docs/assets/screenshot-refusal.png)
-
-*Both screenshots are captures of `make demo`, which runs the scripted stub agent
-offline: the badge reads `stub-agent` and the scores are the stub's canned values.*
-
-## Features
-
-Each feature maps to its implementation and tests in [`docs/CLAIMS.md`](docs/CLAIMS.md);
-CI job `claims` runs those tests.
-
-- Verbatim citations: every quote is a substring of its source document; others are dropped (C01).
-- Refusal with a rationale when a citation check fails, the scorer refuses or its score is below a threshold (C02); unparseable scorer output is refused (C03).
-- Hybrid retrieval: dense + sparse, reciprocal rank fusion, cross-encoder rerank (C04).
-- Two vector stores: in-memory with cosine and BM25 (C05); Postgres + pgvector with full-text search (C06), the default for the API, the demo and the eval (C22).
-- Markdown and plain-text ingestion with structure-aware chunking and machine-independent ids (C07); PDF and DOCX through docling (C08).
-- Multi-provider LLM routing with fallback, stopping on authentication errors (C09).
-- Per-request provenance: each answer records the model that actually served it (C10).
-- Evaluation harness: retrieval, refusal and LLM-judged answer-quality metrics, one audit record per question (C11).
-- Live run artefacts protected from being overwritten by stub runs (C12).
-- 95 questions over 21 documents (≥ 25 unanswerable, ≥ 5 adversarial) with a frozen, seeded dev/test split; per-question and per-claim aggregates (C28).
-- README results generated from the scorecard and checked in CI (C13); CLI labels match scorecard keys (C14).
-- SDK call signatures (C15) and LLM output parsers (C16) tested against the shapes real models produce.
-- Per-stage tracing behind `/metrics`, `/metrics/prom` and `/dashboard` (C17); optional OTLP export, bounded in-memory spans (C29).
-- HTTP API with `/status`, `/ask` and content-addressed `/ingest` (C18), and a Next.js UI with citation highlighting and a provenance badge (C19).
-- Provider API keys held as secrets, absent from any printed settings (C20).
-- `docker compose up`: non-root image, Postgres, migrations, corpus ingestion and the API in order, smoke-tested in CI (C26).
-- API hardening: API keys on `/status`, `/ask` and `/ingest`, per-key rate limit, a limit on failed key attempts, bounded inputs, file-type allow-list, generic errors with a request ID (C23).
-- Bounded spend: per-key spending budget on `/ask`, a per-answer cap on `verity ask` checked before each LLM call, bounded `max_tokens` and timeouts (C31).
-- Liveness and readiness split: `/health` answers while the process lives; `/ready` answers `503` until the corpus and the local models are loaded at startup, and unless Postgres answers and the LLM providers can serve as routing uses them, without spending tokens (C32).
-- Retrieved text reaches the synthesizer datamarked (spotlighting): a mark between every pair of words lets its prompt label all of it as document content. Against 12 naturally worded poisoned documents, 3 live runs per arm on the earlier 6-document corpus, no case was steered with or without the mark (0/12 each, Wilson 95 % [0, 0.243]), though the attacks made answerable questions refuse (4/24 answers with the mark, 7/24 without): this set does not show an effect of the mark (C33).
-- Prompt-injection defence: delimited, untrusted-labelled evidence, and a deterministic support check (citation coverage, cited relevance, injection markers) the model's score cannot override; adversarial eval questions (C24).
-- Provider and store outages reported as errors (HTTP 503), never as refusals (C25).
-- Judge validated against blind human labels on 60 claims, real and perturbed to be false: κ, agreement, specificity and sensitivity with n and intervals, generated from a pinned artefact (C27).
+dangerous. Verity drafts an answer, checks deterministically that its citations cover
+and match it, asks a scorer model how well the evidence supports it, and refuses when
+a check fails, the scorer refuses, or the score is below a threshold.
 
 ## Key result
 
@@ -78,60 +28,14 @@ CI job `claims` runs those tests.
 One live run on the held-out `test` split, n = 56, agent `claude-sonnet-4-6`, commit `969e1d5`. Every metric, the judge's validation and the limits: [`docs/results.md`](docs/results.md).
 <!-- KEY-RESULT:END -->
 
-## Roadmap
+## What it looks like
 
-Not implemented, or implemented without a test. Each item is a `roadmap` row in
-[`docs/CLAIMS.md`](docs/CLAIMS.md).
+![Cited answer with source panel + confidence readout](docs/assets/screenshot-answer.png)
 
-- Web-page ingestion: the trafilatura parser exists but no test exercises it (C30).
-- Calibrated refusal: the measured test ECE (0.116) does not support it (C21).
-- A judge from a different model family, and a second human annotator (C34).
-
-## Architecture
-
-```mermaid
-flowchart LR
-    subgraph Ingest["Ingestion"]
-        docs[/"documents<br/>MD · TXT · PDF · DOCX (web untested)"/] --> parser[parser<br/>structure-aware]
-        parser --> chunker[chunker]
-        chunker --> embedder[BAAI/bge-small-en-v1.5]
-    end
-
-    embedder --> pg[(pgvector, default<br/>HNSW + FTS)]
-    embedder --> mem[(in-memory store<br/>cosine + BM25)]
-
-    subgraph Retrieve["Hybrid retrieval"]
-        query[/"query"/] --> dense[dense search]
-        query --> sparse[sparse search]
-        dense --> rrf[RRF fusion]
-        sparse --> rrf
-        rrf --> rerank[cross-encoder<br/>ms-marco-MiniLM]
-    end
-
-    mem -.->|VERITY_STORE=memory| dense
-    pg --> dense
-    pg --> sparse
-
-    subgraph Agent["Agent"]
-        rerank --> decompose[decompose]
-        decompose --> synthesize[synthesize<br/>+ verbatim citations]
-        synthesize --> score[confidence scorer]
-        score -->|below threshold or refused| refuse[REFUSE<br/>with rationale]
-        score -->|otherwise| ship[Answer + citations]
-    end
-
-    subgraph Eval["Evaluation"]
-        ship --> judge[LLM judge<br/>supported · citation_ok]
-        refuse --> refusal[refusal metrics<br/>TP/FP/FN/TN]
-        judge --> scorecard["scorecards/live-v1.1.0.json<br/>+ per-question audit"]
-        refusal --> scorecard
-    end
-
-    scorecard --> readme["README results table<br/>(generated)"]
-```
-
-Stage-by-stage description, and what I'd do differently:
-[`docs/architecture.md`](docs/architecture.md#what-id-do-differently).
+Click a citation and the source pane highlights the exact clause; out-of-corpus
+questions get *"I don't know based on the provided documents"*
+([refusal screenshot](docs/assets/screenshot-refusal.png)). Both are captures of
+`make demo`, which runs the scripted stub agent offline.
 
 ## Quickstart
 
@@ -201,6 +105,44 @@ edited; v1.1.0 used the dev run `eval_6ec544d_dev.json` and the test run
 `eval_969e1d5_test.json`. The v1.0.0 run (`scorecards/live-v1.0.0.json`) used 16
 questions that predate the dev/test split.
 
+## Features
+
+Each feature maps to its implementation and tests in [`docs/CLAIMS.md`](docs/CLAIMS.md);
+CI job `claims` runs those tests.
+
+- Verbatim citations: every quote is a substring of its source document; others are dropped (C01).
+- Refusal with a rationale when a citation check fails, the scorer refuses or its score is below a threshold (C02); unparseable scorer output is refused (C03).
+- Hybrid retrieval: dense + sparse, reciprocal rank fusion, cross-encoder rerank (C04).
+- Two vector stores: in-memory with cosine and BM25 (C05); Postgres + pgvector with full-text search (C06), the default for the API, the demo and the eval (C22).
+- Markdown and plain-text ingestion with structure-aware chunking and machine-independent ids (C07); PDF and DOCX through docling (C08).
+- Multi-provider LLM routing with fallback, stopping on authentication errors (C09).
+- Per-request provenance: each answer records the model that actually served it (C10).
+- Evaluation harness: retrieval, refusal and LLM-judged answer-quality metrics, one audit record per question (C11).
+- Live run artefacts protected from being overwritten by stub runs (C12).
+- 95 questions over 21 documents (≥ 25 unanswerable, ≥ 5 adversarial) with a frozen, seeded dev/test split; per-question and per-claim aggregates (C28).
+- README results generated from the scorecard and checked in CI (C13); CLI labels match scorecard keys (C14).
+- SDK call signatures (C15) and LLM output parsers (C16) tested against the shapes real models produce.
+- Per-stage tracing behind `/metrics`, `/metrics/prom` and `/dashboard` (C17); optional OTLP export, bounded in-memory spans (C29).
+- HTTP API with `/status`, `/ask` and content-addressed `/ingest` (C18), and a Next.js UI with citation highlighting and a provenance badge (C19).
+- Provider API keys held as secrets, absent from any printed settings (C20).
+- `docker compose up`: non-root image, Postgres, migrations, corpus ingestion and the API in order, smoke-tested in CI (C26).
+- API hardening: API keys on `/status`, `/ask` and `/ingest`, per-key rate limit, a limit on failed key attempts, bounded inputs, file-type allow-list, generic errors with a request ID (C23).
+- Bounded spend: per-key spending budget on `/ask`, a per-answer cap on `verity ask` checked before each LLM call, bounded `max_tokens` and timeouts (C31).
+- Liveness and readiness split: `/health` answers while the process lives; `/ready` answers `503` until the corpus and the local models are loaded at startup, and unless Postgres answers and the LLM providers can serve as routing uses them, without spending tokens (C32).
+- Retrieved text reaches the synthesizer datamarked (spotlighting): a mark between every pair of words lets its prompt label all of it as document content. Against 12 naturally worded poisoned documents, 3 live runs per arm on the earlier 6-document corpus, no case was steered with or without the mark (0/12 each, Wilson 95 % [0, 0.243]), though the attacks made answerable questions refuse (4/24 answers with the mark, 7/24 without): this set does not show an effect of the mark (C33).
+- Prompt-injection defence: delimited, untrusted-labelled evidence, and a deterministic support check (citation coverage, cited relevance, injection markers) the model's score cannot override; adversarial eval questions (C24).
+- Provider and store outages reported as errors (HTTP 503), never as refusals (C25).
+- Judge validated against blind human labels on 60 claims, real and perturbed to be false: κ, agreement, specificity and sensitivity with n and intervals, generated from a pinned artefact (C27).
+
+## Roadmap
+
+Not implemented, or implemented without a test. Each item is a `roadmap` row in
+[`docs/CLAIMS.md`](docs/CLAIMS.md).
+
+- Web-page ingestion: the trafilatura parser exists but no test exercises it (C30).
+- Calibrated refusal: the measured test ECE (0.116) does not support it (C21).
+- A judge from a different model family, and a second human annotator (C34).
+
 ## How this was built
 
 Verity was implemented with Claude Code as the implementation engine. The process:
@@ -228,14 +170,6 @@ Human audits caught what the agents and CI did not:
    sprint-era narrative in shipped files. This README, `docs/CLAIMS.md` and the
    `claims` / `stale-narrative` CI jobs are the first part of the response; the
    Roadmap lists what remains.
-
-## Stack
-
-Python 3.12 · FastAPI · Postgres + pgvector (or an in-memory store) · local
-embeddings and cross-encoder reranker (offline, no keys) · Anthropic and OpenAI
-clients behind an ordered fallback router · OpenTelemetry spans (in-process) +
-structlog · Next.js 15 UI. Tooling: uv · ruff · mypy strict · vulture · deptry ·
-pytest · GitHub Actions. Eval history is kept as versioned JSON files.
 
 ## Development
 
