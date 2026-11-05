@@ -41,10 +41,17 @@ def completed(run: Path) -> set[str]:
     return {row["example_id"] for row in json.loads(run.read_text())["per_audit"]}
 
 
+Row = dict[str, object]
+
+
 def subsets(
-    dev: list[dict], verity_done: set[str], naive_done: set[str], seed: int = SEED
-) -> tuple[list[dict], list[dict]]:  # type: ignore[type-arg]
-    by_id = {row["id"]: row for row in dev}
+    dev: list[Row], verity_done: set[str], naive_done: set[str], seed: int = SEED
+) -> tuple[list[Row], list[Row]]:
+    # The naive file is the Verity file minus what naive completed; a question only
+    # Verity completed would silently drop out of the naive arm.
+    if not verity_done <= naive_done:
+        raise ValueError(f"completed by Verity only: {sorted(verity_done - naive_done)}")
+    by_id = {str(row["id"]): row for row in dev}
     missing = sorted(set(by_id) - verity_done)
     random.Random(seed).shuffle(missing)
     verity = [by_id[i] for i in missing]
@@ -52,7 +59,7 @@ def subsets(
     return verity, naive
 
 
-def _render(rows: list[dict]) -> str:  # type: ignore[type-arg]
+def _render(rows: list[Row]) -> str:
     return "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows)
 
 

@@ -8,6 +8,8 @@ import re
 from pathlib import Path
 from types import ModuleType
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -35,6 +37,11 @@ def test_each_arm_gets_only_the_questions_it_did_not_complete() -> None:
     assert [r for r in verity if r["id"] != "q-002"] == naive  # same order, same rows
 
 
+def test_a_question_only_verity_completed_is_an_error_not_a_silent_drop() -> None:
+    with pytest.raises(ValueError, match="q-003"):
+        subset.subsets(_rows(5), {"q-003"}, set())
+
+
 def test_the_order_is_drawn_by_the_seed_not_the_id_order() -> None:
     rows = _rows(40)
     first, _ = subset.subsets(rows, set(), set())
@@ -60,6 +67,8 @@ def test_the_completion_caps_stay_under_the_amount_asked_for() -> None:
     script = (REPO_ROOT / "scripts" / "run_naive_baseline.sh").read_text()
     block = script[script.index("completion)") :]
     caps = [float(v) for v in re.findall(r"_CAP_USD=([\d.]+)", block)[:2]]
+    # The warmup is a paid answer the cap does not see.
+    assert "extra=(--no-warmup)" in block
     # The harness checks the cap after each question: each arm can pass it by its
     # dearest question, measured on the runs at the commit whose code this one holds.
     overshoot = 0.0
@@ -69,4 +78,5 @@ def test_the_completion_caps_stay_under_the_amount_asked_for() -> None:
             r["usage"]["cost_usd"] + ((r.get("judge_usage") or {}).get("cost_usd") or 0.0)
             for r in rows
         )
-    assert sum(caps) + overshoot <= 1.15
+    # The overshoot is the dearest question observed, not a ceiling: keep a margin.
+    assert sum(caps) + overshoot <= 1.15 - 0.05

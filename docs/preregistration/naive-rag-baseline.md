@@ -107,18 +107,31 @@ outcome for any but a large difference, and are published as such.
 ## Amendment of 2026-11-05: completing the comparison
 
 Written after both runs and their 23-question comparison were published, and committed
-before any completion run. It adds runs; it changes no metric, no reading rule and no
-setting of either arm. The 23-question block stays published as it is.
+before any completion run. It changes no metric, no reading rule's interval test and
+no setting of either arm. The 23-question block stays published as it is.
 
-**Why.** Both arms stopped on their budget, and the questions run in id order. The
-comparison therefore rests on 2 of the 13 unanswerable questions. Completing the
-registered 39 involves no choice of questions, so it is the neutral way to get them
-back.
+**Departures from the text above, stated.**
 
-**What runs.** Each arm runs the dev questions it did not complete, once; no completed
-question runs again. The rows are copied unchanged from `dev.jsonl` by
-`scripts/build_completion_subset.py` (CI: `--check`), in the order `random.Random(20261105)`
-gives the sorted ids:
+- "No re-run": no question that either arm completed runs again in that arm. The arms
+  do run questions they never reached, which the text above did not provide for.
+- "Compared on the questions both completed": still the rule, now over the union of
+  each arm's two runs.
+
+**What is known in advance.** This is written by people who have read the earlier runs:
+
+- The older full dev run `6ec544d` refused 10 of the 11 unanswerable questions in
+  Verity's completion file (q-087 was answered).
+- `docs/audit/2026-11-05-false-refusals.md` reads refusal values of several of them.
+
+Metric 1 (unanswerable answered) is the one most likely to move, in Verity's favour.
+Completing the registered 39 involves no choice of questions, which is why it is still
+the least-choice option. Both arms stopped on their budget with the questions in id
+order, so the 23-question comparison rests on 2 of the 13 unanswerable questions.
+
+**What runs.** Each arm runs the dev questions it did not complete, once. The rows are
+copied unchanged from `dev.jsonl` by `scripts/build_completion_subset.py`, in the order
+`random.Random(20261105)` gives the sorted ids. The fast lane checks the files are
+current (`tests/unit/test_completion_subset.py`).
 
 - Verity: `datasets/eval/dev-completion.jsonl`, sha256 `5a9a3332348c…`, 16 questions,
   5 answerable and 11 unanswerable.
@@ -126,29 +139,41 @@ gives the sorted ids:
   2 answerable and 9 unanswerable. The same order, minus the 5 questions the naive arm
   completed.
 
-If a budget stops a run again, the questions left out are then a random draw rather
-than the end of the id order.
+If a budget stops a run, the questions left out are a random draw rather than the end
+of the id order.
 
 **Same configuration.** Models, judge, prompts, store, `VERITY_CONFIDENCE_THRESHOLD=0.0`,
-and the support check at 0.5 and 0.0, all as registered above. The runs are made at a
-commit whose `src/`, `prompts/`, `migrations/` and `datasets/corpus/` are identical to
-`e644a98`; `scripts/run_naive_baseline.sh completion` refuses to start otherwise. The
-false-refusal analysis (`docs/audit/2026-11-05-false-refusals.md`) changes no setting
-before these runs.
+and the support check at 0.5 and 0.0, all as registered above.
+
+`scripts/run_naive_baseline.sh completion` refuses to start in three cases:
+
+- `src/`, `prompts/`, `migrations/`, `datasets/corpus/`, `pyproject.toml` or `uv.lock`
+  differ from `e644a98`;
+- the environment or `.env` sets a `VERITY_` setting other than a provider key;
+- the subset files are stale.
+
+The warmup answer is off (`--no-warmup`): it is a paid call outside the cap, and
+latency is not a registered metric. Completed rows and new rows are judged on
+different days by the same judge prompt; that time gap is the one difference between
+them. The false-refusal analysis changes no setting before these runs.
 
 **Analysis.**
 
 - Each arm's rows are the union of its `e644a98` artefact and its completion artefact;
   a question appears once per arm.
 - The comparison runs on the questions both arms completed across their two runs, with
-  the metrics and the Wilson-overlap reading rule above, and names any question left
-  out.
-- It is published next to the 23-question block, labelled as the amended comparison.
-- The runs start only once `scripts/compare_naive_baseline.py` reads two artefacts per
-  arm. The result is published whichever way it comes out.
+  the metrics and the Wilson-overlap reading rule above. Any question left out is named.
+- There is no further run. A question that a completion run errors on or does not reach
+  stays out, and is named.
+- The amended block is published under the 23-question block, labelled as the amended
+  comparison. The README's prose summary describes both. Neither block is the README's
+  key result, which stays the test run of record.
+- The runs start only after `scripts/compare_naive_baseline.py` reads two artefacts per
+  arm, in a commit of its own with its tests. The result is published whichever way it
+  comes out.
 
 **Budget.** Estimated from the per-question cost (agent plus judge) of the `e644a98`
-runs, whose pipeline code is the current one:
+runs, whose pipeline code and lockfile are the current ones:
 
 | Arm | Answerable | Unanswerable | Estimate |
 |---|---|---|---|
@@ -160,9 +185,12 @@ runs, whose pipeline code is the current one:
   23 questions both runs share, which gives $0.29.
 - The estimate of the first runs ($1.91) was made from older per-question costs, and
   the runs cost more.
-- Caps coded in `scripts/run_naive_baseline.sh completion`: Verity $0.45, naive $0.52.
+- Caps coded in `scripts/run_naive_baseline.sh completion`: Verity $0.42, naive $0.48.
 - Correction to "Budget and execution" above: the harness checks its cap after each
-  question, not each call. An arm can therefore pass its cap by its dearest question:
-  $0.087 (Verity) and $0.075 (naive) on the `e644a98` runs.
-- Worst case: $0.45 + $0.52 + $0.16 = $1.13. Amount asked for: **$1.15**.
-  `tests/unit/test_completion_subset.py` holds the caps to it.
+  question, not each call. An arm can therefore pass its cap by one question. The
+  dearest questions of the `e644a98` runs cost $0.087 (Verity) and $0.075 (naive); that
+  is an observation, not a limit.
+- The first runs also made one uncounted warmup answer per arm.
+- With those observed maxima the worst case is $0.42 + $0.48 + $0.16 = $1.06. Amount
+  asked for: **$1.15**, leaving $0.09 for a dearer question than any seen.
+  `tests/unit/test_completion_subset.py` holds the caps $0.05 under it.
