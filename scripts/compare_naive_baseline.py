@@ -64,10 +64,13 @@ def _ratio(k: int, n: int) -> dict[str, Any]:
 def arm_metrics(run: EvalRun, path: Path) -> dict[str, Any]:
     """The pre-registered metrics of one arm, from its artefact alone."""
     source = _repo_path(path)
+    # The pre-registration compares an incomplete arm on the questions both arms
+    # completed; that path is not built because no run has needed it: fail, never
+    # compare two different sets of questions in silence.
     if run.scorecard.errored_example_ids:
-        # The pre-registration compares on the questions both arms completed; that
-        # path is not built because no run so far needed it: fail rather than guess.
         raise SystemExit(f"{source}: errored examples {run.scorecard.errored_example_ids}")
+    if run.scorecard.incomplete_reason is not None:
+        raise SystemExit(f"{source}: incomplete run ({run.scorecard.incomplete_reason})")
     head = build_headline_dict_from_eval_run(run, source_artefact=source)
     refu, quality = head["refusal"], head["answer_quality"]
     unanswerable = [a for a in run.per_audit if not a.expected_answerable]
