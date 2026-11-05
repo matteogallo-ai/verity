@@ -41,7 +41,7 @@ SCRIPT_PATH = REPO_ROOT / "scripts" / "generate_headline_results.py"
 
 
 def _load_generator():  # type: ignore[no-untyped-def]
-    """Import the CLI script as a module so we can call render_block / render_readme."""
+    """Import the CLI script as a module so we can call render_block / render_results."""
     spec = importlib.util.spec_from_file_location("headline_gen", SCRIPT_PATH)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
@@ -293,8 +293,8 @@ def test_generator_is_idempotent(tmp_path: Path) -> None:
     )
     generator = _load_generator()
     block = generator.render_block(json.loads(scorecard_path.read_text()))
-    first = generator.render_readme(readme.read_text(encoding="utf-8"), block)
-    second = generator.render_readme(first, block)
+    first = generator.render_results(readme.read_text(encoding="utf-8"), block)
+    second = generator.render_results(first, block)
     assert first != readme.read_text(encoding="utf-8")
     assert second == first
 
@@ -307,7 +307,7 @@ def test_generator_fails_loudly_without_markers(tmp_path: Path) -> None:
     readme.write_text("no markers here\n", encoding="utf-8")
     generator = _load_generator()
     with pytest.raises(SystemExit):
-        generator.render_readme(
+        generator.render_results(
             readme.read_text(encoding="utf-8"),
             generator.render_block(json.loads(scorecard_path.read_text())),
         )
@@ -345,27 +345,62 @@ def test_answer_quality_rows_publish_both_aggregations() -> None:
         assert any(r.startswith(f"| {label}, per claim |") for r in rows)
 
 
-def test_committed_readme_matches_committed_scorecard(tmp_path: Path) -> None:
-    """The real README's results block is what the committed scorecard renders."""
-    generator = _load_generator()
-    readme = tmp_path / "README.md"
-    readme.write_text((REPO_ROOT / "README.md").read_text(encoding="utf-8"), encoding="utf-8")
-    assert generator.main(["--check", "--readme", str(readme)]) == 0
+def test_committed_docs_match_committed_scorecard() -> None:
+    """docs/results.md and the README's key result are what the committed scorecard renders."""
+    assert _load_generator().main(["--check"]) == 0
 
 
-def test_check_mode_never_writes_the_readme(tmp_path: Path) -> None:
-    """``--check`` compares and exits 1 on drift; the file on disk is left as is."""
+@pytest.mark.parametrize("marker", ["<!-- RESULTS:END -->", "<!-- KEY-RESULT:END -->"])
+def test_check_mode_never_writes_the_docs(tmp_path: Path, marker: str) -> None:
+    """``--check`` compares and exits 1 on drift; the files on disk are left as they are."""
     generator = _load_generator()
-    readme = tmp_path / "README.md"
-    current = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    readme, results = tmp_path / "README.md", tmp_path / "docs" / "results.md"
+    card, scorecard = tmp_path / "SYSTEM_CARD.md", tmp_path / "live.json"
+    results.parent.mkdir()
+    for copy, name in (
+        (readme, "README.md"),
+        (results, "docs/results.md"),
+        (card, "docs/SYSTEM_CARD.md"),
+        (scorecard, "scorecards/live-v1.1.0.json"),
+    ):
+        copy.write_text((REPO_ROOT / name).read_text(encoding="utf-8"), encoding="utf-8")
+    args = ["--readme", str(readme), "--results-doc", str(results)]
+    args += ["--system-card", str(card), "--scorecard", str(scorecard)]
+    # Links and paths name tmp_path: render once so that only the drift below differs.
+    assert generator.main(args) == 0
+    assert generator.main(["--check", *args]) == 0
+    target = results if marker.startswith("<!-- RESULTS") else readme
+    current = target.read_text(encoding="utf-8")
     # A line inside the generated block: drift whatever the published numbers are.
-    stale = current.replace(
-        "<!-- RESULTS:END -->", "| Edited | 0.999 | by hand |\n<!-- RESULTS:END -->"
-    )
+    stale = current.replace(marker, f"| Edited | 0.999 | by hand |\n{marker}")
     assert stale != current
-    readme.write_text(stale, encoding="utf-8")
-    assert generator.main(["--check", "--readme", str(readme)]) == 1
-    assert readme.read_text(encoding="utf-8") == stale
+    target.write_text(stale, encoding="utf-8")
+    assert generator.main(["--check", *args]) == 1
+    assert target.read_text(encoding="utf-8") == stale
+
+
+def test_the_key_result_carries_k_n_and_both_intervals() -> None:
+    """The one number on the README's first screen keeps its interval and its counterweight."""
+    generator = _load_generator()
+    payload = json.loads(Path("scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
+    block = generator.render_key_result(payload)
+    assert "**Refusal recall 0.850**: 17/20" in block
+    assert "Wilson 95 % CI [0.640, 0.948]" in block
+    assert "refusal precision 0.773 (17/22, CI [0.566, 0.899])" in block
+    assert "](docs/results.md)" in block
+
+
+def test_the_key_result_warns_when_the_scorecard_is_a_stub() -> None:
+    generator = _load_generator()
+    payload = json.loads(Path("scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
+    payload["provenance"]["agent_model"] = "stub-agent"
+    assert "Generated on stubs" in generator.render_key_result(payload)
+
+
+def test_results_links_are_relative_to_the_doc_they_sit_in() -> None:
+    generator = _load_generator()
+    payload = json.loads(Path("scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
+    assert "](../scorecards/live-v1.1.0.json)" in generator.render_block(payload)
 
 
 def test_errored_examples_are_counted_in_the_scorecard_and_the_readme_block() -> None:
@@ -387,13 +422,15 @@ def test_check_fails_when_the_scorecard_differs_from_its_artefact(tmp_path: Path
     generator = _load_generator()
     scorecard = tmp_path / "live.json"
     payload = json.loads((REPO_ROOT / "scorecards/live-v1.0.0.json").read_text(encoding="utf-8"))
-    readme = tmp_path / "README.md"
-    readme.write_text("<!-- RESULTS:START -->\n<!-- RESULTS:END -->\n", encoding="utf-8")
+    readme, results = tmp_path / "README.md", tmp_path / "results.md"
+    readme.write_text("<!-- KEY-RESULT:START -->\n<!-- KEY-RESULT:END -->\n", encoding="utf-8")
+    results.write_text("<!-- RESULTS:START -->\n<!-- RESULTS:END -->\n", encoding="utf-8")
     # A card in tmp_path too: the default one is the committed docs/SYSTEM_CARD.md.
     card = tmp_path / "SYSTEM_CARD.md"
     card.write_text("<!-- SYSTEM-CARD:START -->\n<!-- SYSTEM-CARD:END -->\n", encoding="utf-8")
     scorecard.write_text(json.dumps(payload), encoding="utf-8")
-    args = ["--scorecard", str(scorecard), "--readme", str(readme), "--system-card", str(card)]
+    args = ["--scorecard", str(scorecard), "--readme", str(readme), "--results-doc", str(results)]
+    args += ["--system-card", str(card)]
     assert generator.main(args) == 0
     assert generator.main(["--check", *args]) == 0
 

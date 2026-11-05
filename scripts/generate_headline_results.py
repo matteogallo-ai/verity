@@ -1,18 +1,21 @@
-"""Write the headline scorecard from a run artefact, the README results block from the
-scorecard, and the system card's measured-performance block. Nothing is typed by hand.
+"""Write the headline scorecard from a run artefact, the results table, the README's key
+result and the system card's measured-performance block from the scorecard. Nothing is
+typed by hand.
 
-    # reproduce: artefact -> scorecard -> README
+    # reproduce: artefact -> scorecard -> results doc, README, system card
     uv run python scripts/generate_headline_results.py \
         --artefact datasets/eval/runs/live/<run>.json --scorecard scorecards/<name>.json
-    # CI: scorecard == recomputed from its artefact, README block == rendered scorecard
+    # CI: scorecard == recomputed from its artefact, every block == rendered scorecard
     uv run python scripts/generate_headline_results.py --check
 
 The scorecard names its artefact (``source_artefact``), so ``--check`` needs no
-argument. The README block sits between ``<!-- RESULTS:START -->`` and
-``<!-- RESULTS:END -->``; the system card block between ``<!-- SYSTEM-CARD:START -->``
-and ``<!-- SYSTEM-CARD:END -->`` in ``docs/SYSTEM_CARD.md`` (each proportion with k/n
-and a Wilson 95 % interval, and the approved SLOs next to their measured values).
-Missing markers fail loudly, and every file is rendered before any is written.
+argument. The results table sits between ``<!-- RESULTS:START -->`` and
+``<!-- RESULTS:END -->`` in ``docs/results.md``; the README's key result between
+``<!-- KEY-RESULT:START -->`` and ``<!-- KEY-RESULT:END -->``; the system card block
+between ``<!-- SYSTEM-CARD:START -->`` and ``<!-- SYSTEM-CARD:END -->`` in
+``docs/SYSTEM_CARD.md`` (each proportion with k/n and a Wilson 95 % interval, and the
+approved SLOs next to their measured values). Missing markers fail loudly, and every
+file is rendered before any is written.
 """
 
 from __future__ import annotations
@@ -36,10 +39,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 RUNS_DIR = REPO_ROOT / "datasets" / "eval" / "runs" / "live"
 DEFAULT_SCORECARD = REPO_ROOT / "scorecards" / "live-v1.1.0.json"
 DEFAULT_README = REPO_ROOT / "README.md"
+DEFAULT_RESULTS_DOC = REPO_ROOT / "docs" / "results.md"
 DEFAULT_SYSTEM_CARD = REPO_ROOT / "docs" / "SYSTEM_CARD.md"
 VALIDATION = REPO_ROOT / "datasets" / "eval" / "judge_validation"
 START = "<!-- RESULTS:START -->"
 END = "<!-- RESULTS:END -->"
+KEY_START = "<!-- KEY-RESULT:START -->"
+KEY_END = "<!-- KEY-RESULT:END -->"
 CARD_START = "<!-- SYSTEM-CARD:START -->"
 CARD_END = "<!-- SYSTEM-CARD:END -->"
 # Proposed by the implementer, not approved by the owner: the card says so on every row.
@@ -74,11 +80,16 @@ def _repo_path(path: Path) -> str:
     return (resolved.relative_to(REPO_ROOT) if inside else resolved).as_posix()
 
 
+def _link(target: Path, doc: Path) -> str:
+    """Markdown link target for ``target`` as seen from the file ``doc``."""
+    return Path(os.path.relpath(target.resolve(), doc.resolve().parent)).as_posix()
+
+
 def _ci(k: int, n: int, ci: list[float] | None) -> str:
     """``k/n · 95 % CI [low, high]`` (Wilson), or ``k/n`` when n is 0."""
     if ci is None:
         return f"{k}/{n}"
-    return f"{k}/{n} · 95 % CI [{ci[0]:.3f}, {ci[1]:.3f}]"
+    return f"{k}/{n} · 95 % CI {_bracket(ci)}"
 
 
 def _usd(value: float | None) -> str:
@@ -105,9 +116,10 @@ def render_block(
     data: dict[str, Any],
     *,
     scorecard_path: Path = DEFAULT_SCORECARD,
+    doc_path: Path = DEFAULT_RESULTS_DOC,
     judge: str = "judge unvalidated",
 ) -> str:
-    """Return the Markdown block to insert between the RESULTS markers."""
+    """Return the Markdown block to insert between the RESULTS markers of ``doc_path``."""
     prov = data["provenance"]
     cost = data["cost"]
     retr = data["retrieval"]
@@ -223,7 +235,7 @@ def render_block(
         lines.append("")
     rel = _repo_path(scorecard_path)
     lines.append(
-        f"Generated from [`{rel}`]({rel}), itself computed from the run artefact "
+        f"Generated from [`{rel}`]({_link(scorecard_path, doc_path)}), itself computed from the run artefact "
         f"`{data['source_artefact']}` (`scripts/generate_headline_results.py --check` "
         "recomputes both)."
     )
@@ -429,7 +441,7 @@ def render_system_card_block(
     prov = data["provenance"]
     ds = data["dataset"]
     source = _repo_path(scorecard_path)
-    link = Path(os.path.relpath(scorecard_path.resolve(), card_path.resolve().parent)).as_posix()
+    link = _link(scorecard_path, card_path)
     lines = [
         f"Source: [`{source}`]({link}) · commit `{prov['run_sha']}` · "
         f"{_short_date(str(data['generated_at']))} · agent `{prov['agent_model']}` · "
@@ -447,7 +459,37 @@ def render_system_card_block(
     return "\n".join(lines)
 
 
-def render_readme(text: str, block: str) -> str:
+def render_key_result(
+    data: dict[str, Any],
+    *,
+    readme_path: Path = DEFAULT_README,
+    results_doc: Path = DEFAULT_RESULTS_DOC,
+) -> str:
+    """Return the README's key result: refusal recall and precision with their intervals."""
+    prov, ds, refu = data["provenance"], data["dataset"], data["refusal"]
+    recall, precision = refu["refusal_recall"], refu["refusal_precision"]
+    stub = "stub" in prov["agent_model"] or "stub" in prov["judge_model"]
+    lines = [
+        f"**Refusal recall {_fmt(recall['value'])}**: "
+        f"{recall['k']}/{recall['n']} unanswerable questions refused, Wilson 95 % CI "
+        f"{_bracket(recall['ci95_wilson'])}, at refusal precision {_fmt(precision['value'])} "
+        f"({precision['k']}/{precision['n']}, CI {_bracket(precision['ci95_wilson'])}).",
+        f"One live run on the held-out `{ds['name']}` split, n = {ds['n_questions']}, "
+        f"agent `{prov['agent_model'].split()[0]}`, commit `{prov['run_sha']}`. "
+        f"Every metric, the judge's validation and the limits: "
+        f"[`docs/results.md`]({_link(results_doc, readme_path)}).",
+    ]
+    if stub:
+        lines.append("")
+        lines.append("> ⚠️ **Generated on stubs**: this describes the scripted stubs, not Verity.")
+    return "\n".join(lines)
+
+
+def _bracket(ci: list[float] | None) -> str:
+    return "n/a" if ci is None else f"[{ci[0]:.3f}, {ci[1]:.3f}]"
+
+
+def render_results(text: str, block: str) -> str:
     """Return ``text`` with the content between the RESULTS markers replaced."""
     return replace_between(text, block, START, END)
 
@@ -479,6 +521,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scorecard", type=Path, default=DEFAULT_SCORECARD)
     parser.add_argument("--readme", type=Path, default=DEFAULT_README)
+    parser.add_argument("--results-doc", type=Path, default=DEFAULT_RESULTS_DOC)
     parser.add_argument("--system-card", type=Path, default=DEFAULT_SYSTEM_CARD)
     parser.add_argument(
         "--artefact",
@@ -488,7 +531,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--check",
         action="store_true",
-        help="Exit 1 if the scorecard, the README or the system card would change; write nothing.",
+        help="Exit 1 if the scorecard or a generated block would change; write nothing.",
     )
     args = parser.parse_args(argv)
 
@@ -505,19 +548,27 @@ def main(argv: list[str] | None = None) -> int:
     payload = build_headline_dict_from_eval_run(load_run(artefact), source_artefact=source)
 
     scorecard_text = _dump(payload)
-    for path in (args.readme, args.system_card):
+    for path in (args.readme, args.results_doc, args.system_card):
         if not path.is_file():
             raise SystemExit(f"{path} not found")
     readme = args.readme.read_text(encoding="utf-8")
+    results = args.results_doc.read_text(encoding="utf-8")
     card = args.system_card.read_text(encoding="utf-8")
     # Render every file before writing any, so a missing marker leaves all as they were.
-    rendered_readme = render_readme(
-        readme,
+    rendered_results = render_results(
+        results,
         render_block(
             payload,
             scorecard_path=args.scorecard,
+            doc_path=args.results_doc,
             judge=judge_label(payload["provenance"]["judge_model"]),
         ),
+    )
+    rendered_readme = replace_between(
+        readme,
+        render_key_result(payload, readme_path=args.readme, results_doc=args.results_doc),
+        KEY_START,
+        KEY_END,
     )
     rendered_card = replace_between(
         card,
@@ -530,6 +581,8 @@ def main(argv: list[str] | None = None) -> int:
     pending: list[tuple[Path, str]] = []
     if existing is None or _dump(existing) != scorecard_text:
         pending.append((args.scorecard, scorecard_text))
+    if rendered_results != results:
+        pending.append((args.results_doc, rendered_results))
     if rendered_readme != readme:
         pending.append((args.readme, rendered_readme))
     if rendered_card != card:
@@ -540,7 +593,7 @@ def main(argv: list[str] | None = None) -> int:
             names = ", ".join(str(path) for path, _ in pending)
             print(f"out of date: {names} — run without --check", file=sys.stderr)
             return 1
-        print(f"scorecard, README and system card match {source}")
+        print(f"scorecard, results doc, README and system card match {source}")
         return 0
     args.scorecard.parent.mkdir(parents=True, exist_ok=True)
     for path, text in pending:

@@ -60,7 +60,7 @@ The API does not detect or filter personal data in uploaded documents.
 One live run, never averaged or re-run; read every value with its n and its interval.
 The answer-quality rows come from an LLM judge (named in the source line), validated
 against blind human labels on 60 claims for its prompt v0.1.0 (claim C27; the κ and its
-limits are in the README's "Judge validation"). Faithfulness and citation accuracy, as means of
+limits are under "Judge validation" in [`results.md`](results.md)). Faithfulness and citation accuracy, as means of
 per-question fractions, are not proportions: they get n and no interval. A scorecard
 that stores per-claim counts gets a per-claim row instead, whose interval is too narrow
 because the claims of one answer are correlated.

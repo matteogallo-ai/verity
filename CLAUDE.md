@@ -32,7 +32,7 @@ migrations/           numbered SQL files (pgvector schema)
 datasets/corpus/      21 documents (Markdown, PDF, DOCX; one adversarial), see datasets/CORPUS.md
 datasets/corpus_src/  Markdown sources of the PDF/DOCX documents
 datasets/eval/        questions.jsonl (95), frozen dev.jsonl / test.jsonl split
-scorecards/           committed live scorecard (source of the README table)
+scorecards/           committed live scorecard (source of docs/results.md and the README key result)
 scripts/              check_claims, check_stale_narrative, check_commit_messages,
                       generate_headline_results, build_eval_labels,
                       build_corpus_documents, split_dataset
@@ -56,7 +56,7 @@ uv run python scripts/check_claims.py                      # CLAIMS.md ≡ passi
 uv run python scripts/check_claims.py --no-run             # structure only, no tests executed
 uv run python scripts/check_stale_narrative.py             # no sprint labels / future tense / bare TODO
 uv run python scripts/check_commit_messages.py main..HEAD  # Conventional Commits on the branch
-uv run python scripts/generate_headline_results.py --check # scorecard ≡ artefact, README + SYSTEM_CARD blocks ≡ scorecards
+uv run python scripts/generate_headline_results.py --check # scorecard ≡ artefact, results doc + README key result + SYSTEM_CARD ≡ scorecards
 uv run python scripts/build_corpus_documents.py --check    # PDF/DOCX corpus ≡ sources
 uv run python scripts/split_dataset.py --check             # dev/test split ≡ seed
 uv run python scripts/recompute_live_aggregates.py --check # live runs: *.recomputed.json current
@@ -76,7 +76,8 @@ cd web && corepack pnpm lint && corepack pnpm typecheck && corepack pnpm test
 
 - `make demo`, CI and the tests never call a paid model. Any live run (`--judge live`,
   `--no-agent-stub`, `verity ask` without `--stub`) needs a cost estimate and approval.
-- The README results block and the docs/SYSTEM_CARD.md block are generated; edit `scorecards/`
+- The results and judge blocks of docs/results.md, the README key result and the
+  docs/SYSTEM_CARD.md block are generated; edit `scorecards/`
   or the generator, never the blocks.
 - Changing a non-comment line of a `prompts/*.prompt` file changes model behaviour.
 - `datasets/eval/runs/live/` holds runs of record, pinned in its `SHA256SUMS`; never
