@@ -1,0 +1,185 @@
+{
+  "arms": {
+    "naive": {
+      "agent_model": "claude-sonnet-4-6",
+      "artefact_sha256": "0a2b7108ef45e74ff82f81b061b6edbcc179abfdb07b2daf2cf0ce7627f71990",
+      "git_sha": "e644a98",
+      "incomplete_reason": "budget_exceeded",
+      "judge_model": "claude-opus-5-5",
+      "metrics": {
+        "answerable_answered": {
+          "ci95_wilson": [
+            0.845361,
+            1.0
+          ],
+          "k": 21,
+          "n": 21,
+          "value": 1.0
+        },
+        "citation_accuracy_per_claim": {
+          "ci95_wilson": [
+            0.75983,
+            0.936958
+          ],
+          "k": 48,
+          "n": 55,
+          "value": 0.872727
+        },
+        "faithfulness_per_claim": {
+          "ci95_wilson": [
+            0.934715,
+            1.0
+          ],
+          "k": 55,
+          "n": 55,
+          "value": 1.0
+        },
+        "hallucination_rate": {
+          "ci95_wilson": [
+            0.0,
+            0.154639
+          ],
+          "k": 0,
+          "n": 21,
+          "value": 0.0
+        },
+        "unanswerable_answered": {
+          "ci95_wilson": [
+            0.34238,
+            1.0
+          ],
+          "k": 2,
+          "n": 2,
+          "value": 1.0
+        },
+        "unanswerable_answered_without_self_abstentions": {
+          "ci95_wilson": [
+            0.094531,
+            0.905469
+          ],
+          "k": 1,
+          "n": 2,
+          "value": 0.5
+        }
+      },
+      "n_completed": 28,
+      "n_examples": 23,
+      "self_abstained_ids": [
+        "q-006"
+      ],
+      "source_artefact": "datasets/eval/runs/live/eval_e644a98_dev-naive-baseline.incomplete-20261105T094823388125Z.json",
+      "total_cost_usd": 1.231849
+    },
+    "verity": {
+      "agent_model": "claude-sonnet-4-6",
+      "artefact_sha256": "a5f84e6670ebebe7e73125b45f467f9c2afaa862180a5f24330042ab550f8b5e",
+      "git_sha": "e644a98",
+      "incomplete_reason": "budget_exceeded",
+      "judge_model": "claude-opus-5-5",
+      "metrics": {
+        "answerable_answered": {
+          "ci95_wilson": [
+            0.549088,
+            0.89372
+          ],
+          "k": 16,
+          "n": 21,
+          "value": 0.761905
+        },
+        "citation_accuracy_per_claim": {
+          "ci95_wilson": [
+            0.770395,
+            0.969534
+          ],
+          "k": 31,
+          "n": 34,
+          "value": 0.911765
+        },
+        "faithfulness_per_claim": {
+          "ci95_wilson": [
+            0.898485,
+            1.0
+          ],
+          "k": 34,
+          "n": 34,
+          "value": 1.0
+        },
+        "hallucination_rate": {
+          "ci95_wilson": [
+            0.0,
+            0.193608
+          ],
+          "k": 0,
+          "n": 16,
+          "value": 0.0
+        },
+        "unanswerable_answered": {
+          "ci95_wilson": [
+            0.0,
+            0.65762
+          ],
+          "k": 0,
+          "n": 2,
+          "value": 0.0
+        },
+        "unanswerable_answered_without_self_abstentions": {
+          "ci95_wilson": [
+            0.0,
+            0.65762
+          ],
+          "k": 0,
+          "n": 2,
+          "value": 0.0
+        }
+      },
+      "n_completed": 23,
+      "n_examples": 23,
+      "self_abstained_ids": [],
+      "source_artefact": "datasets/eval/runs/live/eval_e644a98_dev.incomplete-20261105T094431636600Z.json",
+      "total_cost_usd": 0.927715
+    }
+  },
+  "compared_ids": [
+    "q-001",
+    "q-002",
+    "q-006",
+    "q-009",
+    "q-011",
+    "q-012",
+    "q-017",
+    "q-021",
+    "q-022",
+    "q-023",
+    "q-025",
+    "q-026",
+    "q-027",
+    "q-030",
+    "q-031",
+    "q-035",
+    "q-038",
+    "q-039",
+    "q-042",
+    "q-051",
+    "q-054",
+    "q-057",
+    "q-060"
+  ],
+  "completed_by_one_arm_only": [
+    "q-061",
+    "q-063",
+    "q-065",
+    "q-067",
+    "q-070"
+  ],
+  "n_dataset": 39,
+  "preregistration": "docs/preregistration/naive-rag-baseline.md",
+  "readings": {
+    "answerable_answered": "not distinguishable",
+    "citation_accuracy_per_claim": "not distinguishable",
+    "faithfulness_per_claim": "not distinguishable",
+    "hallucination_rate": "not distinguishable",
+    "unanswerable_answered": "not distinguishable",
+    "unanswerable_answered_without_self_abstentions": "not distinguishable"
+  },
+  "schema": "verity.naive-baseline-comparison/v1"
+}

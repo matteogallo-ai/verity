@@ -70,3 +70,18 @@ def test_an_empty_denominator_is_not_read() -> None:
 def test_missing_markers_fail_loudly() -> None:
     with pytest.raises(SystemExit, match="markers"):
         _load().replace_block("no markers\n", "block")
+
+
+def test_the_committed_comparison_matches_its_artefacts() -> None:
+    assert _load().main(["--check"]) == 0
+
+
+def test_the_comparison_runs_on_the_questions_both_arms_completed() -> None:
+    import json
+
+    data = json.loads((REPO_ROOT / "scorecards/naive-baseline-comparison.json").read_text())
+    for arm in data["arms"].values():
+        assert arm["n_examples"] == len(data["compared_ids"])
+        assert arm["metrics"]["answerable_answered"]["n"] + arm["metrics"]["unanswerable_answered"][
+            "n"
+        ] == len(data["compared_ids"])

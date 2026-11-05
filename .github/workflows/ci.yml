@@ -52,6 +52,9 @@ jobs:
       - name: Judge-validation blocks of docs/results.md match their artefact
         run: uv run python scripts/render_judge_validation.py --check
 
+      - name: Naive-baseline comparison matches its artefacts
+        run: uv run python scripts/compare_naive_baseline.py --check
+
       - name: PDF and DOCX corpus documents match their Markdown sources
         run: uv run python scripts/build_corpus_documents.py --check
 

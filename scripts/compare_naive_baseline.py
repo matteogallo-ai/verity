@@ -61,16 +61,17 @@ def _ratio(k: int, n: int) -> dict[str, Any]:
     }
 
 
-def arm_metrics(run: EvalRun, path: Path) -> dict[str, Any]:
-    """The pre-registered metrics of one arm, from its artefact alone."""
+def arm_metrics(run: EvalRun, path: Path, compared: list[str]) -> dict[str, Any]:
+    """The pre-registered metrics of one arm on the ``compared`` questions."""
     source = _repo_path(path)
-    # The pre-registration compares an incomplete arm on the questions both arms
-    # completed; that path is not built because no run has needed it: fail, never
-    # compare two different sets of questions in silence.
-    if run.scorecard.errored_example_ids:
-        raise SystemExit(f"{source}: errored examples {run.scorecard.errored_example_ids}")
-    if run.scorecard.incomplete_reason is not None:
-        raise SystemExit(f"{source}: incomplete run ({run.scorecard.incomplete_reason})")
+    completed = [a.example_id for a in run.per_audit]
+    spent = build_headline_dict_from_eval_run(run, source_artefact=source)["cost"]["total_usd"]
+    # Every metric is computed from the audit records alone, so restricting them to
+    # the questions both arms completed restricts every metric with them.
+    keep = set(compared)
+    run = run.model_copy(
+        update={"per_audit": tuple(a for a in run.per_audit if a.example_id in keep)}
+    )
     head = build_headline_dict_from_eval_run(run, source_artefact=source)
     refu, quality = head["refusal"], head["answer_quality"]
     unanswerable = [a for a in run.per_audit if not a.expected_answerable]
@@ -88,7 +89,9 @@ def arm_metrics(run: EvalRun, path: Path) -> dict[str, Any]:
         "agent_model": run.agent_model,
         "judge_model": run.judge_model,
         "n_examples": len(run.per_audit),
-        "total_cost_usd": round(head["cost"]["total_usd"] or 0.0, 6),
+        "n_completed": len(completed),
+        "incomplete_reason": run.scorecard.incomplete_reason,
+        "total_cost_usd": round(spent or 0.0, 6),
         "metrics": {
             "unanswerable_answered": _ratio(ooa["count"], ooa["total"]),
             "hallucination_rate": _ratio(hall["k"], hall["n_questions"]),
@@ -138,9 +141,16 @@ def read(verity: dict[str, Any], naive: dict[str, Any]) -> str:
 
 
 def build(verity_path: Path, naive_path: Path) -> dict[str, Any]:
+    verity_run, naive_run = load_run(verity_path), load_run(naive_path)
+    in_naive = {a.example_id for a in naive_run.per_audit}
+    # Pre-registered: an incomplete arm is compared on the questions both completed.
+    compared = [a.example_id for a in verity_run.per_audit if a.example_id in in_naive]
+    if not compared:
+        raise SystemExit("the two arms completed no question in common")
+    dataset = {a.example_id for a in (*verity_run.per_audit, *naive_run.per_audit)}
     arms = {
-        "verity": arm_metrics(load_run(verity_path), verity_path),
-        "naive": arm_metrics(load_run(naive_path), naive_path),
+        "verity": arm_metrics(verity_run, verity_path, compared),
+        "naive": arm_metrics(naive_run, naive_path, compared),
     }
     readings = {
         key: read(arms["verity"]["metrics"][key], arms["naive"]["metrics"][key]) for key, *_ in ROWS
@@ -148,6 +158,9 @@ def build(verity_path: Path, naive_path: Path) -> dict[str, Any]:
     return {
         "schema": "verity.naive-baseline-comparison/v1",
         "preregistration": PREREGISTRATION,
+        "n_dataset": verity_run.scorecard.n_examples,
+        "compared_ids": compared,
+        "completed_by_one_arm_only": sorted(dataset - set(compared)),
         "arms": arms,
         "readings": readings,
     }
@@ -169,8 +182,23 @@ def _cell(m: dict[str, Any]) -> str:
 
 def render_block(data: dict[str, Any], scorecard_path: Path = DEFAULT_SCORECARD) -> str:
     v, n = data["arms"]["verity"], data["arms"]["naive"]
-    lines = [
-        f"Dev split, n = {v['n_examples']}, same questions, agent `{v['agent_model']}`, "
+    n_unans = v["metrics"]["unanswerable_answered"]["n"]
+    incomplete = [
+        f"{label} completed {arm['n_completed']} of {data['n_dataset']} ({arm['incomplete_reason']})"
+        for label, arm in (("Verity", v), ("the naive arm", n))
+        if arm["incomplete_reason"] is not None
+    ]
+    lines = []
+    if incomplete:
+        lines += [
+            "> **Incomplete runs.** "
+            + "; ".join(incomplete)
+            + f". As pre-registered, the arms are compared on the {v['n_examples']} questions "
+            f"both completed: {v['n_examples'] - n_unans} answerable, {n_unans} unanswerable.",
+            "",
+        ]
+    lines += [
+        f"Dev split, n = {v['n_examples']} compared, same questions, agent `{v['agent_model']}`, "
         f"judge `{v['judge_model']}`, both arms at commit `{v['git_sha']}`. The naive arm "
         "ships the synthesizer's draft with no citation gate, support check, scorer or "
         f"threshold. Metrics and reading rule were [pre-registered]({PREREGISTRATION}) "
