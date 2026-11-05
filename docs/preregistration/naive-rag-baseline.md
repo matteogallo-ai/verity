@@ -89,8 +89,12 @@ outcome for any but a large difference, and are published as such.
 
 ## Budget and execution
 
-- Hard caps coded in `scripts/run_naive_baseline.sh`: Verity arm $0.95, naive arm
-  $1.25, $2.20 in total, approved by the owner. Estimate: Verity ≈ $0.85, naive ≈ $1.06.
+- Hard caps coded in `scripts/run_naive_baseline.sh`: Verity arm $0.92, naive arm
+  $1.22. The harness checks its cap after each call, so an arm can pass it by one
+  call (about $0.03); the $0.06 left keeps the total under the $2.20 the owner
+  approved. Estimate: Verity ≈ $0.85, naive ≈ $1.06.
+- Amended before either run: the caps first read $0.95 and $1.25, which summed to the
+  approved $2.20 with no room for that last call.
 - An arm that hits its cap or has errored questions is published incomplete, with the
   questions it did not complete named; the comparison then runs on the questions both
   arms completed, and says so.
