@@ -1,7 +1,7 @@
-"""Write the README's judge-validation section from the committed agreement artefact.
+"""Write the judge-validation section of docs/results.md from the committed agreement artefact.
 
     uv run python scripts/render_judge_validation.py          # rewrite the block
-    uv run python scripts/render_judge_validation.py --check  # CI: README == artefact
+    uv run python scripts/render_judge_validation.py --check  # CI: docs/results.md == artefact
 
 The block sits between ``<!-- JUDGE:START -->`` and ``<!-- JUDGE:END -->`` and is
 rendered from ``datasets/eval/judge_validation/agreement.json``: the blind human
@@ -38,7 +38,8 @@ V2_AGREEMENT = VALIDATION / "judge-v0.2.0" / "agreement.json"
 # The corpus note written to carry an injection (adversarial eval): a claim whose answer
 # retrieved it put that text, undelimited, in front of the v0.1.0 judge.
 INJECTED_DOCUMENT = "datasets/corpus/vendor_onboarding_note.md"
-README = REPO_ROOT / "README.md"
+# The links in the blocks are relative to this file, which sits in docs/.
+RESULTS_DOC = REPO_ROOT / "docs" / "results.md"
 START, END = "<!-- JUDGE:START -->", "<!-- JUDGE:END -->"
 ADJ_START, ADJ_END = "<!-- JUDGE-ADJUDICATED:START -->", "<!-- JUDGE-ADJUDICATED:END -->"
 V2_START, V2_END = "<!-- JUDGE-V2:START -->", "<!-- JUDGE-V2:END -->"
@@ -194,12 +195,12 @@ def render_block(result: dict[str, Any], judge_model: str, prov: Provenance) -> 
         f"- robustness to injected content is not measured: judge prompt "
         f"v{prov.prompt_version} puts the retrieved text in front of the judge without "
         "delimiters or an untrusted-content instruction "
-        "([THREAT_MODEL](docs/THREAT_MODEL.md#llm01-prompt-injection)), and only "
+        "([THREAT_MODEL](THREAT_MODEL.md#llm01-prompt-injection)), and only "
         f"{prov.exposed_to_injection} of the {mixed['n_claims']} claims had the corpus note "
         "written to carry an injection in the judge's context.",
         "",
         "Generated from "
-        "[`datasets/eval/judge_validation/agreement.json`](datasets/eval/judge_validation/agreement.json) "
+        "[`datasets/eval/judge_validation/agreement.json`](../datasets/eval/judge_validation/agreement.json) "
         "(`scripts/render_judge_validation.py --check`); the labels and the key are pinned in "
         "`datasets/eval/judge_validation/SHA256SUMS`.",
     ]
@@ -241,7 +242,7 @@ def render_adjudicated_block(result: dict[str, Any], blind: dict[str, Any]) -> s
         "",
         "Generated from "
         "[`datasets/eval/judge_validation/agreement_adjudicated.json`]"
-        "(datasets/eval/judge_validation/agreement_adjudicated.json); each decision and its "
+        "(../datasets/eval/judge_validation/agreement_adjudicated.json); each decision and its "
         "reason is in `adjudication.csv`.",
     ]
     return "\n".join(lines)
@@ -302,7 +303,7 @@ def render_v2_block(result: dict[str, Any], blind: dict[str, Any]) -> str:
         "",
         "Generated from "
         "[`datasets/eval/judge_validation/judge-v0.2.0/agreement.json`]"
-        "(datasets/eval/judge_validation/judge-v0.2.0/agreement.json); per-claim verdicts "
+        "(../datasets/eval/judge_validation/judge-v0.2.0/agreement.json); per-claim verdicts "
         "in `verdicts.json` beside it.",
     ]
     return "\n".join(lines)
@@ -311,19 +312,21 @@ def render_v2_block(result: dict[str, Any], blind: dict[str, Any]) -> str:
 def replace_block(text: str, block: str, start: str = START, end: str = END) -> str:
     i, j = text.find(start), text.find(end)
     if i == -1 or j == -1 or j < i:
-        raise SystemExit(f"README missing {start!r} / {end!r} markers")
+        raise SystemExit(f"results doc missing {start!r} / {end!r} markers")
     return f"{text[: i + len(start)]}\n{block}\n{text[j:]}"
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--readme", type=Path, default=README)
-    parser.add_argument("--check", action="store_true", help="exit 1 if the README would change")
+    parser.add_argument("--results-doc", type=Path, default=RESULTS_DOC)
+    parser.add_argument(
+        "--check", action="store_true", help="exit 1 if the results doc would change"
+    )
     args = parser.parse_args(argv)
     result = json.loads(AGREEMENT.read_text(encoding="utf-8"))
     judge_model = json.loads(REJUDGED.read_text(encoding="utf-8"))["judge_model"]
     adjudicated = json.loads(ADJUDICATED.read_text(encoding="utf-8"))
-    current = args.readme.read_text(encoding="utf-8")
+    current = args.results_doc.read_text(encoding="utf-8")
     rendered = replace_block(current, render_block(result, judge_model, provenance()))
     rendered = replace_block(
         rendered, render_adjudicated_block(adjudicated, result), ADJ_START, ADJ_END
@@ -333,11 +336,11 @@ def main(argv: list[str] | None = None) -> int:
     rendered = replace_block(rendered, render_v2_block(v2, result), V2_START, V2_END)
     if args.check:
         if rendered != current:
-            print(f"out of date: {args.readme} — run without --check", file=sys.stderr)
+            print(f"out of date: {args.results_doc} — run without --check", file=sys.stderr)
             return 1
-        print(f"{args.readme} matches {AGREEMENT.relative_to(REPO_ROOT)}")
+        print(f"{args.results_doc} matches {AGREEMENT.relative_to(REPO_ROOT)}")
         return 0
-    args.readme.write_text(rendered, encoding="utf-8")
+    args.results_doc.write_text(rendered, encoding="utf-8")
     return 0
 
 

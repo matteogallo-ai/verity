@@ -658,7 +658,7 @@ def eval_run(
                 "Path to write the enriched publishable scorecard JSON — full "
                 "provenance triple + total_cost_usd + per-example refusal + "
                 "latency percentiles. Used by scripts/generate_headline_results.py "
-                "to render the README's headline table. Independent of --runs-dir."
+                "to render docs/results.md and the README key result. Independent of --runs-dir."
             )
         ),
     ] = None,

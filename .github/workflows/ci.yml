@@ -46,10 +46,10 @@ jobs:
       - name: Deptry (unused / missing / transitive dependencies)
         run: uv run deptry src
 
-      - name: README results block matches the committed scorecard
+      - name: Results table and README key result match the committed scorecard
         run: uv run python scripts/generate_headline_results.py --check
 
-      - name: README judge-validation block matches its artefact
+      - name: Judge-validation blocks of docs/results.md match their artefact
         run: uv run python scripts/render_judge_validation.py --check
 
       - name: PDF and DOCX corpus documents match their Markdown sources
