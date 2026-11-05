@@ -66,10 +66,11 @@ class JudgeResult:
 
 
 def _is_refusal(answer: Answer) -> bool:
-    """A refusal is identified by ``confidence.refused`` (canonical) or by the
-    conventional refusal text emitted by the agent."""
-    if answer.confidence is not None and answer.confidence.refused:
-        return True
+    """A refusal is the agent's recorded decision, ``confidence.refused``. The refusal
+    text decides only when no decision is recorded: a shipped draft that says it does
+    not know is an answer, and its claims are judged."""
+    if answer.confidence is not None:
+        return answer.confidence.refused
     text = answer.text.lower()
     return any(marker in text for marker in _REFUSAL_MARKERS)
 

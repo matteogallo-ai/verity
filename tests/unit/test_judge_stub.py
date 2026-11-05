@@ -148,3 +148,19 @@ async def test_stub_judge_records_zero_usage() -> None:
     assert judge.last_usage is not None
     assert judge.last_usage.llm_calls == 0
     assert judge.last_usage.cost_usd == 0.0
+
+
+@pytest.mark.asyncio
+async def test_a_shipped_answer_that_says_it_does_not_know_is_judged() -> None:
+    """Refusal is the agent's recorded decision, not a phrase: a shipped draft saying
+    "I do not know" stays in the judged answers (naive baseline, pre-registered)."""
+    judge = StubFaithfulnessJudge()
+    shipped = Answer(
+        query="q?",
+        text="I do not know when the policy took effect.",
+        confidence=Confidence(score=1.0, refused=False, rationale="checks disabled"),
+        checks_disabled=True,
+    )
+    metrics = await judge.judge(_example(answerable=True), shipped)
+    # The refusal shortcut would score it 1.0; judged with no citation it is 0.0.
+    assert metrics.citation_accuracy == 0.0

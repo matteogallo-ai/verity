@@ -672,6 +672,16 @@ def eval_run(
             )
         ),
     ] = None,
+    naive_baseline: Annotated[
+        bool,
+        typer.Option(
+            help=(
+                "Run the naive RAG baseline: the draft ships with no citation gate, no "
+                "support check, no scorer and no threshold. The artefact is named "
+                "<dataset>-naive-baseline. See docs/preregistration/naive-rag-baseline.md."
+            )
+        ),
+    ] = False,
     report_only_floors: Annotated[
         bool,
         typer.Option(
@@ -733,7 +743,9 @@ def eval_run(
     agent_client = build_stub_router() if agent_stub else create_default_routing_client()
     if not agent_stub:
         _require_llm_api_key()
-    agent = create_default_agent(retriever=retriever, client=agent_client)
+    agent = create_default_agent(
+        retriever=retriever, client=agent_client, checks=not naive_baseline
+    )
     # Traceability: the refusal numbers in the Scorecard are meaningless without
     # knowing WHICH agent produced the answers they aggregate over. "stub-agent"
     # is the sentinel picked up by the CLI and README as a prudence flag.
@@ -761,7 +773,8 @@ def eval_run(
         embedding_model=settings.embedding_model,
         judge_model=judge_model,
         agent_model=agent_model,
-        dataset_name=dataset.stem,
+        # The arm is in the name so both arms of one commit get distinct artefacts.
+        dataset_name=f"{dataset.stem}-naive-baseline" if naive_baseline else dataset.stem,
         warmup=warmup,
     )
     git_sha = current_git_sha()
@@ -775,8 +788,9 @@ def eval_run(
     effective_runs_dir = resolve_runs_dir(runs_dir, judge_mode=judge_mode, agent_stub=agent_stub)
     run_store = FileRunStore(effective_runs_dir)
     dataset_sha256 = hashlib.sha256(dataset.read_bytes()).hexdigest()
-    # create_default_agent above builds its scorer from these settings.
-    threshold = settings.confidence_threshold
+    # create_default_agent above builds its scorer from these settings; the naive
+    # baseline has no scorer, so no threshold applied to it.
+    threshold = None if naive_baseline else settings.confidence_threshold
     try:
         result = asyncio.run(evaluator.run(examples, git_sha=git_sha, budget_usd_cap=budget_usd))
     except BudgetExceededError as exc:
