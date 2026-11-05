@@ -27,22 +27,33 @@ chunk listed in the question's `relevant_chunk_ids`.
 
 ## Causes
 
-**Relevance (q-001, q-023): the right chunk, judged as a whole.** Both cited chunks
-pack two sections, and the answer is in the second:
+**Relevance (q-001, q-023): the right chunk, scored as a whole.** A hit keeps the best
+cross-encoder score of its text over the decomposer's sub-questions (a single-fact
+question is its own only sub-question). The local model reproduces both recorded
+scores from (question, chunk text). Both chunks
+hold more than the answer:
 
-- the q-001 chunk opens with "1. Limitation of Liability", then "2. Termination for
-  Convenience … sixty (60) days";
-- the q-023 chunk opens with "3. Billing and Payment", then "4. Data Residency … hosted
-  exclusively in … Frankfurt".
+- q-001: the chunk is "## 1. Limitation of Liability" followed by "## 2. Termination for
+  Convenience … sixty (60) days". Without §1 it scores +3.29 instead of −0.62.
+- q-023: the chunk starts mid-§3 ("Fees are invoiced annually…"; "3. Billing and
+  Payment" is only its section metadata) and holds §4 "Data Residency … hosted
+  exclusively in … Frankfurt", §5 and the heading of §6. Without the §3 text it still
+  scores −0.45; §4 alone scores +0.51.
 
-The cross-encoder scores the chunk against the question, and the first section pulls
-the score below 0.
+So the score of an answer-bearing chunk drops below 0 when the chunk also carries
+sections the question is not about.
 
-**Coverage (q-022, q-031, q-035): the measure, not the evidence.** The answers restate
-the question ("nightly hotel limit", "end-user training") or state a relation the
-quotes do not word ("longer than", "explicitly excluded"). Those content words are
-missing from the quotes. The naive drafts of the same questions recompute, with
-`citation_coverage`, to 45 %, 45 % and 57 %: correct answers sit on both sides of 0.5.
+**Coverage (q-022, q-031, q-035): the measure, more than the evidence.** Verity's
+refused drafts are not stored, so the evidence is the naive drafts of the same
+questions. Those restate the question ("nightly hotel limit", "end-user training") or
+state a relation the quotes do not word ("longer than", "explicitly excluded").
+`citation_coverage` puts them at 45 %, 45 % and 57 %: correct answers sit on both sides
+of 0.5. Two limits on that proxy:
+
+- For q-022 and q-031 the two arms decomposed differently and retrieved different hits.
+- In the q-035 naive draft, two of the three uncovered words ("excluding taxes") belong
+  to a claim the judge marked as not supported by its citation, so coverage did catch
+  one uncited claim there.
 
 ## Too strict, or a real lack of evidence?
 
@@ -52,12 +63,16 @@ same-prompt naive drafts supported.
 
 Whether lowering a threshold would help depends on what the gate also stops. Below
 are all refusals by these two checks in the three Verity live runs, on dev
-(`6ec544d`, `e644a98`) and test (`969e1d5`):
+(`6ec544d`, `e644a98`) and test (`969e1d5`). Counted in refusals; in brackets, distinct
+questions, since q-022, q-023 and q-031 were refused in both dev runs:
 
 | Check | Answerable refused (false) | Unanswerable refused (correct) |
 |---|---|---|
-| coverage < 0.5 | 7, at 31–47 % | 10, at 17–48 % |
-| cited rerank < 0.0 | 9, at −2.45 to −0.01 | 2, at −8.72 and −0.11 |
+| coverage < 0.5 | 7 (5), at 31–47 % | 10 (10), at 17–48 % |
+| cited rerank < 0.0 | 9 (8), at −2.45 to −0.01 | 2 (2), at −8.72 and −0.11 |
+
+The relevance row only holds drafts that passed coverage, which is checked first; the
+relevance score of a coverage-refused draft is not recorded.
 
 - **Coverage: no threshold separates the two columns.** Lowering it lets through
   unanswerable drafts at the same values as the answerable ones it recovers.
@@ -65,7 +80,7 @@ are all refusals by these two checks in the three Verity live runs, on dev
   `d0ca1d5` and never validated (comment on `min_cited_rerank_score` in
   `src/verity/config.py`). On dev alone, every answerable it refused scored between
   −2.45 and −0.62. It stopped one unanswerable at −8.72; the other, at −0.11, is above
-  every answerable value.
+  every answerable value on dev.
 
 What this cannot show:
 
@@ -74,7 +89,10 @@ What this cannot show:
 - **Verity's own drafts.** A refused answer is stored as "I don't know" with no
   citations, so its draft and quotes are not in the artefact; the naive drafts are a
   proxy.
-- **Generalisation.** The counts are small (7, 10, 9, 2).
+- **Generalisation.** The counts are small.
+- **A clean test split for a new threshold.** The table above reads refusal values from
+  the test run `969e1d5`. A relevance threshold chosen after reading them cannot be
+  validated on that run; it needs a fresh held-out measurement.
 
 Nothing here changes a setting. The completion runs of the amendment of 2026-11-05
 (`docs/preregistration/naive-rag-baseline.md`) keep the registered configuration. A
