@@ -150,10 +150,11 @@ def _completed(data: dict[str, Any]) -> str:
     missing = sizes.get("n_errored", 0) + sizes.get("n_not_run", 0)
     if not missing:
         return f"n = {n}"
-    return (
-        f"n = {n - missing} of {n} completed ({sizes.get('n_not_run', 0)} not run, stopped "
-        f"by the run's spending cap; {sizes.get('n_errored', 0)} errored)"
-    )
+    not_run, errored = sizes.get("n_not_run", 0), sizes.get("n_errored", 0)
+    cause = f"{errored} errored"
+    if not_run:
+        cause = f"{not_run} not run, stopped by the run's spending cap; {cause}"
+    return f"n = {n - missing} of {n} completed ({cause})"
 
 
 def _judged_of_shipped(data: dict[str, Any]) -> str:
@@ -212,7 +213,7 @@ def render_block(
         f"`judge={prov['judge_model']}` · "
         f"`embedding={prov['embedding_model']}` · "
         f"commit `{prov['run_sha']}` · {date} · dataset `{ds['name']}` · "
-        f"n={ds['n_questions']} ({ds['n_answerable']} answerable + "
+        f"{_n_of_asked(data)} ({ds['n_answerable']} answerable + "
         f"{ds['n_unanswerable']} unanswerable) · "
         f"**{sizes['n_errored']} errored, {sizes.get('n_not_run', 0)} not run** (kept out of "
         "every metric) · "

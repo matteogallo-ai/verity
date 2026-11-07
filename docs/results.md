@@ -6,7 +6,7 @@ record, the judge's validation against blind human labels, and what the numbers 
 ## Measured results
 
 <!-- RESULTS:START -->
-**Measured on**: `agent=claude-sonnet-4-6 (54/54)` · `judge=claude-opus-5-5 (40/54 answered — 14 refusals bypass the judge)` · `embedding=BAAI/bge-small-en-v1.5` · commit `513b839` · 2026-11-07 · dataset `test` · n=56 (36 answerable + 18 unanswerable) · **0 errored, 2 not run** (kept out of every metric) · total cost **$2.4562**
+**Measured on**: `agent=claude-sonnet-4-6 (54/54)` · `judge=claude-opus-5-5 (40/54 answered — 14 refusals bypass the judge)` · `embedding=BAAI/bge-small-en-v1.5` · commit `513b839` · 2026-11-07 · dataset `test` · n=54 of 56 asked (36 answerable + 18 unanswerable) · **0 errored, 2 not run** (kept out of every metric) · total cost **$2.4562**
 
 | Metric | Value | Notes |
 |---|---:|---|
@@ -256,12 +256,12 @@ Generated from [`datasets/eval/judge_validation/agreement.json`](../datasets/eva
 Generated from [`datasets/eval/judge_validation/agreement_adjudicated.json`](../datasets/eval/judge_validation/agreement_adjudicated.json); each decision and its reason is in `adjudication.csv`.
 <!-- JUDGE-ADJUDICATED:END -->
 
-### Judge prompt v0.2.0 (not the judge of the runs of record)
+### Judge prompt v0.2.0, the judge of the run of record
 
 <!-- JUDGE-V2:START -->
-Judge `claude-opus-5-5` with judge prompt v0.2.0 (sha256 `aa66e62370a2`), the prompt in `prompts/`: its inputs are delimited and its evidence datamarked, and it names the citation of each claim. Rejudged against the same blind labels, for $1.3045, on **52 of 60 claims only: the budget stopped the rejudge before 8**, so the figures below are incomplete and both prompts are compared on those claims; the unjudged ones are the last in id order, not a random sample. Every claim, real or perturbed, is judged as a one-claim answer; v0.1.0 used the live whole-answer verdict for the real claims, so a change on real claims mixes the prompt and the protocol. The runs of record were judged by v0.1.0: their answer-quality figures carry the v0.1.0 κ above.
+Judge `claude-opus-5-5` with judge prompt v0.2.0 (sha256 `aa66e62370a2`), the prompt in `prompts/`: its inputs are delimited and its evidence datamarked, and it names the citation of each claim. Rejudged against the same blind labels, for $1.3045, on **52 of 60 claims only: the budget stopped the rejudge before 8**, so the figures below are incomplete and both prompts are compared on those claims; the unjudged ones are the last in id order, not a random sample. Every claim, real or perturbed, is judged as a one-claim answer; v0.1.0 used the live whole-answer verdict for the real claims, so a change on real claims mixes the prompt and the protocol. The run of record (`513b839` test) was judged by v0.2.0 and its answer-quality figures carry the v0.2.0 κ below; the earlier runs (`6ec544d` dev, `969e1d5` test) were judged by v0.1.0.
 
-| Measure, on the 52 claims v0.2.0 judged | v0.1.0 (runs of record) | v0.2.0 |
+| Measure, on the 52 claims v0.2.0 judged | v0.1.0 (earlier runs) | v0.2.0 (run of record) |
 |---|---|---|
 | Cohen's κ, all claims | 0.64 | 0.60 |
 | Observed agreement | 45/52 · 95 % CI [0.747, 0.933] | 44/52 · 95 % CI [0.725, 0.920] |
@@ -269,7 +269,7 @@ Judge `claude-opus-5-5` with judge prompt v0.2.0 (sha256 `aa66e62370a2`), the pr
 | Judge specificity on real claims | 33/35 · 95 % CI [0.814, 0.984] | 32/35 · 95 % CI [0.776, 0.970] |
 | Sensitivity on perturbed claims (upper bound) | 12/16 · 95 % CI [0.505, 0.898] | 12/16 · 95 % CI [0.505, 0.898] |
 
-On all 60 claims v0.1.0 has κ 0.71, the figure of record above.
+On all 60 claims v0.1.0 has κ 0.71, the figure the earlier runs carry (above).
 
 The judge named a valid citation it found supporting for 40 of the 57 claims it returned. The blind labels judge support only, so this count is not validated against a human.
 
@@ -281,8 +281,10 @@ Generated from [`datasets/eval/judge_validation/judge-v0.2.0/agreement.json`](..
 - **The run of record is incomplete.** It stopped at its $2.40 spending cap after
   54 of 56 questions; `q-094` and `q-095`, both unanswerable and tagged
   `adversarial`, were not run and are outside every metric. Scope: 54 questions, 36
-  answerable and 18 unanswerable. Known limit: the two adversarial questions most
-  likely to be refused by `suspected_injection` are missing. Next step: the next test
+  answerable and 18 unanswerable; it stands as the run of record under
+  [ADR 0008](adr/0008-a-spending-cap-stop-as-run-of-record.md), proposed. Known limit:
+  two unanswerable adversarial questions are missing; with them, refusal recall would
+  lie between 13/20 and 15/20. Next step: the next test
   run with a cap sized on the judged-answer cost.
 - **Several analyses below rest on the earlier runs.** The threshold sweep, the
   calibration figures and the judge validation of prompt v0.1.0 come from the dev run
