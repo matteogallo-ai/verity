@@ -144,6 +144,18 @@ def judge_label(judge_model: str, judge_prompt_sha: str, validation_dir: Path = 
     return "judge unvalidated"
 
 
+def _completed(data: dict[str, Any]) -> str:
+    """``n = 56``, or how many a run cut short (spending cap, outage) completed."""
+    n, sizes = data["dataset"]["n_questions"], data["sample_sizes"]
+    missing = sizes.get("n_errored", 0) + sizes.get("n_not_run", 0)
+    if not missing:
+        return f"n = {n}"
+    return (
+        f"n = {n - missing} of {n} completed ({sizes.get('n_not_run', 0)} not run, stopped "
+        f"by the run's spending cap; {sizes.get('n_errored', 0)} errored)"
+    )
+
+
 def _judged_of_shipped(data: dict[str, Any]) -> str:
     sizes = data["sample_sizes"]
     judged, answered = sizes["n_judged"], sizes["n_answered"]
@@ -202,7 +214,8 @@ def render_block(
         f"commit `{prov['run_sha']}` · {date} · dataset `{ds['name']}` · "
         f"n={ds['n_questions']} ({ds['n_answerable']} answerable + "
         f"{ds['n_unanswerable']} unanswerable) · "
-        f"**{sizes['n_errored']} errored** (kept out of every metric) · "
+        f"**{sizes['n_errored']} errored, {sizes.get('n_not_run', 0)} not run** (kept out of "
+        "every metric) · "
         f"total cost **{_usd(cost['total_usd'])}**",
         "",
         "| Metric | Value | Notes |",
@@ -487,7 +500,8 @@ def _latency_slo_rows(data: dict[str, Any], approved: str) -> list[str]:
 
 
 def _slo_rows(data: dict[str, Any]) -> list[str]:
-    n = data["dataset"]["n_questions"]
+    # Questions the eval's own spending cap left unrun were never requested.
+    n = data["dataset"]["n_questions"] - data["sample_sizes"].get("n_not_run", 0)
     errored = int(data["sample_sizes"]["n_errored"])
     error_rate = errored / n if n else None
     count, interval = _count_and_interval(errored, n)
@@ -568,7 +582,7 @@ def render_key_result(
         f"{recall['k']}/{recall['n']} unanswerable questions refused, Wilson 95 % CI "
         f"{_bracket(recall['ci95_wilson'])}, at refusal precision {_fmt(precision['value'])} "
         f"({precision['k']}/{precision['n']}, CI {_bracket(precision['ci95_wilson'])}).",
-        f"One live run on the {_split_label(ds['name'])}, n = {ds['n_questions']}, "
+        f"One live run on the {_split_label(ds['name'])}, {_completed(data)}, "
         f"agent `{prov['agent_model'].split()[0]}`, commit `{prov['run_sha']}`. "
         f"Every metric, the judge's validation and the limits: "
         f"[`docs/results.md`]({_link(results_doc, readme_path)}).",
