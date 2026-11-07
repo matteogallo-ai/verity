@@ -1,0 +1,226 @@
+{
+  "budget_usd": 0.19,
+  "cost_usd": 0.127136,
+  "created_at": "2026-11-07T12:31:23.509365+00:00",
+  "dataset": "datasets/eval/test.jsonl",
+  "dataset_sha256": "94b8d5db3bbc1eedf2945e066ac50bc64226f53c9062bfe4bd1c0f371e1e19c4",
+  "incomplete_reason": null,
+  "judge_model": "claude-opus-5-5",
+  "n_to_grade": 35,
+  "prompt_sha256": "513794c180e37f42b7c4da5387ae9a2c67d8e02e41f0fd8ffd8d7c719ee52868",
+  "run_artefact": "datasets/eval/runs/live/eval_513b839_test.incomplete-20261107T122042441670Z.json",
+  "run_artefact_sha256": "0d05bad32262d3f9c9a3245e2c57e748eda563491c1cbc216075c2ca3b413ecb",
+  "schema": "verity.correctness/v1",
+  "verdicts": [
+    {
+      "cost_usd": 0.003784,
+      "example_id": "q-003",
+      "reason": "The answer matches the reference on FY2024 revenue of $482.0 million and the 18.4% rise from $407.1 million, and its added segment detail does not contradict the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.004116,
+      "example_id": "q-005",
+      "reason": "The answer says assignment to a competitor requires consent, which matches the reference, and its added detail about the merger exception does not contradict it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00344,
+      "example_id": "q-007",
+      "reason": "The answer matches the reference on both asked facts: a 99.9% monthly uptime commitment and a 50% credit of that month's fees when uptime is below 95%.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003696,
+      "example_id": "q-008",
+      "reason": "The answer names both storage locations, Frankfurt, Germany and Virginia, US, and identifies the EU Standard Contractual Clauses as the transfer mechanism, matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003224,
+      "example_id": "q-010",
+      "reason": "The answer matches the reference on both points: one hour under the SLA, and 30 minutes, 24/7, with Premium Support.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00372,
+      "example_id": "q-013",
+      "reason": "The answer states that scheduled maintenance does not count against the uptime commitment and that at least 48 hours' notice is given, matching the reference; the Sunday window is extra detail that does not contradict it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.004072,
+      "example_id": "q-016",
+      "reason": "The answer gives 16 weeks for primary caregivers and 8 weeks for secondary caregivers, fully paid, taken within 12 months of birth, adoption or placement, after 3 months of employment, all matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002828,
+      "example_id": "q-020",
+      "reason": "The answer states 250 named user seats at US$42.00 per seat per month, matching the reference exactly.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003096,
+      "example_id": "q-024",
+      "reason": "The answer says no and matches the reference: seats can only be reduced at an annual renewal date and never below 200 during the term.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002928,
+      "example_id": "q-028",
+      "reason": "The answer says New York law governs the NDA and Delaware law governs the MSA, which matches the reference on both points.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.0033,
+      "example_id": "q-029",
+      "reason": "The answer gives the fixed fee of US$85,000 and the second-milestone payment of 40% (US$34,000), both matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003396,
+      "example_id": "q-032",
+      "reason": "The answer says no and states the prohibition on using Customer Data, including AI prompts and outputs, to train or fine-tune models, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.004468,
+      "example_id": "q-033",
+      "reason": "The answer gives 1,000 API requests per minute per tenant with HTTP 429 for excess requests, matching the reference; the extra details about backoff and higher limits do not contradict it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.006224,
+      "example_id": "q-034",
+      "reason": "The answer gives the condition the question asks for, a violation posing an immediate threat to the security or availability of the service, which matches the reference; omitting the 24-hour notice detail is acceptable since it is not what was asked.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00288,
+      "example_id": "q-036",
+      "reason": "The answer gives both conditions from the reference: flights scheduled at more than six hours and approval by a Vice President.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003388,
+      "example_id": "q-037",
+      "reason": "The answer gives the total of US$155 with the same breakdown as the reference: US$40 on the departure day, US$75 for the full day and US$40 on the return day.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.004696,
+      "example_id": "q-040",
+      "reason": "The answer gives both asked facts in agreement with the reference: reimbursement within 30 days of a complete claim, and claims filed within 30 days after the trip ends; the extra 90-day detail does not contradict it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002484,
+      "example_id": "q-041",
+      "reason": "The answer gives a minimum password length of 14 characters, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003248,
+      "example_id": "q-043",
+      "reason": "The answer gives the one-hour employee reporting window and the 72-hour customer breach notification, both matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.0031,
+      "example_id": "q-044",
+      "reason": "The answer lists all four levels (Public, Internal, Confidential, Restricted) matching the reference, and its extra detail does not contradict it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003512,
+      "example_id": "q-045",
+      "reason": "The answer gives 10 days per calendar year, which matches the reference; carryover was not asked by the question.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003816,
+      "example_id": "q-046",
+      "reason": "The answer gives eligibility after 5 years of continuous employment and a duration of 4 weeks, both matching the reference; the 3-month advance request also agrees, and the manager approval is extra detail that contradicts nothing.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00294,
+      "example_id": "q-047",
+      "reason": "The answer states that up to 5 unused PTO days carry over and that sick days do not carry over, both matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003352,
+      "example_id": "q-048",
+      "reason": "The answer states the one-time US$500 home office stipend and the US$50 monthly internet allowance, which matches the reference; the extra equipment details do not contradict it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00256,
+      "example_id": "q-049",
+      "reason": "The answer states that fully remote work is not available during probation, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002972,
+      "example_id": "q-050",
+      "reason": "The answer states the US$100 per person per year limit and the exclusion of cash or cash equivalents, matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.004684,
+      "example_id": "q-052",
+      "reason": "The answer gives the US$1,500 per calendar year budget, matching the reference; the carryover rule is not asked and the extra uses do not contradict it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003136,
+      "example_id": "q-053",
+      "reason": "The answer gives revenue of $128.9 million and 17.2% YoY growth from $110.0 million, both matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003244,
+      "example_id": "q-056",
+      "reason": "The answer gives the US$268 million budget and states it is 12% ($29 million) above FY2024 actuals of $239 million, matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.005132,
+      "example_id": "q-058",
+      "reason": "The answer names Dana Whitfield as the 2025 CFO succeeding Robert Lang, which matches the reference, and its extra retirement detail does not contradict it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003172,
+      "example_id": "q-059",
+      "reason": "The answer states that no dividend was declared for FY2025 and gives the same reason, retaining flexibility for acquisitions, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.007064,
+      "example_id": "q-062",
+      "reason": "The answer gives three written quotes, which matches the reference's core figure; it omits the sole-supplier exception, but that is a qualification rather than the number the question asks for.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00292,
+      "example_id": "q-064",
+      "reason": "The answer states that splitting a purchase to avoid an approval threshold is prohibited, matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002892,
+      "example_id": "q-066",
+      "reason": "The answer gives about 67% ($86.4M of $128.9M), which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003652,
+      "example_id": "q-092",
+      "reason": "The answer says assignment to a competitor is not permitted without the non-assigning party's prior written consent, which matches the reference; the other details it adds do not contradict it.",
+      "verdict": "correct"
+    }
+  ]
+}
