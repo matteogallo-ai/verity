@@ -154,7 +154,7 @@ def _fixture_result() -> HarnessResult:
 def test_build_headline_dict_carries_full_provenance_and_totals() -> None:
     result = _fixture_result()
     payload = build_headline_dict(result)
-    assert payload["schema"] == "verity.scorecard.headline/v5"
+    assert payload["schema"] == "verity.scorecard.headline/v6"
     prov = payload["provenance"]
     # Agent summary: all 16 answers stamped claude-sonnet-4-6 → "(16/16)"
     assert prov["agent_model"] == "claude-sonnet-4-6 (16/16)"
@@ -269,7 +269,10 @@ def test_render_block_shows_verbatim_headline_numbers() -> None:
     # Every judge-track row names its denominator.
     assert "mean over 11 judged answers" in block
     assert "pooled over claims: 517/550" in block
-    assert "answered answerable questions: 1/11" in block
+    assert (
+        "answered answerable questions (an answer to an unanswerable question is outside it): 1/11"
+        in block
+    )
     assert "refusals bypass the judge" in block  # judge summary honesty
 
 
@@ -277,7 +280,7 @@ def test_write_headline_scorecard_round_trips(tmp_path: Path) -> None:
     result = _fixture_result()
     out = write_headline_scorecard(result.as_eval_run(), tmp_path / "live.json")
     parsed = json.loads(out.read_text(encoding="utf-8"))
-    assert parsed["schema"] == "verity.scorecard.headline/v5"
+    assert parsed["schema"] == "verity.scorecard.headline/v6"
     assert parsed["cost"]["total_usd"] == pytest.approx(1.4)
 
 
@@ -532,7 +535,7 @@ def test_block_prints_the_interval_and_n_next_to_each_proportion() -> None:
         line.split("|")[1].strip(" *"): line for line in block.splitlines() if line.startswith("|")
     }
     assert "5/5 · 95 % CI [0.566, 1.000]" in rows["Refusal precision"]
-    assert "1/11 · 95 % CI [0.016, 0.377]" in rows["Hallucination rate"]
+    assert "1/11 · 95 % CI [0.016, 0.377]" in rows["Hallucination rate, answerable only"]
     assert "517/550 · 95 % CI [" in rows["Faithfulness, per claim"]
     assert "CI" not in rows["Faithfulness, per question"]
     assert "0/5 · 95 % CI [0.000, 0.434]" in rows["Unanswerable answered"]
@@ -588,7 +591,11 @@ def test_system_card_slos_are_approved_and_say_what_was_not_measured() -> None:
     rows = _card_rows(_committed_scorecard())
     slos = [_row_starting(rows, prefix) for prefix in ("p95", "Error", "Cost")]
     assert all(cells[0].endswith("(approved)") for cells in slos)
-    assert slos[1][1:] == ["0.000 (0/16, 95 % CI [0.000, 0.194])", "met"]
+    # 0 errors in 16: no violation observed, but the upper bound is far above 1 %.
+    assert slos[1][1:] == [
+        "0.000 (0/16, 95 % CI [0.000, 0.194])",
+        "no violation observed; n too small to conclude (95 % upper bound 19.4% > 1%)",
+    ]
     assert slos[2][2] == "met"
 
 
@@ -659,11 +666,11 @@ def test_a_missing_card_marker_writes_neither_file(tmp_path: Path) -> None:
         generator.main(["--readme", str(readme), "--system-card", str(tmp_path / "absent.md")])
 
 
-def test_a_scorecard_older_than_v5_is_refused_by_the_card() -> None:
-    """Only v5 stores the k/n each row prints; an older scorecard would need them guessed."""
+def test_a_scorecard_older_than_v6_is_refused_by_the_card() -> None:
+    """Only v6 stores every k/n the card prints; an older scorecard would need them guessed."""
     payload = _committed_scorecard()
     payload["schema"] = "verity.scorecard.headline/v3"
-    with pytest.raises(SystemExit, match="v5"):
+    with pytest.raises(SystemExit, match="v6"):
         _card_rows(payload)
 
 
@@ -685,3 +692,43 @@ def test_check_covers_the_system_card_and_never_writes_it(tmp_path: Path) -> Non
     card.write_text(stale, encoding="utf-8")
     assert generator.main(args) == 1
     assert card.read_text(encoding="utf-8") == stale
+
+
+def test_invented_answer_rate_counts_every_judged_answer() -> None:
+    """Every judged answer is in the denominator, answerable or not."""
+    payload = build_headline_dict(_fixture_result())
+    invented = payload["answer_quality"]["invented_answer_rate"]
+    assert invented["scope"] == "answered"
+    # The fixture's 11 judged answers each carry 3 unsupported claims.
+    assert (invented["k"], invented["n_questions"]) == (11, 11)
+    assert invented["ci95_wilson"] is not None
+
+
+def test_the_key_result_leads_with_invented_answers_and_names_them() -> None:
+    """The README's first number is the one that counts q-074, with its definition."""
+    generator = _load_generator()
+    payload = json.loads((REPO_ROOT / "scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
+    block = generator.render_key_result(payload)
+    assert block.startswith("**Invented answers 1/34**")
+    assert "answerable or not" in block
+    assert "`q-074`" in block
+    assert "**Refusal recall 0.850**" not in block.splitlines()[0]
+
+
+def test_a_zero_error_count_too_small_for_the_target_is_not_met() -> None:
+    """0/56 has a Wilson upper bound of 6.4 %: no violation observed, but n cannot show
+    a rate of 1 % or less, so the status is not "met"."""
+    payload = json.loads((REPO_ROOT / "scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
+    rows = _card_rows(payload)
+    error = _row_starting(rows, "Error rate")
+    assert error[2].startswith("no violation observed; n too small to conclude")
+    assert error[2] != "met"
+
+
+def test_cost_per_query_is_published_with_and_without_the_judge() -> None:
+    generator = _load_generator()
+    payload = json.loads((REPO_ROOT / "scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
+    assert payload["cost"]["per_query_with_judge_usd"] == pytest.approx(1.2768 / 56, abs=1e-4)
+    block = generator.render_block(payload)
+    row = next(line for line in block.splitlines() if line.startswith("| Cost / query"))
+    assert "$0.0132 agent only" in row and "$0.0228 with the judge" in row

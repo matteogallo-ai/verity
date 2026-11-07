@@ -35,6 +35,7 @@ a check fails, the scorer refuses, or the score is below a threshold.
 ## Key result
 
 <!-- KEY-RESULT:START -->
+**Invented answers 1/34** (Wilson 95 % CI [0.005, 0.149]): answers holding a claim the judge finds unsupported by the retrieved passages, over every answer shipped, answerable or not (`q-074`). Faithfulness to the passages, not correctness; judge κ 0.71 [0.49, 0.89] vs blind human, validated on 60 claims of which 1 real hallucination.
 **Refusal recall 0.850**: 17/20 unanswerable questions refused, Wilson 95 % CI [0.640, 0.948], at refusal precision 0.773 (17/22, CI [0.566, 0.899]).
 One live run on the held-out `test` split, n = 56, agent `claude-sonnet-4-6`, commit `969e1d5`. Every metric, the judge's validation and the limits: [`docs/results.md`](docs/results.md).
 <!-- KEY-RESULT:END -->

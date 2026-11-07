@@ -10,19 +10,20 @@ record, the judge's validation against blind human labels, and what the numbers 
 
 | Metric | Value | Notes |
 |---|---:|---|
+| **Invented answers** | **1/34** | ↓ better · answers with a claim the judge finds unsupported / every answer shipped, answerable or not: 1/34 · 95 % CI [0.005, 0.149] · `q-074` · judge κ 0.71 [0.49, 0.89] vs blind human, validated on 60 claims of which 1 real hallucination |
 | **Refusal recall** | **0.850** | unanswerable questions refused / unanswerable: 17/20 · 95 % CI [0.640, 0.948] · threshold 0 |
 | **Refusal precision** | **0.773** | refusals that were unanswerable / refusals: 17/22 · 95 % CI [0.566, 0.899] |
-| Faithfulness, per question | 0.990 | mean over 34 judged answers · judge κ 0.71 vs blind human (n=60) |
-| Faithfulness, per claim | 0.991 | pooled over claims: 108/109 · 95 % CI [0.950, 0.998] · judge κ 0.71 vs blind human (n=60) |
-| Citation accuracy, per question | 0.968 | mean over 34 judged answers · judge κ 0.71 vs blind human (n=60) |
-| Citation accuracy, per claim | 0.963 | pooled over claims: 105/109 · 95 % CI [0.909, 0.986] · judge κ 0.71 vs blind human (n=60) |
-| Hallucination rate | 0.000 | ↓ better · answers with an unsupported claim / answered answerable questions: 0/31 · 95 % CI [0.000, 0.110] |
+| Faithfulness, per question | 0.990 | mean over 34 judged answers · judge κ 0.71 [0.49, 0.89] vs blind human, validated on 60 claims of which 1 real hallucination |
+| Faithfulness, per claim | 0.991 | pooled over claims: 108/109 · 95 % CI [0.950, 0.998] · judge κ 0.71 [0.49, 0.89] vs blind human, validated on 60 claims of which 1 real hallucination |
+| Citation accuracy, per question | 0.968 | mean over 34 judged answers · judge κ 0.71 [0.49, 0.89] vs blind human, validated on 60 claims of which 1 real hallucination |
+| Citation accuracy, per claim | 0.963 | pooled over claims: 105/109 · 95 % CI [0.909, 0.986] · judge κ 0.71 [0.49, 0.89] vs blind human, validated on 60 claims of which 1 real hallucination |
+| Hallucination rate, answerable only | 0.000 | ↓ better · answers with an unsupported claim / answered answerable questions (an answer to an unanswerable question is outside it): 0/31 · 95 % CI [0.000, 0.110] |
 | Unanswerable answered | 3/20 | ↓ better · an answer shipped where the corpus has none: 3/20 · 95 % CI [0.052, 0.360] |
 | Retrieval nDCG@8 | 0.929 | scored without an LLM on hits retrieved for the LLM sub-questions |
 | Retrieval recall@8 | 0.986 | as nDCG |
 | Retrieval precision@8 | 0.146 | k>gold ceiling; interpret with recall |
 | Latency p50 / p95 / p99 | 5445.7 ms / 8949.3 ms / 10929.3 ms | warm; cold start `8460.1 ms` measured separately |
-| Cost / query | $0.0132 | total $1.2768 = agent $0.7408 + judge $0.5360 |
+| Cost / query | $0.0132 | $0.0132 agent only · $0.0228 with the judge · total $1.2768 = agent $0.7408 + judge $0.5360 |
 
 Refusals by cause: `irrelevant_citation` 4 (4 answerable) · `low_citation_coverage` 7 (1 answerable) · `model_refused` 2 (0 answerable) · `no_citation` 6 (0 answerable) · `suspected_injection` 3 (0 answerable).
 No refusal has the cause `below_threshold`: the confidence threshold decided none of them.

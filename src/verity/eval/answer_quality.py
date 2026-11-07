@@ -50,7 +50,7 @@ class AnswerQuality:
     invented_answer_rate: Ratio
 
 
-def _invented(audit: PerExampleAudit) -> bool:
+def is_invented(audit: PerExampleAudit) -> bool:
     """A judged answer with an unsupported claim, or with no usable claim: the judge
     could not confirm it, which the hallucination rate also counts as a failure."""
     claims = audit.judge_claims or ()
@@ -77,5 +77,5 @@ def answer_quality(audits: Sequence[PerExampleAudit]) -> AnswerQuality:
         hallucination_rate=_ratio(
             sum(a.answer_metrics.hallucination_rate for a in at_risk), len(at_risk)
         ),
-        invented_answer_rate=_ratio(sum(1 for a in judged if _invented(a)), len(judged)),
+        invented_answer_rate=_ratio(sum(1 for a in judged if is_invented(a)), len(judged)),
     )

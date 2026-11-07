@@ -74,6 +74,7 @@ Source: [`scorecards/live-v1.1.0.json`](../scorecards/live-v1.1.0.json) · commi
 | Refusal recall | 0.850 | 17/20 | [0.640, 0.948] |
 | Refusal precision | 0.773 | 17/22 | [0.566, 0.899] |
 | Out-of-scope answered ↓ | 0.150 | 3/20 | [0.052, 0.360] |
+| Invented answers, every answer shipped ↓ (judge) | 0.029 | 1/34 | [0.005, 0.149] |
 | Hallucination rate ↓ (judge) | 0.000 | 0/31 | [0.000, 0.110] |
 | Faithfulness per claim (judge) | 0.991 | 108/109 | [0.950, 0.998] |
 | Citation accuracy per claim (judge) | 0.963 | 105/109 | [0.909, 0.986] |
@@ -84,7 +85,7 @@ Source: [`scorecards/live-v1.1.0.json`](../scorecards/live-v1.1.0.json) · commi
 |---|---|---|---|
 | p95 latency of one answer, cold start included | ≤ 15,000 ms (approved) | not measured as one sample: the first answer after boot, timed apart, took 8460.1 ms | not measured |
 | p95 latency of one answer, warm (cold start excluded) | ≤ 15,000 ms (approved) | 8949.3 ms (n=56, after one warmup answer) | met |
-| Error rate (requests answered with neither an answer nor a refusal) | ≤ 1% (approved) | 0.000 (0/56, 95 % CI [0.000, 0.064]) | met |
+| Error rate (requests answered with neither an answer nor a refusal) | ≤ 1% (approved) | 0.000 (0/56, 95 % CI [0.000, 0.064]) | no violation observed; n too small to conclude (95 % upper bound 6.4% > 1%) |
 | Cost per answer (agent calls; the judge is eval-only) | ≤ $0.02 (approved) | $0.0132 (mean, n=56) | met |
 <!-- SYSTEM-CARD:END -->
 
