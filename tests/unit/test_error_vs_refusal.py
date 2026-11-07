@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+import psycopg
 import pytest
 
 from tests.unit.test_agent import _CountingStubClient, _seed_retriever
@@ -175,6 +176,32 @@ async def test_a_failed_retrieval_stage_raises_instead_of_returning_nothing() ->
     seeded = await _seed_retriever()
     retriever = HybridRetriever(store=_DownStore(), embedder=seeded._embedder, reranker=None)
     with pytest.raises(RetrievalUnavailableError, match="store down"):
+        await retriever.retrieve("notice period", k=3)
+
+
+class _BuggyStore(InMemoryVectorStore):
+    async def dense_search(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        raise TypeError("unsupported operand type(s)")
+
+
+class _QueryFailsStore(InMemoryVectorStore):
+    async def dense_search(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        raise psycopg.errors.UndefinedTable('relation "chunks" does not exist')
+
+
+@pytest.mark.asyncio
+async def test_a_bug_in_a_retrieval_stage_is_not_reported_as_the_store_being_down() -> None:
+    seeded = await _seed_retriever()
+    retriever = HybridRetriever(store=_BuggyStore(), embedder=seeded._embedder, reranker=None)
+    with pytest.raises(TypeError, match="unsupported operand"):
+        await retriever.retrieve("notice period", k=3)
+
+
+@pytest.mark.asyncio
+async def test_a_failed_store_query_is_still_retrieval_unavailable() -> None:
+    seeded = await _seed_retriever()
+    retriever = HybridRetriever(store=_QueryFailsStore(), embedder=seeded._embedder, reranker=None)
+    with pytest.raises(RetrievalUnavailableError, match="chunks"):
         await retriever.retrieve("notice period", k=3)
 
 
