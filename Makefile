@@ -1,6 +1,10 @@
 # Verity — dev shortcuts. Every target runs offline with no keys.
 .PHONY: demo demo-web demo-api db ui-install ui-test test test-fast test-slow mutation all
 
+# Blank provider keys override a key in .env, which would switch the API to the live,
+# paid agent.
+STUB_ENV = VERITY_API_AUTH_DISABLED=true VERITY_ANTHROPIC_API_KEY= VERITY_OPENAI_API_KEY=
+
 # One-command demo path:
 #   0. Postgres + pgvector (docker compose service db), migrations applied
 #   1. FastAPI (stub agent, pgvector store, corpus ingested on first request) on :8000
@@ -9,12 +13,12 @@
 demo: ui-install db
 	@echo "==> Starting Verity demo (API :8000 · web :3000, both stub-mode)"
 	@bash -c 'trap "kill %1 2>/dev/null" EXIT; \
-		VERITY_API_AUTH_DISABLED=true uv run verity serve --host 127.0.0.1 --port 8000 & \
+		$(STUB_ENV) uv run verity serve --host 127.0.0.1 --port 8000 & \
 		cd web && NEXT_PUBLIC_API_BASE=http://localhost:8000 corepack pnpm dev'
 
 # API only — for the demo transcript that shows API responses directly.
 demo-api: db
-	VERITY_API_AUTH_DISABLED=true uv run verity serve --host 127.0.0.1 --port 8000
+	$(STUB_ENV) uv run verity serve --host 127.0.0.1 --port 8000
 
 # Postgres + pgvector, the demo's store. --wait returns once the healthcheck passes,
 # so the migrations never race the server start.

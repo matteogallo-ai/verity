@@ -23,7 +23,7 @@ src/verity/
   retrieval/          memory_store (cosine+BM25), pgvector_store, fusion (RRF), reranker, hybrid
   agent/              agent, decomposer, synthesizer, scorer, evidence, scripted_stub
   llm/                clients (Anthropic, OpenAI, stub), routing (fallback), prompt loader, json_output
-  eval/               retrieval_metric, refusal, judge, harness, headline (scorecard v3), run_store
+  eval/               retrieval_metric, refusal, judge, harness, headline (scorecard v6), run_store
   observability/      tracer (OTel in-memory), logging (structlog), warmup
   api/                server (/health, /ready, /metrics, /dashboard), router (/status, /ask, /ingest), state
   db/                 SQL migration runner
@@ -54,12 +54,12 @@ HF_HUB_OFFLINE=1 uv run pytest -m "not integration and not slow"  # fast lane: <
 uv run pytest -m "slow and not integration"                # slow lane: loads local models (~3 min)
 docker compose up -d db && uv run verity db upgrade        # pgvector for the integration lane
 uv run pytest -m integration                               # integration lane (VERITY_DATABASE_URL)
-uv run python scripts/check_claims.py                      # CLAIMS.md ≡ passing tests ≡ README (needs Postgres)
+uv run python scripts/check_claims.py                      # CLAIMS.md ≡ passing tests ≡ docs/features.md (needs Postgres)
 uv run python scripts/check_claims.py --no-run             # structure only, no tests executed
 uv run python scripts/check_stale_narrative.py             # no sprint labels / future tense / bare TODO
 uv run python scripts/check_commit_messages.py main..HEAD  # Conventional Commits on the branch
 uv run python scripts/generate_headline_results.py --check # scorecard ≡ artefact, results doc + README key result + SYSTEM_CARD ≡ scorecards
-uv run python scripts/compare_naive_baseline.py --check   # README baseline block ≡ the two pinned runs
+uv run python scripts/compare_naive_baseline.py --check   # dev-only baseline block of docs/results.md ≡ the two pinned runs
 uv run python scripts/compare_two_arm.py --check          # two-arm block of docs/results.md ≡ the four 513b839 runs
 uv run python scripts/refusal_by_tag.py --check           # refusal recall by tag ≡ the test run of record
 uv run python scripts/judge_correctness.py render --check  # correctness block ≡ datasets/eval/correctness/
@@ -82,15 +82,20 @@ cd web && corepack pnpm lint && corepack pnpm typecheck && corepack pnpm test
 
 ## Repo-specific rules
 
-- `make demo`, CI and the tests never call a paid model. Any live run (`--judge live`,
-  `--no-agent-stub`, `verity ask` without `--stub`) needs a cost estimate and approval.
-- The results and judge blocks of docs/results.md, the README key result and the
-  docs/SYSTEM_CARD.md block are generated; edit `scorecards/`
-  or the generator, never the blocks.
-- Changing a non-comment line of a `prompts/*.prompt` file changes model behaviour.
+Each rule names the CI check that fails when it is broken.
+
+- `make demo`, CI and the tests never call a paid model. Tests: fast-lane network guard
+  (`tests/unit/test_network_guard.py`). Demo and CI: `tests/unit/test_repo_rules.py`
+  (the demo targets blank the provider keys; no workflow reads a secret other than
+  `GITHUB_TOKEN`).
+- Every block between `<!-- NAME:START -->` and `<!-- NAME:END -->` markers in the
+  README and `docs/` is generated; edit `scorecards/` or the generator, never the
+  block. Each generator's `--check` step in the CI `lint · typecheck · test` job.
 - `datasets/eval/runs/live/` holds runs of record, pinned in its `SHA256SUMS`; never
   modify them, even a derived aggregate. Recomputations go in `*.recomputed.json`.
-- A new README feature needs a `docs/CLAIMS.md` row with passing tests in the same PR.
+  `tests/unit/test_live_artefacts.py`.
+- A new feature in `docs/features.md` needs a `docs/CLAIMS.md` row with passing tests
+  in the same PR. CI job `claims` (`scripts/check_claims.py`).
 
 ## Appendix A — How coding agents must work in my repos
 
