@@ -1,4 +1,4 @@
-"""Check docs/CLAIMS.md against the test suite and the README (rule 1).
+"""Check docs/CLAIMS.md against the test suite and docs/features.md (rule 1).
 
 What it verifies:
 1. Every row of the claims table has a unique ID (``C<nn>``) and a status of
@@ -12,18 +12,18 @@ What it verifies:
    (pytest aborts the whole call on an unknown node id, so all then read missing and
    the printed pytest output names the culprit). A skipped test counts as not passing.
 4. Listed ``web/`` tests (vitest) exist as files.
-5. In README.md, every bullet of the ``## Features`` section cites at least one
+5. In docs/features.md, every bullet of the ``## Features`` section cites at least one
    claim ID; every cited ID is ``shipped``; every ID cited in ``## Roadmap`` is
    ``roadmap``; every ``shipped`` claim is cited under Features and every
    ``roadmap`` claim under Roadmap.
 
 What it does NOT verify:
 - that a test exercises what its claim says (a human reviews the mapping);
-- README text outside the Features and Roadmap sections;
+- text outside the Features and Roadmap sections of docs/features.md, README included;
 - vitest results (the CI ``web`` job runs them);
 - the implementation column (informative only).
 
-Usage: ``python scripts/check_claims.py [--claims PATH] [--readme PATH] [--no-run]``.
+Usage: ``python scripts/check_claims.py [--claims PATH] [--features PATH] [--no-run]``.
 ``--no-run`` skips step 3's execution (structure and existence checks only).
 Exit 0 when every check passes, 1 otherwise; each problem is printed on its own line.
 """
@@ -41,6 +41,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_FEATURES = REPO_ROOT / "docs" / "features.md"
 STATUSES = frozenset({"shipped", "roadmap"})
 _ROW_RE = re.compile(r"^\|\s*(C\d+)\s*\|")
 _TICKED_RE = re.compile(r"`([^`]+)`")
@@ -112,26 +113,30 @@ def check_readme(readme: str, claims: list[Claim]) -> list[str]:
     for section, expected in (("Features", "shipped"), ("Roadmap", "roadmap")):
         lines = readme_section(readme, section)
         if not lines:
-            problems.append(f"README.md: missing '## {section}' section")
+            problems.append(f"docs/features.md: missing '## {section}' section")
             continue
         for line in lines:
             if not _BULLET_RE.match(line):
                 continue
             ids = _CLAIM_ID_RE.findall(line)
             if not ids:
-                problems.append(f"README.md {section}: bullet without a claim id: {line.strip()}")
+                problems.append(
+                    f"docs/features.md {section}: bullet without a claim id: {line.strip()}"
+                )
             for claim_id in ids:
                 cited[section].add(claim_id)
                 if claim_id not in status:
-                    problems.append(f"README.md {section}: unknown claim {claim_id}")
+                    problems.append(f"docs/features.md {section}: unknown claim {claim_id}")
                 elif status[claim_id] != expected:
                     problems.append(
-                        f"README.md {section}: {claim_id} is {status[claim_id]}, not {expected}"
+                        f"docs/features.md {section}: {claim_id} is {status[claim_id]}, not {expected}"
                     )
     for claim_id, claim_status in status.items():
         section = "Features" if claim_status == "shipped" else "Roadmap"
         if claim_id not in cited[section]:
-            problems.append(f"README.md {section}: {claim_status} claim {claim_id} not listed")
+            problems.append(
+                f"docs/features.md {section}: {claim_status} claim {claim_id} not listed"
+            )
     return problems
 
 
@@ -258,13 +263,13 @@ def check_tests(claims: list[Claim], root: Path, *, run: bool) -> list[str]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--claims", type=Path, default=REPO_ROOT / "docs" / "CLAIMS.md")
-    parser.add_argument("--readme", type=Path, default=REPO_ROOT / "README.md")
+    parser.add_argument("--features", type=Path, default=DEFAULT_FEATURES)
     parser.add_argument("--root", type=Path, default=REPO_ROOT)
     parser.add_argument("--no-run", action="store_true", help="Do not execute the tests.")
     args = parser.parse_args(argv)
 
     claims, problems = parse_claims(args.claims.read_text(encoding="utf-8"))
-    problems += check_readme(args.readme.read_text(encoding="utf-8"), claims)
+    problems += check_readme(args.features.read_text(encoding="utf-8"), claims)
     problems += check_tests(claims, args.root, run=not args.no_run)
 
     for problem in problems:
