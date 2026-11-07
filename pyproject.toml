@@ -90,6 +90,7 @@ paths = [
   "scripts/generate_headline_results.py",
   "scripts/summarise_injection_runs.py",
   "scripts/compare_naive_baseline.py",
+  "scripts/gate_ablation.py",
 ]
 min_confidence = 60
 # Called by a framework, not by our code: Typer commands, FastAPI routes, pydantic validators.

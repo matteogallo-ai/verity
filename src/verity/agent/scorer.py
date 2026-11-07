@@ -1,8 +1,9 @@
 """Confidence score and its refusal decision (model refusal, or score below the threshold).
 
 Wraps ``confidence.prompt`` and owns the single comparison against
-``config.confidence_threshold`` that decides whether the agent ships an answer or a
-refusal. The scorer *never* decides silently: below-threshold outcomes carry a
+``config.confidence_threshold``. The score lies in [0, 1] and the default threshold
+is 0, so by default the comparison refuses nothing and only the model's own refusal
+counts. The scorer *never* decides silently: below-threshold outcomes carry a
 concrete rationale (evidence weak / contradictory / out of scope) so the eval
 harness can inspect and the UI can display *why*.
 

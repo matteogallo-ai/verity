@@ -30,7 +30,9 @@ Every published number traceable to the run artefact that produced it.
 Enterprise RAG demos answer confidently and are wrong just often enough to be
 dangerous. Verity drafts an answer, checks deterministically that its citations cover
 and match it, asks a scorer model how well the evidence supports it, and refuses when
-a check fails, the scorer refuses, or the score is below a threshold.
+a check fails or the scorer refuses. A score threshold exists but is 0 by default, so
+it refuses nothing; the cited-relevance check is off by default (it made more wrong
+refusals than right ones on dev, [measured](docs/results.md#refusal-checks-one-at-a-time)).
 
 ## Key result
 
@@ -38,6 +40,9 @@ a check fails, the scorer refuses, or the score is below a threshold.
 **Refusal recall 0.850**: 17/20 unanswerable questions refused, Wilson 95 % CI [0.640, 0.948], at refusal precision 0.773 (17/22, CI [0.566, 0.899]).
 One live run on the held-out `test` split, n = 56, agent `claude-sonnet-4-6`, commit `969e1d5`. Every metric, the judge's validation and the limits: [`docs/results.md`](docs/results.md).
 <!-- KEY-RESULT:END -->
+
+The run of record had the cited-relevance check on; the shipped default has it off.
+How that bounds the figures above: [refusal checks one at a time](docs/results.md#refusal-checks-one-at-a-time).
 
 ## What it looks like
 
