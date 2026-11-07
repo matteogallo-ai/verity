@@ -47,6 +47,7 @@ def outcome(audit: PerExampleAudit) -> dict[str, Any]:
     """The registered per-question outcomes. A self-abstention counts as a refusal; an
     answer the judge did not score has no invented outcome and leaves metric 3."""
     shipped = not audit.refused
+    judged = audit.judge_claims is not None
     answered = shipped and not is_self_abstention(audit.answer_text)
     invented: bool | None
     if not answered:
@@ -60,8 +61,8 @@ def outcome(audit: PerExampleAudit) -> dict[str, Any]:
         "shipped": shipped,
         "answered": answered,
         "invented": invented,
-        "judged_shipped": shipped and audit.judge_claims is not None,
-        "invented_shipped": shipped and audit.judge_claims is not None and is_invented(audit),
+        "judged_shipped": shipped and judged,
+        "invented_shipped": (shipped and is_invented(audit)) if judged or not shipped else None,
     }
 
 
@@ -89,6 +90,7 @@ SECONDARY = (
         "answerable",
         "shipped",
     ),
+    ("invented_shipped", "Invented answer, self-abstentions as answers", "all", "invented_shipped"),
 )
 
 
@@ -112,7 +114,7 @@ def _row(
         "verity_only": v_only,
         "naive_only": n_only,
         "n_paired": n,
-        "p_mcnemar": round(mcnemar_exact(v_only, n_only), 6),
+        "p_mcnemar": mcnemar_exact(v_only, n_only),
         "verity_only_ids": sorted(q for q in ids if flags["verity"][q] and not flags["naive"][q]),
         "naive_only_ids": sorted(q for q in ids if flags["naive"][q] and not flags["verity"][q]),
     }
@@ -134,7 +136,7 @@ def reading(key: str, row: dict[str, Any]) -> str:
         return "Verity answers more unanswerable questions than the naive draft: the checks are a defect here."
     if key == "answerable_answered":
         if not significant:
-            return "No cost on answerable questions measurable at this n."
+            return "No cost measurable at this n."
         if verity_lower:
             return "The checks cost answerable answers."
         return "Verity answers more answerable questions than the naive draft."
@@ -186,9 +188,14 @@ def analyse(verity: list[Path], naive: list[Path]) -> dict[str, Any]:
     for key, adjusted in zip(
         primary, holm([r["p_mcnemar"] for r in primary.values()]), strict=True
     ):
-        primary[key]["p_holm"] = round(adjusted, 6)
+        primary[key]["p_holm"] = adjusted
         primary[key]["reading"] = reading(key, primary[key])
     secondary = {key: _row(per_arm, shared, scope, field) for key, _, scope, field in SECONDARY}
+    # Rounded only for storage, after Holm has used the exact values.
+    for row in (*primary.values(), *secondary.values()):
+        for p_key in ("p_mcnemar", "p_holm"):
+            if p_key in row:
+                row[p_key] = round(row[p_key], 10)
     tags = {
         r["id"]: tuple(r.get("tags", ()))
         for r in (json.loads(x) for x in QUESTIONS.read_text(encoding="utf-8").splitlines() if x)
@@ -237,6 +244,11 @@ def analyse(verity: list[Path], naive: list[Path]) -> dict[str, Any]:
     }
 
 
+def fmt_p(p: float) -> str:
+    """Four decimals; a p-value below that precision is not shown as zero."""
+    return "< 0.0001" if p < 0.00005 else f"{p:.4f}"
+
+
 def _cell(r: dict[str, Any]) -> str:
     ci = r["ci95_wilson"]
     return f"{r['k']}/{r['n']}" + ("" if ci is None else f" [{ci[0]:.3f}, {ci[1]:.3f}]")
@@ -260,13 +272,13 @@ def render(report: dict[str, Any]) -> str:
         lines.append(
             f"| **{label}** | {'lower' if lower else 'higher'} | {_cell(r['verity'])} | "
             f"{_cell(r['naive'])} | {r['verity_only']} / {r['naive_only']} | "
-            f"{r['p_mcnemar']:.4f} ({r['p_holm']:.4f}) | {r['reading']} |"
+            f"{fmt_p(r['p_mcnemar'])} ({fmt_p(r['p_holm'])}) | {r['reading']} |"
         )
     for key, label, _, _ in SECONDARY:
         r = report["secondary"][key]
         lines.append(
             f"| {label} | — | {_cell(r['verity'])} | {_cell(r['naive'])} | "
-            f"{r['verity_only']} / {r['naive_only']} | {r['p_mcnemar']:.4f} | descriptive |"
+            f"{r['verity_only']} / {r['naive_only']} | {fmt_p(r['p_mcnemar'])} | descriptive |"
         )
     s = report["invented_over_shipped_answers"]
     lines.append(
