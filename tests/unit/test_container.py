@@ -52,3 +52,39 @@ def test_runtime_image_carries_the_docling_models_offline() -> None:
     assert "COPY --from=builder /opt/docling /opt/docling" in runtime
     assert "DOCLING_ARTIFACTS_PATH=/opt/docling" in runtime
     assert "HF_HUB_OFFLINE=1" in runtime
+
+
+_DIGEST = re.compile(r"@sha256:[0-9a-f]{64}$")
+
+
+def _external_images() -> list[str]:
+    """Every image pulled from a registry: Dockerfile FROM and COPY --from, Compose and
+    the CI service containers. ``builder`` and ``verity:local`` are built here."""
+    images = re.findall(r"^FROM (\S+)", _DOCKERFILE, re.M)
+    images += re.findall(r"^COPY --from=(\S+)", _DOCKERFILE, re.M)
+    images += [s["image"] for s in _COMPOSE["services"].values() if "image" in s]
+    ci = yaml.safe_load(Path(".github/workflows/ci.yml").read_text())
+    images += [s["image"] for job in ci["jobs"].values() for s in job.get("services", {}).values()]
+    return [i for i in images if i not in {"builder", "verity:local"}]
+
+
+def test_every_external_image_is_pinned_by_digest() -> None:
+    images = _external_images()
+    assert len(images) >= 5
+    assert [i for i in images if not _DIGEST.search(i)] == []
+
+
+def test_no_workflow_checkout_keeps_the_token_in_git_config() -> None:
+    for path in sorted(Path(".github/workflows").glob("*.yml")):
+        for job in yaml.safe_load(path.read_text())["jobs"].values():
+            for step in job.get("steps", []):
+                if str(step.get("uses", "")).startswith("actions/checkout@"):
+                    assert step.get("with", {}).get("persist-credentials") is False, path
+
+
+def test_ci_tests_the_pgvector_image_compose_ships() -> None:
+    """Dependabot moves the Compose digest; no ecosystem moves a workflow service image,
+    so this keeps CI from testing an older pgvector than the one shipped."""
+    ci = yaml.safe_load(Path(".github/workflows/ci.yml").read_text())
+    services = [s["image"] for j in ci["jobs"].values() for s in j.get("services", {}).values()]
+    assert services and set(services) == {_COMPOSE["services"]["db"]["image"]}
