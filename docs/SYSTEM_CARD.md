@@ -60,7 +60,8 @@ The API does not detect or filter personal data in uploaded documents.
 
 One live run, never averaged or re-run; read every value with its n and its interval.
 The answer-quality rows come from an LLM judge (named in the source line), validated
-against blind human labels on 60 claims for its prompt v0.1.0 (claim C27; the κ and its
+against blind human labels: prompt v0.2.0, the judge of this run, on 52 of 60 claims
+(its rejudge stopped at its spending cap), and prompt v0.1.0 on all 60 (claim C27; the κ and its
 limits are under "Judge validation" in [`results.md`](results.md)). Faithfulness and citation accuracy, as means of
 per-question fractions, are not proportions: they get n and no interval. A scorecard
 that stores per-claim counts gets a per-claim row instead, whose interval is too narrow
@@ -112,10 +113,11 @@ running server, with the signals the code emits (responses: [`RUNBOOK.md`](RUNBO
 
 - **Sample size.** The n in the table above, on the held-out test split; the confidence
   threshold and the support-check thresholds were chosen on the dev split only.
-- **Judge validated on 60 claims only.** κ is measured for judge prompt v0.1.0; on
-  real claims alone it is fragile (few unsupported claims), and a changed judge prompt
-  needs its own κ.
-- **Uncalibrated confidence.** Refusal is threshold-gated on a self-reported score.
+- **Judge validated on 52 claims for its current prompt.** κ is 0.60 for judge prompt
+  v0.2.0 on 52 of 60 claims, with no bootstrap interval; on real claims alone it is
+  fragile (one unsupported claim), and a changed judge prompt needs its own κ.
+- **Uncalibrated confidence.** The confidence score is the scorer's self-report; the
+  threshold on it defaults to 0 and refuses nothing.
 - **Citation granularity.** A paragraph-level quote can cover several claims; the judge
   marks such citations not ok while the claim is supported.
 - **Limits of the run of record itself** (latency with or without model loading, an

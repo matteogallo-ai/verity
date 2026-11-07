@@ -375,7 +375,8 @@ class Scorecard(BaseModel, frozen=True):
     # here so a run with failures cannot pass for a clean one.
     errored_example_ids: tuple[str, ...] = ()
     # Set when the run stopped at its budget cap or lost examples to an outage. Such a
-    # run is kept for its paid results and never stands as a run of record.
+    # run is kept for its paid results. One that lost examples never stands as a run of
+    # record; one stopped by its cap with no error can, under docs/adr/0008.
     incomplete_reason: IncompleteReason | None = None
 
 
