@@ -7,10 +7,14 @@
     # CI: comparison scorecard == recomputed from its artefacts, README block == rendered
     uv run python scripts/compare_naive_baseline.py --check
 
-Metrics, abstention patterns and the reading rule are those of
+Metrics and abstention patterns are those of
 ``docs/preregistration/naive-rag-baseline.md``: each metric is k/n with a Wilson 95 %
-interval per arm; overlapping intervals read "not distinguishable", disjoint ones
-"distinguishable". The per-arm figures come from the same scorecard builder as the
+interval per arm. The arms answer the same questions, so each per-question row is
+read by an exact McNemar test on the discordant questions (:mod:`verity.eval.paired`,
+p < 0.05 reads "distinguishable"). The pre-registration read overlapping intervals
+instead; that reading is kept beside it as ``overlap_readings``, and on these runs
+the two agree on every row. Per-claim rows have no paired test: the arms make
+different claims. The per-arm figures come from the same scorecard builder as the
 published results, so a metric means the same thing here as in ``docs/results.md``.
 The README block sits between ``<!-- BASELINE:START -->`` and ``<!-- BASELINE:END -->``.
 """
@@ -27,6 +31,7 @@ from typing import Any
 
 from verity.eval.headline import build_headline_dict_from_eval_run
 from verity.eval.intervals import wilson
+from verity.eval.paired import discordant, mcnemar_exact
 from verity.eval.run_store import load_run
 from verity.types import EvalRun
 
@@ -130,6 +135,58 @@ ROWS = (
 )
 
 
+ALPHA = 0.05
+
+
+def _outcomes(run: EvalRun, key: str) -> dict[str, bool] | None:
+    """Per-question outcome of one paired row, or ``None`` for a per-claim row."""
+    audits = run.per_audit
+    if key == "unanswerable_answered":
+        return {a.example_id: not a.refused for a in audits if not a.expected_answerable}
+    if key == "answerable_answered":
+        return {a.example_id: not a.refused for a in audits if a.expected_answerable}
+    if key == "unanswerable_answered_without_self_abstentions":
+        return {
+            a.example_id: not a.refused and not is_self_abstention(a.answer_text)
+            for a in audits
+            if not a.expected_answerable
+        }
+    if key == "hallucination_rate":
+        # Paired on the answerable questions both arms answered (the discordant
+        # count ignores a question answered by one arm only).
+        return {
+            a.example_id: a.answer_metrics.hallucination_rate == 1.0
+            for a in audits
+            if a.expected_answerable and not a.refused
+        }
+    return None
+
+
+def paired_test(verity: EvalRun, naive: EvalRun, key: str) -> dict[str, Any] | None:
+    v, n = _outcomes(verity, key), _outcomes(naive, key)
+    if v is None or n is None:
+        return None
+    v_only, n_only, paired = discordant(v, n)
+    return {
+        "verity_only": v_only,
+        "naive_only": n_only,
+        "n_paired": paired,
+        "p_mcnemar_exact": round(mcnemar_exact(v_only, n_only), 6),
+    }
+
+
+def read_paired(test: dict[str, Any] | None, better: str) -> str:
+    if test is None:
+        return "no paired test (per claim)"
+    p = test["p_mcnemar_exact"]
+    if p >= ALPHA:
+        return f"not distinguishable (McNemar p = {p:.3f})"
+    # ``verity_only`` counts questions where the outcome holds for Verity alone.
+    verity_more = test["verity_only"] > test["naive_only"]
+    better_for_verity = verity_more == (better == "higher")
+    return f"distinguishable, Verity {'better' if better_for_verity else 'worse'} (McNemar p = {p:.3f})"
+
+
 def read(verity: dict[str, Any], naive: dict[str, Any]) -> str:
     """The pre-registered reading: Wilson 95 % intervals overlap or they do not."""
     a, b = verity["ci95_wilson"], naive["ci95_wilson"]
@@ -158,18 +215,29 @@ def build(verity_path: Path, naive_path: Path, dataset: Path = DATASET) -> dict[
         "verity": arm_metrics(verity_run, verity_path, compared),
         "naive": arm_metrics(naive_run, naive_path, compared),
     }
-    readings = {
+    keep = set(compared)
+    paired_runs = [
+        run.model_copy(
+            update={"per_audit": tuple(a for a in run.per_audit if a.example_id in keep)}
+        )
+        for run in (verity_run, naive_run)
+    ]
+    tests = {key: paired_test(*paired_runs, key) for key, *_ in ROWS}
+    readings = {key: read_paired(tests[key], better) for key, _, better, _ in ROWS}
+    overlap = {
         key: read(arms["verity"]["metrics"][key], arms["naive"]["metrics"][key]) for key, *_ in ROWS
     }
     return {
-        "schema": "verity.naive-baseline-comparison/v1",
+        "schema": "verity.naive-baseline-comparison/v2",
         "preregistration": PREREGISTRATION,
         "n_dataset": verity_run.scorecard.n_examples,
         "compared_ids": compared,
         "completed_by_one_arm_only": sorted(completed_by_any - set(compared)),
         "completed_by_neither_arm": sorted(set(all_ids) - completed_by_any),
         "arms": arms,
+        "paired_tests": tests,
         "readings": readings,
+        "overlap_readings": overlap,
     }
 
 
@@ -210,22 +278,24 @@ def render_block(data: dict[str, Any], scorecard_path: Path = DEFAULT_SCORECARD)
         f"Dev split, n = {v['n_examples']} compared, same questions, agent `{v['agent_model']}`, "
         f"judge `{v['judge_model']}`, both arms at commit `{v['git_sha']}`. The naive arm "
         "ships the synthesizer's draft with no citation gate, support check, scorer or "
-        f"threshold. Metrics and reading rule were [pre-registered]({PREREGISTRATION}) "
-        "before the runs: Wilson 95 % intervals that overlap read *not distinguishable*.",
+        f"threshold. Metrics were [pre-registered]({PREREGISTRATION}) before the runs. "
+        "Each per-question row is read by an exact McNemar test on the questions where "
+        "the arms differ (p < 0.05 reads *distinguishable*); the pre-registered reading, "
+        f"Wilson intervals that overlap, {_overlap_agreement(data)}.",
         "",
         *(
             ["> ⚠️ **Generated on stubs**: these figures describe the scripted stubs.", ""]
             if "stub" in v["agent_model"] or "stub" in v["judge_model"]
             else []
         ),
-        "| Metric | Better | Verity | Naive RAG | Reading |",
-        "|---|---|---|---|---|",
+        "| Metric | Better | Verity | Naive RAG | Discordant (Verity only / naive only) | Reading |",
+        "|---|---|---|---|---|---|",
     ]
     for key, label, better, primary in ROWS:
         name = f"**{label}**" if primary else label
         lines.append(
             f"| {name} | {better} | {_cell(v['metrics'][key])} | {_cell(n['metrics'][key])} "
-            f"| {data['readings'][key]} |"
+            f"| {_discordant(data['paired_tests'][key])} | {data['readings'][key]} |"
         )
     lines += [
         "",
@@ -238,6 +308,24 @@ def render_block(data: dict[str, Any], scorecard_path: Path = DEFAULT_SCORECARD)
         "(`scripts/compare_naive_baseline.py --check`).",
     ]
     return "\n".join(lines)
+
+
+def _discordant(test: dict[str, Any] | None) -> str:
+    if test is None:
+        return "—"
+    return f"{test['verity_only']} / {test['naive_only']} of {test['n_paired']}"
+
+
+def _overlap_agreement(data: dict[str, Any]) -> str:
+    differ = [
+        label
+        for key, label, *_ in ROWS
+        if data["readings"][key].split(" (")[0] != data["overlap_readings"][key].split(":")[0]
+        and data["paired_tests"][key] is not None
+    ]
+    if not differ:
+        return "gives the same reading on every row"
+    return "reads differently on " + ", ".join(differ)
 
 
 def _ids(ids: list[str]) -> str:
