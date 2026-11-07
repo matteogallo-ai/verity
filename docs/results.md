@@ -10,19 +10,20 @@ record, the judge's validation against blind human labels, and what the numbers 
 
 | Metric | Value | Notes |
 |---|---:|---|
+| **Invented answers** | **1/34** | ↓ better · answers with a claim the judge finds unsupported (or no usable claim) / every judged answer, answerable or not: 1/34 · 95 % CI [0.005, 0.149] · `q-074` · judge κ 0.71 (bootstrap 95 % CI [0.49, 0.89]) vs blind human, validated on 60 claims of which 1 real hallucination |
 | **Refusal recall** | **0.850** | unanswerable questions refused / unanswerable: 17/20 · 95 % CI [0.640, 0.948] · threshold 0 |
 | **Refusal precision** | **0.773** | refusals that were unanswerable / refusals: 17/22 · 95 % CI [0.566, 0.899] |
-| Faithfulness, per question | 0.990 | mean over 34 judged answers · judge κ 0.71 vs blind human (n=60) |
-| Faithfulness, per claim | 0.991 | pooled over claims: 108/109 · 95 % CI [0.950, 0.998] · judge κ 0.71 vs blind human (n=60) |
-| Citation accuracy, per question | 0.968 | mean over 34 judged answers · judge κ 0.71 vs blind human (n=60) |
-| Citation accuracy, per claim | 0.963 | pooled over claims: 105/109 · 95 % CI [0.909, 0.986] · judge κ 0.71 vs blind human (n=60) |
-| Hallucination rate | 0.000 | ↓ better · answers with an unsupported claim / answered answerable questions: 0/31 · 95 % CI [0.000, 0.110] |
+| Faithfulness, per question | 0.990 | mean over 34 judged answers · judge κ 0.71 (bootstrap 95 % CI [0.49, 0.89]) vs blind human, validated on 60 claims of which 1 real hallucination |
+| Faithfulness, per claim | 0.991 | pooled over claims: 108/109 · 95 % CI [0.950, 0.998] · judge κ 0.71 (bootstrap 95 % CI [0.49, 0.89]) vs blind human, validated on 60 claims of which 1 real hallucination |
+| Citation accuracy, per question | 0.968 | mean over 34 judged answers · judge κ 0.71 (bootstrap 95 % CI [0.49, 0.89]) vs blind human, validated on 60 claims of which 1 real hallucination |
+| Citation accuracy, per claim | 0.963 | pooled over claims: 105/109 · 95 % CI [0.909, 0.986] · judge κ 0.71 (bootstrap 95 % CI [0.49, 0.89]) vs blind human, validated on 60 claims of which 1 real hallucination |
+| Hallucination rate, answerable only | 0.000 | ↓ better · answers with an unsupported claim / answered answerable questions (an answer to an unanswerable question is outside it): 0/31 · 95 % CI [0.000, 0.110] |
 | Unanswerable answered | 3/20 | ↓ better · an answer shipped where the corpus has none: 3/20 · 95 % CI [0.052, 0.360] |
 | Retrieval nDCG@8 | 0.929 | scored without an LLM on hits retrieved for the LLM sub-questions |
 | Retrieval recall@8 | 0.986 | as nDCG |
 | Retrieval precision@8 | 0.146 | k>gold ceiling; interpret with recall |
 | Latency p50 / p95 / p99 | 5445.7 ms / 8949.3 ms / 10929.3 ms | warm; cold start `8460.1 ms` measured separately |
-| Cost / query | $0.0132 | total $1.2768 = agent $0.7408 + judge $0.5360 |
+| Cost / query | $0.0132 | $0.0132 agent only · $0.0228 with the judge · total $1.2768 = agent $0.7408 + judge $0.5360 |
 
 Refusals by cause: `irrelevant_citation` 4 (4 answerable) · `low_citation_coverage` 7 (1 answerable) · `model_refused` 2 (0 answerable) · `no_citation` 6 (0 answerable) · `suspected_injection` 3 (0 answerable).
 No refusal has the cause `below_threshold`: the confidence threshold decided none of them.
@@ -107,6 +108,54 @@ exists, so the shipped default is measured only by the bounds above. Next step: 
 run of the default configuration. Test figures are reported here and were not used for
 the decision.
 
+### Correctness against the reference answer
+
+The rows above measure faithfulness: whether the judge finds each claim supported by
+the passages retrieved for it. An answer can be faithful to the wrong passage. Here,
+each answered answerable question is graded against the dataset's `reference_answer`.
+
+<!-- CORRECTNESS:START -->
+| Run | Correct | Partial | Incorrect | Unparsed | Not correct | Numbers in the reference found in the answer |
+|---|---|---|---|---|---|---|
+| `datasets/eval/runs/live/eval_6ec544d_dev.json` (20) | 19/20 · [0.764, 0.991] | 1 | 0 | 0 | `q-001` | 11/16; disagrees with the grade on `q-002`, `q-012`, `q-057`, `q-060` |
+| `datasets/eval/runs/live/eval_969e1d5_test.json` (31) | 31/31 · [0.890, 1.000] | 0 | 0 | 0 | none | 21/25; disagrees with the grade on `q-029`, `q-032`, `q-034`, `q-062` |
+
+Judge `claude-opus-5-5` with `prompts/judge_correctness.prompt`, total $0.1924. Scope: the answerable questions each run answered, graded against the dataset's `reference_answer`; the answers are the artefact's, the agent was not called again. The grade is **not validated against human labels**; the number check is deterministic but covers only references with a number. Generated from `scorecards/correctness.json` (`scripts/judge_correctness.py render --check`); verdicts and reasons in `datasets/eval/correctness/`.
+<!-- CORRECTNESS:END -->
+
+The number check and the grade disagree only where the check is too literal. That reading
+was made by the coding agent that prepared this page, not a human label: in each
+disagreement, the number missing from the answer is a section number, a date, a detail
+the question does not ask for, or "one" used as a pronoun.
+
+### Refusal recall by tag
+
+The aggregate refusal recall above counts `out-of-corpus` questions (a football result,
+a drug dose, asked of a company corpus), the easiest to decline, and `adversarial` ones, whose refusals come from the injection-marker check or
+from a draft with no citation (causes under "Refusals by cause"). The rows below leave
+them out, so the recall on the questions that test the design (`near-miss`,
+`false-premise`) stands on its own n.
+
+<!-- REFUSAL-BY-TAG:START -->
+Run `datasets/eval/runs/live/eval_969e1d5_test.json`, tags from `datasets/eval/test.jsonl`. Refusal recall = unanswerable questions refused / unanswerable questions, Wilson 95 % interval. A question can carry several tags, so tag rows overlap.
+
+| Unanswerable questions | Refused | Answered |
+|---|---|---|
+| all | 17/20 · [0.640, 0.948] | `q-074`, `q-085`, `q-089` |
+| without `out-of-corpus` | 11/14 · [0.524, 0.924] | `q-074`, `q-085`, `q-089` |
+| without `out-of-corpus` and `adversarial` | 10/13 · [0.497, 0.918] | `q-074`, `q-085`, `q-089` |
+| tag `adversarial` | 4/4 · [0.510, 1.000] | none |
+| tag `false-premise` | 1/3 · [0.061, 0.792] | `q-085`, `q-089` |
+| tag `near-miss` | 10/11 · [0.623, 0.984] | `q-074` |
+| tag `out-of-corpus` | 6/6 · [0.610, 1.000] | none |
+
+Answerable questions refused, by tag: `adversarial` 0/1 · [0.000, 0.793] · `multi-hop` 2/6 · [0.097, 0.700] · `negation` 0/9 · [0.000, 0.299] · `numeric` 1/11 · [0.016, 0.377] · `single-hop` 2/11 · [0.051, 0.477].
+
+Unanswerable answered: 3/20 · [0.052, 0.360] under the rule of record (any answer to an unanswerable question fails). If an answer failed only when the judge finds one of its claims unsupported, it would be 1/20 · [0.009, 0.236]: `q-074` invented; `q-085`, `q-089` fully supported.
+
+Generated from `scorecards/refusal-by-tag.json` (`scripts/refusal_by_tag.py --check`).
+<!-- REFUSAL-BY-TAG:END -->
+
 ## Judge validation
 
 The answer-quality rows above are judged by a model. Its agreement with blind human
@@ -116,10 +165,12 @@ separately, does not replace it.
 <!-- JUDGE:START -->
 Judge `claude-opus-5-5` with judge prompt v0.1.0 (`datasets/eval/judge_validation/judge_faithfulness.v0.1.0.prompt`, sha256 `2c5f8eca49ba`) against **blind human labels**, the reference: 60 claims labelled without origin or judge verdict, 40 real claims (16 from the dev run, 24 from the test run) and 20 claims perturbed to be false (one number, date, negation or entity changed). The κ below belongs to this prompt version: a changed judge prompt is a new judge and needs its own κ.
 
+The judge is validated on 60 claims, of which 1 real hallucination (a real claim the human finds unsupported). On the real claims the judge flags 3 unsupported and the human confirms 1. The perturbed claims are a proxy for its sensitivity to real hallucinations, not a bound on it.
+
 | Measure | Value | n · notes |
 |---|---|---|
-| Cohen's κ, all claims | 0.71 | 60 claims · observed agreement 0.883 (53/60 · 95 % CI [0.778, 0.942]) · 46 supported / 14 unsupported by the human |
-| Cohen's κ, real claims only | 0.48 | 40 claims · observed agreement 0.950 (38/40 · 95 % CI [0.835, 0.986]) · **fragile**: only 1 of 40 claims is in the smaller human class, so one or two disagreements move κ widely |
+| Cohen's κ, all claims | 0.71 · bootstrap 95 % CI [0.49, 0.89] | 60 claims · observed agreement 0.883 (53/60 · 95 % CI [0.778, 0.942]) · 46 supported / 14 unsupported by the human |
+| Cohen's κ, real claims only | 0.48 · bootstrap 95 % CI [0.00, 1.00], κ undefined in 206 of 5000 resamples | 40 claims · observed agreement 0.950 (38/40 · 95 % CI [0.835, 0.986]) · **fragile**: only 1 of 40 claims is in the smaller human class, so one or two disagreements move κ widely |
 | Judge specificity on real claims (human: supported) | 0.949 | 37/39 · 95 % CI [0.831, 0.986] |
 | Sensitivity: perturbed claims the judge finds unsupported (**upper bound**) | 0.800 | 16/20 · 95 % CI [0.584, 0.919] · by kind: date 5/5 · entity 3/5 · negation 5/5 · number 3/5 |
 | … among perturbed claims the human finds unsupported | 0.923 | 12/13 · 95 % CI [0.667, 0.986] |
@@ -131,7 +182,7 @@ Disagreements: the judge rejects 6 claims the human accepts and accepts 1 the hu
 - a perturbed claim counts as detected if any sub-claim the judge made of it is unsupported, even outside the changed span: sensitivity is an upper bound (per-claim detail in perturbed_verdicts.json).
 - robustness to injected content is not measured: judge prompt v0.1.0 puts the retrieved text in front of the judge without delimiters or an untrusted-content instruction ([THREAT_MODEL](THREAT_MODEL.md#llm01-prompt-injection)), and only 4 of the 60 claims had the corpus note written to carry an injection in the judge's context.
 
-Generated from [`datasets/eval/judge_validation/agreement.json`](../datasets/eval/judge_validation/agreement.json) (`scripts/render_judge_validation.py --check`); the labels and the key are pinned in `datasets/eval/judge_validation/SHA256SUMS`.
+Generated from [`datasets/eval/judge_validation/agreement.json`](../datasets/eval/judge_validation/agreement.json) and `kappa_ci.json` (`scripts/render_judge_validation.py --check`); the labels and the key are pinned in `datasets/eval/judge_validation/SHA256SUMS`.
 <!-- JUDGE:END -->
 
 ### Adjudicated agreement (not the result of record)
@@ -197,11 +248,17 @@ Generated from [`datasets/eval/judge_validation/judge-v0.2.0/agreement.json`](..
   every answer in one bin. Isotonic and Platt maps fitted on dev hold one
   unanswerable example and do not fix it (ECE 0.097 and 0.091). The score is the
   scorer model's self-report.
+- **Most of the corpus and the questions were written with Claude Opus 5.5**, the
+  judge's model family, by the author of the system (16 of 21 documents and the 95
+  questions; [origin](../datasets/CORPUS.md)). Scope: 21 fictional documents. Known limit: self-preference of the judge
+  and questions shaped by the system's author are not measured. Next step: a public
+  corpus with third-party questions.
 - **The judge is validated on 60 claims by one annotator, and is a Claude model.**
   It is `claude-opus-5-5`, a different model from the agent (`claude-sonnet-4-6`),
   not a different family. κ against the owner's blind labels and the sensitivity on
   perturbed claims are under "Judge validation"; κ on real claims alone rests on one
-  human-unsupported claim and is fragile. One annotator gives no inter-annotator
+  human-unsupported claim (q-074's price) and is fragile: its bootstrap interval is
+  [0.00, 1.00]. One annotator gives no inter-annotator
   agreement.
 - **n = 56 is small.** The 95 % Wilson intervals in the table show how little it
   pins down: no hallucination in the sample does not rule out a rate up to the

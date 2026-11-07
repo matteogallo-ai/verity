@@ -247,3 +247,22 @@ def test_the_injection_count_does_not_depend_on_the_working_directory(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     assert _load("render_judge_validation").provenance().exposed_to_injection == 4
+
+
+def test_kappa_rows_carry_the_bootstrap_interval_and_the_real_hallucination_count() -> None:
+    """κ is published with its bootstrap interval, and the block says on how many real
+    hallucinations the judge was validated, not just "validated"."""
+    ci = {
+        "all_claims": {"ci95_percentile": [0.4872, 0.8934], "resamples": 5000, "undefined": 0},
+        "real_claims": {"ci95_percentile": [0.0, 1.0], "resamples": 5000, "undefined": 206},
+        "n_claims": 60,
+        "n_real_unsupported_by_human": 1,
+    }
+    block = _load("render_judge_validation").render_block(_agreement(), "m", _prov(), kappa_ci=ci)
+    assert "bootstrap 95 % CI [0.49, 0.89]" in block
+    assert "bootstrap 95 % CI [0.00, 1.00], κ undefined in 206 of 5000 resamples" in block
+    assert "validated on 60 claims, of which 1 real hallucination" in block
+    assert "bound it from above" not in block and "not a bound on it" in block
+    real = _agreement()["agreement_real_only"]["confusion"]
+    flags = real["judge_unsupported/human_supported"] + real["judge_unsupported/human_unsupported"]
+    assert f"the judge flags {flags} unsupported and the human confirms" in block

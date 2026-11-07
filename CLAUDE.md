@@ -60,6 +60,9 @@ uv run python scripts/check_stale_narrative.py             # no sprint labels / 
 uv run python scripts/check_commit_messages.py main..HEAD  # Conventional Commits on the branch
 uv run python scripts/generate_headline_results.py --check # scorecard ≡ artefact, results doc + README key result + SYSTEM_CARD ≡ scorecards
 uv run python scripts/compare_naive_baseline.py --check   # README baseline block ≡ the two pinned runs
+uv run python scripts/refusal_by_tag.py --check           # refusal recall by tag ≡ the test run of record
+uv run python scripts/judge_correctness.py render --check  # correctness block ≡ datasets/eval/correctness/
+uv run python scripts/judge_agreement.py kappa-ci --check  # κ bootstrap interval ≡ claims_annotated.csv
 uv run python scripts/build_corpus_documents.py --check    # PDF/DOCX corpus ≡ sources
 uv run python scripts/split_dataset.py --check             # dev/test split ≡ seed
 uv run python scripts/recompute_live_aggregates.py --check # live runs: *.recomputed.json current

@@ -74,6 +74,9 @@ FINAL_CSV = OUT_DIR / "claims_annotated.csv"
 RESULT = OUT_DIR / "agreement.json"
 ADJUDICATION = OUT_DIR / "adjudication.csv"
 ADJUDICATED = OUT_DIR / "agreement_adjudicated.json"
+KAPPA_CI = OUT_DIR / "kappa_ci.json"
+KAPPA_CI_SEED = 1
+KAPPA_CI_RESAMPLES = 5000
 # Judge prompt v0.2.0 is a new judge: its verdicts and κ go beside those of v0.1.0,
 # which stay the measurement of the runs of record.
 V2_VERDICTS = OUT_DIR / "judge-v0.2.0" / "verdicts.json"
@@ -532,6 +535,78 @@ def cohen_kappa(pairs: Sequence[tuple[str, str]]) -> float | None:
     return (observed - expected) / (1 - expected)
 
 
+def kappa_bootstrap(
+    pairs: Sequence[tuple[str, str]], *, resamples: int, seed: int
+) -> dict[str, Any]:
+    """Percentile 95 % interval of κ over claims resampled with replacement.
+
+    κ is not a proportion, so it has no Wilson interval; resampling the claims is the
+    standard way to give it one. A resample where κ is undefined (one label only) is
+    counted in ``undefined`` and left out of the percentiles, so a small minority
+    class shows up as a count instead of silently narrowing the interval.
+    """
+    rng = random.Random(seed)
+    values: list[float] = []
+    undefined = 0
+    for _ in range(resamples):
+        k = cohen_kappa([pairs[rng.randrange(len(pairs))] for _ in pairs])
+        if k is None:
+            undefined += 1
+        else:
+            values.append(k)
+    values.sort()
+
+    def at(q: float) -> float:
+        return round(values[min(len(values) - 1, int(q * len(values)))], 4)
+
+    return {
+        "kappa": None if (k := cohen_kappa(pairs)) is None else round(k, 4),
+        "ci95_percentile": [at(0.025), at(0.975)] if values else None,
+        "resamples": resamples,
+        "undefined": undefined,
+        "seed": seed,
+    }
+
+
+def kappa_ci(*, check: bool) -> int:
+    """κ intervals of the blind labels of record, from the pinned claims_annotated.csv."""
+    with FINAL_CSV.open(newline="", encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+    pairs = {
+        origin: [
+            (r["judge_verdict"], r["human_verdict"])
+            for r in rows
+            if r["judge_verdict"] and origin in ("all", r["origin"])
+        ]
+        for origin in ("all", "real")
+    }
+    real_unsupported = sum(1 for _, h in pairs["real"] if h == LABELS[1])
+    result = {
+        "source": _rel(FINAL_CSV),
+        "all_claims": kappa_bootstrap(
+            pairs["all"], resamples=KAPPA_CI_RESAMPLES, seed=KAPPA_CI_SEED
+        ),
+        "real_claims": kappa_bootstrap(
+            pairs["real"], resamples=KAPPA_CI_RESAMPLES, seed=KAPPA_CI_SEED
+        ),
+        "n_claims": len(pairs["all"]),
+        "n_real_claims": len(pairs["real"]),
+        "n_real_unsupported_by_human": real_unsupported,
+        "note": "percentile bootstrap over claims; claims of one answer are not "
+        "independent, so the interval is too narrow if anything",
+    }
+    text = json.dumps(result, indent=2, sort_keys=True) + "\n"
+    if check:
+        current = KAPPA_CI.read_text(encoding="utf-8") if KAPPA_CI.is_file() else ""
+        if current != text:
+            print(f"{_rel(KAPPA_CI)} is stale: run `kappa-ci`", file=sys.stderr)
+            return 1
+        return 0
+    KAPPA_CI.write_text(text, encoding="utf-8")
+    print(text, end="")
+    return 0
+
+
 def _proportion(k: int, n: int) -> dict[str, Any]:
     ci = wilson(k, n)
     return {
@@ -812,6 +887,8 @@ def main(argv: list[str] | None = None) -> int:
     rj2.add_argument("--budget-usd", type=float, required=True)
     sub.add_parser("kappa-v2")
     sub.add_parser("kappa")
+    kci = sub.add_parser("kappa-ci")
+    kci.add_argument("--check", action="store_true")
     sub.add_parser("adjudication-export")
     sub.add_parser("adjudicated")
     args = parser.parse_args(argv)
@@ -825,6 +902,8 @@ def main(argv: list[str] | None = None) -> int:
         return rejudge_v2(args.budget_usd)
     if args.command == "kappa-v2":
         return kappa_v2()
+    if args.command == "kappa-ci":
+        return kappa_ci(check=args.check)
     if args.command == "adjudication-export":
         return adjudication_export()
     if args.command == "adjudicated":

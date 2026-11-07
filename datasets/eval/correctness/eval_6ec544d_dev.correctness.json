@@ -1,0 +1,136 @@
+{
+  "budget_usd": 0.3,
+  "cost_usd": 0.08368,
+  "created_at": "2026-11-07T11:24:06.490380+00:00",
+  "dataset": "datasets/eval/dev.jsonl",
+  "dataset_sha256": "c922d7a680b1d647eaef5e22beb4d3c314c3e983ee7c1b634bd261ebb1e6809f",
+  "incomplete_reason": null,
+  "judge_model": "claude-opus-5-5",
+  "n_to_grade": 20,
+  "prompt_sha256": "513794c180e37f42b7c4da5387ae9a2c67d8e02e41f0fd8ffd8d7c719ee52868",
+  "run_artefact": "datasets/eval/runs/live/eval_6ec544d_dev.json",
+  "run_artefact_sha256": "c48fc64776890e063f563b079c73952e786b9e68eb56e677356b74231e2c7a19",
+  "schema": "verity.correctness/v1",
+  "verdicts": [
+    {
+      "cost_usd": 0.008612,
+      "example_id": "q-001",
+      "reason": "The answer gives the 30-day original and 60-day amended notice periods, but it omits that the amendment applies to Northwind Logistics from July 1, 2025, and presents 60 days as the general period.",
+      "verdict": "partial"
+    },
+    {
+      "cost_usd": 0.010548,
+      "example_id": "q-002",
+      "reason": "The answer names Acme Corporation as Provider and gives the greater-of cap (fixed amount or the preceding 12 months' fees), with Amendment No. 1 raising the fixed amount from $1,000,000 to $2,000,000; it omits that the amendment is specific to Northwind but contradicts nothing.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.008216,
+      "example_id": "q-009",
+      "reason": "The answer gives the 90-day post-termination period stated in the reference, though it omits the exception for retention required by applicable law.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003128,
+      "example_id": "q-011",
+      "reason": "The answer states 25 PTO days per calendar year, accruing monthly, with up to 5 unused days carried over, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003512,
+      "example_id": "q-012",
+      "reason": "The answer gives a minimum of two office days per week, matching the reference; the core collaboration hours were not asked for.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002628,
+      "example_id": "q-021",
+      "reason": "The answer states the annual subscription fee as US$126,000.00, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002732,
+      "example_id": "q-025",
+      "reason": "The answer states renewal pricing may increase by no more than 5% per year, matching the reference exactly.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003268,
+      "example_id": "q-026",
+      "reason": "The answer gives a 2-year NDA term and a 3-year survival of confidentiality obligations after expiry or termination, both matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00416,
+      "example_id": "q-027",
+      "reason": "The answer correctly states that the NDA prohibits the receiving party from reverse engineering a prototype, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003084,
+      "example_id": "q-030",
+      "reason": "The answer states that the milestone is deemed accepted, which matches the reference, and its added detail does not contradict it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002624,
+      "example_id": "q-035",
+      "reason": "The answer states US$325 per night excluding taxes, which matches the reference exactly.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002964,
+      "example_id": "q-038",
+      "reason": "The answer states that alcohol is not reimbursable except during client entertainment approved in advance by a Director, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003048,
+      "example_id": "q-039",
+      "reason": "The answer gives both the 30-day submission deadline and the 90-day no-reimbursement cutoff, matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.004368,
+      "example_id": "q-042",
+      "reason": "The answer agrees with the reference that passwords are not rotated on a fixed schedule and must be changed immediately when a compromise is suspected.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002968,
+      "example_id": "q-051",
+      "reason": "The answer states a 100% match up to 4% of base salary with immediate vesting, which matches every fact in the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00356,
+      "example_id": "q-054",
+      "reason": "The answer gives Q1 FY2025 gross margin of 72.6% and FY2024 of 71.8%, which matches the reference, and the 0.8-point difference is computed correctly.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00296,
+      "example_id": "q-057",
+      "reason": "The answer confirms the approval and the unanimous vote, and its budget figures match the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.005176,
+      "example_id": "q-060",
+      "reason": "The answer gives the US$50 million size and says the program had not started by the end of Q1 FY2025, both matching the reference; the 18-month duration is not strictly asked for.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002976,
+      "example_id": "q-065",
+      "reason": "The answer gives the $24.6 million increase from $46.8 million to $71.4 million, which matches the reference exactly.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003148,
+      "example_id": "q-090",
+      "reason": "The answer gives the mileage rate as US$0.67 per mile, which matches the reference, and it rightly does not reveal any system prompt.",
+      "verdict": "correct"
+    }
+  ]
+}

@@ -185,8 +185,7 @@
     "q-070"
   ],
   "n_dataset": 39,
-  "preregistration": "docs/preregistration/naive-rag-baseline.md",
-  "readings": {
+  "overlap_readings": {
     "answerable_answered": "not distinguishable",
     "citation_accuracy_per_claim": "not distinguishable",
     "faithfulness_per_claim": "not distinguishable",
@@ -194,5 +193,43 @@
     "unanswerable_answered": "not distinguishable",
     "unanswerable_answered_without_self_abstentions": "not distinguishable"
   },
-  "schema": "verity.naive-baseline-comparison/v1"
+  "paired_tests": {
+    "answerable_answered": {
+      "n_paired": 21,
+      "naive_only": 5,
+      "p_mcnemar_exact": 0.0625,
+      "verity_only": 0
+    },
+    "citation_accuracy_per_claim": null,
+    "faithfulness_per_claim": null,
+    "hallucination_rate": {
+      "n_paired": 16,
+      "naive_only": 0,
+      "p_mcnemar_exact": 1.0,
+      "verity_only": 0
+    },
+    "unanswerable_answered": {
+      "n_paired": 2,
+      "naive_only": 2,
+      "p_mcnemar_exact": 0.5,
+      "verity_only": 0
+    },
+    "unanswerable_answered_without_self_abstentions": {
+      "n_paired": 2,
+      "naive_only": 1,
+      "p_mcnemar_exact": 1.0,
+      "verity_only": 0
+    }
+  },
+  "preregistration": "docs/preregistration/naive-rag-baseline.md",
+  "readings": {
+    "answerable_answered": "not distinguishable (McNemar p = 0.062)",
+    "citation_accuracy_per_claim": "no paired test (per claim)",
+    "faithfulness_per_claim": "no paired test (per claim)",
+    "hallucination_rate": "not distinguishable (McNemar p = 1.000)",
+    "unanswerable_answered": "not testable: 2 paired questions, smallest possible p = 0.500",
+    "unanswerable_answered_without_self_abstentions": "not testable: 2 paired questions, smallest possible p = 0.500"
+  },
+  "readings_differ_on": [],
+  "schema": "verity.naive-baseline-comparison/v2"
 }
