@@ -116,8 +116,9 @@ answerable question, and the top hit agrees on 17 of 19.
 Simple questions pass straight through (single sub-question); complex ones decompose,
 retrieve per sub-question, and combine evidence. Synthesis emits inline citations mapped to
 exact passages. **Refusal** is decided in order: no citation, then the deterministic support
-check (`verity.agent.support`: injection markers, citation coverage, cited relevance), then
-the confidence scorer and its threshold. The scorer cannot override the checks before it. The prompts live in
+check (`verity.agent.support`: injection markers, citation coverage, and cited relevance
+when `irrelevant_citation_check` is set; it is off by default), then the confidence
+scorer and its threshold (0 by default, which refuses nothing). The scorer cannot override the checks before it. The prompts live in
 `prompts/*.prompt`, read by a local parser (`verity.llm.prompt`, ADR 0005).
 
 ### 4. LLM runtime (`verity.llm`)
@@ -182,7 +183,7 @@ rework or still costs trust.
   amendment records the JSON files that were.
 - **Build the eval set before the claim.** ADR 0003 called the refusal "calibrated"
   while nothing measured calibration, and an external audit had to take the word back
-  (C21 is roadmap). The 0.55 threshold and the support-check thresholds were chosen on
+  (C21 is roadmap). The v1.0.0 threshold, 0.55, and the support-check thresholds were chosen on
   the same 16 questions the v1.0.0 run reports on. A frozen dev/test split and a judge checked
   against human labels (C27, C28) come first; a headline number comes after.
 - **Instrument for the SLOs from the first endpoint.** The code emits per-stage spans

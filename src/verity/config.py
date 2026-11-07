@@ -97,7 +97,10 @@ class Settings(BaseSettings):
         default=0.0,
         ge=0.0,
         le=1.0,
-        description="Below this scorer-reported confidence the agent refuses to answer.",
+        description=(
+            "Below this scorer-reported confidence the agent refuses to answer. The "
+            "score lies in [0, 1], so the default 0 refuses nothing."
+        ),
     )
     max_agent_steps: int = 4  # cap on multi-step retrieval decomposition
     # Deterministic checks a cited draft must pass before the scorer runs
@@ -107,9 +110,10 @@ class Settings(BaseSettings):
     # chosen on those same 16 examples: they need a held-out split to be validated.
     min_citation_coverage: float = Field(default=0.5, ge=0.0, le=1.0)
     min_cited_rerank_score: float = 0.0
-    # Off by default: on the dev runs it refused 11 answerable questions for 5
-    # unanswerable ones as the first failing check, and replayed alone on the naive
-    # arm's dev drafts 3 answerable for 0 unanswerable (scripts/gate_ablation.py).
+    # Off by default: as the first failing check on the dev runs it refused 11
+    # answerable records (4 distinct questions) for 5 unanswerable ones (2), and
+    # replayed alone on the naive arm's dev drafts 3 answerable for 0 unanswerable
+    # (scripts/gate_ablation.py).
     irrelevant_citation_check: bool = False
 
     # --- HTTP API (see docs/adr/0006-api-security-baseline.md) ------------------------

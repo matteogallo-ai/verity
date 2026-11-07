@@ -41,6 +41,9 @@ refusals than right ones on dev, [measured](docs/results.md#refusal-checks-one-a
 One live run on the held-out `test` split, n = 56, agent `claude-sonnet-4-6`, commit `969e1d5`. Every metric, the judge's validation and the limits: [`docs/results.md`](docs/results.md).
 <!-- KEY-RESULT:END -->
 
+The run of record had the cited-relevance check on; the shipped default has it off.
+How that bounds the figures above: [refusal checks one at a time](docs/results.md#refusal-checks-one-at-a-time).
+
 ## What it looks like
 
 ![Cited answer with source panel + confidence readout](docs/assets/screenshot-answer.png)
