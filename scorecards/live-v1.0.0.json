@@ -41,12 +41,24 @@
       "n_questions": 11,
       "scope": "answerable_and_answered",
       "value": 0.0
+    },
+    "invented_answer_rate": {
+      "ci95_wilson": [
+        0.0,
+        0.242494
+      ],
+      "example_ids": [],
+      "k": 0,
+      "n_questions": 12,
+      "scope": "answered",
+      "value": 0.0
     }
   },
   "cost": {
     "agent_usd": 0.194997,
     "judge_usd": null,
     "per_query_usd": 0.012187,
+    "per_query_with_judge_usd": null,
     "total_usd": null
   },
   "dataset": {
@@ -211,6 +223,6 @@
     "n_judged_without_claims": 0,
     "n_refused": 4
   },
-  "schema": "verity.scorecard.headline/v5",
+  "schema": "verity.scorecard.headline/v6",
   "source_artefact": "datasets/eval/runs/live/eval_d0ca1d5_questions.json"
 }
