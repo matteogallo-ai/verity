@@ -136,3 +136,39 @@ over the $12 ceiling of this mission on its own.
   the corpus becomes a cacheable prefix (the judge prompt already has it first), add
   prompt caching to the Anthropic client, and re-measure; or approve about $20 for the
   arm as specified.
+
+## Deviations after the runs
+
+Added after the runs; the text above is unchanged since commit `513b839`, the commit the
+four runs record. Each item says what the registered text got wrong and what changes.
+
+- **Judge cost.** "$0.0185 per judged answer" was the e644a98 dev judge cost per
+  question asked, refusals included; per judged answer that run cost $0.0265
+  (16 judged of 23). Per judged answer, the 513b839 runs cost $0.0269
+  (Verity dev), $0.0297 (Verity test), $0.0271 and $0.0285 (naive dev and test). The
+  Verity test estimate was low for that reason, and that run stopped at its cap after
+  54 of 56 questions.
+- **Overshoot bound.** The harness checks its cap after each question, not after each
+  call, so a run passes its cap by up to one question, judge included. The Verity test
+  run ended at $2.4562 against its $2.40 cap. The four runs cost $8.2575 (agent and judge, `scorecards/two-arm-comparison.json`), against the $7.5 estimate.
+- **Power at the paired n.** The table above is computed at 33, 62 and 95 pairs; the
+  analysis has 31, 62 and 93 (`q-094` and `q-095` were not run in the Verity test arm).
+  With the same script and level: 0.865 for unanswerable answered at 0.30, 0.184 for
+  invented answers at 0.05, 0.537 at 0.10 against 0.01.
+- **Full-corpus cost.** $0.087 per question for the agent and $0.134 per judged answer
+  include output tokens; input alone is $0.0843 and $0.1302 (28,106 and 32,538 tokens
+  at $3 and $4 per million). The token counts come from a one-off call to the
+  `count_tokens` endpoint whose output is not committed.
+- **Choices made in the analysis code, written after the runs.** An answer the judge
+  did not score leaves metric 3 (none did: 93 pairs). The hallucination rate counts
+  judged answerable answers that shipped. "Invented, over the answers each arm shipped"
+  counts shipped answers, self-abstentions included. Holm is applied to the exact
+  p-values, rounded only for storage.
+- **Secondary row added.** "The three metrics without the self-abstention rule" was
+  published for two of the three; the third, invented answers, is now in the table.
+- **Metric 2 sentence.** The published reading is the registered "no cost measurable
+  at this n".
+- **Time of registration.** `513b839` was committed at 2026-11-07 12:02:18 UTC and the
+  first run, Verity dev, started at 12:03:28 UTC (its `created_at`, 12:08:10, minus
+  its `duration_s`, 282.5 s); both are local clocks. Each artefact records the commit it ran at, `513b839`, which holds this file;
+  the branch was pushed after the runs.

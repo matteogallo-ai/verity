@@ -115,10 +115,11 @@ figures were not used for the decision.
 | Metric | Better | Verity | Naive RAG | Verity only / naive only | p (Holm) | Reading |
 |---|---|---|---|---|---|---|
 | **Unanswerable answered** | lower | 4/31 [0.051, 0.288] | 12/31 [0.237, 0.562] | 0 / 8 | 0.0078 (0.0234) | Verity's checks refuse unanswerable questions that the naive draft answers. |
-| **Answerable answered** | higher | 58/62 [0.846, 0.975] | 62/62 [0.942, 1.000] | 0 / 4 | 0.1250 (0.2500) | No cost on answerable questions measurable at this n. |
+| **Answerable answered** | higher | 58/62 [0.846, 0.975] | 62/62 [0.942, 1.000] | 0 / 4 | 0.1250 (0.2500) | No cost measurable at this n. |
 | **Invented answer** | lower | 0/93 [0.000, 0.040] | 3/93 [0.011, 0.091] | 0 / 3 | 0.2500 (0.2500) | No difference in invented answers measurable at this n. |
-| Unanswerable answered, self-abstentions as answers | — | 7/31 [0.114, 0.398] | 31/31 [0.890, 1.000] | 0 / 24 | 0.0000 | descriptive |
+| Unanswerable answered, self-abstentions as answers | — | 7/31 [0.114, 0.398] | 31/31 [0.890, 1.000] | 0 / 24 | < 0.0001 | descriptive |
 | Answerable answered, self-abstentions as answers | — | 58/62 [0.846, 0.975] | 62/62 [0.942, 1.000] | 0 / 4 | 0.1250 | descriptive |
+| Invented answer, self-abstentions as answers | — | 1/93 [0.002, 0.058] | 5/93 [0.023, 0.120] | 0 / 4 | 0.1250 | descriptive |
 | Invented, over the answers each arm shipped | — | 1/65 [0.003, 0.082] | 5/93 [0.023, 0.120] | — | — | not paired |
 | Hallucination rate, answerable questions answered | — | 0/58 [0.000, 0.062] | 2/62 [0.009, 0.110] | — | — | not paired |
 
@@ -143,9 +144,17 @@ Generated from `scorecards/two-arm-comparison.json`, computed from the four arte
 they refuse unanswerable questions that the synthesizer's own draft answers, and the
 table by tag shows where (out-of-corpus and adversarial questions). Their cost on
 answerable questions is not measurable at this n: every discordant answerable question
-went to the naive arm, but too few of them to reject (the registered power for a
-10-point cost is 0.427). The difference in invented answers is below what 93 questions
-can show (power 0.198 for 5 points). Scope: two arms on the shipped defaults. Known
+went to the naive arm, but too few of them to reject (power for a 10-point cost at the
+62 pairs: 0.427). The difference in invented answers is below what 93 questions can
+show (power 0.184 at 93 pairs for 5 points; the pre-registration computed 0.198 at 95).
+Half the effect on unanswerable questions comes from the injection-marker check: of
+the 8 questions only the naive arm answered, Verity refused `q-004`, `q-017`, `q-018`
+and `q-019` for `suspected_injection`, `q-006` for `no_citation`, and `q-015`, `q-080`
+and `q-084` for `low_citation_coverage`. Over the answers each arm shipped, Verity
+invents 1/65 against 0/93 in the primary row: the one is `q-089`, a self-abstention
+that also states a claim the judge finds unsupported; the self-abstention rule counts
+it as a refusal, and the row "Invented answer, self-abstentions as answers" counts it.
+Deviations from the pre-registration, found after the runs, are listed at its end. Scope: two arms on the shipped defaults. Known
 limit: the full-corpus arm, the obvious baseline for a 5,489-word corpus, is not run;
 its measured cost is in the pre-registration. Next step: that arm, with prompt caching
 or its own budget.

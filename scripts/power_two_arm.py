@@ -4,9 +4,9 @@
 
 No model call. Prints, per primary test, the probability of rejecting at the Holm
 first-step level (0.05 / 3, the strictest any of the three tests faces) for a grid of
-discordance rates. The grids are anchored on the runs of record: the naive arm answers
-every question by construction, so on the two "answered" metrics only one direction of
-discordance exists.
+discordance rates. The naive arm ships every draft, so on the two "answered" metrics a
+question Verity answers and the naive arm does not needs a naive self-abstention; the
+grids take that direction as zero.
 """
 
 from __future__ import annotations

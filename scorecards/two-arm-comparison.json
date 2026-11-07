@@ -123,7 +123,7 @@
       ],
       "p_holm": 0.25,
       "p_mcnemar": 0.125,
-      "reading": "No cost on answerable questions measurable at this n.",
+      "reading": "No cost measurable at this n.",
       "verity": {
         "ci95_wilson": [
           0.8455,
@@ -186,8 +186,8 @@
         "q-080",
         "q-084"
       ],
-      "p_holm": 0.023436,
-      "p_mcnemar": 0.007812,
+      "p_holm": 0.0234375,
+      "p_mcnemar": 0.0078125,
       "reading": "Verity's checks refuse unanswerable questions that the naive draft answers.",
       "verity": {
         "ci95_wilson": [
@@ -231,6 +231,35 @@
       "verity_only": 0,
       "verity_only_ids": []
     },
+    "invented_shipped": {
+      "n_paired": 93,
+      "naive": {
+        "ci95_wilson": [
+          0.0232,
+          0.1197
+        ],
+        "k": 5,
+        "n": 93
+      },
+      "naive_only": 4,
+      "naive_only_ids": [
+        "q-009",
+        "q-055",
+        "q-070",
+        "q-080"
+      ],
+      "p_mcnemar": 0.125,
+      "verity": {
+        "ci95_wilson": [
+          0.0019,
+          0.0584
+        ],
+        "k": 1,
+        "n": 93
+      },
+      "verity_only": 0,
+      "verity_only_ids": []
+    },
     "unanswerable_shipped": {
       "n_paired": 31,
       "naive": {
@@ -268,7 +297,7 @@
         "q-088",
         "q-093"
       ],
-      "p_mcnemar": 0.0,
+      "p_mcnemar": 1.192e-07,
       "verity": {
         "ci95_wilson": [
           0.114,

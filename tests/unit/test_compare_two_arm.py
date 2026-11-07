@@ -80,6 +80,7 @@ def test_the_readings_are_the_registered_sentences(monkeypatch: pytest.MonkeyPat
     for sentence in (
         m.reading("unanswerable_answered", row(3, 20, 0.001)),
         m.reading("answerable_answered", row(50, 62, 0.01)),
+        m.reading("answerable_answered", row(55, 62, 0.2)),
     ):
         assert sentence.rstrip(".").lower() in prereg
     assert m.reading("unanswerable_answered", row(3, 5, 0.6)).startswith(
@@ -87,3 +88,36 @@ def test_the_readings_are_the_registered_sentences(monkeypatch: pytest.MonkeyPat
     )
     assert m.reading("invented_answer", row(1, 9, 0.02)) == "Verity invents fewer answers."
     assert m.reading("answerable_answered", row(55, 62, 0.2)).startswith("No cost")
+
+
+@pytest.mark.parametrize(
+    ("audit", "invented"),
+    [
+        # Without the self-abstention rule, a shipped self-abstention with an
+        # unsupported claim is an invented answer.
+        (_audit("The documents do not mention it.", claims=(_claim(False),)), True),
+        (_audit("", refused=True), False),
+        (_audit("It is 30 days.", claims=(_claim(True),)), False),
+        (_audit("It is 30 days."), None),
+    ],
+)
+def test_invented_without_the_self_abstention_rule(
+    monkeypatch: pytest.MonkeyPatch, audit: PerExampleAudit, invented: bool | None
+) -> None:
+    assert _module(monkeypatch).outcome(audit)["invented_shipped"] is invented
+
+
+def test_the_secondary_rows_include_invented_without_the_rule(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    keys = [key for key, *_ in _module(monkeypatch).SECONDARY]
+    assert "invented_shipped" in keys
+
+
+@pytest.mark.parametrize(
+    ("p", "shown"), [(0.0, "< 0.0001"), (6e-8, "< 0.0001"), (0.0078, "0.0078")]
+)
+def test_a_p_value_below_display_precision_is_not_shown_as_zero(
+    monkeypatch: pytest.MonkeyPatch, p: float, shown: str
+) -> None:
+    assert _module(monkeypatch).fmt_p(p) == shown
