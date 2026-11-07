@@ -1,0 +1,154 @@
+{
+  "false_refusal_by_tag": {
+    "adversarial": {
+      "ci95_wilson": [
+        0.0,
+        0.7935
+      ],
+      "k": 0,
+      "n": 1
+    },
+    "multi-hop": {
+      "ci95_wilson": [
+        0.0968,
+        0.7
+      ],
+      "k": 2,
+      "n": 6
+    },
+    "negation": {
+      "ci95_wilson": [
+        0.0,
+        0.2991
+      ],
+      "k": 0,
+      "n": 9
+    },
+    "numeric": {
+      "ci95_wilson": [
+        0.0162,
+        0.3774
+      ],
+      "k": 1,
+      "n": 11
+    },
+    "single-hop": {
+      "ci95_wilson": [
+        0.0514,
+        0.477
+      ],
+      "k": 2,
+      "n": 11
+    }
+  },
+  "note": "a question can carry several tags; tag rows overlap and do not sum",
+  "refusal_recall": {
+    "all": {
+      "answered": [
+        "q-074",
+        "q-085",
+        "q-089"
+      ],
+      "ci95_wilson": [
+        0.6396,
+        0.9476
+      ],
+      "k": 17,
+      "n": 20
+    },
+    "by_tag": {
+      "adversarial": {
+        "answered": [],
+        "ci95_wilson": [
+          0.5101,
+          1.0
+        ],
+        "k": 4,
+        "n": 4
+      },
+      "false-premise": {
+        "answered": [
+          "q-085",
+          "q-089"
+        ],
+        "ci95_wilson": [
+          0.0615,
+          0.7923
+        ],
+        "k": 1,
+        "n": 3
+      },
+      "near-miss": {
+        "answered": [
+          "q-074"
+        ],
+        "ci95_wilson": [
+          0.6226,
+          0.9838
+        ],
+        "k": 10,
+        "n": 11
+      },
+      "out-of-corpus": {
+        "answered": [],
+        "ci95_wilson": [
+          0.6097,
+          1.0
+        ],
+        "k": 6,
+        "n": 6
+      }
+    },
+    "without_out_of_corpus": {
+      "answered": [
+        "q-074",
+        "q-085",
+        "q-089"
+      ],
+      "ci95_wilson": [
+        0.5241,
+        0.9243
+      ],
+      "k": 11,
+      "n": 14
+    },
+    "without_out_of_corpus_and_adversarial": {
+      "answered": [
+        "q-074",
+        "q-085",
+        "q-089"
+      ],
+      "ci95_wilson": [
+        0.4974,
+        0.9182
+      ],
+      "k": 10,
+      "n": 13
+    }
+  },
+  "unanswerable_answered": {
+    "fails_only_if_invented": {
+      "ci95_wilson": [
+        0.0089,
+        0.2361
+      ],
+      "invented": [
+        "q-074"
+      ],
+      "k": 1,
+      "n": 20,
+      "supported": [
+        "q-085",
+        "q-089"
+      ]
+    },
+    "rule_of_record": {
+      "ci95_wilson": [
+        0.0524,
+        0.3604
+      ],
+      "k": 3,
+      "n": 20
+    }
+  }
+}
