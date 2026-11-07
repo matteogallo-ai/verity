@@ -15,6 +15,10 @@ all use this module, so a number cannot differ between the artefact and the READ
   over all claims, pooled across judged answers.
 - Hallucination rate: share of answerable questions the agent answered whose
   answer has at least one unsupported claim (or no usable claim from the judge).
+- Invented-answer rate: the same test over *every* judged answer, answerable or not.
+  An answer shipped to a question the corpus cannot answer is a user-visible answer
+  too; when one of its claims is unsupported it is an invention, and the
+  answerable-only rate cannot see it (q-074 on the test split).
 
 A ratio over an empty set is ``None``, never a made-up 0 or 1.
 """
@@ -43,6 +47,14 @@ class AnswerQuality:
     citation_accuracy_macro: Ratio
     citation_accuracy_micro: Ratio
     hallucination_rate: Ratio
+    invented_answer_rate: Ratio
+
+
+def _invented(audit: PerExampleAudit) -> bool:
+    """A judged answer with an unsupported claim, or with no usable claim: the judge
+    could not confirm it, which the hallucination rate also counts as a failure."""
+    claims = audit.judge_claims or ()
+    return not claims or any(not c.supported for c in claims)
 
 
 def _ratio(numerator: float, denominator: int) -> Ratio:
@@ -65,4 +77,5 @@ def answer_quality(audits: Sequence[PerExampleAudit]) -> AnswerQuality:
         hallucination_rate=_ratio(
             sum(a.answer_metrics.hallucination_rate for a in at_risk), len(at_risk)
         ),
+        invented_answer_rate=_ratio(sum(1 for a in judged if _invented(a)), len(judged)),
     )
