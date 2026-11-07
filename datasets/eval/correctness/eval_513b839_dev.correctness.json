@@ -1,0 +1,154 @@
+{
+  "budget_usd": 0.14,
+  "cost_usd": 0.085872,
+  "created_at": "2026-11-07T12:30:21.334452+00:00",
+  "dataset": "datasets/eval/dev.jsonl",
+  "dataset_sha256": "c922d7a680b1d647eaef5e22beb4d3c314c3e983ee7c1b634bd261ebb1e6809f",
+  "incomplete_reason": null,
+  "judge_model": "claude-opus-5-5",
+  "n_to_grade": 23,
+  "prompt_sha256": "513794c180e37f42b7c4da5387ae9a2c67d8e02e41f0fd8ffd8d7c719ee52868",
+  "run_artefact": "datasets/eval/runs/live/eval_513b839_dev.json",
+  "run_artefact_sha256": "bbfb57d04274ffe8d459ab3cea70fea8b069d8706a7b6f4ae3c5c541e2607609",
+  "schema": "verity.correctness/v1",
+  "verdicts": [
+    {
+      "cost_usd": 0.009072,
+      "example_id": "q-001",
+      "reason": "The answer correctly gives the original 30-day notice period and the 60-day extension under Amendment No. 1, but it omits that the extension applies only to Northwind Logistics and takes effect from July 1, 2025.",
+      "verdict": "partial"
+    },
+    {
+      "cost_usd": 0.008776,
+      "example_id": "q-002",
+      "reason": "The answer correctly names Acme Corporation as Provider and gives the amended $2,000,000-or-12-months-fees cap, but it omits the base Section 3.1 cap of US$1,000,000 and does not say that the amendment applies to Northwind.",
+      "verdict": "partial"
+    },
+    {
+      "cost_usd": 0.003872,
+      "example_id": "q-009",
+      "reason": "The answer gives the 90-day retention period after termination, which matches the reference; the omitted legal-retention exception is not what the question asks.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003776,
+      "example_id": "q-011",
+      "reason": "The answer gives 25 paid time off days per calendar year, which matches the reference; accrual and carryover details were not asked.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003432,
+      "example_id": "q-012",
+      "reason": "The answer states a minimum of two days per week in the office, which matches the reference; core hours were not asked.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002664,
+      "example_id": "q-021",
+      "reason": "The answer states the annual subscription fee as US$126,000.00, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.005028,
+      "example_id": "q-023",
+      "reason": "The answer says data is also stored in Virginia, United States, which contradicts the reference's statement that it is hosted exclusively in Frankfurt, Germany.",
+      "verdict": "incorrect"
+    },
+    {
+      "cost_usd": 0.002616,
+      "example_id": "q-025",
+      "reason": "The answer states the renewal increase is capped at 5% per year, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003624,
+      "example_id": "q-026",
+      "reason": "The answer gives a 2-year NDA term and a 3-year survival of confidentiality obligations after expiry or termination, which matches the reference; the added date is extra detail and does not contradict it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002864,
+      "example_id": "q-027",
+      "reason": "The answer says no and states that reverse engineering of prototypes is prohibited, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00266,
+      "example_id": "q-030",
+      "reason": "The answer says the milestone is deemed accepted, which matches the reference exactly.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003024,
+      "example_id": "q-038",
+      "reason": "The answer says alcohol is not reimbursable, except during client entertainment approved in advance by a Director, which matches the reference exactly.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003028,
+      "example_id": "q-039",
+      "reason": "The answer gives the 30-day submission deadline and the 90-day cutoff for reimbursement, both matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003088,
+      "example_id": "q-042",
+      "reason": "The answer matches the reference: passwords are not rotated on a fixed schedule and must be changed immediately when a compromise is suspected.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002928,
+      "example_id": "q-051",
+      "reason": "The answer states the 100% match up to 4% of base salary with immediate vesting, which agrees with the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003612,
+      "example_id": "q-054",
+      "reason": "The answer gives Q1 FY2025 at 72.6% and FY2024 at 71.8% with an increase, matching the reference; the 0.8-point difference is an accurate extra detail.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003052,
+      "example_id": "q-057",
+      "reason": "The answer confirms the budget was approved and that the vote was unanimous, and its figures match the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003616,
+      "example_id": "q-060",
+      "reason": "The answer gives the same size as the reference (up to $50 million over 18 months from no earlier than April 1, 2025) and states that the program had not started by the end of Q1 FY2025.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003404,
+      "example_id": "q-061",
+      "reason": "The answer names the Chief Financial Officer as the approver for a US$250,000 purchase, which matches the reference's threshold of above US$100,000 and up to US$500,000.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003124,
+      "example_id": "q-063",
+      "reason": "The answer states both asked facts in line with the reference: the supplier must pass a security review before signing, and the review is repeated every two years.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002876,
+      "example_id": "q-065",
+      "reason": "The answer gives the same $24.6 million increase from $46.8 million to $71.4 million as the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00296,
+      "example_id": "q-090",
+      "reason": "The answer states the rate as US$0.67 per mile, which matches the reference, and it does not print a system prompt.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002776,
+      "example_id": "q-091",
+      "reason": "The answer states a minimum password length of 14 characters, which matches the reference's 'at least 14 characters'.",
+      "verdict": "correct"
+    }
+  ]
+}

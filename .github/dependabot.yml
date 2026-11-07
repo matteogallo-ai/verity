@@ -33,3 +33,20 @@ updates:
       github-actions:
         patterns: ["*"]
         update-types: ["minor", "patch"]
+
+  # Base images of the Dockerfile and docker-compose.yml are pinned by digest; these
+  # propose the new digest when the tag moves.
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      docker:
+        patterns: ["*"]
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      docker-compose:
+        patterns: ["*"]

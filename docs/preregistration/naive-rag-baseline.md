@@ -103,3 +103,24 @@ outcome for any but a large difference, and are published as such.
   `SHA256SUMS`, never edited.
 - The comparison table in the README is generated from the two artefacts by
   `scripts/compare_naive_baseline.py`, and CI checks that it matches them.
+
+## Deviation after the runs (2026-11-07)
+
+Written after the e644a98 runs and their published result; not part of what was
+registered before them.
+
+- **Reading rule.** The published block reads each per-question row by an exact
+  McNemar test on the questions where the arms differ (p < 0.05), instead of the
+  overlap rule above. Reason: the arms answer the same questions, so the test must be
+  paired, and two disjoint 95 % intervals is a far stricter threshold than p < 0.05.
+  The overlap reading is kept in the comparison scorecard (`overlap_readings`), and the
+  block states whether the two readings differ on any row. On these runs they do not.
+- **Rows too small to test.** A row with n paired questions cannot reach p < 0.05 when
+  2 × 0.5ⁿ ≥ 0.05, i.e. n ≤ 5. Such a row reads "not testable" with its smallest
+  possible p, instead of "not distinguishable". The two unanswerable rows (n = 2) are
+  in this case.
+- Per-claim rows have no paired test: the two arms make different claims.
+- **Where the table lives.** The comparison table, registered above as generated into
+  the README, is generated into `docs/results.md` ("Earlier dev-only comparison,
+  superseded") since the README was cut to one page; the generator and its CI check are
+  unchanged.

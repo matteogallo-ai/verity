@@ -48,7 +48,7 @@ ANSWERABLE_2 = "Where is personal data stored, and what mechanism covers EU-to-U
 OUT_OF_CORPUS = "What is the CEO's home address?"
 # Settings.confidence_threshold, which the demo stack does not override; a test keeps
 # the two equal so the caption cannot go stale.
-CONFIDENCE_THRESHOLD = 0.55
+CONFIDENCE_THRESHOLD = 0.0
 # SupportCheck.rationale for RefusalReason.SUSPECTED_INJECTION, pinned by a test: the
 # injection caption is shown only when the refusal came from that check.
 INJECTION_RATIONALE = "A cited document contains text that tries to instruct the model."
@@ -200,8 +200,9 @@ def run_demo(rec: Recorder, web: str, api: str) -> None:
     )
     page.locator(".readout").first.scroll_into_view_if_needed()
     rec.caption(
-        f"Confidence: the scorer model's score. Below the {CONFIDENCE_THRESHOLD} threshold "
-        "the agent refuses.",
+        f"Confidence: the scorer model's self-report. At the default threshold of "
+        f"{CONFIDENCE_THRESHOLD} it refuses nothing; the checks and the scorer's own "
+        "refusal do.",
         6.0,
     )
     page.locator("footer.usage").scroll_into_view_if_needed()

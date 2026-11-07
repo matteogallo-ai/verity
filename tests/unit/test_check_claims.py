@@ -165,3 +165,13 @@ def test_a_listed_test_that_is_not_defined_is_reported_without_running(
     assert cc.check_tests(claims, tmp_path, run=False) == [
         f"C01: test not defined in its file: {nodeid}"
     ]
+
+
+def test_the_features_list_lives_in_docs_and_the_readme_links_it() -> None:
+    """The README stays one page; the claims-checked list is docs/features.md."""
+    root = SCRIPT.parents[1]
+    assert root / "docs" / "features.md" == cc.DEFAULT_FEATURES
+    claims, problems = cc.parse_claims((root / "docs" / "CLAIMS.md").read_text(encoding="utf-8"))
+    assert problems == []
+    assert cc.check_readme(cc.DEFAULT_FEATURES.read_text(encoding="utf-8"), claims) == []
+    assert "](docs/features.md)" in (root / "README.md").read_text(encoding="utf-8")

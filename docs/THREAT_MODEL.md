@@ -229,7 +229,8 @@ Provider SDK call signatures are tested against the pinned SDKs
 (`tests/unit/test_llm_sdk_schema.py`, C15).
 
 **Not stopped.** An advisory not yet in the OSV database, and the `python:3.12-slim`
-base image, which no job scans. Outside the image
+base image, which no job scans (it is pinned by digest, so it changes only through a
+reviewed pull request). Outside the image
 the models are fetched by name with no pinned revision
 (`ingestion.embedder._default_backend_factory`, `retrieval.reranker._default_backend_factory`).
 The first PDF ingestion makes docling download its models (~500 MB), including from

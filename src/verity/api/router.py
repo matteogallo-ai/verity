@@ -32,6 +32,7 @@ from verity.api.models import (
 from verity.api.state import AppRuntime, CorpusFullError
 from verity.config import Settings
 from verity.retrieval.base import RetrievalUnavailableError, StoreSchemaError
+from verity.types import ErrorKind
 
 router = APIRouter()
 _log = structlog.get_logger("verity.api")
@@ -168,6 +169,12 @@ async def ask_endpoint(
     answer = await runtime.ask(body.question)
     # Before the error check: a failed answer may have paid for its first calls.
     budget.record(principal, answer.usage.cost_usd)
+    if answer.error is not None and answer.error.kind is ErrorKind.INTERNAL:
+        # A defect is the server's fault, not an outage to retry: the generic 500.
+        raise HTTPException(
+            status_code=500,
+            detail={"error": answer.error.kind.value, "trace_id": str(answer.trace_id)},
+        )
     if answer.error is not None:
         # An outage is a 503, never a refusal and never a 500. The detail stays in
         # the logs (bound to trace_id by the agent); the client gets the id only.

@@ -1,0 +1,205 @@
+{
+  "runs": [
+    {
+      "correct": {
+        "ci95_wilson": [
+          0.7102,
+          0.96
+        ],
+        "k": 23,
+        "n": 26
+      },
+      "cost_usd": 0.098112,
+      "counts": {
+        "correct": 23,
+        "incorrect": 1,
+        "partial": 2,
+        "unparsed": 0
+      },
+      "incomplete_reason": null,
+      "judge_model": "claude-opus-5-5",
+      "n_to_grade": 26,
+      "not_correct_ids": [
+        "q-001",
+        "q-002",
+        "q-023"
+      ],
+      "numbers": {
+        "disagree_ids": [
+          "q-011",
+          "q-012",
+          "q-057"
+        ],
+        "n_with_numbers": 20,
+        "numbers_match": 15
+      },
+      "run_artefact": "datasets/eval/runs/live/eval_513b839_dev-naive-baseline.json"
+    },
+    {
+      "correct": {
+        "ci95_wilson": [
+          0.6787,
+          0.9546
+        ],
+        "k": 20,
+        "n": 23
+      },
+      "cost_usd": 0.085872,
+      "counts": {
+        "correct": 20,
+        "incorrect": 1,
+        "partial": 2,
+        "unparsed": 0
+      },
+      "incomplete_reason": null,
+      "judge_model": "claude-opus-5-5",
+      "n_to_grade": 23,
+      "not_correct_ids": [
+        "q-001",
+        "q-002",
+        "q-023"
+      ],
+      "numbers": {
+        "disagree_ids": [
+          "q-011",
+          "q-012",
+          "q-057"
+        ],
+        "n_with_numbers": 18,
+        "numbers_match": 13
+      },
+      "run_artefact": "datasets/eval/runs/live/eval_513b839_dev.json"
+    },
+    {
+      "correct": {
+        "ci95_wilson": [
+          0.9036,
+          1.0
+        ],
+        "k": 36,
+        "n": 36
+      },
+      "cost_usd": 0.13212,
+      "counts": {
+        "correct": 36,
+        "incorrect": 0,
+        "partial": 0,
+        "unparsed": 0
+      },
+      "incomplete_reason": null,
+      "judge_model": "claude-opus-5-5",
+      "n_to_grade": 36,
+      "not_correct_ids": [],
+      "numbers": {
+        "disagree_ids": [
+          "q-029",
+          "q-034",
+          "q-055",
+          "q-062"
+        ],
+        "n_with_numbers": 30,
+        "numbers_match": 26
+      },
+      "run_artefact": "datasets/eval/runs/live/eval_513b839_test-naive-baseline.json"
+    },
+    {
+      "correct": {
+        "ci95_wilson": [
+          0.9011,
+          1.0
+        ],
+        "k": 35,
+        "n": 35
+      },
+      "cost_usd": 0.127136,
+      "counts": {
+        "correct": 35,
+        "incorrect": 0,
+        "partial": 0,
+        "unparsed": 0
+      },
+      "incomplete_reason": null,
+      "judge_model": "claude-opus-5-5",
+      "n_to_grade": 35,
+      "not_correct_ids": [],
+      "numbers": {
+        "disagree_ids": [
+          "q-029",
+          "q-032",
+          "q-034",
+          "q-058",
+          "q-062"
+        ],
+        "n_with_numbers": 29,
+        "numbers_match": 24
+      },
+      "run_artefact": "datasets/eval/runs/live/eval_513b839_test.incomplete-20261107T122042441670Z.json"
+    },
+    {
+      "correct": {
+        "ci95_wilson": [
+          0.7639,
+          0.9911
+        ],
+        "k": 19,
+        "n": 20
+      },
+      "cost_usd": 0.08368,
+      "counts": {
+        "correct": 19,
+        "incorrect": 0,
+        "partial": 1,
+        "unparsed": 0
+      },
+      "incomplete_reason": null,
+      "judge_model": "claude-opus-5-5",
+      "n_to_grade": 20,
+      "not_correct_ids": [
+        "q-001"
+      ],
+      "numbers": {
+        "disagree_ids": [
+          "q-002",
+          "q-012",
+          "q-057",
+          "q-060"
+        ],
+        "n_with_numbers": 16,
+        "numbers_match": 11
+      },
+      "run_artefact": "datasets/eval/runs/live/eval_6ec544d_dev.json"
+    },
+    {
+      "correct": {
+        "ci95_wilson": [
+          0.8897,
+          1.0
+        ],
+        "k": 31,
+        "n": 31
+      },
+      "cost_usd": 0.108692,
+      "counts": {
+        "correct": 31,
+        "incorrect": 0,
+        "partial": 0,
+        "unparsed": 0
+      },
+      "incomplete_reason": null,
+      "judge_model": "claude-opus-5-5",
+      "n_to_grade": 31,
+      "not_correct_ids": [],
+      "numbers": {
+        "disagree_ids": [
+          "q-029",
+          "q-032",
+          "q-034",
+          "q-062"
+        ],
+        "n_with_numbers": 25,
+        "numbers_match": 21
+      },
+      "run_artefact": "datasets/eval/runs/live/eval_969e1d5_test.json"
+    }
+  ]
+}
