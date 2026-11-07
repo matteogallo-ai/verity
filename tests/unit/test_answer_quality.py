@@ -65,3 +65,19 @@ def test_nothing_judged_gives_no_number() -> None:
     assert q.faithfulness_macro.value is None
     assert q.faithfulness_micro.value is None
     assert q.hallucination_rate.denominator == 0
+
+
+def test_invented_answer_rate_counts_every_shipped_answer() -> None:
+    """An unsupported claim is an invention whether or not the question had an answer:
+    an answer shipped to an unanswerable question (q-074 on test) is in the denominator,
+    and counts when one of its claims is unsupported."""
+    audits = [
+        *_AUDITS,
+        _audit(False, (_OK, _UNSUPPORTED)),  # answered an unanswerable question, invented
+        _audit(False, (_OK,)),  # answered an unanswerable question, every claim supported
+    ]
+    q = answer_quality(audits)
+    # Judged: 5 answers. Invented: the 3/4 answer, the claimless one, the unanswerable one.
+    assert (q.invented_answer_rate.numerator, q.invented_answer_rate.denominator) == (3, 5)
+    # The answerable-only rate is unchanged by the two unanswerable answers.
+    assert q.hallucination_rate.value == pytest.approx(2 / 3)

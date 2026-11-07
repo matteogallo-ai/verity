@@ -2,66 +2,80 @@
   "answer_quality": {
     "citation_accuracy": {
       "macro": {
-        "n_questions": 34,
-        "value": 0.968137
+        "n_questions": 40,
+        "value": 0.961667
       },
       "micro": {
         "ci95_wilson": [
-          0.909423,
-          0.985638
+          0.896848,
+          0.977268
         ],
-        "k": 105,
-        "n_claims": 109,
-        "value": 0.963303
+        "k": 116,
+        "n_claims": 122,
+        "value": 0.95082
       },
       "scope": "answered"
     },
     "faithfulness": {
       "macro": {
-        "n_questions": 34,
-        "value": 0.990196
+        "n_questions": 40,
+        "value": 0.995833
       },
       "micro": {
         "ci95_wilson": [
-          0.949854,
-          0.998379
+          0.955029,
+          0.998552
         ],
-        "k": 108,
-        "n_claims": 109,
-        "value": 0.990826
+        "k": 121,
+        "n_claims": 122,
+        "value": 0.991803
       },
       "scope": "answered"
     },
     "hallucination_rate": {
       "ci95_wilson": [
         0.0,
-        0.110255
+        0.098901
       ],
       "k": 0,
-      "n_questions": 31,
+      "n_questions": 35,
       "scope": "answerable_and_answered",
       "value": 0.0
+    },
+    "invented_answer_rate": {
+      "ci95_wilson": [
+        0.004427,
+        0.128814
+      ],
+      "example_ids": [
+        "q-089"
+      ],
+      "k": 1,
+      "n_questions": 40,
+      "scope": "answered",
+      "value": 0.025
     }
   },
   "cost": {
-    "agent_usd": 0.740787,
-    "judge_usd": 0.53604,
-    "per_query_usd": 0.013228,
-    "total_usd": 1.276827
+    "agent_usd": 1.267146,
+    "judge_usd": 1.189016,
+    "per_query_usd": 0.023466,
+    "per_query_with_judge_usd": 0.045484,
+    "total_usd": 2.456162
   },
   "dataset": {
     "n_answerable": 36,
     "n_questions": 56,
-    "n_unanswerable": 20,
+    "n_unanswerable": 18,
     "name": "test",
     "sha256": "94b8d5db3bbc1eedf2945e066ac50bc64226f53c9062bfe4bd1c0f371e1e19c4"
   },
-  "generated_at": "2026-11-02T15:48:43.886318+00:00",
+  "generated_at": "2026-11-07T12:20:42.441670+00:00",
   "latency_ms": {
-    "cold_start": 8460.118,
-    "p50": 5445.725,
-    "p95": 8949.279999999999,
-    "p99": 10929.333500000004
+    "cold_start": 8884.584,
+    "p50": 6538.424999999999,
+    "p95": 9857.890999999994,
+    "p99": 11140.9335
   },
   "per_refusal": [
     {
@@ -112,7 +126,7 @@
     {
       "example_id": "q-016",
       "expected_answerable": true,
-      "observed_refused": true
+      "observed_refused": false
     },
     {
       "example_id": "q-018",
@@ -172,12 +186,12 @@
     {
       "example_id": "q-040",
       "expected_answerable": true,
-      "observed_refused": true
+      "observed_refused": false
     },
     {
       "example_id": "q-041",
       "expected_answerable": true,
-      "observed_refused": true
+      "observed_refused": false
     },
     {
       "example_id": "q-043",
@@ -222,7 +236,7 @@
     {
       "example_id": "q-052",
       "expected_answerable": true,
-      "observed_refused": true
+      "observed_refused": false
     },
     {
       "example_id": "q-053",
@@ -292,7 +306,7 @@
     {
       "example_id": "q-078",
       "expected_answerable": false,
-      "observed_refused": true
+      "observed_refused": false
     },
     {
       "example_id": "q-079",
@@ -302,7 +316,7 @@
     {
       "example_id": "q-081",
       "expected_answerable": false,
-      "observed_refused": true
+      "observed_refused": false
     },
     {
       "example_id": "q-082",
@@ -333,47 +347,30 @@
       "example_id": "q-092",
       "expected_answerable": true,
       "observed_refused": false
-    },
-    {
-      "example_id": "q-094",
-      "expected_answerable": false,
-      "observed_refused": true
-    },
-    {
-      "example_id": "q-095",
-      "expected_answerable": false,
-      "observed_refused": true
     }
   ],
   "provenance": {
-    "agent_model": "claude-sonnet-4-6 (56/56)",
+    "agent_model": "claude-sonnet-4-6 (54/54)",
     "embedding_model": "BAAI/bge-small-en-v1.5",
-    "judge_model": "claude-opus-5-5 (34/56 answered \u2014 22 refusals bypass the judge)",
+    "judge_model": "claude-opus-5-5 (40/54 answered \u2014 14 refusals bypass the judge)",
     "prompt_sha256": {
       "confidence": "29e89fbfe6dcc1b9aacaee5243bfaab1cfdf6395324027f1a8c67302b9b9b0db",
       "decompose": "e369f2ea13ee4922de9d0009cfd889d2ab358bd955a5857a29912086bf3f58fd",
-      "judge_faithfulness": "2c5f8eca49baa80fc89288c8ceafdc832a5ab3d442dbe601d5e065be40bb1bde",
-      "synthesize": "f42d4421bd64a2def48b712655a0516735c75e27fc54d22efd8cc97ef117a623"
+      "judge_correctness": "513794c180e37f42b7c4da5387ae9a2c67d8e02e41f0fd8ffd8d7c719ee52868",
+      "judge_faithfulness": "aa66e62370a2702666808e6bbb6c4bbcace60df2fca7a23cf7ea1b6dfdc3143a",
+      "synthesize": "3a68ba003f00f83a6772c9305ed813e5a95e56e239ed24487d7698bef2a48479"
     },
-    "run_sha": "969e1d5"
+    "run_sha": "513b839"
   },
   "refusal": {
     "by_reason": {
-      "irrelevant_citation": {
-        "answerable": 4,
-        "unanswerable": 0
-      },
       "low_citation_coverage": {
         "answerable": 1,
         "unanswerable": 6
       },
-      "model_refused": {
-        "answerable": 0,
-        "unanswerable": 2
-      },
       "no_citation": {
         "answerable": 0,
-        "unanswerable": 6
+        "unanswerable": 4
       },
       "suspected_injection": {
         "answerable": 0,
@@ -383,58 +380,59 @@
     "confidence_threshold": 0.0,
     "out_of_scope_answered": {
       "ci95_wilson": [
-        0.052369,
-        0.360419
+        0.124998,
+        0.508727
       ],
-      "count": 3,
-      "total": 20
+      "count": 5,
+      "total": 18
     },
     "refusal_precision": {
       "ci95_wilson": [
-        0.5656,
-        0.89877
+        0.685313,
+        0.987278
       ],
-      "k": 17,
-      "n": 22,
-      "value": 0.772727
+      "k": 13,
+      "n": 14,
+      "value": 0.928571
     },
     "refusal_recall": {
       "ci95_wilson": [
-        0.639581,
-        0.947631
+        0.491273,
+        0.875002
       ],
-      "k": 17,
-      "n": 20,
-      "value": 0.85
+      "k": 13,
+      "n": 18,
+      "value": 0.722222
     }
   },
   "retrieval": {
     "k": 8,
-    "ndcg_at_k": 0.928575730219069,
-    "precision_at_k": 0.14583333333333334,
-    "recall_at_k": 0.9861111111111112
+    "ndcg_at_k": 0.9228984413971665,
+    "precision_at_k": 0.1423611111111111,
+    "recall_at_k": 0.9722222222222222
   },
   "run": {
     "agent_tokens": {
-      "input": 193304,
-      "output": 10725
+      "input": 365522,
+      "output": 11372
     },
-    "duration_s": 400.775,
+    "duration_s": 454.127,
     "judge_tokens": {
-      "input": 98945,
-      "output": 7013
+      "input": 257449,
+      "output": 7961
     }
   },
   "sample_sizes": {
-    "n_answerable_answered": 31,
-    "n_answered": 34,
-    "n_claims": 109,
+    "n_answerable_answered": 35,
+    "n_answered": 40,
+    "n_claims": 122,
     "n_errored": 0,
     "n_examples": 56,
-    "n_judged": 34,
+    "n_judged": 40,
     "n_judged_without_claims": 0,
-    "n_refused": 22
+    "n_not_run": 2,
+    "n_refused": 14
   },
-  "schema": "verity.scorecard.headline/v5",
-  "source_artefact": "datasets/eval/runs/live/eval_969e1d5_test.json"
+  "schema": "verity.scorecard.headline/v6",
+  "source_artefact": "datasets/eval/runs/live/eval_513b839_test.incomplete-20261107T122042441670Z.json"
 }

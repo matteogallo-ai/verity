@@ -246,6 +246,30 @@ def test_an_answer_that_errors_after_spending_counts_against_the_budget(
         assert c.post("/ask", json={"question": _QUESTION}).status_code == 429
 
 
+def test_a_bug_is_a_500_and_still_counts_against_the_budget(tmp_path: Path) -> None:
+    from verity.types import AnswerError, ErrorKind
+
+    with api_app(tmp_path, _settings(api_budget_usd=0.05)) as c:
+        _bill_every_answer(c, 0.06)
+        billed = c.app.state.runtime.ask  # type: ignore[attr-defined]
+
+        async def _bug(question: str):  # type: ignore[no-untyped-def]
+            answer = await billed(question)
+            return answer.model_copy(
+                update={
+                    "confidence": None,
+                    "error": AnswerError(kind=ErrorKind.INTERNAL, detail="TypeError: x"),
+                }
+            )
+
+        c.app.state.runtime.ask = _bug  # type: ignore[attr-defined]
+        c.headers["X-API-Key"] = _KEY
+        first = c.post("/ask", json={"question": _QUESTION})
+        assert first.status_code == 500
+        assert "TypeError" not in first.text
+        assert c.post("/ask", json={"question": _QUESTION}).status_code == 429
+
+
 def test_spend_budget_window_slides() -> None:
     from verity.api.guards import SpendBudget
 

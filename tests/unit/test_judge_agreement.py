@@ -631,3 +631,45 @@ def test_a_malformed_v2_verdict_is_not_blamed_on_the_budget(
     result = json.loads(mod.V2_RESULT.read_text())
     assert result["n_unjudged"] == 0 and result["n_malformed"] >= 1
     assert result["complete"] is False
+
+
+def _repo_module(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
+    """The script with its real paths, for the checks on committed artefacts."""
+    spec = importlib.util.spec_from_file_location("judge_agreement", SCRIPT)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, "judge_agreement", module)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_kappa_bootstrap_is_seeded_and_brackets_the_point_estimate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Resampling claims with replacement: the same pairs and seed give the same
+    interval, and it contains the κ of the full sample."""
+    ja = _repo_module(monkeypatch)
+    pairs = [("supported", "supported")] * 40 + [("unsupported", "unsupported")] * 13
+    pairs += [("unsupported", "supported")] * 6 + [("supported", "unsupported")]
+    first = ja.kappa_bootstrap(pairs, resamples=2000, seed=1)
+    assert first == ja.kappa_bootstrap(pairs, resamples=2000, seed=1)
+    low, high = first["ci95_percentile"]
+    assert low < ja.cohen_kappa(pairs) < high
+    assert first["resamples"] == 2000 and first["undefined"] == 0
+
+
+def test_kappa_bootstrap_counts_resamples_where_kappa_is_undefined(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A resample of one class only has no κ: it is counted, not scored."""
+    ja = _repo_module(monkeypatch)
+    pairs = [("supported", "supported")] * 39 + [("unsupported", "unsupported")]
+    result = ja.kappa_bootstrap(pairs, resamples=500, seed=1)
+    assert result["undefined"] > 0
+    assert result["resamples"] == 500
+
+
+def test_committed_kappa_ci_matches_the_annotated_claims(monkeypatch: pytest.MonkeyPatch) -> None:
+    """kappa_ci.json is rebuilt from the pinned claims_annotated.csv; --check fails on drift."""
+    ja = _repo_module(monkeypatch)
+    assert ja.main(["kappa-ci", "--check"]) == 0

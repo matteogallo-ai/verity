@@ -154,7 +154,7 @@ def _fixture_result() -> HarnessResult:
 def test_build_headline_dict_carries_full_provenance_and_totals() -> None:
     result = _fixture_result()
     payload = build_headline_dict(result)
-    assert payload["schema"] == "verity.scorecard.headline/v5"
+    assert payload["schema"] == "verity.scorecard.headline/v6"
     prov = payload["provenance"]
     # Agent summary: all 16 answers stamped claude-sonnet-4-6 → "(16/16)"
     assert prov["agent_model"] == "claude-sonnet-4-6 (16/16)"
@@ -179,6 +179,7 @@ def test_build_headline_dict_carries_full_provenance_and_totals() -> None:
     assert sizes == {
         "n_examples": 16,
         "n_errored": 0,
+        "n_not_run": 0,
         "n_answered": 11,
         "n_judged": 11,
         "n_judged_without_claims": 0,
@@ -269,7 +270,10 @@ def test_render_block_shows_verbatim_headline_numbers() -> None:
     # Every judge-track row names its denominator.
     assert "mean over 11 judged answers" in block
     assert "pooled over claims: 517/550" in block
-    assert "answered answerable questions: 1/11" in block
+    assert (
+        "answered answerable questions (an answer to an unanswerable question is outside it): 1/11"
+        in block
+    )
     assert "refusals bypass the judge" in block  # judge summary honesty
 
 
@@ -277,7 +281,7 @@ def test_write_headline_scorecard_round_trips(tmp_path: Path) -> None:
     result = _fixture_result()
     out = write_headline_scorecard(result.as_eval_run(), tmp_path / "live.json")
     parsed = json.loads(out.read_text(encoding="utf-8"))
-    assert parsed["schema"] == "verity.scorecard.headline/v5"
+    assert parsed["schema"] == "verity.scorecard.headline/v6"
     assert parsed["cost"]["total_usd"] == pytest.approx(1.4)
 
 
@@ -384,9 +388,9 @@ def test_the_key_result_carries_k_n_and_both_intervals() -> None:
     generator = _load_generator()
     payload = json.loads((REPO_ROOT / "scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
     block = generator.render_key_result(payload)
-    assert "**Refusal recall 0.850**: 17/20" in block
-    assert "Wilson 95 % CI [0.640, 0.948]" in block
-    assert "refusal precision 0.773 (17/22, CI [0.566, 0.899])" in block
+    assert "**Refusal recall 0.722**: 13/18" in block
+    assert "Wilson 95 % CI [0.491, 0.875]" in block
+    assert "refusal precision 0.929 (13/14, CI [0.685, 0.987])" in block
     assert "](docs/results.md)" in block
 
 
@@ -437,7 +441,7 @@ def test_errored_examples_are_counted_in_the_scorecard_and_the_readme_block() ->
     )
     assert payload["sample_sizes"]["n_errored"] == 2
     block = _load_generator().render_block(payload)
-    assert "**2 errored**" in block
+    assert "**2 errored, 0 not run**" in block
 
 
 def test_check_fails_when_the_scorecard_differs_from_its_artefact(tmp_path: Path) -> None:
@@ -532,7 +536,7 @@ def test_block_prints_the_interval_and_n_next_to_each_proportion() -> None:
         line.split("|")[1].strip(" *"): line for line in block.splitlines() if line.startswith("|")
     }
     assert "5/5 · 95 % CI [0.566, 1.000]" in rows["Refusal precision"]
-    assert "1/11 · 95 % CI [0.016, 0.377]" in rows["Hallucination rate"]
+    assert "1/11 · 95 % CI [0.016, 0.377]" in rows["Hallucination rate, answerable only"]
     assert "517/550 · 95 % CI [" in rows["Faithfulness, per claim"]
     assert "CI" not in rows["Faithfulness, per question"]
     assert "0/5 · 95 % CI [0.000, 0.434]" in rows["Unanswerable answered"]
@@ -578,7 +582,11 @@ def test_system_card_recovers_counts_from_the_artefact_and_gives_intervals() -> 
     assert rows["Refusal recall"] == ["0.800", "4/5", "[0.376, 0.964]"]
     assert rows["Refusal precision"] == ["1.000", "4/4", "[0.510, 1.000]"]
     # A per-answer hallucination flag is 0 or 1, so the rate gives k back.
-    assert rows["Hallucination rate ↓ (judge)"] == ["0.000", "0/11", "[0.000, 0.259]"]
+    assert rows["Hallucination rate, answerable only ↓ (judge)"] == [
+        "0.000",
+        "0/11",
+        "[0.000, 0.259]",
+    ]
     assert rows["Citation accuracy per claim (judge)"] == ["0.618", "21/34", "[0.450, 0.761]"]
     # A mean of per-question fractions has no k: n is shown, no interval is invented.
     assert rows["Retrieval nDCG@8, per-question mean"] == ["0.953", "n=11", "no interval"]
@@ -588,7 +596,11 @@ def test_system_card_slos_are_approved_and_say_what_was_not_measured() -> None:
     rows = _card_rows(_committed_scorecard())
     slos = [_row_starting(rows, prefix) for prefix in ("p95", "Error", "Cost")]
     assert all(cells[0].endswith("(approved)") for cells in slos)
-    assert slos[1][1:] == ["0.000 (0/16, 95 % CI [0.000, 0.194])", "met"]
+    # 0 errors in 16: no violation observed, but the upper bound is far above 1 %.
+    assert slos[1][1:] == [
+        "0.000 (0/16, 95 % CI [0.000, 0.194])",
+        "no violation observed; n too small to conclude (95 % upper bound 19.4% > 1%)",
+    ]
     assert slos[2][2] == "met"
 
 
@@ -659,11 +671,11 @@ def test_a_missing_card_marker_writes_neither_file(tmp_path: Path) -> None:
         generator.main(["--readme", str(readme), "--system-card", str(tmp_path / "absent.md")])
 
 
-def test_a_scorecard_older_than_v5_is_refused_by_the_card() -> None:
-    """Only v5 stores the k/n each row prints; an older scorecard would need them guessed."""
+def test_a_scorecard_older_than_v6_is_refused_by_the_card() -> None:
+    """Only v6 stores every k/n the card prints; an older scorecard would need them guessed."""
     payload = _committed_scorecard()
     payload["schema"] = "verity.scorecard.headline/v3"
-    with pytest.raises(SystemExit, match="v5"):
+    with pytest.raises(SystemExit, match="v6"):
         _card_rows(payload)
 
 
@@ -680,8 +692,138 @@ def test_check_covers_the_system_card_and_never_writes_it(tmp_path: Path) -> Non
     args.insert(0, "--check")
     assert generator.main(args) == 0
     regenerated = card.read_text(encoding="utf-8")
-    stale = regenerated.replace("| 17/20 |", "| 20/20 |")
+    stale = regenerated.replace("| 13/18 |", "| 18/18 |")
     assert stale != regenerated
     card.write_text(stale, encoding="utf-8")
     assert generator.main(args) == 1
     assert card.read_text(encoding="utf-8") == stale
+
+
+def test_invented_answer_rate_counts_every_judged_answer() -> None:
+    """Every judged answer is in the denominator, answerable or not."""
+    payload = build_headline_dict(_fixture_result())
+    invented = payload["answer_quality"]["invented_answer_rate"]
+    assert invented["scope"] == "answered"
+    # The fixture's 11 judged answers each carry 3 unsupported claims.
+    assert (invented["k"], invented["n_questions"]) == (11, 11)
+    assert invented["ci95_wilson"] is not None
+
+
+def test_the_key_result_leads_with_invented_answers_and_names_them() -> None:
+    """The README's first number counts unanswerable answers too, with its definition."""
+    generator = _load_generator()
+    payload = json.loads((REPO_ROOT / "scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
+    block = generator.render_key_result(payload)
+    assert block.startswith("**Invented answers 1/40**")
+    assert "answerable or not" in block
+    assert "`q-089`" in block
+    assert "**Refusal recall" not in block.splitlines()[0]
+
+
+def test_a_zero_error_count_too_small_for_the_target_is_not_met() -> None:
+    """0/56 has a Wilson upper bound of 6.4 %: no violation observed, but n cannot show
+    a rate of 1 % or less, so the status is not "met"."""
+    payload = json.loads((REPO_ROOT / "scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
+    rows = _card_rows(payload)
+    error = _row_starting(rows, "Error rate")
+    assert error[2].startswith("no violation observed; n too small to conclude")
+    assert error[2] != "met"
+
+
+def test_cost_per_query_is_published_with_and_without_the_judge() -> None:
+    generator = _load_generator()
+    payload = json.loads((REPO_ROOT / "scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
+    # 54 of the 56 questions were asked before the run's spending cap stopped it.
+    assert payload["cost"]["per_query_with_judge_usd"] == pytest.approx(2.4562 / 54, abs=1e-4)
+    block = generator.render_block(payload)
+    row = next(line for line in block.splitlines() if line.startswith("| Cost / query"))
+    assert "$0.0235 agent only" in row and "$0.0455 with the judge" in row
+
+
+def test_on_the_test_run_the_invented_rate_counts_q074_and_the_hallucination_rate_does_not() -> (
+    None
+):
+    """The two denominators differ on real data: 34 judged answers against 31 answerable."""
+    from verity.eval.headline import build_headline_dict_from_eval_run
+    from verity.eval.run_store import load_run
+
+    run = load_run(REPO_ROOT / "datasets/eval/runs/live/eval_969e1d5_test.json")
+    quality = build_headline_dict_from_eval_run(run)["answer_quality"]
+    invented, hall = quality["invented_answer_rate"], quality["hallucination_rate"]
+    assert (invented["k"], invented["n_questions"], invented["example_ids"]) == (1, 34, ["q-074"])
+    assert (hall["k"], hall["n_questions"]) == (0, 31)
+
+
+@pytest.mark.parametrize(
+    ("k", "n", "status"),
+    [
+        (0, 56, "no violation observed; n too small to conclude (95 % upper bound 6.4% > 1%)"),
+        (1, 200, "1 of 200 within target; n too small to conclude (95 % upper bound 2.8% > 1%)"),
+        (1, 1000, "met"),
+        (5, 100, "**SLO not met**: cause"),
+        (0, 0, "not measured"),
+    ],
+)
+def test_a_rate_slo_meets_only_when_its_upper_bound_does(k: int, n: int, status: str) -> None:
+    assert _load_generator()._against_proportion(k, n, 0.01, "cause") == status
+
+
+def test_the_key_result_names_the_validation_of_its_own_judge_prompt() -> None:
+    generator = _load_generator()
+    payload = json.loads((REPO_ROOT / "scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
+    judge = generator.judge_label(
+        payload["provenance"]["judge_model"],
+        payload["provenance"]["prompt_sha256"]["judge_faithfulness"],
+    )
+    block = generator.render_key_result(payload, judge=judge)
+    # The run of record is judged by prompt v0.2.0: its κ, never v0.1.0's interval.
+    assert "Judge prompt v0.2.0 κ 0.60 vs blind human on 52 of 60 claims" in block
+    assert "0.71" not in block
+    assert "all 40 shipped answers were judged" in block
+
+
+def test_the_key_result_of_an_incomplete_run_says_how_many_questions_completed() -> None:
+    generator = _load_generator()
+    payload = json.loads((REPO_ROOT / "scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
+    block = generator.render_key_result(payload, judge="judge unvalidated")
+    assert (
+        "n = 54 of 56 completed (2 not run, stopped by the run's spending cap; 0 errored)" in block
+    )
+
+
+def test_questions_a_budget_cap_left_unrun_are_not_request_errors() -> None:
+    """eval_513b839_test stopped at its cap after 54 of 56: no request failed."""
+    from verity.eval.headline import build_headline_dict_from_eval_run
+    from verity.eval.run_store import load_run
+
+    run = load_run(
+        REPO_ROOT
+        / "datasets/eval/runs/live/eval_513b839_test.incomplete-20261107T122042441670Z.json"
+    )
+    head = build_headline_dict_from_eval_run(run)
+    sizes, cost = head["sample_sizes"], head["cost"]
+    assert (sizes["n_errored"], sizes["n_not_run"]) == (0, 2)
+    # Per question asked, as the agent-only figure the harness computes over 54.
+    assert cost["per_query_with_judge_usd"] == pytest.approx(cost["total_usd"] / 54, abs=1e-6)
+
+
+def test_the_system_card_counts_only_the_questions_an_incomplete_run_asked() -> None:
+    """The latency sample and the source line of eval_513b839_test hold 54 answers."""
+    generator = _load_generator()
+    payload = json.loads((REPO_ROOT / "scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
+    rows = _card_rows(payload)
+    warm = _row_starting(rows, "p95 latency of one answer, warm")
+    assert warm[1] == "9857.9 ms (n=54, after one warmup answer)"
+    block = generator.render_system_card_block(
+        payload, scorecard_path=REPO_ROOT / "scorecards/live-v1.1.0.json"
+    )
+    assert "n=54 of 56 asked (36 answerable + 18 out-of-scope)" in block
+    table = generator.render_block(payload)
+    assert "n=54 of 56 asked (36 answerable + 18 unanswerable)" in table
+
+
+def test_an_incomplete_run_without_unrun_questions_does_not_blame_the_spending_cap() -> None:
+    generator = _load_generator()
+    payload = json.loads((REPO_ROOT / "scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
+    payload["sample_sizes"] = {**payload["sample_sizes"], "n_not_run": 0, "n_errored": 2}
+    assert generator._completed(payload) == "n = 54 of 56 completed (2 errored)"

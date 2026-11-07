@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+import psycopg
 import pytest
 
 from tests.unit.test_agent import _CountingStubClient, _seed_retriever
@@ -178,6 +179,47 @@ async def test_a_failed_retrieval_stage_raises_instead_of_returning_nothing() ->
         await retriever.retrieve("notice period", k=3)
 
 
+class _BuggyStore(InMemoryVectorStore):
+    async def dense_search(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        raise TypeError("unsupported operand type(s)")
+
+
+class _QueryFailsStore(InMemoryVectorStore):
+    async def dense_search(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        raise psycopg.errors.UndefinedTable('relation "chunks" does not exist')
+
+
+class _UnmigratedStore(InMemoryVectorStore):
+    async def dense_search(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        from verity.retrieval.pgvector_store import SchemaNotMigratedError
+
+        raise SchemaNotMigratedError("chunks table missing: run `verity db upgrade`")
+
+
+@pytest.mark.asyncio
+async def test_an_unmigrated_store_is_retrieval_unavailable_not_a_defect() -> None:
+    seeded = await _seed_retriever()
+    retriever = HybridRetriever(store=_UnmigratedStore(), embedder=seeded._embedder, reranker=None)
+    with pytest.raises(RetrievalUnavailableError, match="verity db upgrade"):
+        await retriever.retrieve("notice period", k=3)
+
+
+@pytest.mark.asyncio
+async def test_a_bug_in_a_retrieval_stage_is_not_reported_as_the_store_being_down() -> None:
+    seeded = await _seed_retriever()
+    retriever = HybridRetriever(store=_BuggyStore(), embedder=seeded._embedder, reranker=None)
+    with pytest.raises(TypeError, match="unsupported operand"):
+        await retriever.retrieve("notice period", k=3)
+
+
+@pytest.mark.asyncio
+async def test_a_failed_store_query_is_still_retrieval_unavailable() -> None:
+    seeded = await _seed_retriever()
+    retriever = HybridRetriever(store=_QueryFailsStore(), embedder=seeded._embedder, reranker=None)
+    with pytest.raises(RetrievalUnavailableError, match="chunks"):
+        await retriever.retrieve("notice period", k=3)
+
+
 @pytest.mark.asyncio
 async def test_store_down_is_an_error_not_a_refusal() -> None:
     seeded = await _seed_retriever()
@@ -218,6 +260,23 @@ async def test_an_errored_answer_still_reports_the_tokens_it_spent() -> None:
     assert answer.usage.input_tokens == 100 + 300
     assert answer.usage.output_tokens == 20 + 80
     assert answer.usage.cost_usd == pytest.approx(0.010 + 0.030)
+
+
+@pytest.mark.asyncio
+async def test_a_bug_after_a_billed_call_is_an_internal_error_that_keeps_its_spend() -> None:
+    """The decompose call is paid before retrieval runs: a bug there must not lose it."""
+    seeded = await _seed_retriever()
+    retriever = HybridRetriever(store=_BuggyStore(), embedder=seeded._embedder, reranker=None)
+    agent = create_default_agent(
+        retriever=retriever, client=MultiProviderRoutingClient([_CountingStubClient()])
+    )
+
+    answer = await agent.answer(_ANSWERABLE)
+
+    assert answer.error is not None
+    assert answer.error.kind is ErrorKind.INTERNAL
+    assert answer.usage.llm_calls == 1
+    assert answer.usage.cost_usd > 0
 
 
 class _BrokenModel:

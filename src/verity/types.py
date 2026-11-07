@@ -177,7 +177,8 @@ class UsageStats(BaseModel, frozen=True):
 
 
 class ErrorKind(StrEnum):
-    """An infrastructure failure that prevented an answer. Never a refusal."""
+    """What prevented an answer: an infrastructure failure, or a defect in the code
+    (``INTERNAL``). Never a refusal."""
 
     PROVIDER_UNAVAILABLE = "provider_unavailable"
     PROVIDER_AUTH = "provider_auth"
@@ -186,6 +187,8 @@ class ErrorKind(StrEnum):
     MODEL_UNAVAILABLE = "model_unavailable"
     # A spending cap stopped the answer before its next LLM call.
     BUDGET_EXCEEDED = "budget_exceeded"
+    # A defect in the code: reported as a 500, never as an outage or a refusal.
+    INTERNAL = "internal_error"
 
 
 class AnswerError(BaseModel, frozen=True):
@@ -372,7 +375,8 @@ class Scorecard(BaseModel, frozen=True):
     # here so a run with failures cannot pass for a clean one.
     errored_example_ids: tuple[str, ...] = ()
     # Set when the run stopped at its budget cap or lost examples to an outage. Such a
-    # run is kept for its paid results and never stands as a run of record.
+    # run is kept for its paid results. One that lost examples never stands as a run of
+    # record; one stopped by its cap with no error can, under docs/adr/0008.
     incomplete_reason: IncompleteReason | None = None
 
 

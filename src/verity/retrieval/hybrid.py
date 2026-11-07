@@ -18,6 +18,7 @@ import asyncio
 import time
 from collections.abc import Awaitable
 
+import psycopg
 import structlog
 
 from verity.config import get_settings
@@ -31,6 +32,7 @@ from verity.retrieval.base import (
     Reranker,
     RetrievalUnavailableError,
     Retriever,
+    StoreSchemaError,
     VectorStore,
 )
 from verity.retrieval.fusion import ReciprocalRankFusion
@@ -140,16 +142,19 @@ class HybridRetriever(Retriever):
         """Run one retrieval stage and log its outcome.
 
         An empty stage (no keyword match in full-text search) is a valid result. A
-        stage that raises (store down, query error) is not: degrading it to ``[]``
+        stage whose store fails (down, query error) is not: degrading it to ``[]``
         would make an outage look like weak evidence and turn it into a refusal, so
-        it is raised as :class:`RetrievalUnavailableError`.
+        it is raised as :class:`RetrievalUnavailableError`. Any other exception is a
+        bug and is not caught here.
         """
         async with self._tracer.stage(name, trace_id) as span:
             try:
                 hits = await coro
-            # Any store or driver exception is re-raised as the typed error the
-            # agent maps to an infrastructure failure.
-            except Exception as exc:
+            # What a store raises when it is down, unmigrated or its query fails: a
+            # driver error, a refused or reset socket, a schema check. Anything else
+            # is a defect in the code and propagates as itself, so it is not reported
+            # as the store being down.
+            except (RetrievalUnavailableError, StoreSchemaError, psycopg.Error, OSError) as exc:
                 log.error("stage_failed", stage=name, error=str(exc))
                 span.set_attribute("error", str(exc))
                 raise RetrievalUnavailableError(f"{name} failed: {exc}") from exc

@@ -1,0 +1,164 @@
+{
+  "false_refusal_by_tag": {
+    "adversarial": {
+      "ci95_wilson": [
+        0.0,
+        0.7935
+      ],
+      "k": 0,
+      "n": 1
+    },
+    "multi-hop": {
+      "ci95_wilson": [
+        0.0301,
+        0.5635
+      ],
+      "k": 1,
+      "n": 6
+    },
+    "negation": {
+      "ci95_wilson": [
+        0.0,
+        0.2991
+      ],
+      "k": 0,
+      "n": 9
+    },
+    "numeric": {
+      "ci95_wilson": [
+        0.0,
+        0.2588
+      ],
+      "k": 0,
+      "n": 11
+    },
+    "single-hop": {
+      "ci95_wilson": [
+        0.0,
+        0.2588
+      ],
+      "k": 0,
+      "n": 11
+    }
+  },
+  "note": "a question can carry several tags; tag rows overlap and do not sum",
+  "refusal_recall": {
+    "all": {
+      "answered": [
+        "q-074",
+        "q-078",
+        "q-081",
+        "q-085",
+        "q-089"
+      ],
+      "ci95_wilson": [
+        0.4913,
+        0.875
+      ],
+      "k": 13,
+      "n": 18
+    },
+    "by_tag": {
+      "adversarial": {
+        "answered": [],
+        "ci95_wilson": [
+          0.3424,
+          1.0
+        ],
+        "k": 2,
+        "n": 2
+      },
+      "false-premise": {
+        "answered": [
+          "q-085",
+          "q-089"
+        ],
+        "ci95_wilson": [
+          0.0615,
+          0.7923
+        ],
+        "k": 1,
+        "n": 3
+      },
+      "near-miss": {
+        "answered": [
+          "q-074",
+          "q-078",
+          "q-081"
+        ],
+        "ci95_wilson": [
+          0.3968,
+          0.8922
+        ],
+        "k": 7,
+        "n": 10
+      },
+      "out-of-corpus": {
+        "answered": [],
+        "ci95_wilson": [
+          0.5655,
+          1.0
+        ],
+        "k": 5,
+        "n": 5
+      }
+    },
+    "without_out_of_corpus": {
+      "answered": [
+        "q-074",
+        "q-078",
+        "q-081",
+        "q-085",
+        "q-089"
+      ],
+      "ci95_wilson": [
+        0.3552,
+        0.8229
+      ],
+      "k": 8,
+      "n": 13
+    },
+    "without_out_of_corpus_and_adversarial": {
+      "answered": [
+        "q-074",
+        "q-078",
+        "q-081",
+        "q-085",
+        "q-089"
+      ],
+      "ci95_wilson": [
+        0.3552,
+        0.8229
+      ],
+      "k": 8,
+      "n": 13
+    }
+  },
+  "unanswerable_answered": {
+    "fails_only_if_invented": {
+      "ci95_wilson": [
+        0.0099,
+        0.2576
+      ],
+      "invented": [
+        "q-089"
+      ],
+      "k": 1,
+      "n": 18,
+      "supported": [
+        "q-074",
+        "q-078",
+        "q-081",
+        "q-085"
+      ]
+    },
+    "rule_of_record": {
+      "ci95_wilson": [
+        0.125,
+        0.5087
+      ],
+      "k": 5,
+      "n": 18
+    }
+  }
+}

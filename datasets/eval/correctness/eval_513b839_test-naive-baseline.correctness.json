@@ -1,0 +1,232 @@
+{
+  "budget_usd": 0.2,
+  "cost_usd": 0.13212,
+  "created_at": "2026-11-07T12:33:20.956217+00:00",
+  "dataset": "datasets/eval/test.jsonl",
+  "dataset_sha256": "94b8d5db3bbc1eedf2945e066ac50bc64226f53c9062bfe4bd1c0f371e1e19c4",
+  "incomplete_reason": null,
+  "judge_model": "claude-opus-5-5",
+  "n_to_grade": 36,
+  "prompt_sha256": "513794c180e37f42b7c4da5387ae9a2c67d8e02e41f0fd8ffd8d7c719ee52868",
+  "run_artefact": "datasets/eval/runs/live/eval_513b839_test-naive-baseline.json",
+  "run_artefact_sha256": "782cc9afcae64c521f47a656f4d3b88ea223855e7f452a1f2c1f0992aba609c2",
+  "schema": "verity.correctness/v1",
+  "verdicts": [
+    {
+      "cost_usd": 0.00408,
+      "example_id": "q-003",
+      "reason": "The answer gives FY2024 revenue of $482.0 million and the 18.4% year-over-year increase from $407.1 million, both matching the reference; the added segment details do not contradict it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003532,
+      "example_id": "q-005",
+      "reason": "The answer says assignment to a competitor requires the non-assigning party's prior written consent, which matches the reference; the extra detail about the merger exception does not contradict it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003384,
+      "example_id": "q-007",
+      "reason": "The answer states the 99.9% monthly uptime commitment and the 50% service credit of that month's fees below 95.0% uptime, both matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003776,
+      "example_id": "q-008",
+      "reason": "The answer gives both storage locations (Frankfurt, Germany and Virginia, US) and names the Standard Contractual Clauses as the EU-to-US transfer mechanism, all matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003244,
+      "example_id": "q-010",
+      "reason": "The answer gives the one-hour standard response time and the 30-minute 24/7 Premium Support response time, both of which match the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003604,
+      "example_id": "q-013",
+      "reason": "The answer says scheduled maintenance does not count against uptime and gives at least 48 hours' notice, matching the reference; the Sunday window is extra detail that does not contradict it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00392,
+      "example_id": "q-016",
+      "reason": "The answer matches the reference: 16 weeks for primary and 8 weeks for secondary caregivers, fully paid, taken within 12 months of birth, adoption or placement, and available after 3 months of employment.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002928,
+      "example_id": "q-020",
+      "reason": "The answer states 250 named user seats at US$42.00 per seat per month, which matches the reference on both seat count and price.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003268,
+      "example_id": "q-024",
+      "reason": "The answer says no, which matches the reference, and it also matches the reference's conditions: reductions happen only at annual renewal and never below 200 during the term.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002988,
+      "example_id": "q-028",
+      "reason": "The answer says the NDA is governed by New York law and the MSA by Delaware law, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.0033,
+      "example_id": "q-029",
+      "reason": "The answer gives the fixed fee of US$85,000 and the second-milestone payment of 40% (US$34,000), both matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003664,
+      "example_id": "q-032",
+      "reason": "The answer says no and cites Amendment No. 1's prohibition on using Customer Data, including AI prompts and outputs, to train or fine-tune models, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.004488,
+      "example_id": "q-033",
+      "reason": "The answer gives the limit of 1,000 API requests per minute per tenant and HTTP 429 for excess requests, both matching the reference; the added details on backoff and higher limits do not contradict it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00558,
+      "example_id": "q-034",
+      "reason": "The answer gives the same condition as the reference: suspension without notice only when a violation poses an immediate threat to the security or availability of the service.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00288,
+      "example_id": "q-036",
+      "reason": "The answer gives both conditions from the reference: flights scheduled at more than six hours and approval by a Vice President.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003392,
+      "example_id": "q-037",
+      "reason": "The answer gives the total of US$155 with the same per-day breakdown as the reference: $40 for the departure day, $75 for the full day and $40 for the return day.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.004572,
+      "example_id": "q-040",
+      "reason": "The answer gives both asked facts as the reference does: reimbursement within 30 days of a complete claim, and filing within 30 days after the trip ends. The extra 90-day detail does not contradict the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002484,
+      "example_id": "q-041",
+      "reason": "The answer gives a minimum password length of 14 characters, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003452,
+      "example_id": "q-043",
+      "reason": "The answer gives both asked facts in line with the reference: employees report within one hour, and Acme notifies the customer within 72 hours of discovery.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00324,
+      "example_id": "q-044",
+      "reason": "The answer gives the same four levels as the reference: Public, Internal, Confidential and Restricted. The extra detail about customer and employee data does not contradict the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003612,
+      "example_id": "q-045",
+      "reason": "The answer states 10 days of paid sick leave per calendar year, which matches the reference; carryover was not part of the question.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003448,
+      "example_id": "q-046",
+      "reason": "The answer matches the reference on eligibility (five years of continuous employment) and on duration (four weeks), and the extra details about advance notice and manager approval contradict nothing.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00306,
+      "example_id": "q-047",
+      "reason": "The answer states that up to 5 unused PTO days carry over and that sick days do not carry over, which matches the reference on both asked facts.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003268,
+      "example_id": "q-048",
+      "reason": "The answer gives both the one-time US$500 stipend and the US$50 monthly internet allowance; the equipment details are extra and do not contradict the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00254,
+      "example_id": "q-049",
+      "reason": "The answer states that fully remote work is not available during probation, matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.0035,
+      "example_id": "q-050",
+      "reason": "The answer gives the US$100 per person per year limit and the exclusion of cash or cash equivalents, both matching the reference, and its added reporting detail contradicts nothing in the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.004212,
+      "example_id": "q-052",
+      "reason": "The answer gives US$1,500 per calendar year with no carryover, matching the reference, and the extra detail about eligible uses does not contradict it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003216,
+      "example_id": "q-053",
+      "reason": "The answer gives revenue of $128.9 million and 17.2% year-over-year growth from $110.0 million, matching the reference exactly.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.007272,
+      "example_id": "q-055",
+      "reason": "The answer says the guidance has not changed and gives the same 14% to 17% range as the reference, so it matches on the asked fact even though it cites a budget memo rather than the Q1 FY2025 report as the corroborating source.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003404,
+      "example_id": "q-056",
+      "reason": "The answer gives the $268 million budget and a 12% increase over FY2024 actuals of $239 million, matching the reference, and the extra $29 million difference is consistent.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003432,
+      "example_id": "q-058",
+      "reason": "The answer matches the reference: Dana Whitfield became CFO effective April 1, 2025, succeeding Robert Lang, and the extra retirement detail does not contradict it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003156,
+      "example_id": "q-059",
+      "reason": "The answer says no dividend was declared for FY2025 and gives the same reason, preserving flexibility for acquisitions, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.006764,
+      "example_id": "q-062",
+      "reason": "The answer gives three written quotes, which matches the reference's 'at least three'; the omitted sole-supplier exception is a qualifier rather than the asked fact, and the extra threshold detail does not contradict the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00294,
+      "example_id": "q-064",
+      "reason": "The answer states that splitting a purchase to avoid an approval threshold is prohibited, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002888,
+      "example_id": "q-066",
+      "reason": "The answer gives $86.4M of $128.9M, about 67%, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003632,
+      "example_id": "q-092",
+      "reason": "The answer states that assignment to a competitor is not permitted without the non-assigning party's prior written consent, which matches the reference; the added detail does not contradict it.",
+      "verdict": "correct"
+    }
+  ]
+}

@@ -21,6 +21,7 @@ file is rendered before any is written.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -96,20 +97,87 @@ def _usd(value: float | None) -> str:
     return "not recorded" if value is None else f"${value:.4f}"
 
 
-def judge_label(judge_model: str, validation_dir: Path = VALIDATION) -> str:
-    """How the answer-quality rows qualify their judge: validated only when the blind
-    agreement artefact exists and was measured on this very judge model."""
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def judge_label(judge_model: str, judge_prompt_sha: str, validation_dir: Path = VALIDATION) -> str:
+    """How the answer-quality rows qualify their judge: validated only by a blind
+    agreement artefact measured on this very judge model *and* judge prompt. A κ
+    measured on one prompt version says nothing about another."""
+    v010 = validation_dir / "judge_faithfulness.v0.1.0.prompt"
     agreement, rejudged = (
         validation_dir / "agreement.json",
         validation_dir / "perturbed_verdicts.json",
     )
-    if not (agreement.is_file() and rejudged.is_file()):
-        return "judge unvalidated"
-    validated_model = json.loads(rejudged.read_text(encoding="utf-8"))["judge_model"]
-    if judge_model.split()[0] != validated_model:
-        return "judge unvalidated"
-    mixed = json.loads(agreement.read_text(encoding="utf-8"))["agreement_mixed"]
-    return f"judge κ {mixed['cohen_kappa']:.2f} vs blind human (n={mixed['n_claims']})"
+    model = judge_model.split()[0]
+    if v010.is_file() and _sha256(v010) == judge_prompt_sha:
+        if not (agreement.is_file() and rejudged.is_file()):
+            return "judge unvalidated"
+        if model != json.loads(rejudged.read_text(encoding="utf-8"))["judge_model"]:
+            return "judge unvalidated"
+        mixed = json.loads(agreement.read_text(encoding="utf-8"))["agreement_mixed"]
+        label = f"judge κ {mixed['cohen_kappa']:.2f}"
+        kappa_ci = validation_dir / "kappa_ci.json"
+        if not kappa_ci.is_file():
+            return f"{label} vs blind human (n={mixed['n_claims']})"
+        ci = json.loads(kappa_ci.read_text(encoding="utf-8"))
+        low, high = ci["all_claims"]["ci95_percentile"]
+        real = ci["n_real_unsupported_by_human"]
+        return (
+            f"{label} (bootstrap 95 % CI [{low:.2f}, {high:.2f}]) vs blind human, validated on "
+            f"{mixed['n_claims']} claims of which {real} real hallucination"
+            f"{'' if real == 1 else 's'}"
+        )
+    v020 = validation_dir / "judge-v0.2.0"
+    verdicts = v020 / "verdicts.json"
+    if verdicts.is_file() and agreement.is_file():
+        meta = json.loads(verdicts.read_text(encoding="utf-8"))
+        if meta["prompt_sha256"] == judge_prompt_sha and meta["judge_model"] == model:
+            mixed = json.loads((v020 / "agreement.json").read_text(encoding="utf-8"))
+            total = json.loads(agreement.read_text(encoding="utf-8"))["agreement_mixed"]
+            return (
+                f"judge prompt v0.2.0 κ {mixed['agreement_mixed']['cohen_kappa']:.2f} vs blind "
+                f"human on {mixed['agreement_mixed']['n_claims']} of {total['n_claims']} "
+                "claims (its rejudge stopped at its spending cap; no bootstrap interval)"
+            )
+    return "judge unvalidated"
+
+
+def _completed(data: dict[str, Any]) -> str:
+    """``n = 56``, or how many a run cut short (spending cap, outage) completed."""
+    n, sizes = data["dataset"]["n_questions"], data["sample_sizes"]
+    missing = sizes.get("n_errored", 0) + sizes.get("n_not_run", 0)
+    if not missing:
+        return f"n = {n}"
+    not_run, errored = sizes.get("n_not_run", 0), sizes.get("n_errored", 0)
+    cause = f"{errored} errored"
+    if not_run:
+        cause = f"{not_run} not run, stopped by the run's spending cap; {cause}"
+    return f"n = {n - missing} of {n} completed ({cause})"
+
+
+def _judged_of_shipped(data: dict[str, Any]) -> str:
+    sizes = data["sample_sizes"]
+    judged, answered = sizes["n_judged"], sizes["n_answered"]
+    if judged == answered:
+        return f"all {answered} shipped answers were judged"
+    return f"{judged} of {answered} shipped answers were judged"
+
+
+def _per_query_with_judge(cost: dict[str, Any]) -> str:
+    value = cost.get("per_query_with_judge_usd")
+    return "with the judge not recorded" if value is None else f"${value:.4f} with the judge"
+
+
+def _invented_row(invented: dict[str, Any], judge: str) -> str:
+    ids = ", ".join(f"`{i}`" for i in invented["example_ids"]) or "none"
+    return (
+        f"| **Invented answers** | **{invented['k']}/{invented['n_questions']}** | ↓ better · "
+        "answers with a claim the judge finds unsupported (or no usable claim) / every "
+        f"judged answer, answerable or not: {_ci(invented['k'], invented['n_questions'], invented['ci95_wilson'])}"
+        f" · {ids} · {judge} |"
+    )
 
 
 def render_block(
@@ -145,13 +213,15 @@ def render_block(
         f"`judge={prov['judge_model']}` · "
         f"`embedding={prov['embedding_model']}` · "
         f"commit `{prov['run_sha']}` · {date} · dataset `{ds['name']}` · "
-        f"n={ds['n_questions']} ({ds['n_answerable']} answerable + "
+        f"{_n_of_asked(data)} ({ds['n_answerable']} answerable + "
         f"{ds['n_unanswerable']} unanswerable) · "
-        f"**{sizes['n_errored']} errored** (kept out of every metric) · "
+        f"**{sizes['n_errored']} errored, {sizes.get('n_not_run', 0)} not run** (kept out of "
+        "every metric) · "
         f"total cost **{_usd(cost['total_usd'])}**",
         "",
         "| Metric | Value | Notes |",
         "|---|---:|---|",
+        _invented_row(ans["invented_answer_rate"], judge),
         f"| **Refusal recall** | **{_fmt(recall['value'])}** | "
         f"unanswerable questions refused / unanswerable: "
         f"{_ci(recall['k'], recall['n'], recall['ci95_wilson'])} · {threshold} |",
@@ -174,8 +244,9 @@ def render_block(
         )
     hall = ans["hallucination_rate"]
     lines.append(
-        f"| Hallucination rate | {_fmt(hall['value'])} | ↓ better · answers with an "
-        f"unsupported claim / answered answerable questions: "
+        f"| Hallucination rate, answerable only | {_fmt(hall['value'])} | ↓ better · answers "
+        f"with an unsupported claim / answered answerable questions (an answer to an "
+        f"unanswerable question is outside it): "
         f"{_ci(hall['k'], hall['n_questions'], hall['ci95_wilson'])} |"
     )
     ooa = refu["out_of_scope_answered"]
@@ -204,7 +275,8 @@ def render_block(
         f"{_fmt_ms(lat['p99'])} | {latency_note} |"
     )
     lines.append(
-        f"| Cost / query | ${cost['per_query_usd']:.4f} | total {_usd(cost['total_usd'])} = "
+        f"| Cost / query | ${cost['per_query_usd']:.4f} | ${cost['per_query_usd']:.4f} agent only"
+        f" · {_per_query_with_judge(cost)} · total {_usd(cost['total_usd'])} = "
         f"agent {_usd(cost['agent_usd'])} + judge {_usd(cost['judge_usd'])} |"
     )
     lines.append("")
@@ -243,8 +315,9 @@ def render_block(
     return "\n".join(lines)
 
 
-def _require_v5(data: dict[str, Any]) -> None:
-    """The card reads the counts a v5 scorecard stores; an older one does not hold them."""
+def _require_schema(data: dict[str, Any]) -> None:
+    """The card reads the counts the current scorecard schema stores; an older one does
+    not hold them all."""
     if data.get("schema") != SCHEMA:
         raise SystemExit(f"the system card renders {SCHEMA} scorecards, not {data.get('schema')!r}")
 
@@ -262,7 +335,7 @@ def _ci_cells(k: int | None, n: int) -> str:
 
 
 def _performance_rows(data: dict[str, Any]) -> list[str]:
-    _require_v5(data)
+    _require_schema(data)
     refusal = data["refusal"]
     rows: list[str] = []
     for label, name in (
@@ -278,9 +351,14 @@ def _performance_rows(data: dict[str, Any]) -> list[str]:
     rows.append(
         f"| Out-of-scope answered ↓ | {_fmt(ooa_value)} | {_ci_cells(ooa['count'], ooa['total'])} |"
     )
+    invented = data["answer_quality"]["invented_answer_rate"]
+    rows.append(
+        f"| Invented answers, every answer shipped ↓ (judge) | {_fmt(invented['value'])} | "
+        f"{_ci_cells(invented['k'], invented['n_questions'])} |"
+    )
     hall = data["answer_quality"]["hallucination_rate"]
     rows.append(
-        f"| Hallucination rate ↓ (judge) | {_fmt(hall['value'])} | "
+        f"| Hallucination rate, answerable only ↓ (judge) | {_fmt(hall['value'])} | "
         f"{_ci_cells(hall['k'], hall['n_questions'])} |"
     )
     for label, name in (
@@ -308,6 +386,24 @@ def _against(measured: float | None, target: float, cause: str) -> str:
     if measured is None:
         return "not measured"
     return "met" if measured <= target else f"**SLO not met**: {cause}"
+
+
+def _against_proportion(k: int, n: int, target: float, cause: str) -> str:
+    """A rate meets its target only when its Wilson upper bound does: 0 errors in 56
+    requests is no violation observed, not a rate of 1 % or less. The test is one-sided
+    on purpose: a measured rate over target is a miss on the run of record whatever its
+    interval, as the latency SLO reads its measured p95."""
+    interval = wilson(k, n)
+    if interval is None:
+        return "not measured"
+    if k / n > target:
+        return f"**SLO not met**: {cause}"
+    if interval[1] > target:
+        seen = "no violation observed" if k == 0 else f"{k} of {n} within target"
+        return (
+            f"{seen}; n too small to conclude (95 % upper bound {interval[1]:.1%} > {target:.0%})"
+        )
+    return "met"
 
 
 def _run_latencies(data: dict[str, Any]) -> list[tuple[str, float]] | None:
@@ -344,13 +440,23 @@ def _p95_cause(over: list[tuple[str, float]], first: str | None) -> str:
     return f"answers over {SLO_P95_LATENCY_MS:,.0f} ms: {named}{tail}"
 
 
+def _n_asked(data: dict[str, Any]) -> int:
+    # Questions the eval's own spending cap left unrun were never requested.
+    return int(data["dataset"]["n_questions"]) - int(data["sample_sizes"].get("n_not_run", 0))
+
+
+def _n_of_asked(data: dict[str, Any]) -> str:
+    n, asked = int(data["dataset"]["n_questions"]), _n_asked(data)
+    return f"n={n}" if asked == n else f"n={asked} of {n} asked"
+
+
 def _latency_slo_rows(data: dict[str, Any], approved: str) -> list[str]:
     """p95 cold start included and warm, as separate rows. From the run artefact when it
     is committed (it must reproduce the scorecard p95); otherwise from the scorecard,
     whose single p95 is warm only if the run had a warmup."""
     target = f"≤ {SLO_P95_LATENCY_MS:,.0f} ms ({approved})"
     latency = data["latency_ms"]
-    n = data["dataset"]["n_questions"]
+    n = _n_asked(data)
     p95 = float(latency["p95"])
     cold_start = latency.get("cold_start")
     answers = _run_latencies(data)
@@ -405,7 +511,7 @@ def _latency_slo_rows(data: dict[str, Any], approved: str) -> list[str]:
 
 
 def _slo_rows(data: dict[str, Any]) -> list[str]:
-    n = data["dataset"]["n_questions"]
+    n = _n_asked(data)
     errored = int(data["sample_sizes"]["n_errored"])
     error_rate = errored / n if n else None
     count, interval = _count_and_interval(errored, n)
@@ -417,8 +523,9 @@ def _slo_rows(data: dict[str, Any]) -> list[str]:
         f"| Error rate (requests answered with neither an answer nor a refusal) | "
         f"≤ {SLO_ERROR_RATE:.0%} ({approved}) | "
         f"{error_cell} | "
-        + _against(
-            error_rate,
+        + _against_proportion(
+            errored,
+            n,
             SLO_ERROR_RATE,
             f"{errored} of {n} requests errored; the scorecard does not record why",
         )
@@ -445,7 +552,7 @@ def render_system_card_block(
     lines = [
         f"Source: [`{source}`]({link}) · commit `{prov['run_sha']}` · "
         f"{_short_date(str(data['generated_at']))} · agent `{prov['agent_model']}` · "
-        f"judge `{prov['judge_model']}` · n={ds['n_questions']} "
+        f"judge `{prov['judge_model']}` · {_n_of_asked(data)} "
         f"({ds['n_answerable']} answerable + {ds['n_unanswerable']} out-of-scope).",
         "",
         "| Metric | Value | k/n | 95 % CI (Wilson) |",
@@ -464,17 +571,28 @@ def render_key_result(
     *,
     readme_path: Path = DEFAULT_README,
     results_doc: Path = DEFAULT_RESULTS_DOC,
+    judge: str = "judge unvalidated",
 ) -> str:
-    """Return the README's key result: refusal recall and precision with their intervals."""
+    """Return the README's key result: invented answers over every answer shipped, then
+    refusal recall and precision, each with its interval."""
     prov, ds, refu = data["provenance"], data["dataset"], data["refusal"]
     recall, precision = refu["refusal_recall"], refu["refusal_precision"]
+    invented = data["answer_quality"]["invented_answer_rate"]
+    ids = ", ".join(f"`{i}`" for i in invented["example_ids"])
     stub = "stub" in prov["agent_model"] or "stub" in prov["judge_model"]
     lines = [
+        f"**Invented answers {invented['k']}/{invented['n_questions']}** "
+        f"(Wilson 95 % CI {_bracket(invented['ci95_wilson'])}): answers holding a claim the "
+        "judge finds unsupported by the retrieved passages, over every judged answer, "
+        f"answerable or not{f' ({ids})' if ids else ''}; {_judged_of_shipped(data)}. "
+        "Faithfulness to the passages; correctness against the reference answers is "
+        "graded apart in the results. "
+        f"{judge[0].upper()}{judge[1:]}.",
         f"**Refusal recall {_fmt(recall['value'])}**: "
         f"{recall['k']}/{recall['n']} unanswerable questions refused, Wilson 95 % CI "
         f"{_bracket(recall['ci95_wilson'])}, at refusal precision {_fmt(precision['value'])} "
         f"({precision['k']}/{precision['n']}, CI {_bracket(precision['ci95_wilson'])}).",
-        f"One live run on the {_split_label(ds['name'])}, n = {ds['n_questions']}, "
+        f"One live run on the {_split_label(ds['name'])}, {_completed(data)}, "
         f"agent `{prov['agent_model'].split()[0]}`, commit `{prov['run_sha']}`. "
         f"Every metric, the judge's validation and the limits: "
         f"[`docs/results.md`]({_link(results_doc, readme_path)}).",
@@ -560,18 +678,22 @@ def main(argv: list[str] | None = None) -> int:
     results = args.results_doc.read_text(encoding="utf-8")
     card = args.system_card.read_text(encoding="utf-8")
     # Render every file before writing any, so a missing marker leaves all as they were.
+    judge = judge_label(
+        payload["provenance"]["judge_model"],
+        # No recorded judge prompt (a stub run) leaves the judge unvalidated.
+        payload["provenance"]["prompt_sha256"].get("judge_faithfulness", ""),
+    )
     rendered_results = render_results(
         results,
         render_block(
-            payload,
-            scorecard_path=args.scorecard,
-            doc_path=args.results_doc,
-            judge=judge_label(payload["provenance"]["judge_model"]),
+            payload, scorecard_path=args.scorecard, doc_path=args.results_doc, judge=judge
         ),
     )
     rendered_readme = replace_between(
         readme,
-        render_key_result(payload, readme_path=args.readme, results_doc=args.results_doc),
+        render_key_result(
+            payload, readme_path=args.readme, results_doc=args.results_doc, judge=judge
+        ),
         KEY_START,
         KEY_END,
     )
