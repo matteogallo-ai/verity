@@ -1,7 +1,7 @@
 # CLAUDE.md — Verity
 
 Read this first. It is enough to work in this repo; `docs/ENGINEERING_STANDARDS.md` is
-the full standard, `docs/CLAIMS.md` the list of what the README promises.
+the full standard, `docs/CLAIMS.md` the list of what `docs/features.md` promises.
 
 ## What Verity is
 
@@ -90,7 +90,9 @@ Each rule names the CI check that fails when it is broken.
   `GITHUB_TOKEN`).
 - Every block between `<!-- NAME:START -->` and `<!-- NAME:END -->` markers in the
   README and `docs/` is generated; edit `scorecards/` or the generator, never the
-  block. Each generator's `--check` step in the CI `lint · typecheck · test` job.
+  block. CI runs each generator's `--check`, as a step of the `lint · typecheck · test`
+  job or inside a fast-lane test (`tests/unit/test_repo_rules.py` fails on a marked block
+  whose generator has neither).
 - `datasets/eval/runs/live/` holds runs of record, pinned in its `SHA256SUMS`; never
   modify them, even a derived aggregate. Recomputations go in `*.recomputed.json`.
   `tests/unit/test_live_artefacts.py`.

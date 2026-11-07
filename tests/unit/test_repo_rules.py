@@ -38,8 +38,9 @@ def _serve_command(target: str) -> str:
 def test_the_demo_targets_blank_the_provider_keys(target: str) -> None:
     """A key in .env would otherwise switch the demo API to the live agent."""
     command = _serve_command(target)
+    env, _, _ = command.partition("uv run verity serve")
     for key in KEYS:
-        assert f"{key}= " in command, (target, key)
+        assert f" {key}= " in f" {env}", (target, key)
 
 
 def test_a_blank_environment_key_overrides_a_key_in_dotenv(
@@ -53,9 +54,10 @@ def test_a_blank_environment_key_overrides_a_key_in_dotenv(
 
 
 def test_no_workflow_reads_a_secret_other_than_the_github_token() -> None:
+    """Any use of the secrets context (dot, index or toJSON) other than GITHUB_TOKEN."""
     for workflow in sorted((REPO_ROOT / ".github" / "workflows").glob("*.yml")):
-        used = set(re.findall(r"secrets\.(\w+)", workflow.read_text(encoding="utf-8")))
-        assert used <= {"GITHUB_TOKEN"}, (workflow.name, used)
+        text = workflow.read_text(encoding="utf-8").replace("secrets.GITHUB_TOKEN", "")
+        assert not re.search(r"\bsecrets\b", text), workflow.name
 
 
 def test_every_marked_block_has_a_generator() -> None:
@@ -67,8 +69,21 @@ def test_every_marked_block_has_a_generator() -> None:
         for doc in docs
         for name in re.findall(r"<!-- ([A-Z0-9-]+):START -->", doc.read_text(encoding="utf-8"))
     }
-    scripts = "\n".join(
-        p.read_text(encoding="utf-8") for p in sorted((REPO_ROOT / "scripts").glob("*.py"))
-    )
+    scripts = {
+        p: p.read_text(encoding="utf-8") for p in sorted((REPO_ROOT / "scripts").glob("*.py"))
+    }
+    ci = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    tests = [p.read_text(encoding="utf-8") for p in sorted((REPO_ROOT / "tests").rglob("*.py"))]
+
+    def checked_in_ci(script: Path) -> bool:
+        if re.search(rf"scripts/{re.escape(script.name)}[^\n]*--check", ci):
+            return True
+        return any(script.name in t and '"--check"' in t for t in tests)
+
     assert names
-    assert sorted(n for n in names if f"{n}:START" not in scripts) == []
+    missing = []
+    for name in sorted(names):
+        generators = [p for p, text in scripts.items() if f'"<!-- {name}:START -->"' in text]
+        if not generators or not any(checked_in_ci(p) for p in generators):
+            missing.append(name)
+    assert missing == []

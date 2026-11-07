@@ -106,37 +106,33 @@ def readme_section(text: str, heading: str) -> list[str]:
     return out
 
 
-def check_readme(readme: str, claims: list[Claim]) -> list[str]:
+def check_readme(readme: str, claims: list[Claim], name: str = "docs/features.md") -> list[str]:
     status = {c.claim_id: c.status for c in claims}
     problems: list[str] = []
     cited: dict[str, set[str]] = {"Features": set(), "Roadmap": set()}
     for section, expected in (("Features", "shipped"), ("Roadmap", "roadmap")):
         lines = readme_section(readme, section)
         if not lines:
-            problems.append(f"docs/features.md: missing '## {section}' section")
+            problems.append(f"{name}: missing '## {section}' section")
             continue
         for line in lines:
             if not _BULLET_RE.match(line):
                 continue
             ids = _CLAIM_ID_RE.findall(line)
             if not ids:
-                problems.append(
-                    f"docs/features.md {section}: bullet without a claim id: {line.strip()}"
-                )
+                problems.append(f"{name} {section}: bullet without a claim id: {line.strip()}")
             for claim_id in ids:
                 cited[section].add(claim_id)
                 if claim_id not in status:
-                    problems.append(f"docs/features.md {section}: unknown claim {claim_id}")
+                    problems.append(f"{name} {section}: unknown claim {claim_id}")
                 elif status[claim_id] != expected:
                     problems.append(
-                        f"docs/features.md {section}: {claim_id} is {status[claim_id]}, not {expected}"
+                        f"{name} {section}: {claim_id} is {status[claim_id]}, not {expected}"
                     )
     for claim_id, claim_status in status.items():
         section = "Features" if claim_status == "shipped" else "Roadmap"
         if claim_id not in cited[section]:
-            problems.append(
-                f"docs/features.md {section}: {claim_status} claim {claim_id} not listed"
-            )
+            problems.append(f"{name} {section}: {claim_status} claim {claim_id} not listed")
     return problems
 
 
@@ -260,6 +256,15 @@ def check_tests(claims: list[Claim], root: Path, *, run: bool) -> list[str]:
     return problems
 
 
+def _display(path: Path) -> str:
+    resolved = path.resolve()
+    return (
+        resolved.relative_to(REPO_ROOT).as_posix()
+        if resolved.is_relative_to(REPO_ROOT)
+        else str(path)
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--claims", type=Path, default=REPO_ROOT / "docs" / "CLAIMS.md")
@@ -269,7 +274,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     claims, problems = parse_claims(args.claims.read_text(encoding="utf-8"))
-    problems += check_readme(args.features.read_text(encoding="utf-8"), claims)
+    problems += check_readme(
+        args.features.read_text(encoding="utf-8"), claims, _display(args.features)
+    )
     problems += check_tests(claims, args.root, run=not args.no_run)
 
     for problem in problems:

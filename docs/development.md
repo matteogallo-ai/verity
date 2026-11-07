@@ -69,11 +69,11 @@ questions that predate the dev/test split.
 
 ## How this was built
 
-Verity was implemented with Claude Code as the implementation engine. The process:
-a written spec with acceptance criteria, an agent implementing on a branch, a review
-of the diff by a second agent without the builder's context, a human audit of the
-claims and critical paths, then CI. Built with coding agents: I write the specs,
-review the pull requests and their tests, and answer for what gets merged. Standards:
+Built with coding agents: I write the specs, review the pull requests and their tests, and answer for what gets merged.
+
+The process: a written spec with acceptance criteria, an agent implementing on a
+branch, a review of the diff by a second agent without the builder's context, a human
+audit of the claims and critical paths, then CI. Standards:
 [`docs/ENGINEERING_STANDARDS.md`](ENGINEERING_STANDARDS.md).
 
 Human audits caught what the agents and CI did not:

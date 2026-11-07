@@ -120,3 +120,7 @@ registered before them.
   possible p, instead of "not distinguishable". The two unanswerable rows (n = 2) are
   in this case.
 - Per-claim rows have no paired test: the two arms make different claims.
+- **Where the table lives.** The comparison table, registered above as generated into
+  the README, is generated into `docs/results.md` ("Earlier dev-only comparison,
+  superseded") since the README was cut to one page; the generator and its CI check are
+  unchanged.

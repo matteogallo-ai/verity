@@ -178,7 +178,7 @@ jobs:
       - name: Apply migrations
         run: uv run verity db upgrade
 
-      - name: Every shipped claim's tests pass; README matches docs/CLAIMS.md
+      - name: Every shipped claim's tests pass; docs/features.md matches docs/CLAIMS.md
         run: uv run python scripts/check_claims.py
 
   integration:
