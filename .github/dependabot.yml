@@ -40,7 +40,13 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      docker:
+        patterns: ["*"]
   - package-ecosystem: "docker-compose"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      docker-compose:
+        patterns: ["*"]

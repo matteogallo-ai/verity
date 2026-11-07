@@ -78,7 +78,8 @@ rejected alternatives are in [ADR 0006](docs/adr/0006-api-security-baseline.md).
 - **Errors.** Client errors are generic. Parser messages, stack traces and temporary
   file names go to the structured log under a request ID, returned in the
   `X-Request-ID` header and the error body. An unreachable store or provider is `503`,
-  never a refusal.
+  never a refusal; a defect in the code is a generic `500`, and the calls it already paid
+  for count against the key's spending budget.
 - **Network exposure.** `verity serve` binds `127.0.0.1`; another host needs an
   explicit `--host` and prints a warning. Docker Compose runs the API on `0.0.0.0`
   inside the container and publishes it, and Postgres, on the host's `127.0.0.1`

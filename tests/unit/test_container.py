@@ -80,3 +80,11 @@ def test_no_workflow_checkout_keeps_the_token_in_git_config() -> None:
             for step in job.get("steps", []):
                 if str(step.get("uses", "")).startswith("actions/checkout@"):
                     assert step.get("with", {}).get("persist-credentials") is False, path
+
+
+def test_ci_tests_the_pgvector_image_compose_ships() -> None:
+    """Dependabot moves the Compose digest; no ecosystem moves a workflow service image,
+    so this keeps CI from testing an older pgvector than the one shipped."""
+    ci = yaml.safe_load(Path(".github/workflows/ci.yml").read_text())
+    services = [s["image"] for j in ci["jobs"].values() for s in j.get("services", {}).values()]
+    assert services and set(services) == {_COMPOSE["services"]["db"]["image"]}
