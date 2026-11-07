@@ -53,6 +53,17 @@ A false-premise question counts as unanswerable: the fact it asks about does not
 in the corpus, so the expected outcome is a refusal. An answer that corrects the
 premise is scored as an answer.
 
+The rule stays, with its cost published. On test, two of the three unanswerable
+questions answered are correct premise corrections (q-085: "Acme did not pay a
+dividend in FY2025"; q-089: the NDA has no ten-year period), so the rule scores
+"unanswerable answered" 3/20 where a reader would count 1/20. Why it is kept: a
+refusal is an event the code records, while "this answer correctly corrects the
+premise" needs a grader. The only grader here is the judge, of the model family that
+wrote the questions. Changing the definition after seeing which answers it penalises
+would also fit the metric to the run. Both figures are published under "Refusal
+recall by tag" in [`results.md`](results.md). The second rule there fails an answer
+to an unanswerable question only when the judge finds one of its claims unsupported.
+
 **Dev / test split.** `scripts/split_dataset.py` draws a stratified split (answerable,
 unanswerable, adversarial) with seed `20261102`: `dev.jsonl` (39 questions) and
 `test.jsonl` (56). The refusal threshold is tuned on dev only; results are published
@@ -96,7 +107,13 @@ run's scorecard and the published headline:
 - **micro** (per claim): supported (or `citation_ok`) claims over all claims, pooled
   across judged answers.
 - **hallucination rate**: mean of the per-example value over answerable examples that
-  were answered.
+  were answered. An answer to an unanswerable question is outside it.
+- **invented-answer rate** (the README key result): judged answers with at least one
+  unsupported claim (or no usable claim), over every judged answer, answerable or not.
+  It counts what a user receives: on test, q-074 (an unanswerable question answered
+  with a price of the wrong edition) is in it and not in the hallucination rate. Both
+  measure faithfulness to the retrieved passages, not correctness against the
+  reference answer.
 
 Both macro and micro are published with their numerator and denominator (questions
 or claims). A ratio over an empty set is `null`, never 0 or 1.
@@ -112,6 +129,12 @@ and overshoots [0, 1] at the sizes published here. The per-question (macro) figu
 means of per-answer ratios, not proportions, and carry no Wilson interval. The
 interval assumes independent trials: questions roughly are, claims of one answer are
 not (they share evidence and an author), so per-claim intervals are too narrow.
+
+Two arms run on the same questions are compared by an exact McNemar test on the
+questions where they differ (`verity.eval.paired`), not by whether their intervals
+overlap: the arms are paired, and two disjoint 95 % intervals is a far stricter
+threshold than p < 0.05. Cohen's κ is not a proportion; its interval is a percentile
+bootstrap over claims (5000 resamples, seed 1, `scripts/judge_agreement.py kappa-ci`).
 
 Before this definition was shared, the v1.0.0 artefact's scorecard averaged refusals
 in at 1.0 (citation accuracy 0.7917 over 16 questions) while the headline excluded

@@ -54,6 +54,54 @@ Each proportion with its k/n and Wilson 95 % interval, the approved SLOs and whe
 this run meets them, the intended use and the known limits:
 [`docs/SYSTEM_CARD.md`](SYSTEM_CARD.md), generated from the same scorecard.
 
+### Correctness against the reference answer
+
+The rows above measure faithfulness: whether the judge finds each claim supported by
+the passages retrieved for it. An answer can be faithful to the wrong passage. Here,
+each answered answerable question is graded against the dataset's `reference_answer`.
+
+<!-- CORRECTNESS:START -->
+| Run | Correct | Partial | Incorrect | Unparsed | Not correct | Numbers in the reference found in the answer |
+|---|---|---|---|---|---|---|
+| `datasets/eval/runs/live/eval_6ec544d_dev.json` (20) | 19/20 · [0.764, 0.991] | 1 | 0 | 0 | `q-001` | 11/16; disagrees with the grade on `q-002`, `q-012`, `q-057`, `q-060` |
+| `datasets/eval/runs/live/eval_969e1d5_test.json` (31) | 31/31 · [0.890, 1.000] | 0 | 0 | 0 | none | 21/25; disagrees with the grade on `q-029`, `q-032`, `q-034`, `q-062` |
+
+Judge `claude-opus-5-5` with `prompts/judge_correctness.prompt`, total $0.1924. Scope: the answerable questions each run answered, graded against the dataset's `reference_answer`; the answers are the artefact's, the agent was not called again. The grade is **not validated against human labels**; the number check is deterministic but covers only references with a number. Generated from `scorecards/correctness.json` (`scripts/judge_correctness.py render --check`); verdicts and reasons in `datasets/eval/correctness/`.
+<!-- CORRECTNESS:END -->
+
+The number check and the grade disagree only where the check is too literal. That reading
+was made by the coding agent that prepared this page, not a human label: in each
+disagreement, the number missing from the answer is a section number, a date, a detail
+the question does not ask for, or "one" used as a pronoun.
+
+### Refusal recall by tag
+
+The aggregate refusal recall above counts questions any system refuses (`out-of-corpus`:
+a football result, a drug dose, asked of a company corpus) and `adversarial` ones refused
+by injection markers the corpus author wrote. The rows below leave them out, so the
+recall on the questions that test the design (`near-miss`, `false-premise`) stands on
+its own n.
+
+<!-- REFUSAL-BY-TAG:START -->
+Run `datasets/eval/runs/live/eval_969e1d5_test.json`, tags from `datasets/eval/test.jsonl`. Refusal recall = unanswerable questions refused / unanswerable questions, Wilson 95 % interval. A question can carry several tags, so tag rows overlap.
+
+| Unanswerable questions | Refused | Answered |
+|---|---|---|
+| all | 17/20 · [0.640, 0.948] | `q-074`, `q-085`, `q-089` |
+| without `out-of-corpus` | 11/14 · [0.524, 0.924] | `q-074`, `q-085`, `q-089` |
+| without `out-of-corpus` and `adversarial` | 10/13 · [0.497, 0.918] | `q-074`, `q-085`, `q-089` |
+| tag `adversarial` | 4/4 · [0.510, 1.000] | none |
+| tag `false-premise` | 1/3 · [0.061, 0.792] | `q-085`, `q-089` |
+| tag `near-miss` | 10/11 · [0.623, 0.984] | `q-074` |
+| tag `out-of-corpus` | 6/6 · [0.610, 1.000] | none |
+
+Answerable questions refused, by tag: `adversarial` 0/1 · [0.000, 0.793] · `multi-hop` 2/6 · [0.097, 0.700] · `negation` 0/9 · [0.000, 0.299] · `numeric` 1/11 · [0.016, 0.377] · `single-hop` 2/11 · [0.051, 0.477].
+
+Unanswerable answered: 3/20 · [0.052, 0.360] under the rule of record (any answer to an unanswerable question fails). If an answer failed only when the judge finds one of its claims unsupported, it would be 1/20 · [0.009, 0.236]: `q-074` invented; `q-085`, `q-089` fully supported.
+
+Generated from `scorecards/refusal-by-tag.json` (`scripts/refusal_by_tag.py --check`).
+<!-- REFUSAL-BY-TAG:END -->
+
 ## Judge validation
 
 The answer-quality rows above are judged by a model. Its agreement with blind human
@@ -144,11 +192,17 @@ Generated from [`datasets/eval/judge_validation/judge-v0.2.0/agreement.json`](..
   every answer in one bin. Isotonic and Platt maps fitted on dev hold one
   unanswerable example and do not fix it (ECE 0.097 and 0.091). The score is the
   scorer model's self-report.
+- **The corpus and the questions were written with Claude Opus 5.5**, the judge's
+  model family, by the author of the system ([origin](../datasets/CORPUS.md)). Scope:
+  21 fictional documents, about 5,500 words. Known limit: self-preference of the judge
+  and questions shaped by the system's author are not measured. Next step: a public
+  corpus with third-party questions.
 - **The judge is validated on 60 claims by one annotator, and is a Claude model.**
   It is `claude-opus-5-5`, a different model from the agent (`claude-sonnet-4-6`),
   not a different family. κ against the owner's blind labels and the sensitivity on
   perturbed claims are under "Judge validation"; κ on real claims alone rests on one
-  human-unsupported claim and is fragile. One annotator gives no inter-annotator
+  human-unsupported claim (q-074's price) and is fragile: its bootstrap interval is
+  [0.00, 1.00]. One annotator gives no inter-annotator
   agreement.
 - **n = 56 is small.** The 95 % Wilson intervals in the table show how little it
   pins down: no hallucination in the sample does not rule out a rate up to the
