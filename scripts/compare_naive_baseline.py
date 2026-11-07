@@ -175,16 +175,41 @@ def paired_test(verity: EvalRun, naive: EvalRun, key: str) -> dict[str, Any] | N
     }
 
 
+def verdict_paired(test: dict[str, Any] | None, better: str) -> str | None:
+    """``"Verity better"``, ``"Verity worse"``, ``"not distinguishable"``, or ``None``
+    when there is no paired test."""
+    if test is None:
+        return None
+    if test["p_mcnemar_exact"] >= ALPHA:
+        return "not distinguishable"
+    # ``verity_only`` counts questions where the outcome holds for Verity alone.
+    verity_more = test["verity_only"] > test["naive_only"]
+    return "Verity better" if verity_more == (better == "higher") else "Verity worse"
+
+
+def verdict_overlap(verity: dict[str, Any], naive: dict[str, Any], better: str) -> str | None:
+    """The pre-registered overlap rule, in the vocabulary of :func:`verdict_paired`."""
+    reading = read(verity, naive)
+    if reading.startswith("not computable"):
+        return None
+    if reading == "not distinguishable":
+        return reading
+    return "Verity better" if reading.endswith(better) else "Verity worse"
+
+
 def read_paired(test: dict[str, Any] | None, better: str) -> str:
     if test is None:
         return "no paired test (per claim)"
+    floor = mcnemar_exact(0, test["n_paired"])
+    if floor >= ALPHA:
+        return (
+            f"not testable: {test['n_paired']} paired questions, smallest possible p = {floor:.3f}"
+        )
     p = test["p_mcnemar_exact"]
-    if p >= ALPHA:
+    verdict = verdict_paired(test, better)
+    if verdict == "not distinguishable":
         return f"not distinguishable (McNemar p = {p:.3f})"
-    # ``verity_only`` counts questions where the outcome holds for Verity alone.
-    verity_more = test["verity_only"] > test["naive_only"]
-    better_for_verity = verity_more == (better == "higher")
-    return f"distinguishable, Verity {'better' if better_for_verity else 'worse'} (McNemar p = {p:.3f})"
+    return f"distinguishable, {verdict} (McNemar p = {p:.3f})"
 
 
 def read(verity: dict[str, Any], naive: dict[str, Any]) -> str:
@@ -227,6 +252,13 @@ def build(verity_path: Path, naive_path: Path, dataset: Path = DATASET) -> dict[
     overlap = {
         key: read(arms["verity"]["metrics"][key], arms["naive"]["metrics"][key]) for key, *_ in ROWS
     }
+    differ = [
+        label
+        for key, label, better, _ in ROWS
+        if tests[key] is not None
+        and verdict_paired(tests[key], better)
+        != verdict_overlap(arms["verity"]["metrics"][key], arms["naive"]["metrics"][key], better)
+    ]
     return {
         "schema": "verity.naive-baseline-comparison/v2",
         "preregistration": PREREGISTRATION,
@@ -238,6 +270,7 @@ def build(verity_path: Path, naive_path: Path, dataset: Path = DATASET) -> dict[
         "paired_tests": tests,
         "readings": readings,
         "overlap_readings": overlap,
+        "readings_differ_on": differ,
     }
 
 
@@ -317,12 +350,7 @@ def _discordant(test: dict[str, Any] | None) -> str:
 
 
 def _overlap_agreement(data: dict[str, Any]) -> str:
-    differ = [
-        label
-        for key, label, *_ in ROWS
-        if data["readings"][key].split(" (")[0] != data["overlap_readings"][key].split(":")[0]
-        and data["paired_tests"][key] is not None
-    ]
+    differ = data["readings_differ_on"]
     if not differ:
         return "gives the same reading on every row"
     return "reads differently on " + ", ".join(differ)

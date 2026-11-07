@@ -227,8 +227,9 @@
     "citation_accuracy_per_claim": "no paired test (per claim)",
     "faithfulness_per_claim": "no paired test (per claim)",
     "hallucination_rate": "not distinguishable (McNemar p = 1.000)",
-    "unanswerable_answered": "not distinguishable (McNemar p = 0.500)",
-    "unanswerable_answered_without_self_abstentions": "not distinguishable (McNemar p = 1.000)"
+    "unanswerable_answered": "not testable: 2 paired questions, smallest possible p = 0.500",
+    "unanswerable_answered_without_self_abstentions": "not testable: 2 paired questions, smallest possible p = 0.500"
   },
+  "readings_differ_on": [],
   "schema": "verity.naive-baseline-comparison/v2"
 }

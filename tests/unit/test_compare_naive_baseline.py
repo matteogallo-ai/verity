@@ -140,3 +140,20 @@ def test_paired_rows_carry_an_exact_mcnemar_test() -> None:
     assert data["readings"]["answerable_answered"] == "not distinguishable (McNemar p = 0.062)"
     # Per-claim rows are not paired: the two arms make different claims.
     assert data["paired_tests"]["faithfulness_per_claim"] is None
+
+
+def test_agreeing_distinguishable_readings_are_not_reported_as_differing() -> None:
+    """Both rules say Verity answers fewer unanswerable questions: they agree."""
+    mod = _load()
+    test = {"verity_only": 0, "naive_only": 9, "n_paired": 9, "p_mcnemar_exact": 0.0039}
+    paired = mod.verdict_paired(test, "lower")
+    overlap = mod.verdict_overlap(_m(0, 9, 0.0, 0.3), _m(9, 9, 0.7, 1.0), "lower")
+    assert paired == overlap == "Verity better"
+
+
+def test_a_row_too_small_to_reach_the_threshold_says_so() -> None:
+    """With 2 paired questions the smallest exact McNemar p is 0.5: no result is possible."""
+    reading = _load().read_paired(
+        {"verity_only": 0, "naive_only": 2, "n_paired": 2, "p_mcnemar_exact": 0.5}, "lower"
+    )
+    assert reading == "not testable: 2 paired questions, smallest possible p = 0.500"

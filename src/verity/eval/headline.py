@@ -35,7 +35,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from verity.eval.answer_quality import Ratio, answer_quality, is_invented
+from verity.eval.answer_quality import Ratio, answer_quality
 from verity.eval.harness import HarnessResult
 from verity.eval.intervals import wilson
 from verity.eval.refusal import RefusalOutcome, build_confusion
@@ -243,9 +243,7 @@ def build_headline_dict_from_eval_run(
             "invented_answer_rate": {
                 "scope": "answered",
                 **_ratio_dict(quality.invented_answer_rate, unit="questions", proportion=True),
-                "example_ids": [
-                    a.example_id for a in audits if a.judge_claims is not None and is_invented(a)
-                ],
+                "example_ids": list(quality.invented_ids),
             },
         },
         "refusal": {

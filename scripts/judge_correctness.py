@@ -69,6 +69,7 @@ def _out_path(run: Path) -> Path:
 
 
 def estimate(run: Path, dataset: Path) -> int:
+    from verity.agent.evidence import neutralise
     from verity.eval.correctness import MAX_TOKENS
     from verity.llm import create_default_routing_client
     from verity.llm.budget import upper_cost_estimate
@@ -82,7 +83,9 @@ def estimate(run: Path, dataset: Path) -> int:
         upper_cost_estimate(
             client.clients,
             prompt.render(
-                question=e.question, reference_answer=e.reference_answer, answer=a.answer_text
+                question=e.question,
+                reference_answer=e.reference_answer,
+                answer=neutralise(a.answer_text),
             ),
             max_tokens=MAX_TOKENS,
         )
@@ -95,6 +98,7 @@ def estimate(run: Path, dataset: Path) -> int:
 async def _grade(
     judge: LLMCorrectnessJudge, pairs: list[tuple[PerExampleAudit, EvalExample]]
 ) -> tuple[list[dict[str, Any]], str | None]:
+    from verity.llm.base import LLMError
     from verity.llm.budget import SpendCapExceededError
 
     verdicts: list[dict[str, Any]] = []
@@ -105,6 +109,11 @@ async def _grade(
             )
         except SpendCapExceededError:
             return verdicts, "budget_exceeded"
+        except LLMError as exc:
+            # Provider outage or rejected key: the verdicts already paid for are kept and
+            # written as an incomplete file. The class name only: provider messages can
+            # quote secrets.
+            return verdicts, f"provider_error:{type(exc).__name__}"
         verdicts.append(
             {
                 "example_id": audit.example_id,

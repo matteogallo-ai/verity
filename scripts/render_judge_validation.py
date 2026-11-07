@@ -142,6 +142,11 @@ def _bootstrap(ci: dict[str, Any] | None) -> str:
     return f" · bootstrap 95 % CI [{low:.2f}, {high:.2f}]{undefined}"
 
 
+def _judge_flags(agreement: dict[str, Any]) -> int:
+    c = agreement["confusion"]
+    return int(c["judge_unsupported/human_supported"] + c["judge_unsupported/human_unsupported"])
+
+
 def _kappa_row(label: str, agreement: dict[str, Any], ci: dict[str, Any] | None = None) -> str:
     supported, unsupported = _human_counts(agreement)
     fragile = min(supported, unsupported) < FRAGILE_BELOW
@@ -196,8 +201,11 @@ def render_block(
                 f"The judge is validated on {kappa_ci['n_claims']} claims, of which "
                 f"{kappa_ci['n_real_unsupported_by_human']} real hallucination"
                 f"{'' if kappa_ci['n_real_unsupported_by_human'] == 1 else 's'} (a real claim "
-                "the human finds unsupported): its sensitivity to real hallucinations rests "
-                "on that count, the perturbed claims bound it from above.",
+                "the human finds unsupported). On the real claims the judge flags "
+                f"{_judge_flags(real)} unsupported and the human confirms "
+                f"{real['confusion']['judge_unsupported/human_unsupported']}. The perturbed "
+                "claims are a proxy for its sensitivity to real hallucinations, not a bound "
+                "on it.",
             ]
             if kappa_ci
             else []

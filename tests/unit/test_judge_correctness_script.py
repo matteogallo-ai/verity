@@ -94,3 +94,30 @@ def test_the_verdict_file_does_not_store_the_number_check() -> None:
 
 def test_the_committed_correctness_block_matches_its_verdict_files() -> None:
     assert _script().main(["render", "--check"]) == 0
+
+
+def test_a_provider_failure_keeps_the_verdicts_already_paid_for() -> None:
+    """An outage mid-run writes the paid verdicts as an incomplete file instead of losing them."""
+    from pathlib import Path
+
+    from verity.llm.base import ProviderUnavailableError
+
+    script = _script()
+    root = Path(__file__).resolve().parents[2]
+    pairs = script.to_grade(
+        root / "datasets/eval/runs/live/eval_969e1d5_test.json", root / "datasets/eval/test.jsonl"
+    )[:3]
+
+    class _FailsSecond(_Scripted):
+        calls = 0
+
+        async def complete(self, messages: list[Message], *, max_tokens: int = 1024) -> Completion:
+            type(self).calls += 1
+            if type(self).calls == 2:
+                raise ProviderUnavailableError("down")
+            return await super().complete(messages, max_tokens=max_tokens)
+
+    judge = LLMCorrectnessJudge(_FailsSecond('{"verdict": "correct", "reason": "ok"}'))  # type: ignore[arg-type]
+    verdicts, incomplete = asyncio.run(script._grade(judge, pairs))
+    assert len(verdicts) == 1
+    assert incomplete == "provider_error:ProviderUnavailableError"

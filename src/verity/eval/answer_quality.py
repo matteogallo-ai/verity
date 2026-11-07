@@ -48,6 +48,7 @@ class AnswerQuality:
     citation_accuracy_micro: Ratio
     hallucination_rate: Ratio
     invented_answer_rate: Ratio
+    invented_ids: tuple[str, ...]
 
 
 def is_invented(audit: PerExampleAudit) -> bool:
@@ -78,4 +79,5 @@ def answer_quality(audits: Sequence[PerExampleAudit]) -> AnswerQuality:
             sum(a.answer_metrics.hallucination_rate for a in at_risk), len(at_risk)
         ),
         invented_answer_rate=_ratio(sum(1 for a in judged if is_invented(a)), len(judged)),
+        invented_ids=tuple(a.example_id for a in judged if is_invented(a)),
     )

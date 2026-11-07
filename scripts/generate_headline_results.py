@@ -116,11 +116,20 @@ def judge_label(judge_model: str, validation_dir: Path = VALIDATION) -> str:
         low, high = ci["all_claims"]["ci95_percentile"]
         real = ci["n_real_unsupported_by_human"]
         label += (
-            f" [{low:.2f}, {high:.2f}] vs blind human, validated on {mixed['n_claims']} claims "
-            f"of which {real} real hallucination{'' if real == 1 else 's'}"
+            f" (bootstrap 95 % CI [{low:.2f}, {high:.2f}]) vs blind human, validated on "
+            f"{mixed['n_claims']} claims of which {real} real hallucination"
+            f"{'' if real == 1 else 's'}"
         )
         return label
     return f"{label} vs blind human (n={mixed['n_claims']})"
+
+
+def _judged_of_shipped(data: dict[str, Any]) -> str:
+    sizes = data["sample_sizes"]
+    judged, answered = sizes["n_judged"], sizes["n_answered"]
+    if judged == answered:
+        return f"all {answered} shipped answers were judged"
+    return f"{judged} of {answered} shipped answers were judged"
 
 
 def _per_query_with_judge(cost: dict[str, Any]) -> str:
@@ -132,8 +141,8 @@ def _invented_row(invented: dict[str, Any], judge: str) -> str:
     ids = ", ".join(f"`{i}`" for i in invented["example_ids"]) or "none"
     return (
         f"| **Invented answers** | **{invented['k']}/{invented['n_questions']}** | ↓ better · "
-        "answers with a claim the judge finds unsupported / every answer shipped, "
-        f"answerable or not: {_ci(invented['k'], invented['n_questions'], invented['ci95_wilson'])}"
+        "answers with a claim the judge finds unsupported (or no usable claim) / every "
+        f"judged answer, answerable or not: {_ci(invented['k'], invented['n_questions'], invented['ci95_wilson'])}"
         f" · {ids} · {judge} |"
     )
 
@@ -315,7 +324,7 @@ def _performance_rows(data: dict[str, Any]) -> list[str]:
     )
     hall = data["answer_quality"]["hallucination_rate"]
     rows.append(
-        f"| Hallucination rate ↓ (judge) | {_fmt(hall['value'])} | "
+        f"| Hallucination rate, answerable only ↓ (judge) | {_fmt(hall['value'])} | "
         f"{_ci_cells(hall['k'], hall['n_questions'])} |"
     )
     for label, name in (
@@ -347,7 +356,9 @@ def _against(measured: float | None, target: float, cause: str) -> str:
 
 def _against_proportion(k: int, n: int, target: float, cause: str) -> str:
     """A rate meets its target only when its Wilson upper bound does: 0 errors in 56
-    requests is no violation observed, not a rate of 1 % or less."""
+    requests is no violation observed, not a rate of 1 % or less. The test is one-sided
+    on purpose: a measured rate over target is a miss on the run of record whatever its
+    interval, as the latency SLO reads its measured p95."""
     interval = wilson(k, n)
     if interval is None:
         return "not measured"
@@ -528,9 +539,11 @@ def render_key_result(
     lines = [
         f"**Invented answers {invented['k']}/{invented['n_questions']}** "
         f"(Wilson 95 % CI {_bracket(invented['ci95_wilson'])}): answers holding a claim the "
-        "judge finds unsupported by the retrieved passages, over every answer shipped, "
-        f"answerable or not{f' ({ids})' if ids else ''}. Faithfulness to the passages, "
-        f"not correctness; {judge}.",
+        "judge finds unsupported by the retrieved passages, over every judged answer, "
+        f"answerable or not{f' ({ids})' if ids else ''}; {_judged_of_shipped(data)}. "
+        "Faithfulness to the passages; correctness against the reference answers is "
+        "graded apart in the results. "
+        f"{judge[0].upper()}{judge[1:]}.",
         f"**Refusal recall {_fmt(recall['value'])}**: "
         f"{recall['k']}/{recall['n']} unanswerable questions refused, Wilson 95 % CI "
         f"{_bracket(recall['ci95_wilson'])}, at refusal precision {_fmt(precision['value'])} "

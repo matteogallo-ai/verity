@@ -1,16 +1,16 @@
 """Refusal recall per question tag, with and without the easy unanswerable questions.
 
-The aggregate refusal recall mixes questions any model refuses (a football result or
-a drug dose asked of a company corpus: tag ``out-of-corpus``) with those that test
-the design (``near-miss``, ``false-premise``), and with ``adversarial`` ones refused
-by markers written by the corpus author. This script splits the run of record by the
+The aggregate refusal recall mixes questions a model declines without any check (a
+football result or a drug dose asked of a company corpus: tag ``out-of-corpus``) with
+those that test the design (``near-miss``, ``false-premise``), and with
+``adversarial`` ones. This script splits the run of record by the
 tags of its dataset, so each figure carries the questions it rests on.
 
 It also publishes "unanswerable answered" under a second rule next to the rule of
 record: an answer to an unanswerable question fails only when the judge finds one of
 its claims unsupported (:func:`verity.eval.answer_quality.is_invented`). Under that
-rule, a correct premise correction (q-085, q-089 on test) passes. The rule of
-record stays: see ``docs/evaluation-methodology.md``.
+rule, an answer that states the premise is false, citing the passage, passes. The rule
+of record stays: see ``docs/evaluation-methodology.md``.
 
     uv run python scripts/refusal_by_tag.py            # write the JSON and the docs block
     uv run python scripts/refusal_by_tag.py --check    # exit 1 if either is stale
@@ -36,8 +36,8 @@ OUT = REPO_ROOT / "scorecards" / "refusal-by-tag.json"
 DOC = REPO_ROOT / "docs" / "results.md"
 START = "<!-- REFUSAL-BY-TAG:START -->"
 END = "<!-- REFUSAL-BY-TAG:END -->"
-# Unanswerable questions a reader would expect any system to refuse, or that are
-# refused by markers the corpus author wrote: the subsets below leave them out.
+# Unanswerable questions a model declines without any check, or built to attack the
+# pipeline: the subsets below leave them out.
 EASY_TAGS = ("out-of-corpus", "adversarial")
 
 

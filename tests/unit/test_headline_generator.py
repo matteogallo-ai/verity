@@ -581,7 +581,11 @@ def test_system_card_recovers_counts_from_the_artefact_and_gives_intervals() -> 
     assert rows["Refusal recall"] == ["0.800", "4/5", "[0.376, 0.964]"]
     assert rows["Refusal precision"] == ["1.000", "4/4", "[0.510, 1.000]"]
     # A per-answer hallucination flag is 0 or 1, so the rate gives k back.
-    assert rows["Hallucination rate ↓ (judge)"] == ["0.000", "0/11", "[0.000, 0.259]"]
+    assert rows["Hallucination rate, answerable only ↓ (judge)"] == [
+        "0.000",
+        "0/11",
+        "[0.000, 0.259]",
+    ]
     assert rows["Citation accuracy per claim (judge)"] == ["0.618", "21/34", "[0.450, 0.761]"]
     # A mean of per-question fractions has no k: n is shown, no interval is invented.
     assert rows["Retrieval nDCG@8, per-question mean"] == ["0.953", "n=11", "no interval"]
@@ -732,3 +736,40 @@ def test_cost_per_query_is_published_with_and_without_the_judge() -> None:
     block = generator.render_block(payload)
     row = next(line for line in block.splitlines() if line.startswith("| Cost / query"))
     assert "$0.0132 agent only" in row and "$0.0228 with the judge" in row
+
+
+def test_on_the_test_run_the_invented_rate_counts_q074_and_the_hallucination_rate_does_not() -> (
+    None
+):
+    """The two denominators differ on real data: 34 judged answers against 31 answerable."""
+    from verity.eval.headline import build_headline_dict_from_eval_run
+    from verity.eval.run_store import load_run
+
+    run = load_run(REPO_ROOT / "datasets/eval/runs/live/eval_969e1d5_test.json")
+    quality = build_headline_dict_from_eval_run(run)["answer_quality"]
+    invented, hall = quality["invented_answer_rate"], quality["hallucination_rate"]
+    assert (invented["k"], invented["n_questions"], invented["example_ids"]) == (1, 34, ["q-074"])
+    assert (hall["k"], hall["n_questions"]) == (0, 31)
+
+
+@pytest.mark.parametrize(
+    ("k", "n", "status"),
+    [
+        (0, 56, "no violation observed; n too small to conclude (95 % upper bound 6.4% > 1%)"),
+        (1, 200, "1 of 200 within target; n too small to conclude (95 % upper bound 2.8% > 1%)"),
+        (1, 1000, "met"),
+        (5, 100, "**SLO not met**: cause"),
+        (0, 0, "not measured"),
+    ],
+)
+def test_a_rate_slo_meets_only_when_its_upper_bound_does(k: int, n: int, status: str) -> None:
+    assert _load_generator()._against_proportion(k, n, 0.01, "cause") == status
+
+
+def test_the_key_result_names_the_bootstrap_interval_of_the_judge() -> None:
+    generator = _load_generator()
+    payload = json.loads((REPO_ROOT / "scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
+    judge = generator.judge_label(payload["provenance"]["judge_model"])
+    block = generator.render_key_result(payload, judge=judge)
+    assert "κ 0.71 (bootstrap 95 % CI [0.49, 0.89])" in block
+    assert "all 34 shipped answers were judged" in block
