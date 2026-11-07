@@ -87,19 +87,40 @@ def _tally(rows: list[tuple[bool, bool]]) -> dict[str, int]:
 
 
 def first_failing(paths: list[Path]) -> dict[str, Any]:
-    by_cause: dict[str, dict[str, int]] = {}
+    """Refusals per first failing check, as records and as distinct questions: the dev
+    runs include reruns of the same questions, so records overstate the evidence."""
+    rows: dict[str, dict[str, Any]] = {}
     n = 0
     for path in paths:
         for a in load_run(path).per_audit:
             n += 1
             if not a.refused:
                 continue
-            row = by_cause.setdefault(str(a.refusal_reason), {"right": 0, "wrong": 0})
-            row["wrong" if a.expected_answerable else "right"] += 1
+            row = rows.setdefault(
+                str(a.refusal_reason),
+                {"right": 0, "wrong": 0, "right_ids": set(), "wrong_ids": set()},
+            )
+            side = "wrong" if a.expected_answerable else "right"
+            row[side] += 1
+            row[f"{side}_ids"].add(a.example_id)
+    by_cause = {
+        cause: {**r, "right_ids": sorted(r["right_ids"]), "wrong_ids": sorted(r["wrong_ids"])}
+        for cause, r in sorted(rows.items())
+    }
+    right = sum(r["right"] for r in by_cause.values())
+    refused = sum(r["right"] + r["wrong"] for r in by_cause.values())
+    dropped = by_cause.get("irrelevant_citation", {"right": 0, "wrong": 0})
     return {
         "runs": [_rel(p) for p in paths],
         "n_records": n,
-        "by_cause": dict(sorted(by_cause.items())),
+        "by_cause": by_cause,
+        # With the check off, each record it refused becomes an answer or a scorer
+        # refusal. Precision is lowest when its right refusals become answers and its
+        # wrong ones stay refused, highest the other way round.
+        "without_irrelevant_citation": {
+            "lowest": [right - dropped["right"], refused - dropped["right"]],
+            "highest": [right, refused - dropped["wrong"]],
+        },
     }
 
 
@@ -157,13 +178,25 @@ def _rw(row: dict[str, Any]) -> str:
     return f"{row['right']} / {row['wrong']}"
 
 
+def _rw_questions(row: dict[str, Any]) -> str:
+    return f"{_rw(row)} ({len(row['right_ids'])} / {len(row['wrong_ids'])})"
+
+
+def default_settings() -> Settings:
+    """The thresholds the runs used: the code defaults, read neither from .env nor from
+    the caller's VERITY_ variables, which would silently change every replayed count."""
+    return Settings.model_construct()
+
+
 def render(report: dict[str, Any]) -> str:
     lines = [
         "Right / wrong refusals: a refusal of an unanswerable question is right, of an "
         "answerable one wrong.",
         "",
         "**First failing check, on Verity's runs.** A refused record keeps only the first "
-        "check that failed, so a later check is never seen on it.",
+        "check that failed, so a later check is never seen on it. Each cell is records, "
+        "then distinct questions in brackets: the dev runs include reruns of the same "
+        "questions.",
         "",
         "| Check | "
         + " | ".join(f"{s} ({r['n_records']} records)" for s, r in report["first_failing"].items())
@@ -173,7 +206,9 @@ def render(report: dict[str, Any]) -> str:
     causes = sorted({c for r in report["first_failing"].values() for c in r["by_cause"]})
     for cause in causes:
         cells = [
-            _rw(r["by_cause"].get(cause, {"right": 0, "wrong": 0}))
+            _rw_questions(
+                r["by_cause"].get(cause, {"right": 0, "wrong": 0, "right_ids": [], "wrong_ids": []})
+            )
             for r in report["first_failing"].values()
         ]
         lines.append(f"| `{cause}` | " + " | ".join(cells) + " |")
@@ -186,6 +221,14 @@ def render(report: dict[str, Any]) -> str:
         )
         + "."
     )
+    for split, r in report["first_failing"].items():
+        lo, hi = (r["without_irrelevant_citation"][k] for k in ("lowest", "highest"))
+        lines += [
+            "",
+            f"With `irrelevant_citation` off, refusal precision on {split} lies between "
+            f"{lo[0]}/{lo[1]} and {hi[0]}/{hi[1]} (records): each record it refused "
+            "becomes an answer or a scorer refusal.",
+        ]
     for split, r in report["replay_on_naive_drafts"].items():
         th = r["thresholds"]
         lines += [
@@ -194,7 +237,8 @@ def render(report: dict[str, Any]) -> str:
             f"drafts, {r['n_answerable']} answerable; thresholds: coverage "
             f"{th['min_citation_coverage']}, cited reranker score {th['min_cited_rerank_score']}). "
             "The naive arm ran the same pipeline and shipped its drafts unchecked, so each "
-            "check can be replayed on every draft.",
+            "check can be replayed on every draft. A draft with no citation has coverage "
+            "0, so `low_citation_coverage` alone also counts the `no_citation` drafts.",
             "",
             "| Check | Alone: right / wrong | All checks but this one: right / wrong | Wrongly refused alone |",
             "|---|---|---|---|",
@@ -206,8 +250,9 @@ def render(report: dict[str, Any]) -> str:
         lines.append(f"| all four | {_rw(r['all'])} | — | — |")
     lines += [
         "",
-        "The replay is checked against the agent: on every answered record of the Verity "
-        "runs above, every check passes. Generated from "
+        "The replay is checked in one direction: on every answered record of the Verity "
+        "runs above, it finds that every check passes, as the agent did. It cannot check "
+        "a refused record, which keeps no draft. Generated from "
         f"`{_rel(OUT)}` (`scripts/gate_ablation.py --check`).",
     ]
     return "\n".join(lines)
@@ -225,8 +270,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="exit 1 if an output is stale")
     args = parser.parse_args(argv)
-    # The thresholds the runs used: defaults, never the caller's VERITY_ environment.
-    report = analyse(Settings(_env_file=None))  # type: ignore[call-arg]
+    report = analyse(default_settings())
     payload = json.dumps(report, indent=2, sort_keys=True) + "\n"
     doc = DOC.read_text(encoding="utf-8")
     rendered = _replace(doc, render(report))
