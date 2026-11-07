@@ -18,11 +18,12 @@ What holds on the returned :class:`Answer`:
   non-refused answer carries at least one: a draft with none is refused with
   reason ``no_citation`` before the scorer runs;
 - a cited draft is also refused before the scorer when its quotes cover too little
-  of it or the reranker judged them irrelevant (:mod:`verity.agent.support`), so a
-  document that steers the scorer cannot ship an answer on its own;
+  of it, or, with ``irrelevant_citation_check`` set, when the reranker judged them
+  irrelevant (:mod:`verity.agent.support`), so a document that steers the scorer
+  cannot ship an answer on its own;
 - ``confidence.refused`` is also True when the scorer model asked to refuse OR its
   self-reported score is below ``confidence_threshold`` (the score is the model's
-  self-report and is not calibrated). A refused answer's text is a fixed "I don't know"
+  self-report and is not calibrated; the default threshold, 0, is never above it). A refused answer's text is a fixed "I don't know"
   with the rationale;
 - ``hits_used`` and ``usage`` are populated for observability and eval.
 
@@ -34,6 +35,7 @@ synthesizer's verbatim filter remains, because a citation must point at a span.
 
 from __future__ import annotations
 
+import math
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -105,7 +107,11 @@ class RagAgent(Agent):
         self._scorer = scorer
         self._rerank_k = rerank_k if rerank_k is not None else settings.rerank_k
         self._min_citation_coverage = settings.min_citation_coverage
-        self._min_cited_rerank_score = settings.min_cited_rerank_score
+        # A floor of -inf turns the cited relevance check off without a second code
+        # path in verity.agent.support: no score is below it.
+        self._min_cited_rerank_score = (
+            settings.min_cited_rerank_score if settings.irrelevant_citation_check else -math.inf
+        )
         # NoOp default keeps ~120 existing tests untouched: they instantiate the
         # agent without supplying a tracer. Real observability is enabled by
         # the CLI/API wiring in an ``OTelTracer``.

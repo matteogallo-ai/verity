@@ -154,7 +154,11 @@ A confusion matrix over `answerable` vs `refused`, computed in `verity.eval.refu
 - **refusal precision** = refused out-of-scope / refused.
 
 The agent refuses when a deterministic check fails, when the scorer model asks to,
-or when the scorer's confidence score is below `confidence_threshold`. Each run
+or when the scorer's confidence score is below `confidence_threshold`. The default
+threshold is 0.0, the value the dev rule below chose, so in the shipped configuration
+it refuses nothing; the cited-relevance check is off by default
+(`VERITY_IRRELEVANT_CITATION_CHECK`), on the per-check counts of
+[`results.md`](results.md#refusal-checks-one-at-a-time). Each run
 records the threshold it used (`EvalRun.confidence_threshold`); the v1.0.0 run
 predates that field and used the hand-set default 0.55, on the same examples it
 reported.

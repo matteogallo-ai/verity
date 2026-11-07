@@ -90,8 +90,11 @@ class Settings(BaseSettings):
     ask_budget_usd: float = Field(default=1.0, gt=0.0)
 
     # --- Refusal (headline feature) ---------------------------------------------------
+    # The dev rule fixed before the v1.1.0 runs (highest refusal recall at precision
+    # >= 0.9, else highest F1) chose 0.0; at 0.0 no score is below it, so refusals come
+    # from the deterministic checks and the scorer's own refusal only.
     confidence_threshold: float = Field(
-        default=0.55,
+        default=0.0,
         ge=0.0,
         le=1.0,
         description="Below this scorer-reported confidence the agent refuses to answer.",
@@ -104,6 +107,10 @@ class Settings(BaseSettings):
     # chosen on those same 16 examples: they need a held-out split to be validated.
     min_citation_coverage: float = Field(default=0.5, ge=0.0, le=1.0)
     min_cited_rerank_score: float = 0.0
+    # Off by default: on the dev runs it refused 11 answerable questions for 5
+    # unanswerable ones as the first failing check, and replayed alone on the naive
+    # arm's dev drafts 3 answerable for 0 unanswerable (scripts/gate_ablation.py).
+    irrelevant_citation_check: bool = False
 
     # --- HTTP API (see docs/adr/0006-api-security-baseline.md) ------------------------
     # The longest labeled question is 97 characters. 2000 leaves 20x headroom while
