@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import sys
@@ -142,6 +143,7 @@ def test_missing_markers_fail_loudly(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
 
 def _validation(tmp_path: Path, model: str) -> Path:
+    (tmp_path / "judge_faithfulness.v0.1.0.prompt").write_text("v0.1.0")
     (tmp_path / "agreement.json").write_text(json.dumps(_agreement()))
     (tmp_path / "perturbed_verdicts.json").write_text(json.dumps({"judge_model": model}))
     return tmp_path
@@ -150,9 +152,10 @@ def _validation(tmp_path: Path, model: str) -> Path:
 def test_judge_label_names_kappa_only_for_the_validated_model(tmp_path: Path) -> None:
     gen = _load("generate_headline_results")
     folder = _validation(tmp_path, "claude-opus-5-5")
-    assert gen.judge_label("claude-opus-5-5", folder) == "judge κ 0.71 vs blind human (n=60)"
-    assert gen.judge_label("gpt-4.1", folder) == "judge unvalidated"
-    assert gen.judge_label("claude-opus-5-5", tmp_path / "absent") == "judge unvalidated"
+    sha = hashlib.sha256(b"v0.1.0").hexdigest()
+    assert gen.judge_label("claude-opus-5-5", sha, folder) == "judge κ 0.71 vs blind human (n=60)"
+    assert gen.judge_label("gpt-4.1", sha, folder) == "judge unvalidated"
+    assert gen.judge_label("claude-opus-5-5", sha, tmp_path / "absent") == "judge unvalidated"
 
 
 def test_the_adjudicated_block_sits_beside_the_blind_figures_and_counts_moves_to_the_judge() -> (
@@ -266,3 +269,18 @@ def test_kappa_rows_carry_the_bootstrap_interval_and_the_real_hallucination_coun
     real = _agreement()["agreement_real_only"]["confusion"]
     flags = real["judge_unsupported/human_supported"] + real["judge_unsupported/human_unsupported"]
     assert f"the judge flags {flags} unsupported and the human confirms" in block
+
+
+_V010 = "2c5f8eca49baa80fc89288c8ceafdc832a5ab3d442dbe601d5e065be40bb1bde"
+_V020 = "aa66e62370a2702666808e6bbb6c4bbcace60df2fca7a23cf7ea1b6dfdc3143a"
+
+
+def test_judge_label_follows_the_judge_prompt_not_only_the_model() -> None:
+    """The κ of judge prompt v0.1.0 must not qualify a run judged by v0.2.0."""
+    gen = _load("generate_headline_results")
+    v010 = gen.judge_label("claude-opus-5-5", _V010)
+    v020 = gen.judge_label("claude-opus-5-5", _V020)
+    assert "κ 0.71" in v010
+    assert "0.71" not in v020
+    assert v020.startswith("judge prompt v0.2.0 κ 0.60 vs blind human on 52 of 60 claims")
+    assert gen.judge_label("claude-opus-5-5", "0" * 64) == "judge unvalidated"

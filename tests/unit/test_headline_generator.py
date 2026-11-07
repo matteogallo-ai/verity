@@ -769,7 +769,10 @@ def test_a_rate_slo_meets_only_when_its_upper_bound_does(k: int, n: int, status:
 def test_the_key_result_names_the_bootstrap_interval_of_the_judge() -> None:
     generator = _load_generator()
     payload = json.loads((REPO_ROOT / "scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
-    judge = generator.judge_label(payload["provenance"]["judge_model"])
+    judge = generator.judge_label(
+        payload["provenance"]["judge_model"],
+        payload["provenance"]["prompt_sha256"]["judge_faithfulness"],
+    )
     block = generator.render_key_result(payload, judge=judge)
     assert "κ 0.71 (bootstrap 95 % CI [0.49, 0.89])" in block
     assert "all 34 shipped answers were judged" in block
