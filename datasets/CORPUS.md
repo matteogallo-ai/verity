@@ -2,18 +2,31 @@
 
 21 documents of a fictional company, Acme Corporation, in three domains. Every document
 was written for this repository and is released under the repository's MIT licence; no
-third-party text is included, so there is no licence to check beyond that one.
+third-party text is included, so there is no licence to check beyond that one. People
+and companies named in them (Northwind Logistics, Maria Chen, Dana Whitfield, ...) are
+invented.
 
-**Origin.** The documents and the eval questions were written with a coding agent running Claude Opus 5.5: the commits that added them (`64bdc8a` corpus, `74f3c9f` questions, 13 s apart) carry its `Co-Authored-By` trailer. That is the model family of the judge (`claude-opus-5-5`) and of the agent (`claude-sonnet-4-6`). The trailer shows the model took part, not how much of the text it wrote.
+**Origin.** Most of the text was written with a coding agent running Claude Opus 5.5,
+the model family of the judge (`claude-opus-5-5`) and of the agent (`claude-sonnet-4-6`):
 
-- Scope: every measured figure in this repository is on this corpus, about 5,500 words.
+- 16 of the 21 documents were added by commits that carry its `Co-Authored-By`
+  trailer (`64bdc8a`, `2041e72`, `3c00b95`, 2026-11-02).
+- 5 were added on 2026-09-05/06 by commits without a trailer and never changed by one
+  with it: `msa.md`, `financial_summary_fy2024.md` (`82ebaa5`), `dpa.md`,
+  `employee_handbook.md`, `sla.md` (`f5ee695`). Their origin is not recorded.
+- The 95 eval questions are the version of `74f3c9f`, which carries the trailer. The
+  file's earlier versions of 6 and 16 questions (`82ebaa5`, `f5ee695`) did not; how many
+  of their questions survive in the 95 is not recorded.
+
+A trailer shows the model took part, not how much of the text it wrote.
+
+- Scope: the eval runs of record are on this corpus. The injection runs (claim C33)
+  used the earlier 6-document corpus.
 - Known limit: a judge of the same family as the author of the text may prefer its
   style, and the questions were written by the author of the system. Neither effect is
   measured here.
-- Next step: a public corpus with questions written by a third party (roadmap C34 for
-  the judge). People
-and companies named in them (Northwind Logistics, Maria Chen, Dana Whitfield, ...) are
-invented.
+- Next step: a public corpus with questions written by a third party; a judge from
+  another model family is roadmap C34.
 
 PDF and DOCX files are rendered from Markdown sources in `datasets/corpus_src/` by
 `scripts/build_corpus_documents.py` (byte-for-byte reproducible; `--check` in CI), so

@@ -10,13 +10,13 @@ record, the judge's validation against blind human labels, and what the numbers 
 
 | Metric | Value | Notes |
 |---|---:|---|
-| **Invented answers** | **1/34** | ↓ better · answers with a claim the judge finds unsupported / every answer shipped, answerable or not: 1/34 · 95 % CI [0.005, 0.149] · `q-074` · judge κ 0.71 [0.49, 0.89] vs blind human, validated on 60 claims of which 1 real hallucination |
+| **Invented answers** | **1/34** | ↓ better · answers with a claim the judge finds unsupported (or no usable claim) / every judged answer, answerable or not: 1/34 · 95 % CI [0.005, 0.149] · `q-074` · judge κ 0.71 (bootstrap 95 % CI [0.49, 0.89]) vs blind human, validated on 60 claims of which 1 real hallucination |
 | **Refusal recall** | **0.850** | unanswerable questions refused / unanswerable: 17/20 · 95 % CI [0.640, 0.948] · threshold 0 |
 | **Refusal precision** | **0.773** | refusals that were unanswerable / refusals: 17/22 · 95 % CI [0.566, 0.899] |
-| Faithfulness, per question | 0.990 | mean over 34 judged answers · judge κ 0.71 [0.49, 0.89] vs blind human, validated on 60 claims of which 1 real hallucination |
-| Faithfulness, per claim | 0.991 | pooled over claims: 108/109 · 95 % CI [0.950, 0.998] · judge κ 0.71 [0.49, 0.89] vs blind human, validated on 60 claims of which 1 real hallucination |
-| Citation accuracy, per question | 0.968 | mean over 34 judged answers · judge κ 0.71 [0.49, 0.89] vs blind human, validated on 60 claims of which 1 real hallucination |
-| Citation accuracy, per claim | 0.963 | pooled over claims: 105/109 · 95 % CI [0.909, 0.986] · judge κ 0.71 [0.49, 0.89] vs blind human, validated on 60 claims of which 1 real hallucination |
+| Faithfulness, per question | 0.990 | mean over 34 judged answers · judge κ 0.71 (bootstrap 95 % CI [0.49, 0.89]) vs blind human, validated on 60 claims of which 1 real hallucination |
+| Faithfulness, per claim | 0.991 | pooled over claims: 108/109 · 95 % CI [0.950, 0.998] · judge κ 0.71 (bootstrap 95 % CI [0.49, 0.89]) vs blind human, validated on 60 claims of which 1 real hallucination |
+| Citation accuracy, per question | 0.968 | mean over 34 judged answers · judge κ 0.71 (bootstrap 95 % CI [0.49, 0.89]) vs blind human, validated on 60 claims of which 1 real hallucination |
+| Citation accuracy, per claim | 0.963 | pooled over claims: 105/109 · 95 % CI [0.909, 0.986] · judge κ 0.71 (bootstrap 95 % CI [0.49, 0.89]) vs blind human, validated on 60 claims of which 1 real hallucination |
 | Hallucination rate, answerable only | 0.000 | ↓ better · answers with an unsupported claim / answered answerable questions (an answer to an unanswerable question is outside it): 0/31 · 95 % CI [0.000, 0.110] |
 | Unanswerable answered | 3/20 | ↓ better · an answer shipped where the corpus has none: 3/20 · 95 % CI [0.052, 0.360] |
 | Retrieval nDCG@8 | 0.929 | scored without an LLM on hits retrieved for the LLM sub-questions |
@@ -76,11 +76,11 @@ the question does not ask for, or "one" used as a pronoun.
 
 ### Refusal recall by tag
 
-The aggregate refusal recall above counts questions any system refuses (`out-of-corpus`:
-a football result, a drug dose, asked of a company corpus) and `adversarial` ones refused
-by injection markers the corpus author wrote. The rows below leave them out, so the
-recall on the questions that test the design (`near-miss`, `false-premise`) stands on
-its own n.
+The aggregate refusal recall above counts `out-of-corpus` questions (a football result,
+a drug dose, asked of a company corpus), the easiest to decline, and `adversarial` ones, whose refusals come from the injection-marker check or
+from a draft with no citation (causes under "Refusals by cause"). The rows below leave
+them out, so the recall on the questions that test the design (`near-miss`,
+`false-premise`) stands on its own n.
 
 <!-- REFUSAL-BY-TAG:START -->
 Run `datasets/eval/runs/live/eval_969e1d5_test.json`, tags from `datasets/eval/test.jsonl`. Refusal recall = unanswerable questions refused / unanswerable questions, Wilson 95 % interval. A question can carry several tags, so tag rows overlap.
@@ -111,7 +111,7 @@ separately, does not replace it.
 <!-- JUDGE:START -->
 Judge `claude-opus-5-5` with judge prompt v0.1.0 (`datasets/eval/judge_validation/judge_faithfulness.v0.1.0.prompt`, sha256 `2c5f8eca49ba`) against **blind human labels**, the reference: 60 claims labelled without origin or judge verdict, 40 real claims (16 from the dev run, 24 from the test run) and 20 claims perturbed to be false (one number, date, negation or entity changed). The κ below belongs to this prompt version: a changed judge prompt is a new judge and needs its own κ.
 
-The judge is validated on 60 claims, of which 1 real hallucination (a real claim the human finds unsupported): its sensitivity to real hallucinations rests on that count, the perturbed claims bound it from above.
+The judge is validated on 60 claims, of which 1 real hallucination (a real claim the human finds unsupported). On the real claims the judge flags 3 unsupported and the human confirms 1. The perturbed claims are a proxy for its sensitivity to real hallucinations, not a bound on it.
 
 | Measure | Value | n · notes |
 |---|---|---|
@@ -192,9 +192,9 @@ Generated from [`datasets/eval/judge_validation/judge-v0.2.0/agreement.json`](..
   every answer in one bin. Isotonic and Platt maps fitted on dev hold one
   unanswerable example and do not fix it (ECE 0.097 and 0.091). The score is the
   scorer model's self-report.
-- **The corpus and the questions were written with Claude Opus 5.5**, the judge's
-  model family, by the author of the system ([origin](../datasets/CORPUS.md)). Scope:
-  21 fictional documents, about 5,500 words. Known limit: self-preference of the judge
+- **Most of the corpus and the questions were written with Claude Opus 5.5**, the
+  judge's model family, by the author of the system (16 of 21 documents and the 95
+  questions; [origin](../datasets/CORPUS.md)). Scope: 21 fictional documents. Known limit: self-preference of the judge
   and questions shaped by the system's author are not measured. Next step: a public
   corpus with third-party questions.
 - **The judge is validated on 60 claims by one annotator, and is a Claude model.**

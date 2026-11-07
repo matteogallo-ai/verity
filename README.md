@@ -35,7 +35,7 @@ a check fails, the scorer refuses, or the score is below a threshold.
 ## Key result
 
 <!-- KEY-RESULT:START -->
-**Invented answers 1/34** (Wilson 95 % CI [0.005, 0.149]): answers holding a claim the judge finds unsupported by the retrieved passages, over every answer shipped, answerable or not (`q-074`). Faithfulness to the passages, not correctness; judge κ 0.71 [0.49, 0.89] vs blind human, validated on 60 claims of which 1 real hallucination.
+**Invented answers 1/34** (Wilson 95 % CI [0.005, 0.149]): answers holding a claim the judge finds unsupported by the retrieved passages, over every judged answer, answerable or not (`q-074`); all 34 shipped answers were judged. Faithfulness to the passages; correctness against the reference answers is graded apart in the results. Judge κ 0.71 (bootstrap 95 % CI [0.49, 0.89]) vs blind human, validated on 60 claims of which 1 real hallucination.
 **Refusal recall 0.850**: 17/20 unanswerable questions refused, Wilson 95 % CI [0.640, 0.948], at refusal precision 0.773 (17/22, CI [0.566, 0.899]).
 One live run on the held-out `test` split, n = 56, agent `claude-sonnet-4-6`, commit `969e1d5`. Every metric, the judge's validation and the limits: [`docs/results.md`](docs/results.md).
 <!-- KEY-RESULT:END -->
@@ -72,10 +72,10 @@ Dev split, n = 23 compared, same questions, agent `claude-sonnet-4-6`, judge `cl
 
 | Metric | Better | Verity | Naive RAG | Discordant (Verity only / naive only) | Reading |
 |---|---|---|---|---|---|
-| **Unanswerable answered** | lower | 0/2 = 0.000 [0.000, 0.658] | 2/2 = 1.000 [0.342, 1.000] | 0 / 2 of 2 | not distinguishable (McNemar p = 0.500) |
+| **Unanswerable answered** | lower | 0/2 = 0.000 [0.000, 0.658] | 2/2 = 1.000 [0.342, 1.000] | 0 / 2 of 2 | not testable: 2 paired questions, smallest possible p = 0.500 |
 | **Hallucination rate (answered answerable)** | lower | 0/16 = 0.000 [0.000, 0.194] | 0/21 = 0.000 [0.000, 0.155] | 0 / 0 of 16 | not distinguishable (McNemar p = 1.000) |
 | **Answerable answered** | higher | 16/21 = 0.762 [0.549, 0.894] | 21/21 = 1.000 [0.845, 1.000] | 0 / 5 of 21 | not distinguishable (McNemar p = 0.062) |
-| Unanswerable answered, self-abstentions as refusals | lower | 0/2 = 0.000 [0.000, 0.658] | 1/2 = 0.500 [0.095, 0.905] | 0 / 1 of 2 | not distinguishable (McNemar p = 1.000) |
+| Unanswerable answered, self-abstentions as refusals | lower | 0/2 = 0.000 [0.000, 0.658] | 1/2 = 0.500 [0.095, 0.905] | 0 / 1 of 2 | not testable: 2 paired questions, smallest possible p = 0.500 |
 | Faithfulness, per claim | higher | 34/34 = 1.000 [0.898, 1.000] | 55/55 = 1.000 [0.935, 1.000] | — | no paired test (per claim) |
 | Citation accuracy, per claim | higher | 31/34 = 0.912 [0.770, 0.970] | 48/55 = 0.873 [0.760, 0.937] | — | no paired test (per claim) |
 

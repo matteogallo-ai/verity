@@ -53,16 +53,17 @@ A false-premise question counts as unanswerable: the fact it asks about does not
 in the corpus, so the expected outcome is a refusal. An answer that corrects the
 premise is scored as an answer.
 
-The rule stays, with its cost published. On test, two of the three unanswerable
-questions answered are correct premise corrections (q-085: "Acme did not pay a
-dividend in FY2025"; q-089: the NDA has no ten-year period), so the rule scores
-"unanswerable answered" 3/20 where a reader would count 1/20. Why it is kept: a
-refusal is an event the code records, while "this answer correctly corrects the
-premise" needs a grader. The only grader here is the judge, of the model family that
-wrote the questions. Changing the definition after seeing which answers it penalises
-would also fit the metric to the run. Both figures are published under "Refusal
-recall by tag" in [`results.md`](results.md). The second rule there fails an answer
-to an unanswerable question only when the judge finds one of its claims unsupported.
+The rule stays, with its cost published. Some answers to false-premise questions say
+the premise is false and cite the passage that shows it; the rule scores them as
+failures. Why it is kept: a refusal is an event the code records, while "this answer
+correctly corrects the premise" needs a grader, and a false-premise question has no
+reference answer to grade against. The only grader available is the judge, of the
+model family that wrote the questions. Changing the definition after seeing which
+answers it penalises would also fit the metric to the run. The cost is published under
+"Refusal recall by tag" in [`results.md`](results.md): "unanswerable answered" under
+the rule of record, and under a second rule that fails such an answer only when the
+judge finds one of its claims unsupported. Which answers pass the second rule is listed
+there; that they are correct corrections is a reading of the answers, not a grade.
 
 **Dev / test split.** `scripts/split_dataset.py` draws a stratified split (answerable,
 unanswerable, adversarial) with seed `20261102`: `dev.jsonl` (39 questions) and
