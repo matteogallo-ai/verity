@@ -92,6 +92,7 @@ paths = [
   "scripts/compare_naive_baseline.py",
   "scripts/gate_ablation.py",
   "scripts/power_two_arm.py",
+  "scripts/compare_two_arm.py",
   "scripts/judge_correctness.py",
   "scripts/refusal_by_tag.py",
 ]

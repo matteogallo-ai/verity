@@ -43,6 +43,18 @@ def mcnemar_power(n: int, p_a_only: float, p_b_only: float, *, alpha: float) -> 
     return power
 
 
+def holm(pvalues: list[float]) -> list[float]:
+    """Holm-adjusted p-values, in the input order: the family-wise error of the
+    pre-registered primary tests stays at the level each adjusted p is compared to."""
+    order = sorted(range(len(pvalues)), key=lambda i: pvalues[i])
+    adjusted = [0.0] * len(pvalues)
+    running = 0.0
+    for rank, i in enumerate(order):
+        running = max(running, min(1.0, (len(pvalues) - rank) * pvalues[i]))
+        adjusted[i] = running
+    return adjusted
+
+
 def discordant(a: Mapping[str, bool], b: Mapping[str, bool]) -> tuple[int, int, int]:
     """``(a only, b only, n paired)`` over the questions both mappings score."""
     shared = sorted(set(a) & set(b))
@@ -51,4 +63,4 @@ def discordant(a: Mapping[str, bool], b: Mapping[str, bool]) -> tuple[int, int, 
     return a_only, b_only, len(shared)
 
 
-__all__ = ["discordant", "mcnemar_exact", "mcnemar_power"]
+__all__ = ["discordant", "holm", "mcnemar_exact", "mcnemar_power"]

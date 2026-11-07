@@ -54,3 +54,13 @@ def test_power_matches_a_hand_sum_on_a_small_case() -> None:
     # n = 6, one arm wins each pair with probability 0.5, else concordant: rejection
     # needs b = 6 (p = 0.03125); b = 5, c = 0 gives p = 0.0625. P(b = 6) = 0.5**6.
     assert mcnemar_power(6, 0.5, 0.0, alpha=0.05) == pytest.approx(0.5**6)
+
+
+def test_holm_adjusts_in_rank_order_and_keeps_adjusted_p_monotone() -> None:
+    from verity.eval.paired import holm
+
+    # Sorted 0.01, 0.02, 0.04 -> 0.03, 0.04, 0.04 (the third is held at the second).
+    assert holm([0.04, 0.01, 0.02]) == pytest.approx([0.04, 0.03, 0.04])
+    # 0.5 x 2 = 1.0, then 0.9 is held at 1.0.
+    assert holm([0.5, 0.9]) == pytest.approx([1.0, 1.0])
+    assert holm([]) == []
