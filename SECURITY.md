@@ -14,9 +14,10 @@ upgraded (see `CHANGELOG.md`, Unreleased); until a release contains them, build 
 
 ## Reporting a vulnerability
 
-Use GitHub's private reporting:
-[Security Advisories → Report a vulnerability](https://github.com/matteogallo-ai/verity/security/advisories/new).
-Do not open a public issue. Expect an acknowledgement within 7 days.
+One channel: GitHub private vulnerability reporting,
+[Security → Report a vulnerability](https://github.com/matteogallo-ai/verity/security/advisories/new).
+The report reaches the maintainer only. Do not open a public issue. Expect an
+acknowledgement within 7 days.
 
 ## Intended deployment
 
