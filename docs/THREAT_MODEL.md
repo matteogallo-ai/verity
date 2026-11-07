@@ -230,7 +230,7 @@ Provider SDK call signatures are tested against the pinned SDKs
 
 **Not stopped.** An advisory not yet in the OSV database, and the `python:3.12-slim`
 base image, which no job scans (it is pinned by digest, so it changes only through a
-reviewed Dependabot PR). Outside the image
+reviewed pull request). Outside the image
 the models are fetched by name with no pinned revision
 (`ingestion.embedder._default_backend_factory`, `retrieval.reranker._default_backend_factory`).
 The first PDF ingestion makes docling download its models (~500 MB), including from

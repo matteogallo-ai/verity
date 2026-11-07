@@ -177,7 +177,8 @@ class UsageStats(BaseModel, frozen=True):
 
 
 class ErrorKind(StrEnum):
-    """An infrastructure failure that prevented an answer. Never a refusal."""
+    """What prevented an answer: an infrastructure failure, or a defect in the code
+    (``INTERNAL``). Never a refusal."""
 
     PROVIDER_UNAVAILABLE = "provider_unavailable"
     PROVIDER_AUTH = "provider_auth"
@@ -186,6 +187,8 @@ class ErrorKind(StrEnum):
     MODEL_UNAVAILABLE = "model_unavailable"
     # A spending cap stopped the answer before its next LLM call.
     BUDGET_EXCEEDED = "budget_exceeded"
+    # A defect in the code: reported as a 500, never as an outage or a refusal.
+    INTERNAL = "internal_error"
 
 
 class AnswerError(BaseModel, frozen=True):

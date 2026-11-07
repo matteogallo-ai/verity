@@ -32,6 +32,7 @@ from verity.retrieval.base import (
     Reranker,
     RetrievalUnavailableError,
     Retriever,
+    StoreSchemaError,
     VectorStore,
 )
 from verity.retrieval.fusion import ReciprocalRankFusion
@@ -149,10 +150,11 @@ class HybridRetriever(Retriever):
         async with self._tracer.stage(name, trace_id) as span:
             try:
                 hits = await coro
-            # What a store raises when it is down or its query fails: a driver error,
-            # a refused or reset socket. Anything else is a defect in the code and
-            # propagates as itself, so it is not reported as the store being down.
-            except (RetrievalUnavailableError, psycopg.Error, OSError) as exc:
+            # What a store raises when it is down, unmigrated or its query fails: a
+            # driver error, a refused or reset socket, a schema check. Anything else
+            # is a defect in the code and propagates as itself, so it is not reported
+            # as the store being down.
+            except (RetrievalUnavailableError, StoreSchemaError, psycopg.Error, OSError) as exc:
                 log.error("stage_failed", stage=name, error=str(exc))
                 span.set_attribute("error", str(exc))
                 raise RetrievalUnavailableError(f"{name} failed: {exc}") from exc
