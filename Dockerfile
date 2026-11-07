@@ -2,7 +2,9 @@
 # Build stage: resolve the locked dependencies into a virtualenv, install Verity as a
 # wheel (prompts/ and migrations/ ride inside it, see verity.resources) and download
 # the embedding, reranker and docling models, so the runtime image needs no network.
-FROM python:3.12-slim AS builder
+# Base images by digest: a tag can be repointed, a digest cannot. Dependabot (docker
+# ecosystem) proposes the new digest when the tag moves.
+FROM python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54 AS builder
 
 # opencv-python (pulled in by docling's RapidOCR) links against X11 and GL libraries
 # that the slim image lacks; without them every PDF conversion fails on `import cv2`.
@@ -10,7 +12,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libxcb1 libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=ghcr.io/astral-sh/uv:0.11.14 /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.11.14@sha256:1025398289b62de8269e70c45b91ffa37c373f38118d7da036fb8bb8efc85d97 /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_PYTHON_DOWNLOADS=never \
@@ -40,7 +42,7 @@ RUN /app/.venv/bin/docling-tools models download -q -o /opt/docling \
 
 # Runtime stage: the virtualenv, the models and the demo corpus; no compiler, no uv,
 # no source tree. Runs as an unprivileged user.
-FROM python:3.12-slim
+FROM python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libxcb1 libgl1 libglib2.0-0 \
