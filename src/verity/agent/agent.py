@@ -23,7 +23,7 @@ What holds on the returned :class:`Answer`:
   cannot ship an answer on its own;
 - ``confidence.refused`` is also True when the scorer model asked to refuse OR its
   self-reported score is below ``confidence_threshold`` (the score is the model's
-  self-report and is not calibrated; the default threshold, 0, is never above it). A refused answer's text is a fixed "I don't know"
+  self-report and is not calibrated; at the default threshold, 0, no score is below it). A refused answer's text is a fixed "I don't know"
   with the rationale;
 - ``hits_used`` and ``usage`` are populated for observability and eval.
 
