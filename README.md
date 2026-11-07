@@ -37,9 +37,9 @@ refusals than right ones on dev, [measured](docs/results.md#refusal-checks-one-a
 ## Key result
 
 <!-- KEY-RESULT:START -->
-**Invented answers 1/34** (Wilson 95 % CI [0.005, 0.149]): answers holding a claim the judge finds unsupported by the retrieved passages, over every judged answer, answerable or not (`q-074`); all 34 shipped answers were judged. Faithfulness to the passages; correctness against the reference answers is graded apart in the results. Judge κ 0.71 (bootstrap 95 % CI [0.49, 0.89]) vs blind human, validated on 60 claims of which 1 real hallucination.
-**Refusal recall 0.850**: 17/20 unanswerable questions refused, Wilson 95 % CI [0.640, 0.948], at refusal precision 0.773 (17/22, CI [0.566, 0.899]).
-One live run on the held-out `test` split, n = 56, agent `claude-sonnet-4-6`, commit `969e1d5`. Every metric, the judge's validation and the limits: [`docs/results.md`](docs/results.md).
+**Invented answers 1/40** (Wilson 95 % CI [0.004, 0.129]): answers holding a claim the judge finds unsupported by the retrieved passages, over every judged answer, answerable or not (`q-089`); all 40 shipped answers were judged. Faithfulness to the passages; correctness against the reference answers is graded apart in the results. Judge prompt v0.2.0 κ 0.60 vs blind human on 52 of 60 claims (its rejudge stopped at its spending cap; no bootstrap interval).
+**Refusal recall 0.722**: 13/18 unanswerable questions refused, Wilson 95 % CI [0.491, 0.875], at refusal precision 0.929 (13/14, CI [0.685, 0.987]).
+One live run on the held-out `test` split, n = 54 of 56 completed (2 not run, stopped by the run's spending cap; 0 errored), agent `claude-sonnet-4-6`, commit `513b839`. Every metric, the judge's validation and the limits: [`docs/results.md`](docs/results.md).
 <!-- KEY-RESULT:END -->
 
 The run of record had the cited-relevance check on; the shipped default has it off.

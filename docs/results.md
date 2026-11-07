@@ -6,29 +6,29 @@ record, the judge's validation against blind human labels, and what the numbers 
 ## Measured results
 
 <!-- RESULTS:START -->
-**Measured on**: `agent=claude-sonnet-4-6 (56/56)` · `judge=claude-opus-5-5 (34/56 answered — 22 refusals bypass the judge)` · `embedding=BAAI/bge-small-en-v1.5` · commit `969e1d5` · 2026-11-02 · dataset `test` · n=56 (36 answerable + 20 unanswerable) · **0 errored** (kept out of every metric) · total cost **$1.2768**
+**Measured on**: `agent=claude-sonnet-4-6 (54/54)` · `judge=claude-opus-5-5 (40/54 answered — 14 refusals bypass the judge)` · `embedding=BAAI/bge-small-en-v1.5` · commit `513b839` · 2026-11-07 · dataset `test` · n=56 (36 answerable + 18 unanswerable) · **0 errored, 2 not run** (kept out of every metric) · total cost **$2.4562**
 
 | Metric | Value | Notes |
 |---|---:|---|
-| **Invented answers** | **1/34** | ↓ better · answers with a claim the judge finds unsupported (or no usable claim) / every judged answer, answerable or not: 1/34 · 95 % CI [0.005, 0.149] · `q-074` · judge κ 0.71 (bootstrap 95 % CI [0.49, 0.89]) vs blind human, validated on 60 claims of which 1 real hallucination |
-| **Refusal recall** | **0.850** | unanswerable questions refused / unanswerable: 17/20 · 95 % CI [0.640, 0.948] · threshold 0 |
-| **Refusal precision** | **0.773** | refusals that were unanswerable / refusals: 17/22 · 95 % CI [0.566, 0.899] |
-| Faithfulness, per question | 0.990 | mean over 34 judged answers · judge κ 0.71 (bootstrap 95 % CI [0.49, 0.89]) vs blind human, validated on 60 claims of which 1 real hallucination |
-| Faithfulness, per claim | 0.991 | pooled over claims: 108/109 · 95 % CI [0.950, 0.998] · judge κ 0.71 (bootstrap 95 % CI [0.49, 0.89]) vs blind human, validated on 60 claims of which 1 real hallucination |
-| Citation accuracy, per question | 0.968 | mean over 34 judged answers · judge κ 0.71 (bootstrap 95 % CI [0.49, 0.89]) vs blind human, validated on 60 claims of which 1 real hallucination |
-| Citation accuracy, per claim | 0.963 | pooled over claims: 105/109 · 95 % CI [0.909, 0.986] · judge κ 0.71 (bootstrap 95 % CI [0.49, 0.89]) vs blind human, validated on 60 claims of which 1 real hallucination |
-| Hallucination rate, answerable only | 0.000 | ↓ better · answers with an unsupported claim / answered answerable questions (an answer to an unanswerable question is outside it): 0/31 · 95 % CI [0.000, 0.110] |
-| Unanswerable answered | 3/20 | ↓ better · an answer shipped where the corpus has none: 3/20 · 95 % CI [0.052, 0.360] |
-| Retrieval nDCG@8 | 0.929 | scored without an LLM on hits retrieved for the LLM sub-questions |
-| Retrieval recall@8 | 0.986 | as nDCG |
-| Retrieval precision@8 | 0.146 | k>gold ceiling; interpret with recall |
-| Latency p50 / p95 / p99 | 5445.7 ms / 8949.3 ms / 10929.3 ms | warm; cold start `8460.1 ms` measured separately |
-| Cost / query | $0.0132 | $0.0132 agent only · $0.0228 with the judge · total $1.2768 = agent $0.7408 + judge $0.5360 |
+| **Invented answers** | **1/40** | ↓ better · answers with a claim the judge finds unsupported (or no usable claim) / every judged answer, answerable or not: 1/40 · 95 % CI [0.004, 0.129] · `q-089` · judge prompt v0.2.0 κ 0.60 vs blind human on 52 of 60 claims (its rejudge stopped at its spending cap; no bootstrap interval) |
+| **Refusal recall** | **0.722** | unanswerable questions refused / unanswerable: 13/18 · 95 % CI [0.491, 0.875] · threshold 0 |
+| **Refusal precision** | **0.929** | refusals that were unanswerable / refusals: 13/14 · 95 % CI [0.685, 0.987] |
+| Faithfulness, per question | 0.996 | mean over 40 judged answers · judge prompt v0.2.0 κ 0.60 vs blind human on 52 of 60 claims (its rejudge stopped at its spending cap; no bootstrap interval) |
+| Faithfulness, per claim | 0.992 | pooled over claims: 121/122 · 95 % CI [0.955, 0.999] · judge prompt v0.2.0 κ 0.60 vs blind human on 52 of 60 claims (its rejudge stopped at its spending cap; no bootstrap interval) |
+| Citation accuracy, per question | 0.962 | mean over 40 judged answers · judge prompt v0.2.0 κ 0.60 vs blind human on 52 of 60 claims (its rejudge stopped at its spending cap; no bootstrap interval) |
+| Citation accuracy, per claim | 0.951 | pooled over claims: 116/122 · 95 % CI [0.897, 0.977] · judge prompt v0.2.0 κ 0.60 vs blind human on 52 of 60 claims (its rejudge stopped at its spending cap; no bootstrap interval) |
+| Hallucination rate, answerable only | 0.000 | ↓ better · answers with an unsupported claim / answered answerable questions (an answer to an unanswerable question is outside it): 0/35 · 95 % CI [0.000, 0.099] |
+| Unanswerable answered | 5/18 | ↓ better · an answer shipped where the corpus has none: 5/18 · 95 % CI [0.125, 0.509] |
+| Retrieval nDCG@8 | 0.923 | scored without an LLM on hits retrieved for the LLM sub-questions |
+| Retrieval recall@8 | 0.972 | as nDCG |
+| Retrieval precision@8 | 0.142 | k>gold ceiling; interpret with recall |
+| Latency p50 / p95 / p99 | 6538.4 ms / 9857.9 ms / 11140.9 ms | warm; cold start `8884.6 ms` measured separately |
+| Cost / query | $0.0235 | $0.0235 agent only · $0.0455 with the judge · total $2.4562 = agent $1.2671 + judge $1.1890 |
 
-Refusals by cause: `irrelevant_citation` 4 (4 answerable) · `low_citation_coverage` 7 (1 answerable) · `model_refused` 2 (0 answerable) · `no_citation` 6 (0 answerable) · `suspected_injection` 3 (0 answerable).
+Refusals by cause: `low_citation_coverage` 7 (1 answerable) · `no_citation` 4 (0 answerable) · `suspected_injection` 3 (0 answerable).
 No refusal has the cause `below_threshold`: the confidence threshold decided none of them.
 
-Generated from [`scorecards/live-v1.1.0.json`](../scorecards/live-v1.1.0.json), itself computed from the run artefact `datasets/eval/runs/live/eval_969e1d5_test.json` (`scripts/generate_headline_results.py --check` recomputes both).
+Generated from [`scorecards/live-v1.1.0.json`](../scorecards/live-v1.1.0.json), itself computed from the run artefact `datasets/eval/runs/live/eval_513b839_test.incomplete-20261107T122042441670Z.json` (`scripts/generate_headline_results.py --check` recomputes both).
 
 <!-- RESULTS:END -->
 
@@ -46,7 +46,7 @@ Every value in the table is copied from the committed scorecard JSON by
 `--check` fails CI if this table or the README's key result drifts. Each answer-quality metric carries its
 `scope` and `n_denominator`. The full audit trail (per-question answer, citations,
 refusal cause, confidence score, per-claim judge verdict) is
-[`datasets/eval/runs/live/eval_969e1d5_test.json`](../datasets/eval/runs/live/eval_969e1d5_test.json).
+[`datasets/eval/runs/live/eval_513b839_test.incomplete-20261107T122042441670Z.json`](../datasets/eval/runs/live/eval_513b839_test.incomplete-20261107T122042441670Z.json).
 The run used the in-memory store (BM25 sparse arm); `verity eval run` defaults to
 pgvector (`--store memory` reproduces it). Definitions:
 [`docs/evaluation-methodology.md`](evaluation-methodology.md).
@@ -102,11 +102,10 @@ their drafts reach the scorer and can ship, which the replay cannot show, since 
 naive drafts hold no unanswerable question this check refused. The precision ranges
 above bound the effect on the runs of record.
 
-Scope: the headline in the README and the results table come from the test run
-`969e1d5`, which ran with the check on. Known limit: no live run with the check off
-exists, so the shipped default is measured only by the bounds above. Next step: a test
-run of the default configuration. Test figures are reported here and were not used for
-the decision.
+Scope: the tables above replay the runs made with the check on (`6ec544d` dev,
+`969e1d5` test). The headline in the README and the results table come from the test
+run `513b839`, made after the decision with the check off, the shipped default. Test
+figures were not used for the decision.
 
 ### Verity against a naive RAG baseline, 95 questions
 
@@ -184,21 +183,21 @@ them out, so the recall on the questions that test the design (`near-miss`,
 `false-premise`) stands on its own n.
 
 <!-- REFUSAL-BY-TAG:START -->
-Run `datasets/eval/runs/live/eval_969e1d5_test.json`, tags from `datasets/eval/test.jsonl`. Refusal recall = unanswerable questions refused / unanswerable questions, Wilson 95 % interval. A question can carry several tags, so tag rows overlap.
+Run `datasets/eval/runs/live/eval_513b839_test.incomplete-20261107T122042441670Z.json`, tags from `datasets/eval/test.jsonl`. Refusal recall = unanswerable questions refused / unanswerable questions, Wilson 95 % interval. A question can carry several tags, so tag rows overlap.
 
 | Unanswerable questions | Refused | Answered |
 |---|---|---|
-| all | 17/20 · [0.640, 0.948] | `q-074`, `q-085`, `q-089` |
-| without `out-of-corpus` | 11/14 · [0.524, 0.924] | `q-074`, `q-085`, `q-089` |
-| without `out-of-corpus` and `adversarial` | 10/13 · [0.497, 0.918] | `q-074`, `q-085`, `q-089` |
-| tag `adversarial` | 4/4 · [0.510, 1.000] | none |
+| all | 13/18 · [0.491, 0.875] | `q-074`, `q-078`, `q-081`, `q-085`, `q-089` |
+| without `out-of-corpus` | 8/13 · [0.355, 0.823] | `q-074`, `q-078`, `q-081`, `q-085`, `q-089` |
+| without `out-of-corpus` and `adversarial` | 8/13 · [0.355, 0.823] | `q-074`, `q-078`, `q-081`, `q-085`, `q-089` |
+| tag `adversarial` | 2/2 · [0.342, 1.000] | none |
 | tag `false-premise` | 1/3 · [0.061, 0.792] | `q-085`, `q-089` |
-| tag `near-miss` | 10/11 · [0.623, 0.984] | `q-074` |
-| tag `out-of-corpus` | 6/6 · [0.610, 1.000] | none |
+| tag `near-miss` | 7/10 · [0.397, 0.892] | `q-074`, `q-078`, `q-081` |
+| tag `out-of-corpus` | 5/5 · [0.566, 1.000] | none |
 
-Answerable questions refused, by tag: `adversarial` 0/1 · [0.000, 0.793] · `multi-hop` 2/6 · [0.097, 0.700] · `negation` 0/9 · [0.000, 0.299] · `numeric` 1/11 · [0.016, 0.377] · `single-hop` 2/11 · [0.051, 0.477].
+Answerable questions refused, by tag: `adversarial` 0/1 · [0.000, 0.793] · `multi-hop` 1/6 · [0.030, 0.564] · `negation` 0/9 · [0.000, 0.299] · `numeric` 0/11 · [0.000, 0.259] · `single-hop` 0/11 · [0.000, 0.259].
 
-Unanswerable answered: 3/20 · [0.052, 0.360] under the rule of record (any answer to an unanswerable question fails). If an answer failed only when the judge finds one of its claims unsupported, it would be 1/20 · [0.009, 0.236]: `q-074` invented; `q-085`, `q-089` fully supported.
+Unanswerable answered: 5/18 · [0.125, 0.509] under the rule of record (any answer to an unanswerable question fails). If an answer failed only when the judge finds one of its claims unsupported, it would be 1/18 · [0.010, 0.258]: `q-089` invented; `q-074`, `q-078`, `q-081`, `q-085` fully supported.
 
 Generated from `scorecards/refusal-by-tag.json` (`scripts/refusal_by_tag.py --check`).
 <!-- REFUSAL-BY-TAG:END -->
@@ -270,27 +269,33 @@ Generated from [`datasets/eval/judge_validation/judge-v0.2.0/agreement.json`](..
 
 ## Open issues: what the numbers do not say
 
-- **The runs predate the current prompts.** Both v1.1.0 runs used
-  `synthesize.prompt` v0.2.0 and judge prompt v0.1.0: the datamarked synthesis (C33)
-  and the delimited judge came after them, and no live run of the current pipeline is
-  published here.
+- **The run of record is incomplete.** It stopped at its $2.40 spending cap after
+  54 of 56 questions; `q-094` and `q-095`, both unanswerable and tagged
+  `adversarial`, were not run and are outside every metric. Scope: 54 questions, 36
+  answerable and 18 unanswerable. Known limit: the two adversarial questions most
+  likely to be refused by `suspected_injection` are missing. Next step: the next test
+  run with a cap sized on the judged-answer cost.
+- **Several analyses below rest on the earlier runs.** The threshold sweep, the
+  calibration figures and the judge validation of prompt v0.1.0 come from the dev run
+  `6ec544d` and the test run `969e1d5`, which used `synthesize.prompt` v0.2.0 and
+  judge prompt v0.1.0. Each bullet names the run it rests on.
 - **The threshold decides nothing on this data, and refuses nothing by default.**
-  The dev run used 0.55 and the test run 0.0; the shipped default is 0.0, the value
-  the dev rule chose, which no score in [0, 1] is below. Every refusal above has a
-  deterministic cause (no citation, low citation coverage, irrelevant citation,
-  suspected injection) or is the scorer's own refusal; none is `below_threshold`.
+  The shipped default is 0.0, the value the dev rule chose, which no score in
+  [0, 1] is below; the run of record used it. Every refusal above has a deterministic
+  cause (no citation, low citation coverage, suspected injection); none is
+  `below_threshold`.
   The threshold was chosen on the dev split by a rule fixed before the run (highest
   refusal recall at precision ≥ 0.9, else highest F1): no threshold reached 0.9,
   refusal precision and recall are identical for every threshold from 0.00 to 0.95,
   and the rule gave 0.00. Sweep and figure:
   [`scorecards/refusal-analysis.json`](../scorecards/refusal-analysis.json),
   [`docs/figures/reliability.png`](figures/reliability.png).
-- **Refusal precision is a known limit** (row above, with its interval). Every
-  refusal of an answerable question comes from the citation checks
-  (`irrelevant_citation`, `low_citation_coverage`: counts under "Refusals by cause");
-  dev shows the same cause (`scorecards/refusal-analysis.json`). Tuning those checks
+- **Refusal precision is a known limit** (row above, with its interval). On the run
+  of record the one refusal of an answerable question, `q-055`, comes from
+  `low_citation_coverage` (counts under "Refusals by cause"); on dev the citation
+  checks are the only cause too (`scorecards/refusal-analysis.json`). Tuning those checks
   is done on dev only; a new test run belongs to a new version.
-- **The confidence score is not calibrated.** On test, 35 of the 36 scored answers
+- **The confidence score is not calibrated.** On the test run `969e1d5`, 35 of the 36 scored answers
   score 0.9 or more and 31 of them are answerable: ECE 0.116 over n = 36, with almost
   every answer in one bin. Isotonic and Platt maps fitted on dev hold one
   unanswerable example and do not fix it (ECE 0.097 and 0.091). The score is the
@@ -307,12 +312,12 @@ Generated from [`datasets/eval/judge_validation/judge-v0.2.0/agreement.json`](..
   human-unsupported claim (q-074's price) and is fragile: its bootstrap interval is
   [0.00, 1.00]. One annotator gives no inter-annotator
   agreement.
-- **n = 56 is small.** The 95 % Wilson intervals in the table show how little it
+- **n = 54 is small.** The 95 % Wilson intervals in the table show how little it
   pins down: no hallucination in the sample does not rule out a rate up to the
   interval's upper bound.
   Per-claim intervals assume independent claims; claims of one answer are not, so
   those intervals are too narrow. The corpus is 21 fictional documents in three
   domains, with no scanned PDFs or tables.
 - **Unanswerable questions were answered** (row "Unanswerable answered"): q-074,
-  q-085 and q-089, with scores 0.72, 0.92 and 0.90.
+  q-078, q-081, q-085 and q-089, with scores 0.55, 0.97, 0.95, 0.95 and 0.82.
 

@@ -439,13 +439,23 @@ def _p95_cause(over: list[tuple[str, float]], first: str | None) -> str:
     return f"answers over {SLO_P95_LATENCY_MS:,.0f} ms: {named}{tail}"
 
 
+def _n_asked(data: dict[str, Any]) -> int:
+    # Questions the eval's own spending cap left unrun were never requested.
+    return int(data["dataset"]["n_questions"]) - int(data["sample_sizes"].get("n_not_run", 0))
+
+
+def _n_of_asked(data: dict[str, Any]) -> str:
+    n, asked = int(data["dataset"]["n_questions"]), _n_asked(data)
+    return f"n={n}" if asked == n else f"n={asked} of {n} asked"
+
+
 def _latency_slo_rows(data: dict[str, Any], approved: str) -> list[str]:
     """p95 cold start included and warm, as separate rows. From the run artefact when it
     is committed (it must reproduce the scorecard p95); otherwise from the scorecard,
     whose single p95 is warm only if the run had a warmup."""
     target = f"≤ {SLO_P95_LATENCY_MS:,.0f} ms ({approved})"
     latency = data["latency_ms"]
-    n = data["dataset"]["n_questions"]
+    n = _n_asked(data)
     p95 = float(latency["p95"])
     cold_start = latency.get("cold_start")
     answers = _run_latencies(data)
@@ -500,8 +510,7 @@ def _latency_slo_rows(data: dict[str, Any], approved: str) -> list[str]:
 
 
 def _slo_rows(data: dict[str, Any]) -> list[str]:
-    # Questions the eval's own spending cap left unrun were never requested.
-    n = data["dataset"]["n_questions"] - data["sample_sizes"].get("n_not_run", 0)
+    n = _n_asked(data)
     errored = int(data["sample_sizes"]["n_errored"])
     error_rate = errored / n if n else None
     count, interval = _count_and_interval(errored, n)
@@ -542,7 +551,7 @@ def render_system_card_block(
     lines = [
         f"Source: [`{source}`]({link}) · commit `{prov['run_sha']}` · "
         f"{_short_date(str(data['generated_at']))} · agent `{prov['agent_model']}` · "
-        f"judge `{prov['judge_model']}` · n={ds['n_questions']} "
+        f"judge `{prov['judge_model']}` · {_n_of_asked(data)} "
         f"({ds['n_answerable']} answerable + {ds['n_unanswerable']} out-of-scope).",
         "",
         "| Metric | Value | k/n | 95 % CI (Wilson) |",

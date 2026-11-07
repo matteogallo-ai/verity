@@ -805,3 +805,16 @@ def test_questions_a_budget_cap_left_unrun_are_not_request_errors() -> None:
     assert (sizes["n_errored"], sizes["n_not_run"]) == (0, 2)
     # Per question asked, as the agent-only figure the harness computes over 54.
     assert cost["per_query_with_judge_usd"] == pytest.approx(cost["total_usd"] / 54, abs=1e-6)
+
+
+def test_the_system_card_counts_only_the_questions_an_incomplete_run_asked() -> None:
+    """The latency sample and the source line of eval_513b839_test hold 54 answers."""
+    generator = _load_generator()
+    payload = json.loads((REPO_ROOT / "scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
+    rows = _card_rows(payload)
+    warm = _row_starting(rows, "p95 latency of one answer, warm")
+    assert warm[1] == "9857.9 ms (n=54, after one warmup answer)"
+    block = generator.render_system_card_block(
+        payload, scorecard_path=REPO_ROOT / "scorecards/live-v1.1.0.json"
+    )
+    assert "n=54 of 56 asked (36 answerable + 18 out-of-scope)" in block

@@ -62,8 +62,9 @@ uv run python scripts/generate_headline_results.py \
 ```
 
 Run artefacts in `datasets/eval/runs/live/` are pinned in its `SHA256SUMS` and never
-edited; v1.1.0 used the dev run `eval_6ec544d_dev.json` and the test run
-`eval_969e1d5_test.json`. The v1.0.0 run (`scorecards/live-v1.0.0.json`) used 16
+edited; the v1.1.0 scorecard comes from the test run
+`eval_513b839_test.incomplete-20261107T122042441670Z.json`, and its threshold from the
+dev run `eval_6ec544d_dev.json`. The v1.0.0 run (`scorecards/live-v1.0.0.json`) used 16
 questions that predate the dev/test split.
 
 ## How this was built
