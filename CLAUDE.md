@@ -6,7 +6,7 @@ the full standard, `docs/CLAIMS.md` the list of what the README promises.
 ## What Verity is
 
 1. A RAG agent over enterprise documents: decompose → hybrid retrieve → cited synthesis → confidence score.
-2. It refuses ("I don't know") when the scorer refuses or its score is below `confidence_threshold`.
+2. It refuses ("I don't know") when a deterministic check fails or the scorer refuses; `confidence_threshold` defaults to 0 and so refuses nothing.
 3. Every citation quote is a verbatim substring of its source document; others are dropped.
 4. An eval harness measures retrieval, refusal and LLM-judged answer quality; one live run is the published artefact.
 5. Surfaces: `verity` CLI, FastAPI app (`verity serve`), Next.js UI in `web/`. Python 3.12, uv.
@@ -60,6 +60,10 @@ uv run python scripts/check_stale_narrative.py             # no sprint labels / 
 uv run python scripts/check_commit_messages.py main..HEAD  # Conventional Commits on the branch
 uv run python scripts/generate_headline_results.py --check # scorecard ≡ artefact, results doc + README key result + SYSTEM_CARD ≡ scorecards
 uv run python scripts/compare_naive_baseline.py --check   # README baseline block ≡ the two pinned runs
+uv run python scripts/compare_two_arm.py --check          # two-arm block of docs/results.md ≡ the four 513b839 runs
+uv run python scripts/refusal_by_tag.py --check           # refusal recall by tag ≡ the test run of record
+uv run python scripts/judge_correctness.py render --check  # correctness block ≡ datasets/eval/correctness/
+uv run python scripts/judge_agreement.py kappa-ci --check  # κ bootstrap interval ≡ claims_annotated.csv
 uv run python scripts/build_corpus_documents.py --check    # PDF/DOCX corpus ≡ sources
 uv run python scripts/split_dataset.py --check             # dev/test split ≡ seed
 uv run python scripts/recompute_live_aggregates.py --check # live runs: *.recomputed.json current

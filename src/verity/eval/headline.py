@@ -5,7 +5,8 @@ It is computed from one :class:`~verity.types.EvalRun` artefact and nothing else
 --check`` can rebuild it from the artefact and fail on any difference. A fresh run
 goes through the same function via :meth:`HarnessResult.as_eval_run`.
 
-Schema v5:
+Schema v6 (v5 plus ``answer_quality.invented_answer_rate`` and
+``cost.per_query_with_judge_usd``):
 
 - answer-quality metrics come from :mod:`verity.eval.answer_quality` (the one
   definition): faithfulness and citation accuracy carry a ``macro`` (per question)
@@ -19,6 +20,8 @@ Schema v5:
   recall, unanswerable answered) carries its count ``k``, its denominator and its
   95 % Wilson interval ``ci95_wilson``; a per-question mean of ratios is not a
   proportion and has none;
+- ``invented_answer_rate`` is over every judged answer, answerable or not (scope
+  ``answered``); ``hallucination_rate`` keeps its answerable-only scope;
 - a figure the artefact does not hold is ``null``: refusal precision with no
   refusal, the judge cost of a run recorded before judge usage was stored.
 """
@@ -67,7 +70,7 @@ def _hash_dataset_path(dataset_path: Path | None) -> str | None:
     return h.hexdigest()
 
 
-SCHEMA = "verity.scorecard.headline/v5"
+SCHEMA = "verity.scorecard.headline/v6"
 
 
 def _interval(k: int, n: int) -> list[float] | None:
@@ -193,6 +196,13 @@ def build_headline_dict_from_eval_run(
             "agent_usd": round(agent_usd, 6),
             "judge_usd": None if judge_usd is None else round(judge_usd, 6),
             "per_query_usd": round(sc.cost_per_query_usd, 6),
+            # The judge is eval-only, but a reader comparing with a cost per query
+            # elsewhere needs the total spent per question too.
+            "per_query_with_judge_usd": (
+                None
+                if judge_usd is None or not sc.n_examples
+                else round((agent_usd + judge_usd) / sc.n_examples, 6)
+            ),
         },
         "run": {
             "duration_s": run.duration_s,
@@ -229,6 +239,11 @@ def build_headline_dict_from_eval_run(
             "hallucination_rate": {
                 "scope": "answerable_and_answered",
                 **_ratio_dict(quality.hallucination_rate, unit="questions", proportion=True),
+            },
+            "invented_answer_rate": {
+                "scope": "answered",
+                **_ratio_dict(quality.invented_answer_rate, unit="questions", proportion=True),
+                "example_ids": list(quality.invented_ids),
             },
         },
         "refusal": {

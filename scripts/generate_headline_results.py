@@ -109,7 +109,42 @@ def judge_label(judge_model: str, validation_dir: Path = VALIDATION) -> str:
     if judge_model.split()[0] != validated_model:
         return "judge unvalidated"
     mixed = json.loads(agreement.read_text(encoding="utf-8"))["agreement_mixed"]
-    return f"judge κ {mixed['cohen_kappa']:.2f} vs blind human (n={mixed['n_claims']})"
+    label = f"judge κ {mixed['cohen_kappa']:.2f}"
+    kappa_ci = validation_dir / "kappa_ci.json"
+    if kappa_ci.is_file():
+        ci = json.loads(kappa_ci.read_text(encoding="utf-8"))
+        low, high = ci["all_claims"]["ci95_percentile"]
+        real = ci["n_real_unsupported_by_human"]
+        label += (
+            f" (bootstrap 95 % CI [{low:.2f}, {high:.2f}]) vs blind human, validated on "
+            f"{mixed['n_claims']} claims of which {real} real hallucination"
+            f"{'' if real == 1 else 's'}"
+        )
+        return label
+    return f"{label} vs blind human (n={mixed['n_claims']})"
+
+
+def _judged_of_shipped(data: dict[str, Any]) -> str:
+    sizes = data["sample_sizes"]
+    judged, answered = sizes["n_judged"], sizes["n_answered"]
+    if judged == answered:
+        return f"all {answered} shipped answers were judged"
+    return f"{judged} of {answered} shipped answers were judged"
+
+
+def _per_query_with_judge(cost: dict[str, Any]) -> str:
+    value = cost.get("per_query_with_judge_usd")
+    return "with the judge not recorded" if value is None else f"${value:.4f} with the judge"
+
+
+def _invented_row(invented: dict[str, Any], judge: str) -> str:
+    ids = ", ".join(f"`{i}`" for i in invented["example_ids"]) or "none"
+    return (
+        f"| **Invented answers** | **{invented['k']}/{invented['n_questions']}** | ↓ better · "
+        "answers with a claim the judge finds unsupported (or no usable claim) / every "
+        f"judged answer, answerable or not: {_ci(invented['k'], invented['n_questions'], invented['ci95_wilson'])}"
+        f" · {ids} · {judge} |"
+    )
 
 
 def render_block(
@@ -152,6 +187,7 @@ def render_block(
         "",
         "| Metric | Value | Notes |",
         "|---|---:|---|",
+        _invented_row(ans["invented_answer_rate"], judge),
         f"| **Refusal recall** | **{_fmt(recall['value'])}** | "
         f"unanswerable questions refused / unanswerable: "
         f"{_ci(recall['k'], recall['n'], recall['ci95_wilson'])} · {threshold} |",
@@ -174,8 +210,9 @@ def render_block(
         )
     hall = ans["hallucination_rate"]
     lines.append(
-        f"| Hallucination rate | {_fmt(hall['value'])} | ↓ better · answers with an "
-        f"unsupported claim / answered answerable questions: "
+        f"| Hallucination rate, answerable only | {_fmt(hall['value'])} | ↓ better · answers "
+        f"with an unsupported claim / answered answerable questions (an answer to an "
+        f"unanswerable question is outside it): "
         f"{_ci(hall['k'], hall['n_questions'], hall['ci95_wilson'])} |"
     )
     ooa = refu["out_of_scope_answered"]
@@ -204,7 +241,8 @@ def render_block(
         f"{_fmt_ms(lat['p99'])} | {latency_note} |"
     )
     lines.append(
-        f"| Cost / query | ${cost['per_query_usd']:.4f} | total {_usd(cost['total_usd'])} = "
+        f"| Cost / query | ${cost['per_query_usd']:.4f} | ${cost['per_query_usd']:.4f} agent only"
+        f" · {_per_query_with_judge(cost)} · total {_usd(cost['total_usd'])} = "
         f"agent {_usd(cost['agent_usd'])} + judge {_usd(cost['judge_usd'])} |"
     )
     lines.append("")
@@ -243,8 +281,9 @@ def render_block(
     return "\n".join(lines)
 
 
-def _require_v5(data: dict[str, Any]) -> None:
-    """The card reads the counts a v5 scorecard stores; an older one does not hold them."""
+def _require_schema(data: dict[str, Any]) -> None:
+    """The card reads the counts the current scorecard schema stores; an older one does
+    not hold them all."""
     if data.get("schema") != SCHEMA:
         raise SystemExit(f"the system card renders {SCHEMA} scorecards, not {data.get('schema')!r}")
 
@@ -262,7 +301,7 @@ def _ci_cells(k: int | None, n: int) -> str:
 
 
 def _performance_rows(data: dict[str, Any]) -> list[str]:
-    _require_v5(data)
+    _require_schema(data)
     refusal = data["refusal"]
     rows: list[str] = []
     for label, name in (
@@ -278,9 +317,14 @@ def _performance_rows(data: dict[str, Any]) -> list[str]:
     rows.append(
         f"| Out-of-scope answered ↓ | {_fmt(ooa_value)} | {_ci_cells(ooa['count'], ooa['total'])} |"
     )
+    invented = data["answer_quality"]["invented_answer_rate"]
+    rows.append(
+        f"| Invented answers, every answer shipped ↓ (judge) | {_fmt(invented['value'])} | "
+        f"{_ci_cells(invented['k'], invented['n_questions'])} |"
+    )
     hall = data["answer_quality"]["hallucination_rate"]
     rows.append(
-        f"| Hallucination rate ↓ (judge) | {_fmt(hall['value'])} | "
+        f"| Hallucination rate, answerable only ↓ (judge) | {_fmt(hall['value'])} | "
         f"{_ci_cells(hall['k'], hall['n_questions'])} |"
     )
     for label, name in (
@@ -308,6 +352,24 @@ def _against(measured: float | None, target: float, cause: str) -> str:
     if measured is None:
         return "not measured"
     return "met" if measured <= target else f"**SLO not met**: {cause}"
+
+
+def _against_proportion(k: int, n: int, target: float, cause: str) -> str:
+    """A rate meets its target only when its Wilson upper bound does: 0 errors in 56
+    requests is no violation observed, not a rate of 1 % or less. The test is one-sided
+    on purpose: a measured rate over target is a miss on the run of record whatever its
+    interval, as the latency SLO reads its measured p95."""
+    interval = wilson(k, n)
+    if interval is None:
+        return "not measured"
+    if k / n > target:
+        return f"**SLO not met**: {cause}"
+    if interval[1] > target:
+        seen = "no violation observed" if k == 0 else f"{k} of {n} within target"
+        return (
+            f"{seen}; n too small to conclude (95 % upper bound {interval[1]:.1%} > {target:.0%})"
+        )
+    return "met"
 
 
 def _run_latencies(data: dict[str, Any]) -> list[tuple[str, float]] | None:
@@ -417,8 +479,9 @@ def _slo_rows(data: dict[str, Any]) -> list[str]:
         f"| Error rate (requests answered with neither an answer nor a refusal) | "
         f"≤ {SLO_ERROR_RATE:.0%} ({approved}) | "
         f"{error_cell} | "
-        + _against(
-            error_rate,
+        + _against_proportion(
+            errored,
+            n,
             SLO_ERROR_RATE,
             f"{errored} of {n} requests errored; the scorecard does not record why",
         )
@@ -464,12 +527,23 @@ def render_key_result(
     *,
     readme_path: Path = DEFAULT_README,
     results_doc: Path = DEFAULT_RESULTS_DOC,
+    judge: str = "judge unvalidated",
 ) -> str:
-    """Return the README's key result: refusal recall and precision with their intervals."""
+    """Return the README's key result: invented answers over every answer shipped, then
+    refusal recall and precision, each with its interval."""
     prov, ds, refu = data["provenance"], data["dataset"], data["refusal"]
     recall, precision = refu["refusal_recall"], refu["refusal_precision"]
+    invented = data["answer_quality"]["invented_answer_rate"]
+    ids = ", ".join(f"`{i}`" for i in invented["example_ids"])
     stub = "stub" in prov["agent_model"] or "stub" in prov["judge_model"]
     lines = [
+        f"**Invented answers {invented['k']}/{invented['n_questions']}** "
+        f"(Wilson 95 % CI {_bracket(invented['ci95_wilson'])}): answers holding a claim the "
+        "judge finds unsupported by the retrieved passages, over every judged answer, "
+        f"answerable or not{f' ({ids})' if ids else ''}; {_judged_of_shipped(data)}. "
+        "Faithfulness to the passages; correctness against the reference answers is "
+        "graded apart in the results. "
+        f"{judge[0].upper()}{judge[1:]}.",
         f"**Refusal recall {_fmt(recall['value'])}**: "
         f"{recall['k']}/{recall['n']} unanswerable questions refused, Wilson 95 % CI "
         f"{_bracket(recall['ci95_wilson'])}, at refusal precision {_fmt(precision['value'])} "
@@ -560,18 +634,18 @@ def main(argv: list[str] | None = None) -> int:
     results = args.results_doc.read_text(encoding="utf-8")
     card = args.system_card.read_text(encoding="utf-8")
     # Render every file before writing any, so a missing marker leaves all as they were.
+    judge = judge_label(payload["provenance"]["judge_model"])
     rendered_results = render_results(
         results,
         render_block(
-            payload,
-            scorecard_path=args.scorecard,
-            doc_path=args.results_doc,
-            judge=judge_label(payload["provenance"]["judge_model"]),
+            payload, scorecard_path=args.scorecard, doc_path=args.results_doc, judge=judge
         ),
     )
     rendered_readme = replace_between(
         readme,
-        render_key_result(payload, readme_path=args.readme, results_doc=args.results_doc),
+        render_key_result(
+            payload, readme_path=args.readme, results_doc=args.results_doc, judge=judge
+        ),
         KEY_START,
         KEY_END,
     )

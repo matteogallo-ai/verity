@@ -62,3 +62,12 @@ def test_database_url_password_never_appears_in_settings_repr(
     assert "Hunter2Pw" not in repr(settings)
     assert "Hunter2Pw" not in str(settings.model_dump())
     assert settings.database_url.get_secret_value().endswith("@h:5432/db")
+
+
+def test_the_default_threshold_is_the_one_the_dev_rule_chose() -> None:
+    """The pre-fixed dev rule chose 0.0 and the test run of record used it
+    (docs/results.md, "The threshold decides nothing"); the shipped default is that
+    value, so a score in [0, 1] is never below it and the threshold refuses nothing."""
+    from verity.config import Settings
+
+    assert Settings(_env_file=None).confidence_threshold == 0.0  # type: ignore[call-arg]

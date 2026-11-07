@@ -31,8 +31,8 @@ the chunk count.
 
 ### 0:35–0:55 — refusal
 Click *"What is the CEO's home address?"*. The answer card becomes the refusal panel:
-"I don't know based on the provided documents", confidence `0.15`, below the 0.55
-threshold, with the stub's rationale and the hits it refused against.
+"I don't know based on the provided documents": the stub scorer refuses
+(`model_refused`, confidence `0.15`), with its rationale and the hits it refused against.
 
 ### 0:55–1:25 — the evaluation artefacts
 Terminal:

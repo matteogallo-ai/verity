@@ -1,0 +1,202 @@
+{
+  "budget_usd": 0.45,
+  "cost_usd": 0.108692,
+  "created_at": "2026-11-07T11:23:17.641335+00:00",
+  "dataset": "datasets/eval/test.jsonl",
+  "dataset_sha256": "94b8d5db3bbc1eedf2945e066ac50bc64226f53c9062bfe4bd1c0f371e1e19c4",
+  "incomplete_reason": null,
+  "judge_model": "claude-opus-5-5",
+  "n_to_grade": 31,
+  "prompt_sha256": "513794c180e37f42b7c4da5387ae9a2c67d8e02e41f0fd8ffd8d7c719ee52868",
+  "run_artefact": "datasets/eval/runs/live/eval_969e1d5_test.json",
+  "run_artefact_sha256": "afcf11ef4504344b4fb163787063c2c22eba7253e2dbc111ce5828490b28ba44",
+  "schema": "verity.correctness/v1",
+  "verdicts": [
+    {
+      "cost_usd": 0.003924,
+      "example_id": "q-003",
+      "reason": "The answer gives FY2024 revenue of $482.0 million and an 18.4% increase from $407.1 million, both matching the reference; the segment breakdown is extra detail that does not contradict it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00368,
+      "example_id": "q-005",
+      "reason": "The answer states that assignment to a competitor of the non-assigning party is not permitted without prior written consent, which matches the reference; the merger exception is extra detail that does not contradict it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.0033,
+      "example_id": "q-007",
+      "reason": "The answer gives both the 99.9% monthly uptime commitment and the 50% service credit for uptime below 95.0%, matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003636,
+      "example_id": "q-008",
+      "reason": "The answer gives both storage locations, Frankfurt and Virginia, and names Standard Contractual Clauses as the EU-to-US transfer mechanism, all matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003392,
+      "example_id": "q-010",
+      "reason": "The answer gives the one-hour standard Priority 1 response time and the 30-minute 24/7 Premium Support response time, both matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003216,
+      "example_id": "q-013",
+      "reason": "The answer matches the reference on both asked facts: scheduled maintenance does not count against uptime, and at least 48 hours' notice is given.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002848,
+      "example_id": "q-020",
+      "reason": "The answer states 250 named user seats at US$42.00 per seat per month, which matches the reference exactly.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003088,
+      "example_id": "q-024",
+      "reason": "The answer says no, and it matches the reference: reductions happen only at annual renewal and never go below 200 seats during the term.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002948,
+      "example_id": "q-028",
+      "reason": "The answer states that New York law governs the NDA and Delaware law governs the MSA, which matches the reference exactly.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003172,
+      "example_id": "q-029",
+      "reason": "The answer states the US$85,000 fixed fee and the second milestone as 40%, US$34,000, both matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003912,
+      "example_id": "q-032",
+      "reason": "The answer says no and states that using Customer Data, including AI prompts and outputs, to train or fine-tune models is prohibited, which matches the reference; omitting the Amendment No. 1 citation leaves no asked fact missing.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00344,
+      "example_id": "q-033",
+      "reason": "The answer gives the limit of 1,000 API requests per minute per tenant and HTTP 429 for excess requests, which matches the reference; the extra details do not contradict it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.007,
+      "example_id": "q-034",
+      "reason": "The answer gives the same condition as the reference, an immediate threat to the security or availability of the service; the omitted 24-hour notice for other cases is not what the question asks, and the added restoration detail does not contradict the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00292,
+      "example_id": "q-036",
+      "reason": "The answer gives both conditions from the reference: a flight scheduled at more than six hours and approval from a Vice President.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002952,
+      "example_id": "q-037",
+      "reason": "The answer gives the $155 total with the same $40/$75/$40 breakdown as the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003588,
+      "example_id": "q-043",
+      "reason": "Both timeframes match the reference: one hour for employees to report a suspected incident and 72 hours from discovery for Acme to notify the customer of a confirmed breach.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00316,
+      "example_id": "q-044",
+      "reason": "The answer lists all four classification levels named in the reference (Public, Internal, Confidential, Restricted), and its extra detail does not contradict the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003852,
+      "example_id": "q-045",
+      "reason": "The answer gives 10 days of paid sick leave per calendar year, matching the reference; the carryover rule is extra detail the question does not ask for.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003456,
+      "example_id": "q-046",
+      "reason": "The answer matches the reference on eligibility (5 years of continuous employment), duration (4 weeks) and the 3-month advance request, and the added manager approval does not contradict it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003,
+      "example_id": "q-047",
+      "reason": "The answer states that up to 5 unused PTO days carry over and that sick days do not, which matches the reference on both asked facts.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003408,
+      "example_id": "q-048",
+      "reason": "The answer gives both the one-time US$500 home office stipend and the US$50 monthly internet allowance, matching the reference; the equipment details are extra and do not contradict it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002644,
+      "example_id": "q-049",
+      "reason": "The answer says no, and that fully remote work is not available during probation, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00346,
+      "example_id": "q-050",
+      "reason": "The answer gives the US$100 per person per year limit and the exclusion of cash or cash equivalents, both matching the reference; the added detail about declining or reporting does not contradict it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003216,
+      "example_id": "q-053",
+      "reason": "The answer states revenue of $128.9 million and 17.2% year-over-year growth from $110.0 million, which matches the reference exactly.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003244,
+      "example_id": "q-056",
+      "reason": "The answer gives the $268M budget and the 12% increase over $239M, both matching the reference, and the added $29M difference is consistent with those figures.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003612,
+      "example_id": "q-058",
+      "reason": "The answer gives both asked facts as the reference states them: Dana Whitfield became CFO effective April 1, 2025, succeeding Robert Lang. The extra retirement detail does not contradict the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00316,
+      "example_id": "q-059",
+      "reason": "The answer says no dividend was declared for FY2025 and gives the same reason, preserving flexibility for acquisitions, so it matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.006036,
+      "example_id": "q-062",
+      "reason": "The answer gives at least three written quotes, matching the reference; omitting the sole-supplier exception does not change the number asked for.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00286,
+      "example_id": "q-064",
+      "reason": "The answer states that splitting purchases to avoid approval thresholds is prohibited, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002908,
+      "example_id": "q-066",
+      "reason": "The answer gives approximately 67% ($86.4M of $128.9M), which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00366,
+      "example_id": "q-092",
+      "reason": "The answer says no and states that assigning to a competitor of the non-assigning party requires prior written consent, which matches the reference; the merger exception detail is extra and does not contradict it.",
+      "verdict": "correct"
+    }
+  ]
+}

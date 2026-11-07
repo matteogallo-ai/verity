@@ -12,9 +12,10 @@ is in the generated block; the prose around it quotes none.
 
 A retrieval-augmented question-answering agent over one team's documents. A question
 is decomposed, answered from hybrid-retrieved passages with verbatim quotes, checked
-deterministically (citation coverage, cited relevance, injection markers), then scored
-by a model; below the threshold, or when any check fails, it answers "I don't know
-based on the provided documents" with the reason. Surfaces: the `verity` CLI, an HTTP
+deterministically (citation coverage, injection markers; cited relevance only when
+`VERITY_IRRELEVANT_CITATION_CHECK` is set), then scored by a model; when a check fails
+or the scorer refuses, it answers "I don't know based on the provided documents" with
+the reason. The score threshold defaults to 0 and refuses nothing. Surfaces: the `verity` CLI, an HTTP
 API (`/ask`, `/ingest`, `/status`) and a Next.js UI. Each shipped capability is a
 `shipped` row of [`CLAIMS.md`](CLAIMS.md) with the tests that prove it.
 
@@ -46,8 +47,8 @@ API (`/ask`, `/ingest`, `/status`) and a Next.js UI. Each shipped capability is 
 
 | Artefact | Content | Licence / terms |
 |---|---|---|
-| `datasets/corpus/` | 21 documents of a fictional company, "Acme Corporation", in contracts, HR and finance (Markdown, PDF, DOCX; the PDF and DOCX files are rendered from `datasets/corpus_src/`), one of them, `vendor_onboarding_note.md`, adversarial with injected instructions; see [`CORPUS.md`](../datasets/CORPUS.md) | MIT, written for the repository |
-| `datasets/eval/questions.jsonl` | 95 labelled questions: 62 answerable, 33 out-of-scope; gold chunk ids for every answerable one; split by a fixed seed into `dev.jsonl` (39) and `test.jsonl` (56) | MIT, with the repository |
+| `datasets/corpus/` | 21 documents of a fictional company, "Acme Corporation", in contracts, HR and finance (Markdown, PDF, DOCX; the PDF and DOCX files are rendered from `datasets/corpus_src/`), one of them, `vendor_onboarding_note.md`, adversarial with injected instructions; see [`CORPUS.md`](../datasets/CORPUS.md) | MIT, written for the repository, 16 of 21 documents with Claude Opus 5.5, the judge's model family ([origin](../datasets/CORPUS.md)) |
+| `datasets/eval/questions.jsonl` | 95 labelled questions: 62 answerable, 33 out-of-scope; gold chunk ids for every answerable one; split by a fixed seed into `dev.jsonl` (39) and `test.jsonl` (56) | MIT, written like the corpus |
 | Runs of record | `datasets/eval/runs/live/eval_6ec544d_dev.json` (dev split, where the thresholds were tuned) and `eval_969e1d5_test.json` (test split, the scorecard below); both used synthesize.prompt v0.2.0 and judge prompt v0.1.0, so they predate the datamarked evidence of synthesize.prompt v0.3.0 | MIT, with the repository |
 | Embedding model | `BAAI/bge-small-en-v1.5`, 384 dimensions, run locally | MIT (its model card) |
 | Reranker | `cross-encoder/ms-marco-MiniLM-L-6-v2`, run locally | stated on its model card; not vendored here |
@@ -74,7 +75,8 @@ Source: [`scorecards/live-v1.1.0.json`](../scorecards/live-v1.1.0.json) · commi
 | Refusal recall | 0.850 | 17/20 | [0.640, 0.948] |
 | Refusal precision | 0.773 | 17/22 | [0.566, 0.899] |
 | Out-of-scope answered ↓ | 0.150 | 3/20 | [0.052, 0.360] |
-| Hallucination rate ↓ (judge) | 0.000 | 0/31 | [0.000, 0.110] |
+| Invented answers, every answer shipped ↓ (judge) | 0.029 | 1/34 | [0.005, 0.149] |
+| Hallucination rate, answerable only ↓ (judge) | 0.000 | 0/31 | [0.000, 0.110] |
 | Faithfulness per claim (judge) | 0.991 | 108/109 | [0.950, 0.998] |
 | Citation accuracy per claim (judge) | 0.963 | 105/109 | [0.909, 0.986] |
 | Retrieval nDCG@8, per-question mean | 0.929 | n=36 | no interval |
@@ -84,7 +86,7 @@ Source: [`scorecards/live-v1.1.0.json`](../scorecards/live-v1.1.0.json) · commi
 |---|---|---|---|
 | p95 latency of one answer, cold start included | ≤ 15,000 ms (approved) | not measured as one sample: the first answer after boot, timed apart, took 8460.1 ms | not measured |
 | p95 latency of one answer, warm (cold start excluded) | ≤ 15,000 ms (approved) | 8949.3 ms (n=56, after one warmup answer) | met |
-| Error rate (requests answered with neither an answer nor a refusal) | ≤ 1% (approved) | 0.000 (0/56, 95 % CI [0.000, 0.064]) | met |
+| Error rate (requests answered with neither an answer nor a refusal) | ≤ 1% (approved) | 0.000 (0/56, 95 % CI [0.000, 0.064]) | no violation observed; n too small to conclude (95 % upper bound 6.4% > 1%) |
 | Cost per answer (agent calls; the judge is eval-only) | ≤ $0.02 (approved) | $0.0132 (mean, n=56) | met |
 <!-- SYSTEM-CARD:END -->
 
