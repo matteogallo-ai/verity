@@ -163,7 +163,8 @@ def build_headline_dict_from_eval_run(
 
     # An errored example has no audit record, and neither has one a spending cap
     # stopped the run before: only a budget stop leaves questions unrun. Runs recorded
-    # before errors were listed count every missing record as errored.
+    # before errors were listed count every missing record as errored; a budget-stopped
+    # run from that time would show its errors as unrun (the harness lists them).
     n_missing = sc.n_examples - n_audited
     n_errored = (
         len(sc.errored_example_ids)

@@ -288,7 +288,8 @@ def render_adjudicated_block(result: dict[str, Any], blind: dict[str, Any]) -> s
 
 
 def render_v2_block(result: dict[str, Any], blind: dict[str, Any]) -> str:
-    """The rejudge with the current judge prompt, beside the κ of the runs of record."""
+    """The rejudge with the current judge prompt, the judge of the run of record, beside
+    the κ of prompt v0.1.0 that judged the earlier runs."""
     s, old = result["sensitivity"], result["v010_on_the_same_claims"]
     so = old["sensitivity"]
     mixed, real = result["agreement_mixed"], result["agreement_real_only"]
@@ -317,11 +318,12 @@ def render_v2_block(result: dict[str, Any], blind: dict[str, Any]) -> str:
         f"Rejudged against the same blind labels, for ${result['cost_usd']:.4f}, on "
         f"{scope}. Every claim, real or perturbed, is judged as a one-claim "
         "answer; v0.1.0 used the live whole-answer verdict for the real claims, so a change "
-        "on real claims mixes the prompt and the protocol. The runs of record were judged by "
-        "v0.1.0: their answer-quality figures carry the v0.1.0 κ above.",
+        "on real claims mixes the prompt and the protocol. The run of record (`513b839` test) "
+        "was judged by v0.2.0 and its answer-quality figures carry the v0.2.0 κ below; the "
+        "earlier runs (`6ec544d` dev, `969e1d5` test) were judged by v0.1.0.",
         "",
-        f"| Measure, on the {mixed['n_claims']} claims v0.2.0 judged | v0.1.0 (runs of record) "
-        "| v0.2.0 |",
+        f"| Measure, on the {mixed['n_claims']} claims v0.2.0 judged | v0.1.0 (earlier runs) "
+        "| v0.2.0 (run of record) |",
         "|---|---|---|",
         f"| Cohen's κ, all claims | {kappa(old['agreement_mixed'])} | {kappa(mixed)} |",
         f"| Observed agreement | {_ci(old['agreement_mixed']['observed'])} | "
@@ -333,8 +335,8 @@ def render_v2_block(result: dict[str, Any], blind: dict[str, Any]) -> str:
         f"| Sensitivity on perturbed claims (upper bound) | {_ci(so['judge_detected'])} | "
         f"{_ci(s['judge_detected'])} |",
         "",
-        f"On all 60 claims v0.1.0 has κ {kappa(blind['agreement_mixed'])}, the figure of "
-        "record above.",
+        f"On all 60 claims v0.1.0 has κ {kappa(blind['agreement_mixed'])}, the figure the "
+        "earlier runs carry (above).",
         "",
         f"The judge named a valid citation it found supporting for {named['k']} of the "
         f"{named['n']} claims it returned. The blind labels judge support only, so this "

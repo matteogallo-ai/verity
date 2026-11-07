@@ -818,3 +818,12 @@ def test_the_system_card_counts_only_the_questions_an_incomplete_run_asked() -> 
         payload, scorecard_path=REPO_ROOT / "scorecards/live-v1.1.0.json"
     )
     assert "n=54 of 56 asked (36 answerable + 18 out-of-scope)" in block
+    table = generator.render_block(payload)
+    assert "n=54 of 56 asked (36 answerable + 18 unanswerable)" in table
+
+
+def test_an_incomplete_run_without_unrun_questions_does_not_blame_the_spending_cap() -> None:
+    generator = _load_generator()
+    payload = json.loads((REPO_ROOT / "scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
+    payload["sample_sizes"] = {**payload["sample_sizes"], "n_not_run": 0, "n_errored": 2}
+    assert generator._completed(payload) == "n = 54 of 56 completed (2 errored)"
