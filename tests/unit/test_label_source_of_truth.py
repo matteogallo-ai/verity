@@ -90,6 +90,7 @@ class TestConsoleJsonLabelInvariant:
         assert set(payload["sample_sizes"]) == {
             "n_examples",
             "n_errored",
+            "n_not_run",
             "n_answered",
             "n_judged",
             "n_judged_without_claims",
