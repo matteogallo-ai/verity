@@ -2,7 +2,16 @@
 
 21 documents of a fictional company, Acme Corporation, in three domains. Every document
 was written for this repository and is released under the repository's MIT licence; no
-third-party text is included, so there is no licence to check beyond that one. People
+third-party text is included, so there is no licence to check beyond that one.
+
+**Origin.** The documents and the eval questions were written with a coding agent running Claude Opus 5.5: the commits that added them (`64bdc8a` corpus, `74f3c9f` questions, 13 s apart) carry its `Co-Authored-By` trailer. That is the model family of the judge (`claude-opus-5-5`) and of the agent (`claude-sonnet-4-6`). The trailer shows the model took part, not how much of the text it wrote.
+
+- Scope: every measured figure in this repository is on this corpus, about 5,500 words.
+- Known limit: a judge of the same family as the author of the text may prefer its
+  style, and the questions were written by the author of the system. Neither effect is
+  measured here.
+- Next step: a public corpus with questions written by a third party (roadmap C34 for
+  the judge). People
 and companies named in them (Northwind Logistics, Maria Chen, Dana Whitfield, ...) are
 invented.
 

@@ -1,7 +1,9 @@
 # Evaluation dataset
 
 - `questions.jsonl`: 95 labeled questions over the 21 documents in `datasets/corpus/`
-  (see `datasets/CORPUS.md`): 59 answerable, 27 unanswerable, 9 adversarial.
+  (see `datasets/CORPUS.md`): 62 answerable, 33 unanswerable, 9 tagged adversarial
+  (6 of them unanswerable). Written with Claude Opus 5.5, the judge's model family:
+  origin and its limits in `datasets/CORPUS.md`.
 - `dev.jsonl` / `test.jsonl`: the frozen stratified split (39 / 56, seed in
   `scripts/split_dataset.py`). Tune on dev, publish on test.
 

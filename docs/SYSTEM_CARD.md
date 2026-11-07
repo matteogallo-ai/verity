@@ -46,8 +46,8 @@ API (`/ask`, `/ingest`, `/status`) and a Next.js UI. Each shipped capability is 
 
 | Artefact | Content | Licence / terms |
 |---|---|---|
-| `datasets/corpus/` | 21 documents of a fictional company, "Acme Corporation", in contracts, HR and finance (Markdown, PDF, DOCX; the PDF and DOCX files are rendered from `datasets/corpus_src/`), one of them, `vendor_onboarding_note.md`, adversarial with injected instructions; see [`CORPUS.md`](../datasets/CORPUS.md) | MIT, written for the repository |
-| `datasets/eval/questions.jsonl` | 95 labelled questions: 62 answerable, 33 out-of-scope; gold chunk ids for every answerable one; split by a fixed seed into `dev.jsonl` (39) and `test.jsonl` (56) | MIT, with the repository |
+| `datasets/corpus/` | 21 documents of a fictional company, "Acme Corporation", in contracts, HR and finance (Markdown, PDF, DOCX; the PDF and DOCX files are rendered from `datasets/corpus_src/`), one of them, `vendor_onboarding_note.md`, adversarial with injected instructions; see [`CORPUS.md`](../datasets/CORPUS.md) | MIT, written for the repository with Claude Opus 5.5, the judge's model family ([origin](../datasets/CORPUS.md)) |
+| `datasets/eval/questions.jsonl` | 95 labelled questions: 62 answerable, 33 out-of-scope; gold chunk ids for every answerable one; split by a fixed seed into `dev.jsonl` (39) and `test.jsonl` (56) | MIT, written like the corpus |
 | Runs of record | `datasets/eval/runs/live/eval_6ec544d_dev.json` (dev split, where the thresholds were tuned) and `eval_969e1d5_test.json` (test split, the scorecard below); both used synthesize.prompt v0.2.0 and judge prompt v0.1.0, so they predate the datamarked evidence of synthesize.prompt v0.3.0 | MIT, with the repository |
 | Embedding model | `BAAI/bge-small-en-v1.5`, 384 dimensions, run locally | MIT (its model card) |
 | Reranker | `cross-encoder/ms-marco-MiniLM-L-6-v2`, run locally | stated on its model card; not vendored here |
