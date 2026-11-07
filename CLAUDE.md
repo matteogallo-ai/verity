@@ -6,7 +6,7 @@ the full standard, `docs/CLAIMS.md` the list of what the README promises.
 ## What Verity is
 
 1. A RAG agent over enterprise documents: decompose → hybrid retrieve → cited synthesis → confidence score.
-2. It refuses ("I don't know") when the scorer refuses or its score is below `confidence_threshold`.
+2. It refuses ("I don't know") when a deterministic check fails or the scorer refuses; `confidence_threshold` defaults to 0 and so refuses nothing.
 3. Every citation quote is a verbatim substring of its source document; others are dropped.
 4. An eval harness measures retrieval, refusal and LLM-judged answer quality; one live run is the published artefact.
 5. Surfaces: `verity` CLI, FastAPI app (`verity serve`), Next.js UI in `web/`. Python 3.12, uv.

@@ -30,7 +30,9 @@ Every published number traceable to the run artefact that produced it.
 Enterprise RAG demos answer confidently and are wrong just often enough to be
 dangerous. Verity drafts an answer, checks deterministically that its citations cover
 and match it, asks a scorer model how well the evidence supports it, and refuses when
-a check fails, the scorer refuses, or the score is below a threshold.
+a check fails or the scorer refuses. A score threshold exists but is 0 by default, so
+it refuses nothing; the cited-relevance check is off by default (it made more wrong
+refusals than right ones on dev, [measured](docs/results.md#refusal-checks-one-at-a-time)).
 
 ## Key result
 

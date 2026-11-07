@@ -12,9 +12,10 @@ is in the generated block; the prose around it quotes none.
 
 A retrieval-augmented question-answering agent over one team's documents. A question
 is decomposed, answered from hybrid-retrieved passages with verbatim quotes, checked
-deterministically (citation coverage, cited relevance, injection markers), then scored
-by a model; below the threshold, or when any check fails, it answers "I don't know
-based on the provided documents" with the reason. Surfaces: the `verity` CLI, an HTTP
+deterministically (citation coverage, injection markers; cited relevance only when
+`VERITY_IRRELEVANT_CITATION_CHECK` is set), then scored by a model; when a check fails
+or the scorer refuses, it answers "I don't know based on the provided documents" with
+the reason. The score threshold defaults to 0 and refuses nothing. Surfaces: the `verity` CLI, an HTTP
 API (`/ask`, `/ingest`, `/status`) and a Next.js UI. Each shipped capability is a
 `shipped` row of [`CLAIMS.md`](CLAIMS.md) with the tests that prove it.
 
