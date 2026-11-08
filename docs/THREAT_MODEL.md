@@ -28,7 +28,7 @@ equal ([ADR 0006](adr/0006-api-security-baseline.md)). The parties:
 | Item | Applies | Status |
 |---|---|---|
 | [LLM08 Vector and embedding weaknesses](#llm08-vector-and-embedding-weaknesses) | yes | partial: write access gated, no read isolation |
-| [LLM01 Prompt injection](#llm01-prompt-injection) | yes | partial: serving path and judge prompt v0.2.0 tested; the runs of record were judged by the undefended v0.1.0 |
+| [LLM01 Prompt injection](#llm01-prompt-injection) | yes | partial: serving path and judge prompt v0.2.0 tested; the earlier runs behind the threshold and calibration figures were judged by the undefended v0.1.0 |
 | [LLM02 Sensitive information disclosure](#llm02-sensitive-information-disclosure) | yes | partial |
 | [LLM03 Supply chain](#llm03-supply-chain) | yes | partial: lockfiles scanned in CI; base image and run-time models not |
 | [LLM04 Data and model poisoning](#llm04-data-and-model-poisoning) | data: yes; model: no | partial |
@@ -157,8 +157,10 @@ and `tests/unit/test_judge_injection.py`.
   (no attack succeeded in either arm); the scorer reads unmarked evidence.
 - The thresholds and the marker list were chosen on the same eval questions they are
   checked on.
-- **The runs of record were judged by an undefended prompt (LLM01 on the evaluator).**
-  Their answer-quality figures come from `prompts/judge_faithfulness.prompt` v0.1.0
+- **The earlier runs were judged by an undefended prompt (LLM01 on the evaluator).**
+  The run of record (`513b839` test) was judged by v0.2.0. The answer-quality figures
+  of the earlier runs (`6ec544d` dev, `969e1d5` test), on which the threshold and the
+  calibration figures rest, come from `prompts/judge_faithfulness.prompt` v0.1.0
   (sha256 `2c5f8eca49ba…`, kept in `datasets/eval/judge_validation/`), which placed the
   retrieved context, the answer and the citations under plain headings, with no
   delimiters, no escaping and no untrusted-content instruction.
@@ -172,13 +174,13 @@ and `tests/unit/test_judge_injection.py`.
     in `<evidence>`, `<answer>` and `<citations>` blocks whose tags are neutralised
     inside them, datamarks the evidence as the synthesis prompt does, and says the
     content is untrusted. It is a new judge: its κ against the same blind labels is
-    published apart in `docs/results.md`, and the runs of record keep the v0.1.0 one.
+    published apart in `docs/results.md`, and the earlier runs keep the v0.1.0 one.
   - *Not covered.* No adversarial eval of the judge exists: the judge validation
     measures agreement on claims that rarely had the injected note in the judge's
-    context, so the robustness of either prompt to injection is not measured. No run
-    of record has been judged by v0.2.0. The citation quotes in `<citations>` are
-    neutralised but not datamarked: they are verbatim document text, so an injected
-    sentence a draft quotes reaches the judge unmarked inside that block.
+    context, so the robustness of either prompt to injection is not measured. The
+    citation quotes in `<citations>` are neutralised but not datamarked: they are
+    verbatim document text, so an injected sentence a draft quotes reaches the judge
+    unmarked inside that block.
 
 ## LLM02 Sensitive information disclosure
 

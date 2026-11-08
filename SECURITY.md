@@ -99,9 +99,10 @@ deployment:
 - Every key holder reads every document, and can add one that every other client then
   retrieves, persistently on pgvector; no upload is logged with its key (LLM08, LLM04).
 - An injection paraphrased past the marker list, or a false fact stated plainly in a
-  relevant document, is not stopped (LLM01, LLM09). The published answer-quality
-  figures were judged by eval judge prompt v0.1.0, which has no untrusted-content
-  delimiters; v0.2.0 has them (LLM01).
+  relevant document, is not stopped (LLM01, LLM09). The run of record was judged
+  by eval judge prompt v0.2.0, which delimits its untrusted inputs; the earlier runs
+  behind the threshold and calibration figures were judged by v0.1.0, which does not
+  (LLM01).
 - Questions and retrieved passages go to the LLM provider (LLM02).
 - The `/ask` spending budget is per process and resets on restart, and failed attempts
   a provider bills are not counted (LLM10). The dependency scan misses advisories not
