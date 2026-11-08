@@ -144,6 +144,19 @@ def judge_label(judge_model: str, judge_prompt_sha: str, validation_dir: Path = 
     return "judge unvalidated"
 
 
+def _completed(data: dict[str, Any]) -> str:
+    """``n = 56``, or how many a run cut short (spending cap, outage) completed."""
+    n, sizes = data["dataset"]["n_questions"], data["sample_sizes"]
+    missing = sizes.get("n_errored", 0) + sizes.get("n_not_run", 0)
+    if not missing:
+        return f"n = {n}"
+    not_run, errored = sizes.get("n_not_run", 0), sizes.get("n_errored", 0)
+    cause = f"{errored} errored"
+    if not_run:
+        cause = f"{not_run} not run, stopped by the run's spending cap; {cause}"
+    return f"n = {n - missing} of {n} completed ({cause})"
+
+
 def _judged_of_shipped(data: dict[str, Any]) -> str:
     sizes = data["sample_sizes"]
     judged, answered = sizes["n_judged"], sizes["n_answered"]
@@ -200,9 +213,10 @@ def render_block(
         f"`judge={prov['judge_model']}` · "
         f"`embedding={prov['embedding_model']}` · "
         f"commit `{prov['run_sha']}` · {date} · dataset `{ds['name']}` · "
-        f"n={ds['n_questions']} ({ds['n_answerable']} answerable + "
+        f"{_n_of_asked(data)} ({ds['n_answerable']} answerable + "
         f"{ds['n_unanswerable']} unanswerable) · "
-        f"**{sizes['n_errored']} errored** (kept out of every metric) · "
+        f"**{sizes['n_errored']} errored, {sizes.get('n_not_run', 0)} not run** (kept out of "
+        "every metric) · "
         f"total cost **{_usd(cost['total_usd'])}**",
         "",
         "| Metric | Value | Notes |",
@@ -426,13 +440,23 @@ def _p95_cause(over: list[tuple[str, float]], first: str | None) -> str:
     return f"answers over {SLO_P95_LATENCY_MS:,.0f} ms: {named}{tail}"
 
 
+def _n_asked(data: dict[str, Any]) -> int:
+    # Questions the eval's own spending cap left unrun were never requested.
+    return int(data["dataset"]["n_questions"]) - int(data["sample_sizes"].get("n_not_run", 0))
+
+
+def _n_of_asked(data: dict[str, Any]) -> str:
+    n, asked = int(data["dataset"]["n_questions"]), _n_asked(data)
+    return f"n={n}" if asked == n else f"n={asked} of {n} asked"
+
+
 def _latency_slo_rows(data: dict[str, Any], approved: str) -> list[str]:
     """p95 cold start included and warm, as separate rows. From the run artefact when it
     is committed (it must reproduce the scorecard p95); otherwise from the scorecard,
     whose single p95 is warm only if the run had a warmup."""
     target = f"≤ {SLO_P95_LATENCY_MS:,.0f} ms ({approved})"
     latency = data["latency_ms"]
-    n = data["dataset"]["n_questions"]
+    n = _n_asked(data)
     p95 = float(latency["p95"])
     cold_start = latency.get("cold_start")
     answers = _run_latencies(data)
@@ -487,7 +511,7 @@ def _latency_slo_rows(data: dict[str, Any], approved: str) -> list[str]:
 
 
 def _slo_rows(data: dict[str, Any]) -> list[str]:
-    n = data["dataset"]["n_questions"]
+    n = _n_asked(data)
     errored = int(data["sample_sizes"]["n_errored"])
     error_rate = errored / n if n else None
     count, interval = _count_and_interval(errored, n)
@@ -528,7 +552,7 @@ def render_system_card_block(
     lines = [
         f"Source: [`{source}`]({link}) · commit `{prov['run_sha']}` · "
         f"{_short_date(str(data['generated_at']))} · agent `{prov['agent_model']}` · "
-        f"judge `{prov['judge_model']}` · n={ds['n_questions']} "
+        f"judge `{prov['judge_model']}` · {_n_of_asked(data)} "
         f"({ds['n_answerable']} answerable + {ds['n_unanswerable']} out-of-scope).",
         "",
         "| Metric | Value | k/n | 95 % CI (Wilson) |",
@@ -568,7 +592,7 @@ def render_key_result(
         f"{recall['k']}/{recall['n']} unanswerable questions refused, Wilson 95 % CI "
         f"{_bracket(recall['ci95_wilson'])}, at refusal precision {_fmt(precision['value'])} "
         f"({precision['k']}/{precision['n']}, CI {_bracket(precision['ci95_wilson'])}).",
-        f"One live run on the {_split_label(ds['name'])}, n = {ds['n_questions']}, "
+        f"One live run on the {_split_label(ds['name'])}, {_completed(data)}, "
         f"agent `{prov['agent_model'].split()[0]}`, commit `{prov['run_sha']}`. "
         f"Every metric, the judge's validation and the limits: "
         f"[`docs/results.md`]({_link(results_doc, readme_path)}).",

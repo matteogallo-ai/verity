@@ -6,7 +6,25 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-11-07
+
 ### Added
+
+- Invented answers (`answer_quality.invented_answer_rate`): judged answers with a claim
+  the judge finds unsupported, or no usable claim, over every judged answer, answerable or
+  not. It is the README key result; the answerable-only hallucination rate stays next to it.
+- Correctness against `reference_answer`, graded apart from faithfulness
+  (`scripts/judge_correctness.py`, `scorecards/correctness.json`).
+- κ bootstrap interval of the judge (`scripts/judge_agreement.py kappa-ci`), refusal
+  recall per tag (`scripts/refusal_by_tag.py`), exact McNemar on paired runs
+  (`verity.eval.paired`).
+- Replay of the refusal checks one at a time on the committed runs, with no model call
+  (`scripts/gate_ablation.py`, `scorecards/gate-ablation.json`).
+- Pre-registered comparison of Verity against a naive RAG baseline on the 95 questions
+  (`docs/preregistration/two-arm-comparison.md`, `scripts/compare_two_arm.py`,
+  `scorecards/two-arm-comparison.json`): exact McNemar, Holm over three outcomes, power
+  computed before the runs.
+- Scorecard schema v6: `sample_sizes.n_not_run`, `cost.per_query_with_judge_usd`.
 
 - The synthesizer reads retrieved text datamarked (spotlighting, arXiv:2403.14720):
   every run of whitespace, invisible format characters or blank look-alikes between
@@ -83,6 +101,16 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The run of record is `eval_513b839_test.incomplete-20261107T122042441670Z.json`:
+  shipped defaults, `synthesize.prompt` v0.3.0, judge prompt v0.2.0, 54 of 56 questions
+  before its spending cap (`scorecards/live-v1.1.0.json`).
+- `VERITY_IRRELEVANT_CITATION_CHECK` defaults to false: on dev it made more wrong
+  refusals than right ones. `VERITY_CONFIDENCE_THRESHOLD` defaults to 0.0.
+- The judge is labelled by its prompt's own validation: prompt v0.2.0 with κ 0.60 on 52
+  of 60 claims, v0.1.0 with its bootstrap interval, any other prompt as unvalidated.
+- An SLO counts as met only when its Wilson upper bound is.
+- `SECURITY.md` names one reporting channel, GitHub private vulnerability reporting.
+
 - No sampling parameter is sent to any model: API version 2026-10-21 rejects
   `temperature`, and the Anthropic SDK moved to 2.x. Reproducibility of the published
   numbers rests on the committed artefacts (ADR 0007), not on sampling.
@@ -102,6 +130,13 @@ follows [Semantic Versioning](https://semver.org/).
   audit of `main` and what became of each: `docs/audit/2026-11-03-neutral-audit.md`.
 
 ### Fixed
+
+- Questions a spending cap left unrun were counted as request errors, and the cost per
+  query divided by every question of the dataset; they are now `n_not_run`, outside the
+  error count and the cost denominator.
+- A defect inside a retrieval stage was reported as "store down" (503); it now
+  propagates, the agent types it `internal_error` and the API answers 500, still
+  charging what the request paid for.
 
 - Database connection errors are logged without the Postgres password.
 - The Docker image bakes in the docling models, and the smoke test uploads a PDF; one
@@ -152,6 +187,9 @@ follows [Semantic Versioning](https://semver.org/).
 - `VERITY_DATABASE_URL` is held as a secret and no longer appears in printed settings.
 
 ### Security
+
+- Container images are pinned by digest and tracked by Dependabot (Docker and Compose
+  ecosystems); no workflow checkout persists its token.
 
 - `/status` requires `X-API-Key`: it lists every corpus file name and the models in use.
   `/health` and `/ready` remain the public probes. The CI smoke script sends the key.

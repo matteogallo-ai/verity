@@ -30,7 +30,14 @@ from verity.eval.run_store import load_run
 from verity.types import PerExampleAudit
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-RUN = REPO_ROOT / "datasets" / "eval" / "runs" / "live" / "eval_969e1d5_test.json"
+RUN = (
+    REPO_ROOT
+    / "datasets"
+    / "eval"
+    / "runs"
+    / "live"
+    / "eval_513b839_test.incomplete-20261107T122042441670Z.json"
+)
 DATASET = REPO_ROOT / "datasets" / "eval" / "test.jsonl"
 OUT = REPO_ROOT / "scorecards" / "refusal-by-tag.json"
 DOC = REPO_ROOT / "docs" / "results.md"

@@ -39,7 +39,7 @@ from verity.eval.answer_quality import Ratio, answer_quality
 from verity.eval.harness import HarnessResult
 from verity.eval.intervals import wilson
 from verity.eval.refusal import RefusalOutcome, build_confusion
-from verity.types import EvalRun, PerExampleAudit, UsageStats
+from verity.types import EvalRun, IncompleteReason, PerExampleAudit, UsageStats
 
 
 def _summarize_stamps(models: Sequence[str | None], *, total_examples: int) -> str:
@@ -161,6 +161,17 @@ def build_headline_dict_from_eval_run(
             "output": sum(u.output_tokens for u in usages),
         }
 
+    # An errored example has no audit record, and neither has one a spending cap
+    # stopped the run before: only a budget stop leaves questions unrun. Runs recorded
+    # before errors were listed count every missing record as errored; a budget-stopped
+    # run from that time would show its errors as unrun (the harness lists them).
+    n_missing = sc.n_examples - n_audited
+    n_errored = (
+        len(sc.errored_example_ids)
+        if sc.incomplete_reason is IncompleteReason.BUDGET_EXCEEDED
+        else n_missing
+    )
+    n_asked = sc.n_examples - (n_missing - n_errored)
     return {
         "schema": SCHEMA,
         "source_artefact": source_artefact,
@@ -181,9 +192,8 @@ def build_headline_dict_from_eval_run(
         },
         "sample_sizes": {
             "n_examples": sc.n_examples,
-            # An errored example has no audit record; this holds for runs recorded
-            # before errors were listed, which a count of listed ids would not.
-            "n_errored": sc.n_examples - n_audited,
+            "n_errored": n_errored,
+            "n_not_run": n_missing - n_errored,
             "n_answered": n_audited - n_refused,
             "n_judged": quality.n_judged,
             "n_judged_without_claims": quality.n_judged_without_claims,
@@ -200,8 +210,8 @@ def build_headline_dict_from_eval_run(
             # elsewhere needs the total spent per question too.
             "per_query_with_judge_usd": (
                 None
-                if judge_usd is None or not sc.n_examples
-                else round((agent_usd + judge_usd) / sc.n_examples, 6)
+                if judge_usd is None or not n_asked
+                else round((agent_usd + judge_usd) / n_asked, 6)
             ),
         },
         "run": {

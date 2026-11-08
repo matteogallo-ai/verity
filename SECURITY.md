@@ -4,13 +4,11 @@
 
 | Version | Supported |
 |---|---|
-| 1.0.x | yes |
-| < 1.0 | no |
+| 1.1.x | yes |
+| < 1.1 | no |
 
-Security fixes, including dependency upgrades, go to `main` and ship in the next 1.0.x
-patch release. v1.0.1 resolves dependencies with known advisories that `main` has
-upgraded (see `CHANGELOG.md`, Unreleased); until a release contains them, build from
-`main`.
+Security fixes, including dependency upgrades, go to `main` and ship in the next 1.1.x
+patch release; until a release contains them, build from `main`.
 
 ## Reporting a vulnerability
 

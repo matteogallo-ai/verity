@@ -111,8 +111,9 @@ run's scorecard and the published headline:
   were answered. An answer to an unanswerable question is outside it.
 - **invented-answer rate** (the README key result): judged answers with at least one
   unsupported claim (or no usable claim), over every judged answer, answerable or not.
-  It counts what a user receives: on test, q-074 (an unanswerable question answered
-  with a price of the wrong edition) is in it and not in the hallucination rate. Both
+  It counts what a user receives: on the test run `969e1d5`, q-074 (an unanswerable
+  question answered with a price of the wrong edition) is in it and not in the
+  hallucination rate; on the run of record `513b839`, q-089 is. Both
   measure faithfulness to the retrieved passages, not correctness against the
   reference answer.
 
@@ -206,7 +207,7 @@ fraction(B)|. Isotonic and Platt maps are fitted on dev and their ECE measured o
 test; they are reported, not used by the agent. The reliability diagram plots the
 bins with their sizes. "Calibrated" is claimed only if the test ECE supports it.
 
-**What v1.1.0 measured** (`scorecards/refusal-analysis.json`,
+**What the threshold runs measured** (`scorecards/refusal-analysis.json`,
 `docs/figures/reliability.png`; the system did not change between the dev run at
 `6ec544d` and the test run at `969e1d5`, which only add artefacts):
 - On dev (n = 39), refusal precision 0.667 and recall 0.923 at every threshold from

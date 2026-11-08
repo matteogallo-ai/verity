@@ -284,3 +284,14 @@ def test_judge_label_follows_the_judge_prompt_not_only_the_model() -> None:
     assert "0.71" not in v020
     assert v020.startswith("judge prompt v0.2.0 κ 0.60 vs blind human on 52 of 60 claims")
     assert gen.judge_label("claude-opus-5-5", "0" * 64) == "judge unvalidated"
+
+
+def test_the_v2_block_says_v020_judged_the_run_of_record() -> None:
+    """eval_513b839_test, the run of record, records judge prompt sha aa66e623 (v0.2.0)."""
+    import re
+
+    text = (SCRIPTS.parent / "docs" / "results.md").read_text(encoding="utf-8")
+    block = re.search(r"<!-- JUDGE-V2:START -->(.*)<!-- JUDGE-V2:END -->", text, re.S)
+    assert block is not None
+    assert "v0.2.0 (run of record)" in block.group(1)
+    assert "The runs of record were judged by v0.1.0" not in block.group(1)
