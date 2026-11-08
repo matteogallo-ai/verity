@@ -37,8 +37,9 @@ nowhere in it.
 
 Checks at 0 that the changes above address: Dependency-Update-Tool (Dependabot),
 Pinned-Dependencies (actions by SHA), SAST (CodeQL), Token-Permissions (read-only
-default) and Vulnerabilities (129 known at the time; the dependency upgrades and the
-two exceptions then written in `osv-scanner.toml`, one of them since removed, bring the OSV-Scanner job to zero).
+default) and Vulnerabilities (129 known at the time; the dependency upgrades and two
+written exceptions brought the OSV-Scanner job to zero; one exception remains in
+`osv-scanner.toml`).
 Pinned-Dependencies also counted the `python:3.12-slim` base image in the `Dockerfile`,
 referenced by tag at the time; it, the `uv` image and the `pgvector` image are now
 pinned by digest (`tests/unit/test_container.py::test_every_external_image_is_pinned_by_digest`).

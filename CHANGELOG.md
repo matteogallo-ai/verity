@@ -63,16 +63,16 @@ follows [Semantic Versioning](https://semver.org/).
   its k/n and Wilson 95 % interval, refusals are counted by recorded cause, and
   faithfulness and citation accuracy are published per question and per claim.
 - Live runs `eval_6ec544d_dev.json`, on which the refusal threshold rule was fixed, and
-  `eval_969e1d5_test.json` (n=56), the runs of record until the `513b839` test run
-  (under Changed). A refusal
+  `eval_969e1d5_test.json` (n=56), the runs of record until the `513b839` test run (see
+  Changed). A refusal
   analysis (threshold sweep, reliability diagram, recalibration) is checked against
   them, and two reruns of the dev run give a run-to-run range per metric
   (`scripts/noise_band.py`).
 - Judge validation: 60 claims, 40 real and 20 perturbed to be false
   (`verity.eval.perturb`), labelled blind by a human. Judge prompt v0.1.0, the judge of
-  the `6ec544d` and `969e1d5` runs, agrees with κ 0.71 (53/60). An adjudication with the judge's
-  verdict visible, published apart, reaches κ 0.93 with 6 of its 7 label changes
-  towards the judge; the blind result stays the result of record.
+  the `6ec544d` and `969e1d5` runs, agrees with κ 0.71 (53/60). An adjudication with
+  the judge's verdict visible, published apart, reaches κ 0.93 with 6 of its 7 label
+  changes towards the judge; the blind result stays the result of record.
 - Judge prompt v0.2.0 delimits the evidence, the answer and the citations, neutralises
   delimiter tags inside them, datamarks the evidence as `synthesize.prompt` v0.3.0
   does, and names for each claim the citation that supports it; the code sets
@@ -199,10 +199,9 @@ follows [Semantic Versioning](https://semver.org/).
   (SECURITY.md).
 - Dependencies with known advisories upgraded: Python (pillow 13.0.0, urllib3 2.8.0,
   docling 2.145.0, filelock, certifi, opentelemetry, setuptools) and web (next
-  15.5.28, vitest 4.1.12, vite 6.4.5, eslint 9.39.5, postcss 8.5.32 and, for `@typescript-eslint/typescript-estree`,
-  minimatch 11.0.5 via override).
-  v1.0.1 ships the vulnerable versions; until a release contains these upgrades,
-  build from `main`.
+  15.5.28, vitest 4.1.12, vite 6.4.5, eslint 9.39.5, postcss 8.5.32 and, for
+  `@typescript-eslint/typescript-estree`, minimatch 11.0.5 via override). v1.0.1 ships
+  the vulnerable versions.
 - CI: actions pinned by commit SHA, read-only workflow tokens, Dependabot, CodeQL,
   an OSV-Scanner job with one dated exception (`osv-scanner.toml`: accelerate, no fix
   released, its vulnerable loaders called by nothing, checked by
