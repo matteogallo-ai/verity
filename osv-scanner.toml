@@ -1,23 +1,17 @@
 # Known vulnerabilities the OSV-Scanner job in ci.yml accepts, each with the
 # reason it does not reach Verity and a date after which the job fails again,
-# so every exception is re-checked instead of forgotten.
+# so every exception is re-checked instead of forgotten. A reason of the form
+# "nothing calls it" is checked by tests/unit/test_osv_exceptions.py.
 
 [[IgnoredVulns]]
 # accelerate 1.14.0 (alias PYSEC-2026-3804, CVE-2026-69112): path traversal in
 # load_checkpoint_in_model / load_checkpoint_and_dispatch via a sharded
-# checkpoint index. No fixed release exists. accelerate arrives only through
-# docling[standard]; neither src/verity nor any installed package calls those
-# two functions (grep over .venv/site-packages outside accelerate itself), and
-# Verity loads no user-supplied checkpoint.
+# checkpoint index. No fix is released: the advisory range ends at 1.14.0, but
+# 1.15.0 and the main branch join weight_map entries to the checkpoint folder
+# unchecked, as 1.14.0 does, and the fix PRs (#4070, #4138) are not merged, so
+# upgrading would only hide the alert. accelerate arrives only through
+# docling[standard]; neither Verity nor any installed package calls those two
+# functions, and Verity loads no user-supplied checkpoint.
 id = "GHSA-4j2p-28q2-5m79"
 ignoreUntil = 2027-02-01T00:00:00Z
 reason = "accelerate: no fix released; vulnerable checkpoint loaders are never called by Verity or its dependencies"
-
-[[IgnoredVulns]]
-# minimatch 3.1.5 and 10.2.6: glob-pattern amplification DoS, fixed only in
-# 11.0.1. Both copies are dev-only, pulled by eslint 9 (^3) and
-# @typescript-eslint (^10), which do not accept 11. The patterns they match
-# come from this repository's lint config, never from a user.
-id = "GHSA-g3hv-75wg-m249"
-ignoreUntil = 2027-02-01T00:00:00Z
-reason = "minimatch: dev-only lint toolchain, patterns are repository config; fix needs a major eslint does not accept"
