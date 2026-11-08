@@ -10,8 +10,9 @@
 # 1.15.0 and the main branch join weight_map entries to the checkpoint folder
 # unchecked, as 1.14.0 does, and the fix PRs (#4070, #4138) are not merged, so
 # upgrading would only hide the alert. accelerate arrives only through
-# docling[standard]; neither Verity nor any installed package calls those two
-# functions, and Verity loads no user-supplied checkpoint.
+# docling's standard extra (docling-slim[standard]); neither Verity nor any
+# installed package calls those two functions or accelerate's own wrapper of
+# them (load_and_quantize_model), and Verity loads no user-supplied checkpoint.
 id = "GHSA-4j2p-28q2-5m79"
 ignoreUntil = 2027-02-01T00:00:00Z
 reason = "accelerate: no fix released; vulnerable checkpoint loaders are never called by Verity or its dependencies"
