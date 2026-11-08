@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import re
 from pathlib import Path
 from types import ModuleType
@@ -92,10 +93,10 @@ def test_the_comparison_runs_on_the_questions_both_arms_completed() -> None:
 def _committed_copy(tmp_path: Path) -> tuple[Path, Path, list[str]]:
     import shutil
 
-    scorecard, readme = tmp_path / "cmp.json", tmp_path / "README.md"
+    scorecard, readme = tmp_path / "cmp.json", tmp_path / "results.md"
     shutil.copy(REPO_ROOT / "scorecards/naive-baseline-comparison.json", scorecard)
-    shutil.copy(REPO_ROOT / "README.md", readme)
-    return scorecard, readme, ["--scorecard", str(scorecard), "--readme", str(readme)]
+    shutil.copy(REPO_ROOT / "docs/results.md", readme)
+    return scorecard, readme, ["--scorecard", str(scorecard), "--doc", str(readme)]
 
 
 @pytest.mark.parametrize("target", ["scorecard", "readme"])
@@ -159,3 +160,16 @@ def test_a_row_too_small_to_reach_the_threshold_says_so() -> None:
         {"verity_only": 0, "naive_only": 2, "n_paired": 2, "p_mcnemar_exact": 0.5}, "lower"
     )
     assert reading == "not testable: 2 paired questions, smallest possible p = 0.500"
+
+
+def test_the_block_lives_in_the_results_doc_and_its_links_resolve_from_there() -> None:
+    """The README stays one page: the dev-only comparison renders in docs/results.md."""
+
+    mod = _load()
+    assert mod.DEFAULT_DOC == REPO_ROOT / "docs" / "results.md"
+    payload = json.loads((REPO_ROOT / "scorecards/naive-baseline-comparison.json").read_text())
+    block = mod.render_block(payload, mod.DEFAULT_SCORECARD, mod.DEFAULT_DOC)
+    links = re.findall(r"\]\(([^)#]+)\)", block)
+    assert links
+    for link in links:
+        assert (mod.DEFAULT_DOC.parent / link).resolve().is_file(), link

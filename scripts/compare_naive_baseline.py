@@ -1,10 +1,10 @@
 """Compare Verity with the naive RAG baseline under the pre-registered rule.
 
-    # after both runs: artefacts -> comparison scorecard -> README block
+    # after both runs: artefacts -> comparison scorecard -> docs/results.md block
     uv run python scripts/compare_naive_baseline.py \
         --verity datasets/eval/runs/live/eval_<sha>_dev.json \
         --naive datasets/eval/runs/live/eval_<sha>_dev-naive-baseline.json
-    # CI: comparison scorecard == recomputed from its artefacts, README block == rendered
+    # CI: comparison scorecard == recomputed from its artefacts, the block == rendered
     uv run python scripts/compare_naive_baseline.py --check
 
 Metrics and abstention patterns are those of
@@ -16,7 +16,7 @@ instead; that reading is kept beside it as ``overlap_readings``, and on these ru
 the two agree on every row. Per-claim rows have no paired test: the arms make
 different claims. The per-arm figures come from the same scorecard builder as the
 published results, so a metric means the same thing here as in ``docs/results.md``.
-The README block sits between ``<!-- BASELINE:START -->`` and ``<!-- BASELINE:END -->``.
+The block, in ``docs/results.md``, sits between ``<!-- BASELINE:START -->`` and ``<!-- BASELINE:END -->``.
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -38,7 +39,7 @@ from verity.types import EvalRun
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PREREGISTRATION = "docs/preregistration/naive-rag-baseline.md"
 DEFAULT_SCORECARD = REPO_ROOT / "scorecards" / "naive-baseline-comparison.json"
-DEFAULT_README = REPO_ROOT / "README.md"
+DEFAULT_DOC = REPO_ROOT / "docs" / "results.md"
 DATASET = REPO_ROOT / "datasets" / "eval" / "dev.jsonl"
 START, END = "<!-- BASELINE:START -->", "<!-- BASELINE:END -->"
 
@@ -274,7 +275,14 @@ def _cell(m: dict[str, Any]) -> str:
     return f"{m['k']}/{m['n']} = {m['value']:.3f} [{lo:.3f}, {hi:.3f}]"
 
 
-def render_block(data: dict[str, Any], scorecard_path: Path = DEFAULT_SCORECARD) -> str:
+def _rel_link(target: Path, doc: Path) -> str:
+    """``target`` as a link from ``doc``'s directory, as Markdown resolves it."""
+    return Path(os.path.relpath(target.resolve(), doc.resolve().parent)).as_posix()
+
+
+def render_block(
+    data: dict[str, Any], scorecard_path: Path = DEFAULT_SCORECARD, doc: Path = DEFAULT_DOC
+) -> str:
     v, n = data["arms"]["verity"], data["arms"]["naive"]
     n_unans = v["metrics"]["unanswerable_answered"]["n"]
     incomplete = [
@@ -297,7 +305,8 @@ def render_block(data: dict[str, Any], scorecard_path: Path = DEFAULT_SCORECARD)
         f"Dev split, n = {v['n_examples']} compared, same questions, agent `{v['agent_model']}`, "
         f"judge `{v['judge_model']}`, both arms at commit `{v['git_sha']}`. The naive arm "
         "ships the synthesizer's draft with no citation gate, support check, scorer or "
-        f"threshold. Metrics were [pre-registered]({PREREGISTRATION}) before the runs. "
+        f"threshold. Metrics were [pre-registered]({_rel_link(REPO_ROOT / PREREGISTRATION, doc)}) "
+        "before the runs. "
         "Each per-question row is read by an exact McNemar test on the questions where "
         "the arms differ (p < 0.05 reads *distinguishable*); the pre-registered reading, "
         f"Wilson intervals that overlap, {_overlap_agreement(data)}.",
@@ -322,7 +331,7 @@ def render_block(data: dict[str, Any], scorecard_path: Path = DEFAULT_SCORECARD)
         "answer as independent, so they are too narrow. Cost: Verity "
         f"${v['total_cost_usd']:.4f}, naive ${n['total_cost_usd']:.4f}, agent and judge.",
         "",
-        f"Generated from [`{_repo_path(scorecard_path)}`]({_repo_path(scorecard_path)}), "
+        f"Generated from [`{_repo_path(scorecard_path)}`]({_rel_link(scorecard_path, doc)}), "
         f"computed from `{v['source_artefact']}` and `{n['source_artefact']}` "
         "(`scripts/compare_naive_baseline.py --check`).",
     ]
@@ -349,7 +358,7 @@ def _ids(ids: list[str]) -> str:
 def replace_block(text: str, block: str) -> str:
     i, j = text.find(START), text.find(END)
     if i == -1 or j == -1 or j < i:
-        raise SystemExit(f"README missing {START!r} / {END!r} markers")
+        raise SystemExit(f"missing {START!r} / {END!r} markers")
     return f"{text[: i + len(START)]}\n{block}\n{text[j:]}"
 
 
@@ -362,7 +371,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--verity", type=Path)
     parser.add_argument("--naive", type=Path)
     parser.add_argument("--scorecard", type=Path, default=DEFAULT_SCORECARD)
-    parser.add_argument("--readme", type=Path, default=DEFAULT_README)
+    parser.add_argument("--doc", type=Path, default=DEFAULT_DOC)
     parser.add_argument("--check", action="store_true", help="exit 1 if a file would change")
     args = parser.parse_args(argv)
     existing = json.loads(args.scorecard.read_text()) if args.scorecard.is_file() else None
@@ -374,19 +383,19 @@ def main(argv: list[str] | None = None) -> int:
     else:
         verity, naive = args.verity, args.naive
     payload = build(verity, naive)
-    readme = args.readme.read_text(encoding="utf-8")
-    rendered = replace_block(readme, render_block(payload, args.scorecard))
+    readme = args.doc.read_text(encoding="utf-8")
+    rendered = replace_block(readme, render_block(payload, args.scorecard, args.doc))
     pending = []
     if existing is None or _dump(existing) != _dump(payload):
         pending.append((args.scorecard, _dump(payload)))
     if rendered != readme:
-        pending.append((args.readme, rendered))
+        pending.append((args.doc, rendered))
     if args.check:
         if pending:
             names = ", ".join(str(p) for p, _ in pending)
             print(f"out of date: {names} — run without --check", file=sys.stderr)
             return 1
-        print(f"comparison and README match {verity.name} and {naive.name}")
+        print(f"comparison and {args.doc.name} match {verity.name} and {naive.name}")
         return 0
     for path, text in pending:
         path.write_text(text, encoding="utf-8")
