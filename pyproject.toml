@@ -10,9 +10,9 @@ keywords = ["rag", "evaluation", "observability", "llm", "agent", "retrieval"]
 
 dependencies = [
   "fastapi>=0.162.0",
-  "python-multipart>=0.0.9",
+  "python-multipart>=0.0.33",
   "uvicorn[standard]>=0.54.0",
-  "pydantic>=2.14.2",
+  "pydantic>=2.14.3",
   "pydantic-settings>=2.16.2",
   "psycopg[binary]>=3.3.6",
   "typer>=0.27.3",
@@ -24,14 +24,14 @@ dependencies = [
   # 2.x is the first line that sends API version 2026-10-21 (no sampling
   # parameters). A major bump changes the API version and request types:
   # tests/unit/test_llm_sdk_schema.py binds our kwargs to the installed SDK.
-  "anthropic>=2.0,<3.0",
+  "anthropic>=2.5.0,<3.0",
   # Pinned to the 3.x line: matches the ``chat.completions.create`` signature
   # asserted by the SDK-schema smoke test.
-  "openai>=3.42.0,<4.0",
+  "openai>=3.46.0,<4.0",
   "rank-bm25>=0.2.2",
   "numpy>=2.5.4",  # imported by retrieval.memory_store
   "sentence-transformers>=6.2.0",
-  "docling>=2.0",
+  "docling>=2.147.0",
   "trafilatura>=2.3.1",
   # Not imported directly: declared so [tool.uv.sources] can route them to the
   # CPU-only PyTorch index (uv sources apply to direct dependencies only).
@@ -65,7 +65,7 @@ dev = [
   "pyyaml>=6",
   "types-pyyaml>=6",
   "matplotlib>=3.11.2",
-  "scikit-learn>=1.9.0",
+  "scikit-learn>=1.9.1",
   "hypothesis>=6.170.14",
   "mutmut>=3.8.1",
 ]
