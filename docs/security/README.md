@@ -4,10 +4,11 @@
 
 | Control | Where | What it does |
 |---|---|---|
-| Dependabot | `.github/dependabot.yml` | Weekly version updates for uv (`uv.lock`), npm in `web/` (`web/pnpm-lock.yaml`) and GitHub Actions: minor and patch bumps in one grouped PR per ecosystem, each major bump in its own PR, read and merged or closed on its own. |
+| Dependabot | `.github/dependabot.yml` | Weekly version updates for uv (`uv.lock`), npm in `web/` (`web/pnpm-lock.yaml`), GitHub Actions and the image digests of the `Dockerfile` and `docker-compose.yml`: minor and patch bumps in one grouped PR per ecosystem, each major bump in its own PR, read and merged or closed on its own. |
 | OSV-Scanner | `osv-scanner` job in `.github/workflows/ci.yml` | Fails on PRs to `main` and pushes to `main` when `uv.lock` or `web/pnpm-lock.yaml` resolves a package with a known vulnerability in the OSV database. The scanner image is pinned by digest. Accepted exceptions, each with a reason and an expiry date, are in `osv-scanner.toml`. |
 | CodeQL | `.github/workflows/codeql.yml` | Static analysis of Python and TypeScript on PRs to `main`, pushes to `main` and weekly. |
 | Pinned actions | every workflow | Each action is referenced by full commit SHA with a `# vX.Y.Z` comment; Dependabot moves both. |
+| Checkout without stored token | every workflow | `actions/checkout` runs with `persist-credentials: false`, so no later step finds the job token in `.git/config` (`tests/unit/test_container.py::test_no_workflow_checkout_keeps_the_token_in_git_config`). |
 | Read-only token | every workflow | `permissions: contents: read` at the top; a job that needs more says so, with a comment. |
 | Scorecard | `.github/workflows/scorecard.yml` | OpenSSF Scorecard on each push to `main`, on branch-protection changes and weekly; publishes the result behind the README badge and uploads the SARIF to code scanning. Until it has run once on `main`, the badge shows no score. |
 
@@ -38,8 +39,10 @@ Checks at 0 that the changes above address: Dependency-Update-Tool (Dependabot),
 Pinned-Dependencies (actions by SHA), SAST (CodeQL), Token-Permissions (read-only
 default) and Vulnerabilities (129 known at the time; the dependency upgrades and the
 two written exceptions in `osv-scanner.toml` bring the OSV-Scanner job to zero).
-Pinned-Dependencies also counts the `python:3.12-slim` base image in the `Dockerfile`,
-referenced by tag, not by digest. Its two "downloadThenRun" warnings on
+Pinned-Dependencies also counted the `python:3.12-slim` base image in the `Dockerfile`,
+referenced by tag at the time; it, the `uv` image and the `pgvector` image are now
+pinned by digest (`tests/unit/test_container.py::test_every_external_image_is_pinned_by_digest`).
+Its two "downloadThenRun" warnings on
 `scripts/docker_smoke.sh` are false positives: those lines `curl` the local Compose
 stack and pipe the JSON response into `python3 -c`; nothing is downloaded from the
 internet.

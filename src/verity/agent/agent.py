@@ -152,6 +152,12 @@ class RagAgent(Agent):
                 kind, error = ErrorKind.PROVIDER_UNAVAILABLE, exc
             except LLMError as exc:
                 kind, error = ErrorKind.PROVIDER_ERROR, exc
+            # A defect anywhere in the pipeline. Caught only to keep what the request
+            # has already paid for (spending budgets count it) and to log the
+            # traceback; it is typed INTERNAL, so it never reads as an outage.
+            except Exception as exc:
+                log.error("answer_defect", trace_id=str(trace_id), exc_info=exc)
+                kind, error = ErrorKind.INTERNAL, exc
             else:
                 _log_answer(answer, stage_ms)
                 return answer
