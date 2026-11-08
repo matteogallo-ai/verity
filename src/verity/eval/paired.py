@@ -25,6 +25,36 @@ def mcnemar_exact(b: int, c: int) -> float:
     return float(min(1.0, 2 * tail))
 
 
+def mcnemar_power(n: int, p_a_only: float, p_b_only: float, *, alpha: float) -> float:
+    """Probability that the exact McNemar test rejects at ``alpha`` on ``n`` pairs, when
+    each pair independently goes to arm A only with ``p_a_only``, to arm B only with
+    ``p_b_only`` and is concordant otherwise. Exact sum over the trinomial, no
+    normal approximation: at n below 100 the approximation overstates power."""
+    if p_a_only < 0 or p_b_only < 0 or p_a_only + p_b_only > 1:
+        raise ValueError("discordance probabilities must be in [0, 1] and sum to at most 1")
+    p_same = 1.0 - p_a_only - p_b_only
+    power = 0.0
+    for b in range(n + 1):
+        for c in range(n - b + 1):
+            if mcnemar_exact(b, c) < alpha:
+                power += (
+                    comb(n, b) * comb(n - b, c) * p_a_only**b * p_b_only**c * p_same ** (n - b - c)
+                )
+    return power
+
+
+def holm(pvalues: list[float]) -> list[float]:
+    """Holm-adjusted p-values, in the input order: the family-wise error of the
+    pre-registered primary tests stays at the level each adjusted p is compared to."""
+    order = sorted(range(len(pvalues)), key=lambda i: pvalues[i])
+    adjusted = [0.0] * len(pvalues)
+    running = 0.0
+    for rank, i in enumerate(order):
+        running = max(running, min(1.0, (len(pvalues) - rank) * pvalues[i]))
+        adjusted[i] = running
+    return adjusted
+
+
 def discordant(a: Mapping[str, bool], b: Mapping[str, bool]) -> tuple[int, int, int]:
     """``(a only, b only, n paired)`` over the questions both mappings score."""
     shared = sorted(set(a) & set(b))
@@ -33,4 +63,4 @@ def discordant(a: Mapping[str, bool], b: Mapping[str, bool]) -> tuple[int, int, 
     return a_only, b_only, len(shared)
 
 
-__all__ = ["discordant", "mcnemar_exact"]
+__all__ = ["discordant", "holm", "mcnemar_exact", "mcnemar_power"]

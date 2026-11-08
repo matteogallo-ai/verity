@@ -24,11 +24,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import re
 import sys
 from pathlib import Path
 from typing import Any
 
+from verity.eval.abstention import is_self_abstention
 from verity.eval.headline import build_headline_dict_from_eval_run
 from verity.eval.intervals import wilson
 from verity.eval.paired import discordant, mcnemar_exact
@@ -41,20 +41,6 @@ DEFAULT_SCORECARD = REPO_ROOT / "scorecards" / "naive-baseline-comparison.json"
 DEFAULT_README = REPO_ROOT / "README.md"
 DATASET = REPO_ROOT / "datasets" / "eval" / "dev.jsonl"
 START, END = "<!-- BASELINE:START -->", "<!-- BASELINE:END -->"
-# Copied verbatim from the pre-registration; a test holds the two equal.
-ABSTENTION_PATTERNS = (
-    r"\b(do|does|did) not (contain|mention|provide|include|specify|say|state|address|cover|describe)\b",
-    r"\b(don't|doesn't) (contain|mention|provide|include|specify|say|state|address|cover|describe)\b",
-    r"\bno (information|mention|details?|data)\b",
-    r"\b(is|are|was|were) not (mentioned|specified|stated|provided|covered|available|included|described)\b",
-    r"\b(cannot|can't|unable to) (be )?(determine|answer|find|confirm)",
-    r"\bI don't know\b",
-)
-_ABSTENTION_RE = [re.compile(p, re.IGNORECASE) for p in ABSTENTION_PATTERNS]
-
-
-def is_self_abstention(text: str) -> bool:
-    return any(p.search(text) for p in _ABSTENTION_RE)
 
 
 def _ratio(k: int, n: int) -> dict[str, Any]:

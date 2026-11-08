@@ -126,6 +126,7 @@ CI job `claims` runs those tests.
 - Prompt-injection defence: delimited, untrusted-labelled evidence, and a deterministic support check (citation coverage, cited relevance, injection markers) the model's score cannot override; adversarial eval questions (C24).
 - Provider and store outages reported as errors (HTTP 503), never as refusals (C25).
 - Naive RAG baseline: the same pipeline with every check disabled (`--naive-baseline`), compared with Verity by an exact McNemar test on the same questions, from pinned artefacts (C35).
+- Verity against the naive baseline on all 95 questions, pre-registered with a power analysis: exact McNemar per question, Holm-adjusted over three primary outcomes ([results](docs/results.md#verity-against-a-naive-rag-baseline-95-questions), C37).
 - Correctness against the reference answers, refusal recall per question tag, and the judge's κ with a bootstrap interval, each regenerated from its artefact (C36).
 - Judge validated against blind human labels on 60 claims, real and perturbed to be false: κ, agreement, specificity and sensitivity with n and intervals, generated from a pinned artefact (C27).
 

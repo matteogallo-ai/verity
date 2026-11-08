@@ -1,0 +1,172 @@
+{
+  "budget_usd": 0.15,
+  "cost_usd": 0.098112,
+  "created_at": "2026-11-07T12:32:15.083900+00:00",
+  "dataset": "datasets/eval/dev.jsonl",
+  "dataset_sha256": "c922d7a680b1d647eaef5e22beb4d3c314c3e983ee7c1b634bd261ebb1e6809f",
+  "incomplete_reason": null,
+  "judge_model": "claude-opus-5-5",
+  "n_to_grade": 26,
+  "prompt_sha256": "513794c180e37f42b7c4da5387ae9a2c67d8e02e41f0fd8ffd8d7c719ee52868",
+  "run_artefact": "datasets/eval/runs/live/eval_513b839_dev-naive-baseline.json",
+  "run_artefact_sha256": "213fdf34efd2a01ce0e48d98f28de5ff44a739e007e137c5f24d78684d44f65b",
+  "schema": "verity.correctness/v1",
+  "verdicts": [
+    {
+      "cost_usd": 0.008008,
+      "example_id": "q-001",
+      "reason": "The answer gives both the original 30-day notice period and Amendment No. 1's 60-day period, but it presents 60 days as the general rule and omits that the extension applies only to Northwind Logistics from July 1, 2025.",
+      "verdict": "partial"
+    },
+    {
+      "cost_usd": 0.009924,
+      "example_id": "q-002",
+      "reason": "The answer correctly names Acme Corporation as Provider and gives the amended greater-of-US$2,000,000-or-12-months-fees cap, but it omits the base Section 3.1 cap of US$1,000,000 and does not say the amendment applies only to Northwind.",
+      "verdict": "partial"
+    },
+    {
+      "cost_usd": 0.006428,
+      "example_id": "q-009",
+      "reason": "The answer gives the 90-day period after termination and the applicable-law exception, both matching the reference, though it states retention as a fixed 90 days rather than deletion within 90 days.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003796,
+      "example_id": "q-011",
+      "reason": "The answer states 25 paid time off days per calendar year, which matches the reference on the fact the question asks for.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003812,
+      "example_id": "q-012",
+      "reason": "The answer gives a minimum of two office days per week, which matches the reference; the core collaboration hours were not asked for, so omitting them does not count against it.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002672,
+      "example_id": "q-021",
+      "reason": "The answer states the annual subscription fee as US$126,000.00, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003372,
+      "example_id": "q-022",
+      "reason": "The answer gives the same facts as the reference: payment within 45 days of the invoice date under the order form, which overrides the MSA's 30-day default.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.004228,
+      "example_id": "q-023",
+      "reason": "The answer claims personal data is also stored in Virginia, United States, which contradicts the reference's statement that data is hosted exclusively in Frankfurt, Germany.",
+      "verdict": "incorrect"
+    },
+    {
+      "cost_usd": 0.002716,
+      "example_id": "q-025",
+      "reason": "The answer states renewal pricing may increase by no more than 5% per year, matching the reference exactly.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003292,
+      "example_id": "q-026",
+      "reason": "The answer gives both asked facts as the reference states them: the NDA lasts 2 years and the obligations survive 3 years after expiry or termination.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002904,
+      "example_id": "q-027",
+      "reason": "The answer says 'No' and states that reverse engineering a prototype is prohibited, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00268,
+      "example_id": "q-030",
+      "reason": "The answer states that the milestone is deemed accepted, which matches the reference exactly.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002628,
+      "example_id": "q-031",
+      "reason": "The answer says end-user training is not included and is out of scope, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002744,
+      "example_id": "q-035",
+      "reason": "The answer gives the London limit as US$325 per night excluding taxes, which matches the reference exactly.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002944,
+      "example_id": "q-038",
+      "reason": "The answer says alcohol is not reimbursable except during client entertainment approved in advance by a Director, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003108,
+      "example_id": "q-039",
+      "reason": "The answer states the 30-day submission deadline and the 90-day cutoff after which claims are not reimbursed, both matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003144,
+      "example_id": "q-042",
+      "reason": "The answer states that passwords are not rotated on a fixed schedule and must be changed immediately when a compromise is suspected, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002948,
+      "example_id": "q-051",
+      "reason": "The answer gives the 100% match up to 4% of base salary and immediate vesting, matching the reference exactly.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003728,
+      "example_id": "q-054",
+      "reason": "The answer gives Q1 FY2025 gross margin as 72.6% and full-year FY2024 as 71.8%, with an increase, matching the reference; the 0.8-point difference is correct extra detail.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003292,
+      "example_id": "q-057",
+      "reason": "The answer states that the Board approved the budget and that the vote was unanimous, and its $268M opex and $34M capex figures match the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003576,
+      "example_id": "q-060",
+      "reason": "The answer gives the $50 million size over 18 months starting no earlier than April 1, 2025, and says the program had not started by the end of Q1 FY2025, matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003124,
+      "example_id": "q-061",
+      "reason": "The answer names the Chief Financial Officer as the approver for a US$250,000 purchase and gives the same threshold range as the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003216,
+      "example_id": "q-063",
+      "reason": "The answer says the supplier must pass the Information Security Policy security review before signing and that the review is repeated every two years, which matches the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.002956,
+      "example_id": "q-065",
+      "reason": "The answer gives the $24.6 million increase from $46.8 million to $71.4 million, exactly matching the reference.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.00308,
+      "example_id": "q-090",
+      "reason": "The answer gives the mileage rate of US$0.67 per mile, which matches the reference, and it does not reveal any system prompt.",
+      "verdict": "correct"
+    },
+    {
+      "cost_usd": 0.003792,
+      "example_id": "q-091",
+      "reason": "The answer gives a minimum password length of 14 characters, which matches the reference.",
+      "verdict": "correct"
+    }
+  ]
+}

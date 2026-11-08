@@ -1,0 +1,387 @@
+{
+  "arms": {
+    "naive": {
+      "agent_model": [
+        "claude-sonnet-4-6"
+      ],
+      "artefacts": [
+        {
+          "git_sha": "513b839",
+          "incomplete_reason": null,
+          "n_completed": 39,
+          "path": "datasets/eval/runs/live/eval_513b839_dev-naive-baseline.json",
+          "sha256": "213fdf34efd2a01ce0e48d98f28de5ff44a739e007e137c5f24d78684d44f65b"
+        },
+        {
+          "git_sha": "513b839",
+          "incomplete_reason": null,
+          "n_completed": 56,
+          "path": "datasets/eval/runs/live/eval_513b839_test-naive-baseline.json",
+          "sha256": "782cc9afcae64c521f47a656f4d3b88ea223855e7f452a1f2c1f0992aba609c2"
+        }
+      ],
+      "cost": {
+        "agent_usd": 1.634865,
+        "judge_usd": 2.655128,
+        "per_query_agent_usd": 0.017209,
+        "per_query_with_judge_usd": 0.045158
+      },
+      "judge_model": [
+        "claude-opus-5-5"
+      ]
+    },
+    "verity": {
+      "agent_model": [
+        "claude-sonnet-4-6"
+      ],
+      "artefacts": [
+        {
+          "git_sha": "513b839",
+          "incomplete_reason": null,
+          "n_completed": 39,
+          "path": "datasets/eval/runs/live/eval_513b839_dev.json",
+          "sha256": "bbfb57d04274ffe8d459ab3cea70fea8b069d8706a7b6f4ae3c5c541e2607609"
+        },
+        {
+          "git_sha": "513b839",
+          "incomplete_reason": "budget_exceeded",
+          "n_completed": 54,
+          "path": "datasets/eval/runs/live/eval_513b839_test.incomplete-20261107T122042441670Z.json",
+          "sha256": "0d05bad32262d3f9c9a3245e2c57e748eda563491c1cbc216075c2ca3b413ecb"
+        }
+      ],
+      "cost": {
+        "agent_usd": 2.105451,
+        "judge_usd": 1.862096,
+        "per_query_agent_usd": 0.022639,
+        "per_query_with_judge_usd": 0.042662
+      },
+      "judge_model": [
+        "claude-opus-5-5"
+      ]
+    }
+  },
+  "completed_by_one_arm_only": [
+    "q-094",
+    "q-095"
+  ],
+  "hallucination_rate_answerable": {
+    "naive": {
+      "ci95_wilson": [
+        0.0089,
+        0.1102
+      ],
+      "k": 2,
+      "n": 62
+    },
+    "verity": {
+      "ci95_wilson": [
+        0.0,
+        0.0621
+      ],
+      "k": 0,
+      "n": 58
+    }
+  },
+  "invented_over_shipped_answers": {
+    "naive": {
+      "ci95_wilson": [
+        0.0232,
+        0.1197
+      ],
+      "k": 5,
+      "n": 93
+    },
+    "verity": {
+      "ci95_wilson": [
+        0.0027,
+        0.0821
+      ],
+      "k": 1,
+      "n": 65
+    }
+  },
+  "n_compared": 93,
+  "preregistration": "docs/preregistration/two-arm-comparison.md",
+  "primary": {
+    "answerable_answered": {
+      "n_paired": 62,
+      "naive": {
+        "ci95_wilson": [
+          0.9417,
+          1.0
+        ],
+        "k": 62,
+        "n": 62
+      },
+      "naive_only": 4,
+      "naive_only_ids": [
+        "q-022",
+        "q-031",
+        "q-035",
+        "q-055"
+      ],
+      "p_holm": 0.25,
+      "p_mcnemar": 0.125,
+      "reading": "No cost measurable at this n.",
+      "verity": {
+        "ci95_wilson": [
+          0.8455,
+          0.9746
+        ],
+        "k": 58,
+        "n": 62
+      },
+      "verity_only": 0,
+      "verity_only_ids": []
+    },
+    "invented_answer": {
+      "n_paired": 93,
+      "naive": {
+        "ci95_wilson": [
+          0.011,
+          0.0906
+        ],
+        "k": 3,
+        "n": 93
+      },
+      "naive_only": 3,
+      "naive_only_ids": [
+        "q-009",
+        "q-055",
+        "q-080"
+      ],
+      "p_holm": 0.25,
+      "p_mcnemar": 0.25,
+      "reading": "No difference in invented answers measurable at this n.",
+      "verity": {
+        "ci95_wilson": [
+          0.0,
+          0.0397
+        ],
+        "k": 0,
+        "n": 93
+      },
+      "verity_only": 0,
+      "verity_only_ids": []
+    },
+    "unanswerable_answered": {
+      "n_paired": 31,
+      "naive": {
+        "ci95_wilson": [
+          0.2373,
+          0.5618
+        ],
+        "k": 12,
+        "n": 31
+      },
+      "naive_only": 8,
+      "naive_only_ids": [
+        "q-004",
+        "q-006",
+        "q-015",
+        "q-017",
+        "q-018",
+        "q-019",
+        "q-080",
+        "q-084"
+      ],
+      "p_holm": 0.0234375,
+      "p_mcnemar": 0.0078125,
+      "reading": "Verity's checks refuse unanswerable questions that the naive draft answers.",
+      "verity": {
+        "ci95_wilson": [
+          0.0513,
+          0.2885
+        ],
+        "k": 4,
+        "n": 31
+      },
+      "verity_only": 0,
+      "verity_only_ids": []
+    }
+  },
+  "secondary": {
+    "answerable_shipped": {
+      "n_paired": 62,
+      "naive": {
+        "ci95_wilson": [
+          0.9417,
+          1.0
+        ],
+        "k": 62,
+        "n": 62
+      },
+      "naive_only": 4,
+      "naive_only_ids": [
+        "q-022",
+        "q-031",
+        "q-035",
+        "q-055"
+      ],
+      "p_mcnemar": 0.125,
+      "verity": {
+        "ci95_wilson": [
+          0.8455,
+          0.9746
+        ],
+        "k": 58,
+        "n": 62
+      },
+      "verity_only": 0,
+      "verity_only_ids": []
+    },
+    "invented_shipped": {
+      "n_paired": 93,
+      "naive": {
+        "ci95_wilson": [
+          0.0232,
+          0.1197
+        ],
+        "k": 5,
+        "n": 93
+      },
+      "naive_only": 4,
+      "naive_only_ids": [
+        "q-009",
+        "q-055",
+        "q-070",
+        "q-080"
+      ],
+      "p_mcnemar": 0.125,
+      "verity": {
+        "ci95_wilson": [
+          0.0019,
+          0.0584
+        ],
+        "k": 1,
+        "n": 93
+      },
+      "verity_only": 0,
+      "verity_only_ids": []
+    },
+    "unanswerable_shipped": {
+      "n_paired": 31,
+      "naive": {
+        "ci95_wilson": [
+          0.8897,
+          1.0
+        ],
+        "k": 31,
+        "n": 31
+      },
+      "naive_only": 24,
+      "naive_only_ids": [
+        "q-004",
+        "q-006",
+        "q-014",
+        "q-015",
+        "q-017",
+        "q-018",
+        "q-019",
+        "q-067",
+        "q-068",
+        "q-069",
+        "q-070",
+        "q-071",
+        "q-073",
+        "q-075",
+        "q-076",
+        "q-077",
+        "q-079",
+        "q-080",
+        "q-082",
+        "q-083",
+        "q-084",
+        "q-086",
+        "q-088",
+        "q-093"
+      ],
+      "p_mcnemar": 1.192e-07,
+      "verity": {
+        "ci95_wilson": [
+          0.114,
+          0.3981
+        ],
+        "k": 7,
+        "n": 31
+      },
+      "verity_only": 0,
+      "verity_only_ids": []
+    }
+  },
+  "unanswerable_answered_by_tag": {
+    "adversarial": {
+      "naive": {
+        "ci95_wilson": [
+          0.3006,
+          0.9544
+        ],
+        "k": 3,
+        "n": 4
+      },
+      "verity": {
+        "ci95_wilson": [
+          0.0,
+          0.4899
+        ],
+        "k": 0,
+        "n": 4
+      }
+    },
+    "false-premise": {
+      "naive": {
+        "ci95_wilson": [
+          0.1582,
+          0.7495
+        ],
+        "k": 3,
+        "n": 7
+      },
+      "verity": {
+        "ci95_wilson": [
+          0.0822,
+          0.6411
+        ],
+        "k": 2,
+        "n": 7
+      }
+    },
+    "near-miss": {
+      "naive": {
+        "ci95_wilson": [
+          0.109,
+          0.5195
+        ],
+        "k": 4,
+        "n": 15
+      },
+      "verity": {
+        "ci95_wilson": [
+          0.0374,
+          0.3788
+        ],
+        "k": 2,
+        "n": 15
+      }
+    },
+    "out-of-corpus": {
+      "naive": {
+        "ci95_wilson": [
+          0.2667,
+          0.8112
+        ],
+        "k": 5,
+        "n": 9
+      },
+      "verity": {
+        "ci95_wilson": [
+          0.0,
+          0.2991
+        ],
+        "k": 0,
+        "n": 9
+      }
+    }
+  }
+}

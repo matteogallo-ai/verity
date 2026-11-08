@@ -108,6 +108,58 @@ exists, so the shipped default is measured only by the bounds above. Next step: 
 run of the default configuration. Test figures are reported here and were not used for
 the decision.
 
+### Verity against a naive RAG baseline, 95 questions
+
+<!-- TWO-ARM:START -->
+93 questions completed by both arms (dev + test), agent `claude-sonnet-4-6`, judge `claude-opus-5-5`, commit `513b839`. [Pre-registered](preregistration/two-arm-comparison.md) before the runs: a self-abstention counts as a refusal; exact McNemar on the paired questions, Holm-adjusted over the three primary tests.
+
+| Metric | Better | Verity | Naive RAG | Verity only / naive only | p (Holm) | Reading |
+|---|---|---|---|---|---|---|
+| **Unanswerable answered** | lower | 4/31 [0.051, 0.288] | 12/31 [0.237, 0.562] | 0 / 8 | 0.0078 (0.0234) | Verity's checks refuse unanswerable questions that the naive draft answers. |
+| **Answerable answered** | higher | 58/62 [0.846, 0.975] | 62/62 [0.942, 1.000] | 0 / 4 | 0.1250 (0.2500) | No cost measurable at this n. |
+| **Invented answer** | lower | 0/93 [0.000, 0.040] | 3/93 [0.011, 0.091] | 0 / 3 | 0.2500 (0.2500) | No difference in invented answers measurable at this n. |
+| Unanswerable answered, self-abstentions as answers | — | 7/31 [0.114, 0.398] | 31/31 [0.890, 1.000] | 0 / 24 | < 0.0001 | descriptive |
+| Answerable answered, self-abstentions as answers | — | 58/62 [0.846, 0.975] | 62/62 [0.942, 1.000] | 0 / 4 | 0.1250 | descriptive |
+| Invented answer, self-abstentions as answers | — | 1/93 [0.002, 0.058] | 5/93 [0.023, 0.120] | 0 / 4 | 0.1250 | descriptive |
+| Invented, over the answers each arm shipped | — | 1/65 [0.003, 0.082] | 5/93 [0.023, 0.120] | — | — | not paired |
+| Hallucination rate, answerable questions answered | — | 0/58 [0.000, 0.062] | 2/62 [0.009, 0.110] | — | — | not paired |
+
+Unanswerable answered by tag (self-abstentions as refusals; a question can carry several tags), descriptive:
+
+| Tag | Verity | Naive RAG |
+|---|---|---|
+| `adversarial` | 0/4 [0.000, 0.490] | 3/4 [0.301, 0.954] |
+| `false-premise` | 2/7 [0.082, 0.641] | 3/7 [0.158, 0.750] |
+| `near-miss` | 2/15 [0.037, 0.379] | 4/15 [0.109, 0.519] |
+| `out-of-corpus` | 0/9 [0.000, 0.299] | 5/9 [0.267, 0.811] |
+
+- Verity: $2.1055 agent, $1.8621 judge; per query $0.0226 agent only, $0.0427 with the judge. `eval_513b839_test.incomplete-20261107T122042441670Z.json` stopped after 54 (budget_exceeded).
+- Naive RAG: $1.6349 agent, $2.6551 judge; per query $0.0172 agent only, $0.0452 with the judge.
+- Completed by one arm only, left out of every row: `q-094`, `q-095`.
+- Discordant questions, unanswerable answered: Verity only none; naive only `q-004`, `q-006`, `q-015`, `q-017`, `q-018`, `q-019`, `q-080`, `q-084`.
+
+Generated from `scorecards/two-arm-comparison.json`, computed from the four artefacts it names (`scripts/compare_two_arm.py --check`).
+<!-- TWO-ARM:END -->
+
+**What it implies for the design.** The refusal checks do what they are built for:
+they refuse unanswerable questions that the synthesizer's own draft answers, and the
+table by tag shows where (out-of-corpus and adversarial questions). Their cost on
+answerable questions is not measurable at this n: every discordant answerable question
+went to the naive arm, but too few of them to reject (power for a 10-point cost at the
+62 pairs: 0.427). The difference in invented answers is below what 93 questions can
+show (power 0.184 at 93 pairs for 5 points; the pre-registration computed 0.198 at 95).
+Half the effect on unanswerable questions comes from the injection-marker check: of
+the 8 questions only the naive arm answered, Verity refused `q-004`, `q-017`, `q-018`
+and `q-019` for `suspected_injection`, `q-006` for `no_citation`, and `q-015`, `q-080`
+and `q-084` for `low_citation_coverage`. Over the answers each arm shipped, Verity
+invents 1/65 against 0/93 in the primary row: the one is `q-089`, a self-abstention
+that also states a claim the judge finds unsupported; the self-abstention rule counts
+it as a refusal, and the row "Invented answer, self-abstentions as answers" counts it.
+Deviations from the pre-registration, found after the runs, are listed at its end. Scope: two arms on the shipped defaults. Known
+limit: the full-corpus arm, the obvious baseline for a 5,489-word corpus, is not run;
+its measured cost is in the pre-registration. Next step: that arm, with prompt caching
+or its own budget.
+
 ### Correctness against the reference answer
 
 The rows above measure faithfulness: whether the judge finds each claim supported by
@@ -117,10 +169,14 @@ each answered answerable question is graded against the dataset's `reference_ans
 <!-- CORRECTNESS:START -->
 | Run | Correct | Partial | Incorrect | Unparsed | Not correct | Numbers in the reference found in the answer |
 |---|---|---|---|---|---|---|
+| `datasets/eval/runs/live/eval_513b839_dev-naive-baseline.json` (26) | 23/26 · [0.710, 0.960] | 2 | 1 | 0 | `q-001`, `q-002`, `q-023` | 15/20; disagrees with the grade on `q-011`, `q-012`, `q-057` |
+| `datasets/eval/runs/live/eval_513b839_dev.json` (23) | 20/23 · [0.679, 0.955] | 2 | 1 | 0 | `q-001`, `q-002`, `q-023` | 13/18; disagrees with the grade on `q-011`, `q-012`, `q-057` |
+| `datasets/eval/runs/live/eval_513b839_test-naive-baseline.json` (36) | 36/36 · [0.904, 1.000] | 0 | 0 | 0 | none | 26/30; disagrees with the grade on `q-029`, `q-034`, `q-055`, `q-062` |
+| `datasets/eval/runs/live/eval_513b839_test.incomplete-20261107T122042441670Z.json` (35) | 35/35 · [0.901, 1.000] | 0 | 0 | 0 | none | 24/29; disagrees with the grade on `q-029`, `q-032`, `q-034`, `q-058`, `q-062` |
 | `datasets/eval/runs/live/eval_6ec544d_dev.json` (20) | 19/20 · [0.764, 0.991] | 1 | 0 | 0 | `q-001` | 11/16; disagrees with the grade on `q-002`, `q-012`, `q-057`, `q-060` |
 | `datasets/eval/runs/live/eval_969e1d5_test.json` (31) | 31/31 · [0.890, 1.000] | 0 | 0 | 0 | none | 21/25; disagrees with the grade on `q-029`, `q-032`, `q-034`, `q-062` |
 
-Judge `claude-opus-5-5` with `prompts/judge_correctness.prompt`, total $0.1924. Scope: the answerable questions each run answered, graded against the dataset's `reference_answer`; the answers are the artefact's, the agent was not called again. The grade is **not validated against human labels**; the number check is deterministic but covers only references with a number. Generated from `scorecards/correctness.json` (`scripts/judge_correctness.py render --check`); verdicts and reasons in `datasets/eval/correctness/`.
+Judge `claude-opus-5-5` with `prompts/judge_correctness.prompt`, total $0.6356. Scope: the answerable questions each run answered, graded against the dataset's `reference_answer`; the answers are the artefact's, the agent was not called again. The grade is **not validated against human labels**; the number check is deterministic but covers only references with a number. Generated from `scorecards/correctness.json` (`scripts/judge_correctness.py render --check`); verdicts and reasons in `datasets/eval/correctness/`.
 <!-- CORRECTNESS:END -->
 
 The number check and the grade disagree only where the check is too literal. That reading

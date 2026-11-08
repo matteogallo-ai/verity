@@ -31,7 +31,9 @@ def test_the_abstention_patterns_are_the_pre_registered_ones() -> None:
     block = re.search(r"```\n(.*?)\n\s*```", prereg, re.DOTALL)
     assert block is not None
     patterns = tuple(line.strip() for line in block.group(1).splitlines())
-    assert patterns == _load().ABSTENTION_PATTERNS
+    from verity.eval.abstention import ABSTENTION_PATTERNS
+
+    assert patterns == ABSTENTION_PATTERNS
 
 
 @pytest.mark.parametrize(
