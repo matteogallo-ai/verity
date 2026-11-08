@@ -21,6 +21,7 @@ file is rendered before any is written.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -96,32 +97,51 @@ def _usd(value: float | None) -> str:
     return "not recorded" if value is None else f"${value:.4f}"
 
 
-def judge_label(judge_model: str, validation_dir: Path = VALIDATION) -> str:
-    """How the answer-quality rows qualify their judge: validated only when the blind
-    agreement artefact exists and was measured on this very judge model."""
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def judge_label(judge_model: str, judge_prompt_sha: str, validation_dir: Path = VALIDATION) -> str:
+    """How the answer-quality rows qualify their judge: validated only by a blind
+    agreement artefact measured on this very judge model *and* judge prompt. A κ
+    measured on one prompt version says nothing about another."""
+    v010 = validation_dir / "judge_faithfulness.v0.1.0.prompt"
     agreement, rejudged = (
         validation_dir / "agreement.json",
         validation_dir / "perturbed_verdicts.json",
     )
-    if not (agreement.is_file() and rejudged.is_file()):
-        return "judge unvalidated"
-    validated_model = json.loads(rejudged.read_text(encoding="utf-8"))["judge_model"]
-    if judge_model.split()[0] != validated_model:
-        return "judge unvalidated"
-    mixed = json.loads(agreement.read_text(encoding="utf-8"))["agreement_mixed"]
-    label = f"judge κ {mixed['cohen_kappa']:.2f}"
-    kappa_ci = validation_dir / "kappa_ci.json"
-    if kappa_ci.is_file():
+    model = judge_model.split()[0]
+    if v010.is_file() and _sha256(v010) == judge_prompt_sha:
+        if not (agreement.is_file() and rejudged.is_file()):
+            return "judge unvalidated"
+        if model != json.loads(rejudged.read_text(encoding="utf-8"))["judge_model"]:
+            return "judge unvalidated"
+        mixed = json.loads(agreement.read_text(encoding="utf-8"))["agreement_mixed"]
+        label = f"judge κ {mixed['cohen_kappa']:.2f}"
+        kappa_ci = validation_dir / "kappa_ci.json"
+        if not kappa_ci.is_file():
+            return f"{label} vs blind human (n={mixed['n_claims']})"
         ci = json.loads(kappa_ci.read_text(encoding="utf-8"))
         low, high = ci["all_claims"]["ci95_percentile"]
         real = ci["n_real_unsupported_by_human"]
-        label += (
-            f" (bootstrap 95 % CI [{low:.2f}, {high:.2f}]) vs blind human, validated on "
+        return (
+            f"{label} (bootstrap 95 % CI [{low:.2f}, {high:.2f}]) vs blind human, validated on "
             f"{mixed['n_claims']} claims of which {real} real hallucination"
             f"{'' if real == 1 else 's'}"
         )
-        return label
-    return f"{label} vs blind human (n={mixed['n_claims']})"
+    v020 = validation_dir / "judge-v0.2.0"
+    verdicts = v020 / "verdicts.json"
+    if verdicts.is_file() and agreement.is_file():
+        meta = json.loads(verdicts.read_text(encoding="utf-8"))
+        if meta["prompt_sha256"] == judge_prompt_sha and meta["judge_model"] == model:
+            mixed = json.loads((v020 / "agreement.json").read_text(encoding="utf-8"))
+            total = json.loads(agreement.read_text(encoding="utf-8"))["agreement_mixed"]
+            return (
+                f"judge prompt v0.2.0 κ {mixed['agreement_mixed']['cohen_kappa']:.2f} vs blind "
+                f"human on {mixed['agreement_mixed']['n_claims']} of {total['n_claims']} "
+                "claims (its rejudge stopped at its spending cap; no bootstrap interval)"
+            )
+    return "judge unvalidated"
 
 
 def _judged_of_shipped(data: dict[str, Any]) -> str:
@@ -634,7 +654,11 @@ def main(argv: list[str] | None = None) -> int:
     results = args.results_doc.read_text(encoding="utf-8")
     card = args.system_card.read_text(encoding="utf-8")
     # Render every file before writing any, so a missing marker leaves all as they were.
-    judge = judge_label(payload["provenance"]["judge_model"])
+    judge = judge_label(
+        payload["provenance"]["judge_model"],
+        # No recorded judge prompt (a stub run) leaves the judge unvalidated.
+        payload["provenance"]["prompt_sha256"].get("judge_faithfulness", ""),
+    )
     rendered_results = render_results(
         results,
         render_block(
