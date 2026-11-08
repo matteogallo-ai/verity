@@ -58,18 +58,19 @@ follows [Semantic Versioning](https://semver.org/).
 - An eval run artefact records its dataset hash, the SHA-256 of every prompt, its
   duration, its confidence threshold and, per example, the confidence score, the
   refusal reason, the judge's usage and the models that served it.
-- The headline scorecard is computed from the run artefact alone (schema v5) and
+- The headline scorecard is computed from the run artefact alone (schema v6) and
   `scripts/generate_headline_results.py --check` rebuilds it; every proportion carries
   its k/n and Wilson 95 % interval, refusals are counted by recorded cause, and
   faithfulness and citation accuracy are published per question and per claim.
-- Live runs of record v1.1.0: `eval_6ec544d_dev.json`, on which the refusal threshold
-  rule was fixed, and `eval_969e1d5_test.json`, the README scorecard (n=56). A refusal
+- Live runs `eval_6ec544d_dev.json`, on which the refusal threshold rule was fixed, and
+  `eval_969e1d5_test.json` (n=56), the runs of record until the `513b839` test run
+  (under Changed). A refusal
   analysis (threshold sweep, reliability diagram, recalibration) is checked against
   them, and two reruns of the dev run give a run-to-run range per metric
   (`scripts/noise_band.py`).
 - Judge validation: 60 claims, 40 real and 20 perturbed to be false
   (`verity.eval.perturb`), labelled blind by a human. Judge prompt v0.1.0, the judge of
-  the runs of record, agrees with κ 0.71 (53/60). An adjudication with the judge's
+  the `6ec544d` and `969e1d5` runs, agrees with κ 0.71 (53/60). An adjudication with the judge's
   verdict visible, published apart, reaches κ 0.93 with 6 of its 7 label changes
   towards the judge; the blind result stays the result of record.
 - Judge prompt v0.2.0 delimits the evidence, the answer and the citations, neutralises
@@ -78,7 +79,7 @@ follows [Semantic Versioning](https://semver.org/).
   `citation_ok` false when that index is missing or not one of the answer's citations.
   Rejudged on the same blind labels under a $1.30 cap, which stopped it after 52 of
   the 60 claims: κ 0.60 (44/52), against κ 0.64 (45/52) for v0.1.0 on the same claims.
-  No run of record has been judged by v0.2.0.
+  The `513b839` run of record is judged by v0.2.0.
 - The API ingests the corpus and loads the embedding and reranker models at startup, in
   the background; `/ready` reports `"preload"` and stays `503` until every corpus file is
   in, and a failed preload is started again by the next `/ready`. With the stub agent and
@@ -125,8 +126,7 @@ follows [Semantic Versioning](https://semver.org/).
   **SLO not met** with its cause, and the p95 latency is reported cold start included and
   warm, in separate rows, recomputed from the run's per-answer latencies. The v1.0.0 run of
   record misses both: 32.5 s cold start included, 22.4 s warm.
-- The README and system card say the run of record predates the support check and the
-  delimited prompts; claims C09, C24 and C25 state what they cover. Findings of a neutral
+- Claims C09, C24 and C25 state what they cover. Findings of a neutral
   audit of `main` and what became of each: `docs/audit/2026-11-03-neutral-audit.md`.
 
 ### Fixed
@@ -199,11 +199,14 @@ follows [Semantic Versioning](https://semver.org/).
   (SECURITY.md).
 - Dependencies with known advisories upgraded: Python (pillow 13.0.0, urllib3 2.8.0,
   docling 2.145.0, filelock, certifi, opentelemetry, setuptools) and web (next
-  15.5.28, vitest 4.1.12, vite 6.4.5, eslint 9.39.5, postcss 8.5.32 via override).
+  15.5.28, vitest 4.1.12, vite 6.4.5, eslint 9.39.5, postcss 8.5.32 and, for `@typescript-eslint/typescript-estree`,
+  minimatch 11.0.5 via override).
   v1.0.1 ships the vulnerable versions; until a release contains these upgrades,
   build from `main`.
 - CI: actions pinned by commit SHA, read-only workflow tokens, Dependabot, CodeQL,
-  an OSV-Scanner job with two dated exceptions (`osv-scanner.toml`) and an OpenSSF
+  an OSV-Scanner job with one dated exception (`osv-scanner.toml`: accelerate, no fix
+  released, its vulnerable loaders called by nothing, checked by
+  `tests/unit/test_osv_exceptions.py`) and an OpenSSF
   Scorecard workflow. See `docs/security/README.md`.
 
 ## [1.0.1] — 2026-09-08
