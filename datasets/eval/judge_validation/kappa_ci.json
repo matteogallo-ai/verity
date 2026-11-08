@@ -1,0 +1,27 @@
+{
+  "all_claims": {
+    "ci95_percentile": [
+      0.4872,
+      0.8934
+    ],
+    "kappa": 0.7099,
+    "resamples": 5000,
+    "seed": 1,
+    "undefined": 0
+  },
+  "n_claims": 60,
+  "n_real_claims": 40,
+  "n_real_unsupported_by_human": 1,
+  "note": "percentile bootstrap over claims; claims of one answer are not independent, so the interval is too narrow if anything",
+  "real_claims": {
+    "ci95_percentile": [
+      0.0,
+      1.0
+    ],
+    "kappa": 0.4805,
+    "resamples": 5000,
+    "seed": 1,
+    "undefined": 206
+  },
+  "source": "datasets/eval/judge_validation/claims_annotated.csv"
+}

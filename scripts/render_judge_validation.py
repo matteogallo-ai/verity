@@ -27,6 +27,7 @@ from verity.ingestion.ids import document_id_for_uri
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VALIDATION = REPO_ROOT / "datasets" / "eval" / "judge_validation"
 AGREEMENT = VALIDATION / "agreement.json"
+KAPPA_CI = VALIDATION / "kappa_ci.json"
 ADJUDICATED = VALIDATION / "agreement_adjudicated.json"
 REJUDGED = VALIDATION / "perturbed_verdicts.json"
 KEY = VALIDATION / "judge_key.json"
@@ -129,7 +130,24 @@ def _human_counts(agreement: dict[str, Any]) -> tuple[int, int]:
     return supported, unsupported
 
 
-def _kappa_row(label: str, agreement: dict[str, Any]) -> str:
+def _bootstrap(ci: dict[str, Any] | None) -> str:
+    if ci is None or ci.get("ci95_percentile") is None:
+        return ""
+    low, high = ci["ci95_percentile"]
+    undefined = (
+        f", κ undefined in {ci['undefined']} of {ci['resamples']} resamples"
+        if ci["undefined"]
+        else ""
+    )
+    return f" · bootstrap 95 % CI [{low:.2f}, {high:.2f}]{undefined}"
+
+
+def _judge_flags(agreement: dict[str, Any]) -> int:
+    c = agreement["confusion"]
+    return int(c["judge_unsupported/human_supported"] + c["judge_unsupported/human_unsupported"])
+
+
+def _kappa_row(label: str, agreement: dict[str, Any], ci: dict[str, Any] | None = None) -> str:
     supported, unsupported = _human_counts(agreement)
     fragile = min(supported, unsupported) < FRAGILE_BELOW
     small = min(supported, unsupported)
@@ -143,7 +161,7 @@ def _kappa_row(label: str, agreement: dict[str, Any]) -> str:
     kappa = agreement["cohen_kappa"]
     shown = "undefined" if kappa is None else f"{kappa:.2f}"
     return (
-        f"| {label} | {shown} | {agreement['n_claims']} claims · observed agreement "
+        f"| {label} | {shown}{_bootstrap(ci)} | {agreement['n_claims']} claims · observed agreement "
         f"{_value(agreement['observed'])} ({_ci(agreement['observed'])}) · {note} |"
     )
 
@@ -157,7 +175,13 @@ def _real_origin(prov: Provenance) -> str:
     return f"{sum(prov.real_by_run.values())} real claims ({', '.join(parts)})"
 
 
-def render_block(result: dict[str, Any], judge_model: str, prov: Provenance) -> str:
+def render_block(
+    result: dict[str, Any],
+    judge_model: str,
+    prov: Provenance,
+    *,
+    kappa_ci: dict[str, Any] | None = None,
+) -> str:
     s = result["sensitivity"]
     by_kind = " · ".join(f"{k} {v['k']}/{v['n']}" for k, v in sorted(s["by_kind"].items()))
     mixed, real = result["agreement_mixed"], result["agreement_real_only"]
@@ -171,11 +195,26 @@ def render_block(result: dict[str, Any], judge_model: str, prov: Provenance) -> 
         f"{s['judge_detected']['n']} claims perturbed to be false "
         "(one number, date, negation or entity changed). The κ below belongs to this "
         "prompt version: a changed judge prompt is a new judge and needs its own κ.",
+        *(
+            [
+                "",
+                f"The judge is validated on {kappa_ci['n_claims']} claims, of which "
+                f"{kappa_ci['n_real_unsupported_by_human']} real hallucination"
+                f"{'' if kappa_ci['n_real_unsupported_by_human'] == 1 else 's'} (a real claim "
+                "the human finds unsupported). On the real claims the judge flags "
+                f"{_judge_flags(real)} unsupported and the human confirms "
+                f"{real['confusion']['judge_unsupported/human_unsupported']}. The perturbed "
+                "claims are a proxy for its sensitivity to real hallucinations, not a bound "
+                "on it.",
+            ]
+            if kappa_ci
+            else []
+        ),
         "",
         "| Measure | Value | n · notes |",
         "|---|---|---|",
-        _kappa_row("Cohen's κ, all claims", mixed),
-        _kappa_row("Cohen's κ, real claims only", real),
+        _kappa_row("Cohen's κ, all claims", mixed, kappa_ci and kappa_ci["all_claims"]),
+        _kappa_row("Cohen's κ, real claims only", real, kappa_ci and kappa_ci["real_claims"]),
         f"| Judge specificity on real claims (human: supported) | "
         f"{_value(result['specificity_real'])} | {_ci(result['specificity_real'])} |",
         f"| Sensitivity: perturbed claims the judge finds unsupported "
@@ -201,7 +240,7 @@ def render_block(result: dict[str, Any], judge_model: str, prov: Provenance) -> 
         "",
         "Generated from "
         "[`datasets/eval/judge_validation/agreement.json`](../datasets/eval/judge_validation/agreement.json) "
-        "(`scripts/render_judge_validation.py --check`); the labels and the key are pinned in "
+        "and `kappa_ci.json` (`scripts/render_judge_validation.py --check`); the labels and the key are pinned in "
         "`datasets/eval/judge_validation/SHA256SUMS`.",
     ]
     return "\n".join(lines)
@@ -327,7 +366,10 @@ def main(argv: list[str] | None = None) -> int:
     judge_model = json.loads(REJUDGED.read_text(encoding="utf-8"))["judge_model"]
     adjudicated = json.loads(ADJUDICATED.read_text(encoding="utf-8"))
     current = args.results_doc.read_text(encoding="utf-8")
-    rendered = replace_block(current, render_block(result, judge_model, provenance()))
+    kappa_ci = json.loads(KAPPA_CI.read_text(encoding="utf-8"))
+    rendered = replace_block(
+        current, render_block(result, judge_model, provenance(), kappa_ci=kappa_ci)
+    )
     rendered = replace_block(
         rendered, render_adjudicated_block(adjudicated, result), ADJ_START, ADJ_END
     )

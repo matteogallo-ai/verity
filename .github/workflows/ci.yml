@@ -55,6 +55,12 @@ jobs:
       - name: Naive-baseline comparison matches its artefacts
         run: uv run python scripts/compare_naive_baseline.py --check
 
+      - name: Refusal by tag, correctness and the kappa interval match their artefacts
+        run: |
+          uv run python scripts/refusal_by_tag.py --check
+          uv run python scripts/judge_correctness.py render --check
+          uv run python scripts/judge_agreement.py kappa-ci --check
+
       - name: PDF and DOCX corpus documents match their Markdown sources
         run: uv run python scripts/build_corpus_documents.py --check
 

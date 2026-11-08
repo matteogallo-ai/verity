@@ -126,3 +126,34 @@ def test_arms_are_compared_on_the_questions_both_completed(tmp_path: Path) -> No
     assert built["compared_ids"] == first_ten
     assert built["arms"]["verity"]["n_examples"] == 10
     assert set(built["completed_by_one_arm_only"]) == set(data["compared_ids"]) - set(first_ten)
+
+
+def test_paired_rows_carry_an_exact_mcnemar_test() -> None:
+    """The arms answer the same questions: answerable answered is 16/21 vs 21/21, five
+    discordant questions all one way, McNemar exact p = 2 * 0.5**5 = 0.0625."""
+    import json
+
+    data = json.loads((REPO_ROOT / "scorecards/naive-baseline-comparison.json").read_text())
+    test = data["paired_tests"]["answerable_answered"]
+    assert (test["verity_only"], test["naive_only"], test["n_paired"]) == (0, 5, 21)
+    assert test["p_mcnemar_exact"] == pytest.approx(0.0625)
+    assert data["readings"]["answerable_answered"] == "not distinguishable (McNemar p = 0.062)"
+    # Per-claim rows are not paired: the two arms make different claims.
+    assert data["paired_tests"]["faithfulness_per_claim"] is None
+
+
+def test_agreeing_distinguishable_readings_are_not_reported_as_differing() -> None:
+    """Both rules say Verity answers fewer unanswerable questions: they agree."""
+    mod = _load()
+    test = {"verity_only": 0, "naive_only": 9, "n_paired": 9, "p_mcnemar_exact": 0.0039}
+    paired = mod.verdict_paired(test, "lower")
+    overlap = mod.verdict_overlap(_m(0, 9, 0.0, 0.3), _m(9, 9, 0.7, 1.0), "lower")
+    assert paired == overlap == "Verity better"
+
+
+def test_a_row_too_small_to_reach_the_threshold_says_so() -> None:
+    """With 2 paired questions the smallest exact McNemar p is 0.5: no result is possible."""
+    reading = _load().read_paired(
+        {"verity_only": 0, "naive_only": 2, "n_paired": 2, "p_mcnemar_exact": 0.5}, "lower"
+    )
+    assert reading == "not testable: 2 paired questions, smallest possible p = 0.500"

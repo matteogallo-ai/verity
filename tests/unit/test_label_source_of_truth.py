@@ -75,7 +75,7 @@ class TestConsoleJsonLabelInvariant:
         """Faithfulness and citation accuracy carry a macro and a micro figure, each
         with its denominator; each proportion also carries its k and Wilson interval."""
         _, payload = stub_run
-        assert payload["schema"] == "verity.scorecard.headline/v5"
+        assert payload["schema"] == "verity.scorecard.headline/v6"
         for name in ("faithfulness", "citation_accuracy"):
             entry = payload["answer_quality"][name]
             assert set(entry["macro"]) == {"value", "n_questions"}
