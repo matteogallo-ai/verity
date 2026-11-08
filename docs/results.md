@@ -54,6 +54,60 @@ Each proportion with its k/n and Wilson 95 % interval, the approved SLOs and whe
 this run meets them, the intended use and the known limits:
 [`docs/SYSTEM_CARD.md`](SYSTEM_CARD.md), generated from the same scorecard.
 
+### Refusal checks, one at a time
+
+Every refusal of an answerable question comes from the deterministic checks. The
+tables below say which check makes which refusals, without a model call.
+
+<!-- GATE-ABLATION:START -->
+Right / wrong refusals: a refusal of an unanswerable question is right, of an answerable one wrong.
+
+**First failing check, on Verity's runs.** A refused record keeps only the first check that failed, so a later check is never seen on it. Each cell is records, then distinct questions in brackets: the dev runs include reruns of the same questions.
+
+| Check | dev (140 records) | test (56 records) |
+|---|---|---|
+| `irrelevant_citation` | 5 / 11 (2 / 4) | 0 / 4 (0 / 4) |
+| `low_citation_coverage` | 13 / 12 (5 / 4) | 6 / 1 (6 / 1) |
+| `model_refused` | 0 / 0 (0 / 0) | 2 / 0 (2 / 0) |
+| `no_citation` | 13 / 0 (4 / 0) | 6 / 0 (6 / 0) |
+| `suspected_injection` | 7 / 0 (2 / 0) | 3 / 0 (3 / 0) |
+
+Runs: dev: `eval_6ec544d_dev.json`, `eval_6ec544d_dev.rerun2.json`, `eval_6ec544d_dev.rerun3.json`, `eval_e644a98_dev.incomplete-20261105T094431636600Z.json`; test: `eval_969e1d5_test.json`.
+
+With `irrelevant_citation` off, refusal precision on dev lies between 33/56 and 38/50 (records): each record it refused becomes an answer or a scorer refusal.
+
+With `irrelevant_citation` off, refusal precision on test lies between 17/22 and 17/18 (records): each record it refused becomes an answer or a scorer refusal.
+
+**Every check on its own, on the naive arm's dev drafts** (28 drafts, 24 answerable; thresholds: coverage 0.5, cited reranker score 0.0). The naive arm ran the same pipeline and shipped its drafts unchecked, so each check can be replayed on every draft. A draft with no citation has coverage 0, so `low_citation_coverage` alone also counts the `no_citation` drafts.
+
+| Check | Alone: right / wrong | All checks but this one: right / wrong | Wrongly refused alone |
+|---|---|---|---|
+| `no_citation` | 3 / 0 | 4 / 5 | none |
+| `suspected_injection` | 1 / 0 | 3 / 5 | none |
+| `low_citation_coverage` | 3 / 2 | 4 / 3 | `q-022`, `q-031` |
+| `irrelevant_citation` | 0 / 3 | 4 / 2 | `q-001`, `q-023`, `q-063` |
+| all four | 4 / 5 | — | — |
+
+The replay is checked in one direction: on every answered record of the Verity runs above, it finds that every check passes, as the agent did. It cannot check a refused record, which keeps no draft. Generated from `scorecards/gate-ablation.json` (`scripts/gate_ablation.py --check`).
+<!-- GATE-ABLATION:END -->
+
+**Decision, on dev only.** The cited-relevance check (`irrelevant_citation`) makes more
+wrong refusals than right ones in both dev readings, so it is off by default
+(`VERITY_IRRELEVANT_CITATION_CHECK=true` restores it). The dev evidence is small: as
+the first failing check it wrongly refused 4 distinct questions and rightly refused 2;
+alone on the naive drafts it refused 3 answerable drafts and no unanswerable one, and
+those three are among the four. The cost is the 2 unanswerable dev questions it was
+the first to refuse (`q-072`, `q-088`, see `right_ids` in the JSON): with the check off
+their drafts reach the scorer and can ship, which the replay cannot show, since the
+naive drafts hold no unanswerable question this check refused. The precision ranges
+above bound the effect on the runs of record.
+
+Scope: the headline in the README and the results table come from the test run
+`969e1d5`, which ran with the check on. Known limit: no live run with the check off
+exists, so the shipped default is measured only by the bounds above. Next step: a test
+run of the default configuration. Test figures are reported here and were not used for
+the decision.
+
 ### Correctness against the reference answer
 
 The rows above measure faithfulness: whether the judge finds each claim supported by
@@ -173,7 +227,9 @@ Generated from [`datasets/eval/judge_validation/judge-v0.2.0/agreement.json`](..
   `synthesize.prompt` v0.2.0 and judge prompt v0.1.0: the datamarked synthesis (C33)
   and the delimited judge came after them, and no live run of the current pipeline is
   published here.
-- **The threshold decides nothing on this data.** Every refusal above has a
+- **The threshold decides nothing on this data, and refuses nothing by default.**
+  The dev run used 0.55 and the test run 0.0; the shipped default is 0.0, the value
+  the dev rule chose, which no score in [0, 1] is below. Every refusal above has a
   deterministic cause (no citation, low citation coverage, irrelevant citation,
   suspected injection) or is the scorer's own refusal; none is `below_threshold`.
   The threshold was chosen on the dev split by a rule fixed before the run (highest

@@ -324,3 +324,47 @@ async def test_without_checks_citations_are_still_verbatim() -> None:
     for c in answer.citations:
         chunk = next(h.chunk for h in answer.hits_used if h.chunk.id == c.chunk_id)
         assert c.quote in chunk.text
+
+
+class _NegativeRerankerBackend(_FakeRerankerBackend):
+    """Every passage scores below 0: the cited relevance check would refuse any draft."""
+
+    def predict(
+        self,
+        sentences: Sequence[tuple[str, str]],
+        *,
+        batch_size: int = 32,
+        show_progress_bar: bool = False,
+        convert_to_numpy: bool = True,
+    ) -> list[float]:
+        return [s - 100.0 for s in super().predict(sentences)]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("enabled", "refused"), [(False, False), (True, True)])
+async def test_the_cited_relevance_check_is_off_by_default(
+    monkeypatch: pytest.MonkeyPatch, enabled: bool, refused: bool
+) -> None:
+    """On dev it made more wrong refusals than right ones (docs/results.md, "Refusal
+    checks, one at a time"), so it runs only when VERITY_IRRELEVANT_CITATION_CHECK is set."""
+    from verity.config import get_settings
+    from verity.types import RefusalReason
+
+    if enabled:
+        monkeypatch.setenv("VERITY_IRRELEVANT_CITATION_CHECK", "true")
+    get_settings.cache_clear()
+    retriever = await _seed_retriever()
+    retriever = HybridRetriever(
+        store=retriever._store,
+        embedder=retriever._embedder,
+        reranker=CrossEncoderReranker(model="fake", backend=_NegativeRerankerBackend()),
+    )
+    agent = create_default_agent(retriever=retriever, client=build_stub_router())
+    answer = await agent.answer(
+        "What is the notice period for terminating the master services agreement?"
+    )
+    assert answer.confidence is not None
+    assert answer.confidence.refused is refused
+    if refused:
+        assert answer.confidence.reason is RefusalReason.IRRELEVANT_CITATION
+    get_settings.cache_clear()

@@ -1,0 +1,247 @@
+{
+  "first_failing": {
+    "dev": {
+      "by_cause": {
+        "irrelevant_citation": {
+          "right": 5,
+          "right_ids": [
+            "q-072",
+            "q-088"
+          ],
+          "wrong": 11,
+          "wrong_ids": [
+            "q-001",
+            "q-023",
+            "q-063",
+            "q-091"
+          ]
+        },
+        "low_citation_coverage": {
+          "right": 13,
+          "right_ids": [
+            "q-075",
+            "q-077",
+            "q-080",
+            "q-084",
+            "q-088"
+          ],
+          "wrong": 12,
+          "wrong_ids": [
+            "q-022",
+            "q-031",
+            "q-035",
+            "q-061"
+          ]
+        },
+        "no_citation": {
+          "right": 13,
+          "right_ids": [
+            "q-006",
+            "q-067",
+            "q-070",
+            "q-076"
+          ],
+          "wrong": 0,
+          "wrong_ids": []
+        },
+        "suspected_injection": {
+          "right": 7,
+          "right_ids": [
+            "q-017",
+            "q-093"
+          ],
+          "wrong": 0,
+          "wrong_ids": []
+        }
+      },
+      "n_records": 140,
+      "runs": [
+        "datasets/eval/runs/live/eval_6ec544d_dev.json",
+        "datasets/eval/runs/noise/eval_6ec544d_dev.rerun2.json",
+        "datasets/eval/runs/noise/eval_6ec544d_dev.rerun3.json",
+        "datasets/eval/runs/live/eval_e644a98_dev.incomplete-20261105T094431636600Z.json"
+      ],
+      "without_irrelevant_citation": {
+        "highest": [
+          38,
+          50
+        ],
+        "lowest": [
+          33,
+          56
+        ]
+      }
+    },
+    "test": {
+      "by_cause": {
+        "irrelevant_citation": {
+          "right": 0,
+          "right_ids": [],
+          "wrong": 4,
+          "wrong_ids": [
+            "q-016",
+            "q-040",
+            "q-041",
+            "q-052"
+          ]
+        },
+        "low_citation_coverage": {
+          "right": 6,
+          "right_ids": [
+            "q-014",
+            "q-015",
+            "q-073",
+            "q-079",
+            "q-083",
+            "q-086"
+          ],
+          "wrong": 1,
+          "wrong_ids": [
+            "q-055"
+          ]
+        },
+        "model_refused": {
+          "right": 2,
+          "right_ids": [
+            "q-078",
+            "q-081"
+          ],
+          "wrong": 0,
+          "wrong_ids": []
+        },
+        "no_citation": {
+          "right": 6,
+          "right_ids": [
+            "q-068",
+            "q-069",
+            "q-071",
+            "q-082",
+            "q-094",
+            "q-095"
+          ],
+          "wrong": 0,
+          "wrong_ids": []
+        },
+        "suspected_injection": {
+          "right": 3,
+          "right_ids": [
+            "q-004",
+            "q-018",
+            "q-019"
+          ],
+          "wrong": 0,
+          "wrong_ids": []
+        }
+      },
+      "n_records": 56,
+      "runs": [
+        "datasets/eval/runs/live/eval_969e1d5_test.json"
+      ],
+      "without_irrelevant_citation": {
+        "highest": [
+          17,
+          18
+        ],
+        "lowest": [
+          17,
+          22
+        ]
+      }
+    }
+  },
+  "replay_checked_on_answered_records": true,
+  "replay_on_naive_drafts": {
+    "dev": {
+      "all": {
+        "right": 4,
+        "wrong": 5,
+        "wrong_ids": [
+          "q-001",
+          "q-022",
+          "q-023",
+          "q-031",
+          "q-063"
+        ]
+      },
+      "all_but": {
+        "irrelevant_citation": {
+          "right": 4,
+          "wrong": 2,
+          "wrong_ids": [
+            "q-022",
+            "q-031"
+          ]
+        },
+        "low_citation_coverage": {
+          "right": 4,
+          "wrong": 3,
+          "wrong_ids": [
+            "q-001",
+            "q-023",
+            "q-063"
+          ]
+        },
+        "no_citation": {
+          "right": 4,
+          "wrong": 5,
+          "wrong_ids": [
+            "q-001",
+            "q-022",
+            "q-023",
+            "q-031",
+            "q-063"
+          ]
+        },
+        "suspected_injection": {
+          "right": 3,
+          "wrong": 5,
+          "wrong_ids": [
+            "q-001",
+            "q-022",
+            "q-023",
+            "q-031",
+            "q-063"
+          ]
+        }
+      },
+      "alone": {
+        "irrelevant_citation": {
+          "right": 0,
+          "wrong": 3,
+          "wrong_ids": [
+            "q-001",
+            "q-023",
+            "q-063"
+          ]
+        },
+        "low_citation_coverage": {
+          "right": 3,
+          "wrong": 2,
+          "wrong_ids": [
+            "q-022",
+            "q-031"
+          ]
+        },
+        "no_citation": {
+          "right": 3,
+          "wrong": 0,
+          "wrong_ids": []
+        },
+        "suspected_injection": {
+          "right": 1,
+          "wrong": 0,
+          "wrong_ids": []
+        }
+      },
+      "n_answerable": 24,
+      "n_drafts": 28,
+      "runs": [
+        "datasets/eval/runs/live/eval_e644a98_dev-naive-baseline.incomplete-20261105T094823388125Z.json"
+      ],
+      "thresholds": {
+        "min_citation_coverage": 0.5,
+        "min_cited_rerank_score": 0.0
+      }
+    }
+  }
+}

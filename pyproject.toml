@@ -90,6 +90,7 @@ paths = [
   "scripts/generate_headline_results.py",
   "scripts/summarise_injection_runs.py",
   "scripts/compare_naive_baseline.py",
+  "scripts/gate_ablation.py",
   "scripts/judge_correctness.py",
   "scripts/refusal_by_tag.py",
 ]
