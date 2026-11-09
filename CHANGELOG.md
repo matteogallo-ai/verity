@@ -119,7 +119,6 @@ follows [Semantic Versioning](https://semver.org/).
 - `SECURITY.md` names one reporting channel, GitHub private vulnerability reporting.
 - Dependency floors bumped after the run of record (no behaviour change; eval not
   rerun): the tag `v1.1.0` is `59c4655`, the run of record is `513b839`.
-
 - No sampling parameter is sent to any model: API version 2026-10-21 rejects
   `temperature`, and the Anthropic SDK moved to 2.x. Reproducibility of the published
   numbers rests on the committed artefacts (ADR 0007), not on sampling.

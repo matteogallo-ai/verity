@@ -583,8 +583,8 @@ def _comparison_lines(
     lead = (
         f"**Unanswerable questions answered: Verity {v['k']}/{v['n']}, naive RAG "
         f"{nv['k']}/{nv['n']}** (lower is better; the naive arm has the same retrieval and "
-        f"synthesis and no checks): {comparison['n_compared']} questions (dev + test) both "
-        f"arms completed, exact McNemar, Holm-adjusted p {row['p_holm']:.3f}, "
+        f"synthesis and no checks): {comparison['n_compared']} questions (dev + test) that "
+        f"both arms completed, exact McNemar, Holm-adjusted p {row['p_holm']:.3f}, "
         f"[pre-registered]({prereg}) before the runs."
     )
     invented = data["answer_quality"]["invented_answer_rate"]
@@ -593,7 +593,8 @@ def _comparison_lines(
         f"refused or {invented['k']}/{invented['n_questions']} invented: it pools dev and "
         "test and counts a self-abstention (an answer saying the documents do not hold "
         f"it) as a refusal, by the [self-abstention rule]({prereg}#metrics); the other two "
-        f"are the test split alone, run `{data['provenance']['run_sha']}`, where a "
+        f"are the test split of the same runs alone (commit `{data['provenance']['run_sha']}`), "
+        "where a "
         "self-abstention counts as an answer."
     )
     return lead, why
@@ -646,7 +647,10 @@ def release_notes_problems(
 ) -> list[str]:
     """The scorecard figures the published release notes state, each as the notes word
     it, that the notes do not contain. The notes are published text, never rewritten
-    here: a figure that drifts is reported, and the owner edits the release."""
+    here: a figure that drifts is reported, and the owner edits the release. The
+    fragments follow the wording of the 1.1.0 notes; notes of another version that word
+    them differently fail until this list follows them. A drift also stops a write run
+    before it writes anything."""
     flat = " ".join(text.split())
     aq, refu, sizes, cost = (
         data["answer_quality"],
