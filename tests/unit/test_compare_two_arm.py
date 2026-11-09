@@ -121,3 +121,13 @@ def test_a_p_value_below_display_precision_is_not_shown_as_zero(
     monkeypatch: pytest.MonkeyPatch, p: float, shown: str
 ) -> None:
     assert _module(monkeypatch).fmt_p(p) == shown
+
+
+def test_the_registered_invented_metric_is_named_apart_from_the_headline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The README's "Invented answers" counts a self-abstention with an unsupported claim
+    # (q-089 in the run of record); the registered metric counts it as a refusal. One
+    # name for both would give one metric two definitions.
+    labels = {key: label for key, label, *_ in _module(monkeypatch).PRIMARY}
+    assert labels["invented_answer"] == "Invented answer, self-abstentions as refusals"

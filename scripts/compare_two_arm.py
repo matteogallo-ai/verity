@@ -75,7 +75,13 @@ def _ratio(k: int, n: int) -> dict[str, Any]:
 PRIMARY = (
     ("unanswerable_answered", "Unanswerable answered", "unanswerable", "answered", True),
     ("answerable_answered", "Answerable answered", "answerable", "answered", False),
-    ("invented_answer", "Invented answer", "all", "invented", True),
+    (
+        "invented_answer",
+        "Invented answer, self-abstentions as refusals",
+        "all",
+        "invented",
+        True,
+    ),
 )
 SECONDARY = (
     (
