@@ -262,8 +262,8 @@ def test_kappa_rows_carry_the_bootstrap_interval_and_the_real_hallucination_coun
         "n_real_unsupported_by_human": 1,
     }
     block = _load("render_judge_validation").render_block(_agreement(), "m", _prov(), kappa_ci=ci)
-    assert "bootstrap 95 % CI [0.49, 0.89]" in block
-    assert "bootstrap 95 % CI [0.00, 1.00], κ undefined in 206 of 5000 resamples" in block
+    assert "bootstrap 95% CI [0.49, 0.89]" in block
+    assert "bootstrap 95% CI [0.00, 1.00], κ undefined in 206 of 5000 resamples" in block
     assert "validated on 60 claims, of which 1 real hallucination" in block
     assert "bound it from above" not in block and "not a bound on it" in block
     real = _agreement()["agreement_real_only"]["confusion"]

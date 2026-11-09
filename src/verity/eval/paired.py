@@ -2,7 +2,7 @@
 
 Two arms answering the same questions are paired, so whether their Wilson intervals
 overlap is the wrong question: it ignores the pairing and is far more conservative
-than a 5 % test (two disjoint 95 % intervals is roughly p < 0.006). McNemar uses
+than a 5% test (two disjoint 95% intervals is roughly p < 0.006). McNemar uses
 only the discordant questions, those where one arm succeeds and the other fails;
 the exact version is a two-sided binomial test of those counts at p = 0.5, which
 holds at the small n of this repository where the chi-square approximation does not.

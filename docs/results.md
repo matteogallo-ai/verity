@@ -10,15 +10,15 @@ record, the judge's validation against blind human labels, and what the numbers 
 
 | Metric | Value | Notes |
 |---|---:|---|
-| **Invented answers** | **1/40** | ↓ better · answers with a claim the judge finds unsupported (or no usable claim) / every judged answer, answerable or not: 1/40 · 95 % CI [0.004, 0.129] · `q-089` · judge prompt v0.2.0 κ 0.60 vs blind human on 52 of 60 claims (its rejudge stopped at its spending cap; no bootstrap interval) |
-| **Refusal recall** | **0.722** | unanswerable questions refused / unanswerable: 13/18 · 95 % CI [0.491, 0.875] · threshold 0 |
-| **Refusal precision** | **0.929** | refusals that were unanswerable / refusals: 13/14 · 95 % CI [0.685, 0.987] |
+| **Invented answers** | **1/40** | ↓ better · answers with a claim the judge finds unsupported (or no usable claim) / every judged answer, answerable or not: 1/40 · 95% CI [0.004, 0.129] · `q-089` · judge prompt v0.2.0 κ 0.60 vs blind human on 52 of 60 claims (its rejudge stopped at its spending cap; no bootstrap interval) |
+| **Refusal recall** | **0.722** | unanswerable questions refused / unanswerable: 13/18 · 95% CI [0.491, 0.875] · threshold 0 |
+| **Refusal precision** | **0.929** | refusals that were unanswerable / refusals: 13/14 · 95% CI [0.685, 0.987] |
 | Faithfulness, per question | 0.996 | mean over 40 judged answers · judge prompt v0.2.0 κ 0.60 vs blind human on 52 of 60 claims (its rejudge stopped at its spending cap; no bootstrap interval) |
-| Faithfulness, per claim | 0.992 | pooled over claims: 121/122 · 95 % CI [0.955, 0.999] · judge prompt v0.2.0 κ 0.60 vs blind human on 52 of 60 claims (its rejudge stopped at its spending cap; no bootstrap interval) |
+| Faithfulness, per claim | 0.992 | pooled over claims: 121/122 · 95% CI [0.955, 0.999] · judge prompt v0.2.0 κ 0.60 vs blind human on 52 of 60 claims (its rejudge stopped at its spending cap; no bootstrap interval) |
 | Citation accuracy, per question | 0.962 | mean over 40 judged answers · judge prompt v0.2.0 κ 0.60 vs blind human on 52 of 60 claims (its rejudge stopped at its spending cap; no bootstrap interval) |
-| Citation accuracy, per claim | 0.951 | pooled over claims: 116/122 · 95 % CI [0.897, 0.977] · judge prompt v0.2.0 κ 0.60 vs blind human on 52 of 60 claims (its rejudge stopped at its spending cap; no bootstrap interval) |
-| Hallucination rate, answerable only | 0.000 | ↓ better · answers with an unsupported claim / answered answerable questions (an answer to an unanswerable question is outside it): 0/35 · 95 % CI [0.000, 0.099] |
-| Unanswerable answered | 5/18 | ↓ better · an answer shipped where the corpus has none: 5/18 · 95 % CI [0.125, 0.509] |
+| Citation accuracy, per claim | 0.951 | pooled over claims: 116/122 · 95% CI [0.897, 0.977] · judge prompt v0.2.0 κ 0.60 vs blind human on 52 of 60 claims (its rejudge stopped at its spending cap; no bootstrap interval) |
+| Hallucination rate, answerable only | 0.000 | ↓ better · answers with an unsupported claim / answered answerable questions (an answer to an unanswerable question is outside it): 0/35 · 95% CI [0.000, 0.099] |
+| Unanswerable answered | 5/18 | ↓ better · an answer shipped where the corpus has none: 5/18 · 95% CI [0.125, 0.509] |
 | Retrieval nDCG@8 | 0.923 | scored without an LLM on hits retrieved for the LLM sub-questions |
 | Retrieval recall@8 | 0.972 | as nDCG |
 | Retrieval precision@8 | 0.142 | k>gold ceiling; interpret with recall |
@@ -50,7 +50,7 @@ refusal cause, confidence score, per-claim judge verdict) is
 The run used the in-memory store (BM25 sparse arm); `verity eval run` defaults to
 pgvector (`--store memory` reproduces it). Definitions:
 [`docs/evaluation-methodology.md`](evaluation-methodology.md).
-Each proportion with its k/n and Wilson 95 % interval, the approved SLOs and whether
+Each proportion with its k/n and Wilson 95% interval, the approved SLOs and whether
 this run meets them, the intended use and the known limits:
 [`docs/SYSTEM_CARD.md`](SYSTEM_CARD.md), generated from the same scorecard.
 
@@ -116,7 +116,7 @@ figures were not used for the decision.
 |---|---|---|---|---|---|---|
 | **Unanswerable answered** | lower | 4/31 [0.051, 0.288] | 12/31 [0.237, 0.562] | 0 / 8 | 0.0078 (0.0234) | Verity's checks refuse unanswerable questions that the naive draft answers. |
 | **Answerable answered** | higher | 58/62 [0.846, 0.975] | 62/62 [0.942, 1.000] | 0 / 4 | 0.1250 (0.2500) | No cost measurable at this n. |
-| **Invented answer** | lower | 0/93 [0.000, 0.040] | 3/93 [0.011, 0.091] | 0 / 3 | 0.2500 (0.2500) | No difference in invented answers measurable at this n. |
+| **Invented answer, self-abstentions as refusals** | lower | 0/93 [0.000, 0.040] | 3/93 [0.011, 0.091] | 0 / 3 | 0.2500 (0.2500) | No difference in invented answers measurable at this n. |
 | Unanswerable answered, self-abstentions as answers | — | 7/31 [0.114, 0.398] | 31/31 [0.890, 1.000] | 0 / 24 | < 0.0001 | descriptive |
 | Answerable answered, self-abstentions as answers | — | 58/62 [0.846, 0.975] | 62/62 [0.942, 1.000] | 0 / 4 | 0.1250 | descriptive |
 | Invented answer, self-abstentions as answers | — | 1/93 [0.002, 0.058] | 5/93 [0.023, 0.120] | 0 / 4 | 0.1250 | descriptive |
@@ -151,7 +151,8 @@ Half the effect on unanswerable questions comes from the injection-marker check:
 the 8 questions only the naive arm answered, Verity refused `q-004`, `q-017`, `q-018`
 and `q-019` for `suspected_injection`, `q-006` for `no_citation`, and `q-015`, `q-080`
 and `q-084` for `low_citation_coverage`. Over the answers each arm shipped, Verity
-invents 1/65 against 0/93 in the primary row: the one is `q-089`, a self-abstention
+invents 1/65 against 0/93 in the primary row "Invented answer, self-abstentions as
+refusals": the one is `q-089`, a self-abstention
 that also states a claim the judge finds unsupported; the self-abstention rule counts
 it as a refusal, and the row "Invented answer, self-abstentions as answers" counts it.
 Deviations from the pre-registration, found after the runs, are listed at its end. Scope: two arms on the shipped defaults. Known
@@ -225,7 +226,7 @@ them out, so the recall on the questions that test the design (`near-miss`,
 `false-premise`) stands on its own n.
 
 <!-- REFUSAL-BY-TAG:START -->
-Run `datasets/eval/runs/live/eval_513b839_test.incomplete-20261107T122042441670Z.json`, tags from `datasets/eval/test.jsonl`. Refusal recall = unanswerable questions refused / unanswerable questions, Wilson 95 % interval. A question can carry several tags, so tag rows overlap.
+Run `datasets/eval/runs/live/eval_513b839_test.incomplete-20261107T122042441670Z.json`, tags from `datasets/eval/test.jsonl`. Refusal recall = unanswerable questions refused / unanswerable questions, Wilson 95% interval. A question can carry several tags, so tag rows overlap.
 
 | Unanswerable questions | Refused | Answered |
 |---|---|---|
@@ -257,12 +258,12 @@ The judge is validated on 60 claims, of which 1 real hallucination (a real claim
 
 | Measure | Value | n · notes |
 |---|---|---|
-| Cohen's κ, all claims | 0.71 · bootstrap 95 % CI [0.49, 0.89] | 60 claims · observed agreement 0.883 (53/60 · 95 % CI [0.778, 0.942]) · 46 supported / 14 unsupported by the human |
-| Cohen's κ, real claims only | 0.48 · bootstrap 95 % CI [0.00, 1.00], κ undefined in 206 of 5000 resamples | 40 claims · observed agreement 0.950 (38/40 · 95 % CI [0.835, 0.986]) · **fragile**: only 1 of 40 claims is in the smaller human class, so one or two disagreements move κ widely |
-| Judge specificity on real claims (human: supported) | 0.949 | 37/39 · 95 % CI [0.831, 0.986] |
-| Sensitivity: perturbed claims the judge finds unsupported (**upper bound**) | 0.800 | 16/20 · 95 % CI [0.584, 0.919] · by kind: date 5/5 · entity 3/5 · negation 5/5 · number 3/5 |
-| … among perturbed claims the human finds unsupported | 0.923 | 12/13 · 95 % CI [0.667, 0.986] |
-| Perturbed claims the human finds unsupported | 0.650 | 13/20 · 95 % CI [0.433, 0.819] |
+| Cohen's κ, all claims | 0.71 · bootstrap 95% CI [0.49, 0.89] | 60 claims · observed agreement 0.883 (53/60 · 95% CI [0.778, 0.942]) · 46 supported / 14 unsupported by the human |
+| Cohen's κ, real claims only | 0.48 · bootstrap 95% CI [0.00, 1.00], κ undefined in 206 of 5000 resamples | 40 claims · observed agreement 0.950 (38/40 · 95% CI [0.835, 0.986]) · **fragile**: only 1 of 40 claims is in the smaller human class, so one or two disagreements move κ widely |
+| Judge specificity on real claims (human: supported) | 0.949 | 37/39 · 95% CI [0.831, 0.986] |
+| Sensitivity: perturbed claims the judge finds unsupported (**upper bound**) | 0.800 | 16/20 · 95% CI [0.584, 0.919] · by kind: date 5/5 · entity 3/5 · negation 5/5 · number 3/5 |
+| … among perturbed claims the human finds unsupported | 0.923 | 12/13 · 95% CI [0.667, 0.986] |
+| Perturbed claims the human finds unsupported | 0.650 | 13/20 · 95% CI [0.433, 0.819] |
 
 Disagreements: the judge rejects 6 claims the human accepts and accepts 1 the human rejects. Notes from the artefact:
 
@@ -282,9 +283,9 @@ Generated from [`datasets/eval/judge_validation/agreement.json`](../datasets/eva
 |---|---|---|
 | Cohen's κ, all claims | 0.71 | 0.93 |
 | Cohen's κ, real claims only (fragile: 3 unsupported) | 0.48 | 1.00 |
-| Observed agreement, all claims | 53/60 · 95 % CI [0.778, 0.942] | 58/60 · 95 % CI [0.886, 0.991] |
-| Perturbed claims the human finds unsupported | 13/20 · 95 % CI [0.433, 0.819] | 18/20 · 95 % CI [0.699, 0.972] |
-| … of which the judge finds unsupported | 12/13 · 95 % CI [0.667, 0.986] | 16/18 · 95 % CI [0.672, 0.969] |
+| Observed agreement, all claims | 53/60 · 95% CI [0.778, 0.942] | 58/60 · 95% CI [0.886, 0.991] |
+| Perturbed claims the human finds unsupported | 13/20 · 95% CI [0.433, 0.819] | 18/20 · 95% CI [0.699, 0.972] |
+| … of which the judge finds unsupported | 12/13 · 95% CI [0.667, 0.986] | 16/18 · 95% CI [0.672, 0.969] |
 
 Generated from [`datasets/eval/judge_validation/agreement_adjudicated.json`](../datasets/eval/judge_validation/agreement_adjudicated.json); each decision and its reason is in `adjudication.csv`.
 <!-- JUDGE-ADJUDICATED:END -->
@@ -297,10 +298,10 @@ Judge `claude-opus-5-5` with judge prompt v0.2.0 (sha256 `aa66e62370a2`), the pr
 | Measure, on the 52 claims v0.2.0 judged | v0.1.0 (earlier runs) | v0.2.0 (run of record) |
 |---|---|---|
 | Cohen's κ, all claims | 0.64 | 0.60 |
-| Observed agreement | 45/52 · 95 % CI [0.747, 0.933] | 44/52 · 95 % CI [0.725, 0.920] |
+| Observed agreement | 45/52 · 95% CI [0.747, 0.933] | 44/52 · 95% CI [0.725, 0.920] |
 | Cohen's κ, real claims only (fragile: 1 unsupported) | 0.48 | 0.37 |
-| Judge specificity on real claims | 33/35 · 95 % CI [0.814, 0.984] | 32/35 · 95 % CI [0.776, 0.970] |
-| Sensitivity on perturbed claims (upper bound) | 12/16 · 95 % CI [0.505, 0.898] | 12/16 · 95 % CI [0.505, 0.898] |
+| Judge specificity on real claims | 33/35 · 95% CI [0.814, 0.984] | 32/35 · 95% CI [0.776, 0.970] |
+| Sensitivity on perturbed claims (upper bound) | 12/16 · 95% CI [0.505, 0.898] | 12/16 · 95% CI [0.505, 0.898] |
 
 On all 60 claims v0.1.0 has κ 0.71, the figure the earlier runs carry (above).
 
@@ -356,7 +357,7 @@ Generated from [`datasets/eval/judge_validation/judge-v0.2.0/agreement.json`](..
   human-unsupported claim (q-074's price) and is fragile: its bootstrap interval is
   [0.00, 1.00]. One annotator gives no inter-annotator
   agreement.
-- **n = 54 is small.** The 95 % Wilson intervals in the table show how little it
+- **n = 54 is small.** The 95% Wilson intervals in the table show how little it
   pins down: no hallucination in the sample does not rule out a rate up to the
   interval's upper bound.
   Per-claim intervals assume independent claims; claims of one answer are not, so

@@ -166,6 +166,10 @@ four runs record. Each item says what the registered text got wrong and what cha
   p-values, rounded only for storage.
 - **Secondary row added.** "The three metrics without the self-abstention rule" was
   published for two of the three; the third, invented answers, is now in the table.
+- **Metric 3 name.** The results table names it "Invented answer, self-abstentions as
+  refusals": the README's "Invented answers" counts a self-abstention with an
+  unsupported claim (`q-089`) as invented, so one name would carry two definitions.
+  The definition is unchanged.
 - **Metric 2 sentence.** The published reading is the registered "no cost measurable
   at this n".
 - **Time of registration.** `513b839` was committed at 2026-11-07 12:02:18 UTC and the

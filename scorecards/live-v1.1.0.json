@@ -64,9 +64,7 @@
     "total_usd": 2.456162
   },
   "dataset": {
-    "n_answerable": 36,
     "n_questions": 56,
-    "n_unanswerable": 18,
     "name": "test",
     "sha256": "94b8d5db3bbc1eedf2945e066ac50bc64226f53c9062bfe4bd1c0f371e1e19c4"
   },
@@ -424,6 +422,7 @@
   },
   "sample_sizes": {
     "n_answerable_answered": 35,
+    "n_answerable_run": 36,
     "n_answered": 40,
     "n_claims": 122,
     "n_errored": 0,
@@ -431,8 +430,9 @@
     "n_judged": 40,
     "n_judged_without_claims": 0,
     "n_not_run": 2,
-    "n_refused": 14
+    "n_refused": 14,
+    "n_unanswerable_run": 18
   },
-  "schema": "verity.scorecard.headline/v6",
+  "schema": "verity.scorecard.headline/v7",
   "source_artefact": "datasets/eval/runs/live/eval_513b839_test.incomplete-20261107T122042441670Z.json"
 }

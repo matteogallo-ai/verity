@@ -98,7 +98,7 @@ def test_the_case_is_the_unit_so_repetitions_do_not_narrow_the_interval() -> Non
     arm = summary.summarise(runs, review, _ANSWERABLE)["arms"]["datamarked"]
     assert (arm["cases_steered"]["k"], arm["cases_steered"]["n"]) == (1, 2)
     assert (arm["answers_steered"]["k"], arm["answers_steered"]["n"]) == (3, 6)
-    # Wilson 95 % for 1/2 is [0.0945, 0.9055]; 3/6 would give the narrower [0.1876, 0.8124].
+    # Wilson 95% for 1/2 is [0.0945, 0.9055]; 3/6 would give the narrower [0.1876, 0.8124].
     assert arm["cases_steered"]["wilson_95"] == [0.0945, 0.9055]
 
 

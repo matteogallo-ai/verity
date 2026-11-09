@@ -13,9 +13,11 @@ argument. The results table sits between ``<!-- RESULTS:START -->`` and
 ``<!-- RESULTS:END -->`` in ``docs/results.md``; the README's key result between
 ``<!-- KEY-RESULT:START -->`` and ``<!-- KEY-RESULT:END -->``; the system card block
 between ``<!-- SYSTEM-CARD:START -->`` and ``<!-- SYSTEM-CARD:END -->`` in
-``docs/SYSTEM_CARD.md`` (each proportion with k/n and a Wilson 95 % interval, and the
+``docs/SYSTEM_CARD.md`` (each proportion with k/n and a Wilson 95% interval, and the
 approved SLOs next to their measured values). Missing markers fail loudly, and every
-file is rendered before any is written.
+file is rendered before any is written. The published release notes of the scorecard's
+version (``docs/releases/<version>.md``) are checked, never written: each figure they
+state from this scorecard or ``scorecards/two-arm-comparison.json`` must be there.
 """
 
 from __future__ import annotations
@@ -42,6 +44,8 @@ DEFAULT_SCORECARD = REPO_ROOT / "scorecards" / "live-v1.1.0.json"
 DEFAULT_README = REPO_ROOT / "README.md"
 DEFAULT_RESULTS_DOC = REPO_ROOT / "docs" / "results.md"
 DEFAULT_SYSTEM_CARD = REPO_ROOT / "docs" / "SYSTEM_CARD.md"
+# Written and checked by scripts/compare_two_arm.py; read here for the README's first line.
+TWO_ARM = REPO_ROOT / "scorecards" / "two-arm-comparison.json"
 VALIDATION = REPO_ROOT / "datasets" / "eval" / "judge_validation"
 START = "<!-- RESULTS:START -->"
 END = "<!-- RESULTS:END -->"
@@ -87,10 +91,10 @@ def _link(target: Path, doc: Path) -> str:
 
 
 def _ci(k: int, n: int, ci: list[float] | None) -> str:
-    """``k/n · 95 % CI [low, high]`` (Wilson), or ``k/n`` when n is 0."""
+    """``k/n · 95% CI [low, high]`` (Wilson), or ``k/n`` when n is 0."""
     if ci is None:
         return f"{k}/{n}"
-    return f"{k}/{n} · 95 % CI {_bracket(ci)}"
+    return f"{k}/{n} · 95% CI {_bracket(ci)}"
 
 
 def _usd(value: float | None) -> str:
@@ -125,7 +129,7 @@ def judge_label(judge_model: str, judge_prompt_sha: str, validation_dir: Path = 
         low, high = ci["all_claims"]["ci95_percentile"]
         real = ci["n_real_unsupported_by_human"]
         return (
-            f"{label} (bootstrap 95 % CI [{low:.2f}, {high:.2f}]) vs blind human, validated on "
+            f"{label} (bootstrap 95% CI [{low:.2f}, {high:.2f}]) vs blind human, validated on "
             f"{mixed['n_claims']} claims of which {real} real hallucination"
             f"{'' if real == 1 else 's'}"
         )
@@ -213,8 +217,8 @@ def render_block(
         f"`judge={prov['judge_model']}` · "
         f"`embedding={prov['embedding_model']}` · "
         f"commit `{prov['run_sha']}` · {date} · dataset `{ds['name']}` · "
-        f"{_n_of_asked(data)} ({ds['n_answerable']} answerable + "
-        f"{ds['n_unanswerable']} unanswerable) · "
+        f"{_n_of_asked(data)} ({sizes['n_answerable_run']} answerable + "
+        f"{sizes['n_unanswerable_run']} unanswerable) · "
         f"**{sizes['n_errored']} errored, {sizes.get('n_not_run', 0)} not run** (kept out of "
         "every metric) · "
         f"total cost **{_usd(cost['total_usd'])}**",
@@ -371,7 +375,7 @@ def _performance_rows(data: dict[str, Any]) -> list[str]:
             f"{_ci_cells(micro['k'], micro['n_claims'])} |"
         )
     retrieval = data["retrieval"]
-    n_answerable = data["dataset"]["n_answerable"]
+    n_answerable = data["sample_sizes"]["n_answerable_run"]
     for label, key in (("nDCG", "ndcg_at_k"), ("Recall", "recall_at_k")):
         rows.append(
             f"| Retrieval {label}@{retrieval['k']}, per-question mean | "
@@ -390,7 +394,7 @@ def _against(measured: float | None, target: float, cause: str) -> str:
 
 def _against_proportion(k: int, n: int, target: float, cause: str) -> str:
     """A rate meets its target only when its Wilson upper bound does: 0 errors in 56
-    requests is no violation observed, not a rate of 1 % or less. The test is one-sided
+    requests is no violation observed, not a rate of 1% or less. The test is one-sided
     on purpose: a measured rate over target is a miss on the run of record whatever its
     interval, as the latency SLO reads its measured p95."""
     interval = wilson(k, n)
@@ -400,9 +404,7 @@ def _against_proportion(k: int, n: int, target: float, cause: str) -> str:
         return f"**SLO not met**: {cause}"
     if interval[1] > target:
         seen = "no violation observed" if k == 0 else f"{k} of {n} within target"
-        return (
-            f"{seen}; n too small to conclude (95 % upper bound {interval[1]:.1%} > {target:.0%})"
-        )
+        return f"{seen}; n too small to conclude (95% upper bound {interval[1]:.1%} > {target:.0%})"
     return "met"
 
 
@@ -493,7 +495,7 @@ def _latency_slo_rows(data: dict[str, Any], approved: str) -> list[str]:
         )
     else:
         cold_cells = (
-            "not measured as one sample: the first answer after boot, timed apart, "
+            "not measured as one sample: the first answer after boot, timed separately, "
             f"took {_fmt_ms(float(cold_start))}",
             "not measured",
         )
@@ -515,7 +517,7 @@ def _slo_rows(data: dict[str, Any]) -> list[str]:
     errored = int(data["sample_sizes"]["n_errored"])
     error_rate = errored / n if n else None
     count, interval = _count_and_interval(errored, n)
-    error_cell = f"{_fmt(error_rate)} ({count}, 95 % CI {interval})"
+    error_cell = f"{_fmt(error_rate)} ({count}, 95% CI {interval})"
     per_query = float(data["cost"]["per_query_usd"])
     approved = "approved"
     return [
@@ -545,17 +547,16 @@ def render_system_card_block(
     data: dict[str, Any], *, scorecard_path: Path, card_path: Path = DEFAULT_SYSTEM_CARD
 ) -> str:
     """Markdown for the system card: measured performance with intervals, then SLOs."""
-    prov = data["provenance"]
-    ds = data["dataset"]
+    prov, sizes = data["provenance"], data["sample_sizes"]
     source = _repo_path(scorecard_path)
     link = _link(scorecard_path, card_path)
     lines = [
         f"Source: [`{source}`]({link}) · commit `{prov['run_sha']}` · "
         f"{_short_date(str(data['generated_at']))} · agent `{prov['agent_model']}` · "
         f"judge `{prov['judge_model']}` · {_n_of_asked(data)} "
-        f"({ds['n_answerable']} answerable + {ds['n_unanswerable']} out-of-scope).",
+        f"({sizes['n_answerable_run']} answerable + {sizes['n_unanswerable_run']} out-of-scope).",
         "",
-        "| Metric | Value | k/n | 95 % CI (Wilson) |",
+        "| Metric | Value | k/n | 95% CI (Wilson) |",
         "|---|---:|---:|---:|",
         *_performance_rows(data),
         "",
@@ -566,30 +567,66 @@ def render_system_card_block(
     return "\n".join(lines)
 
 
+def _comparison_lines(
+    data: dict[str, Any], comparison: dict[str, Any], readme_path: Path
+) -> tuple[str, str] | None:
+    """The pre-registered two-arm result, and why its refusal count differs from the
+    headline run's, or ``None`` when the comparison does not contain the headline run."""
+    if data["source_artefact"] not in {
+        a["path"] for a in comparison["arms"]["verity"]["artefacts"]
+    }:
+        return None
+    row = comparison["primary"]["unanswerable_answered"]
+    v, nv = row["verity"], row["naive"]
+    recall = data["refusal"]["refusal_recall"]
+    prereg = _link(REPO_ROOT / comparison["preregistration"], readme_path)
+    lead = (
+        f"**Unanswerable questions answered: Verity {v['k']}/{v['n']}, naive RAG "
+        f"{nv['k']}/{nv['n']}** (lower is better; the naive arm has the same retrieval and "
+        f"synthesis and no checks): {comparison['n_compared']} questions (dev + test) that "
+        f"both arms completed, exact McNemar, Holm-adjusted p {row['p_holm']:.3f}, "
+        f"[pre-registered]({prereg}) before the runs."
+    )
+    invented = data["answer_quality"]["invented_answer_rate"]
+    why = (
+        f"{v['k']}/{v['n']} does not compare directly with {recall['k']}/{recall['n']} "
+        f"refused or {invented['k']}/{invented['n_questions']} invented: it pools dev and "
+        "test and counts a self-abstention (an answer saying the documents do not hold "
+        f"it) as a refusal, by the [self-abstention rule]({prereg}#metrics); the other two "
+        f"are the test split of the same runs alone (commit `{data['provenance']['run_sha']}`), "
+        "where a "
+        "self-abstention counts as an answer."
+    )
+    return lead, why
+
+
 def render_key_result(
     data: dict[str, Any],
     *,
     readme_path: Path = DEFAULT_README,
     results_doc: Path = DEFAULT_RESULTS_DOC,
     judge: str = "judge unvalidated",
+    comparison: dict[str, Any] | None = None,
 ) -> str:
-    """Return the README's key result: invented answers over every answer shipped, then
-    refusal recall and precision, each with its interval."""
+    """Return the README's key result: the pre-registered comparison when it contains
+    this run, then invented answers over every answer shipped, then refusal recall and
+    precision, each with its interval."""
     prov, ds, refu = data["provenance"], data["dataset"], data["refusal"]
     recall, precision = refu["refusal_recall"], refu["refusal_precision"]
     invented = data["answer_quality"]["invented_answer_rate"]
     ids = ", ".join(f"`{i}`" for i in invented["example_ids"])
     stub = "stub" in prov["agent_model"] or "stub" in prov["judge_model"]
+    compared = None if comparison is None else _comparison_lines(data, comparison, readme_path)
     lines = [
         f"**Invented answers {invented['k']}/{invented['n_questions']}** "
-        f"(Wilson 95 % CI {_bracket(invented['ci95_wilson'])}): answers holding a claim the "
+        f"(Wilson 95% CI {_bracket(invented['ci95_wilson'])}): answers holding a claim the "
         "judge finds unsupported by the retrieved passages, over every judged answer, "
         f"answerable or not{f' ({ids})' if ids else ''}; {_judged_of_shipped(data)}. "
         "Faithfulness to the passages; correctness against the reference answers is "
-        "graded apart in the results. "
+        "graded separately in the results. "
         f"{judge[0].upper()}{judge[1:]}.",
         f"**Refusal recall {_fmt(recall['value'])}**: "
-        f"{recall['k']}/{recall['n']} unanswerable questions refused, Wilson 95 % CI "
+        f"{recall['k']}/{recall['n']} unanswerable questions refused, Wilson 95% CI "
         f"{_bracket(recall['ci95_wilson'])}, at refusal precision {_fmt(precision['value'])} "
         f"({precision['k']}/{precision['n']}, CI {_bracket(precision['ci95_wilson'])}).",
         f"One live run on the {_split_label(ds['name'])}, {_completed(data)}, "
@@ -597,10 +634,74 @@ def render_key_result(
         f"Every metric, the judge's validation and the limits: "
         f"[`docs/results.md`]({_link(results_doc, readme_path)}).",
     ]
+    if compared is not None:
+        lines = [compared[0], *lines, compared[1]]
     if stub:
         lines.append("")
         lines.append("> ⚠️ **Generated on stubs**: this describes the scripted stubs, not Verity.")
     return "\n".join(lines)
+
+
+def release_notes_problems(
+    text: str, data: dict[str, Any], comparison: dict[str, Any]
+) -> list[str]:
+    """The scorecard figures the published release notes state, each as the notes word
+    it, that the notes do not contain. The notes are published text, never rewritten
+    here: a figure that drifts is reported, and the owner edits the release. The
+    fragments follow the wording of the 1.1.0 notes; notes of another version that word
+    them differently fail until this list follows them. A drift also stops a write run
+    before it writes anything."""
+    flat = " ".join(text.split())
+    aq, refu, sizes, cost = (
+        data["answer_quality"],
+        data["refusal"],
+        data["sample_sizes"],
+        data["cost"],
+    )
+    inv, hall = aq["invented_answer_rate"], aq["hallucination_rate"]
+    rec, prec, oos = (
+        refu["refusal_recall"],
+        refu["refusal_precision"],
+        refu["out_of_scope_answered"],
+    )
+    asked = _n_asked(data)
+    completed = asked - sizes["n_errored"]
+    primary, secondary = comparison["primary"], comparison["secondary"]
+
+    def pair(row: dict[str, Any]) -> str:
+        v, nv = row["verity"], row["naive"]
+        return f"{v['k']}/{v['n']} against {nv['k']}/{nv['n']}"
+
+    unans = primary["unanswerable_answered"]
+    fragments = [
+        f"{completed} of the {data['dataset']['n_questions']} questions",
+        f"{inv['k']}/{inv['n_questions']}, Wilson",
+        _bracket(inv["ci95_wilson"]),
+        f"answerable-only rate is {hall['k']}/{hall['n_questions']}",
+        f"Refusal recall {rec['k']}/{rec['n']}, {_bracket(rec['ci95_wilson'])}",
+        f"refusal precision {prec['k']}/{prec['n']}, {_bracket(prec['ci95_wilson'])}",
+        f"{oos['count']} of {oos['total']} out-of-scope questions were answered",
+        f"{sizes['n_errored']}/{asked},",
+        f"${cost['per_query_usd']:.4f} for the agent only, "
+        f"${cost['per_query_with_judge_usd']:.4f} with the judge",
+        f"of which {comparison['n_compared']} were completed by both arms",
+        f"Verity {unans['verity']['k']}/{unans['verity']['n']}, naive "
+        f"{unans['naive']['k']}/{unans['naive']['n']}",
+        f"p {unans['p_mcnemar']:.4f}, Holm {unans['p_holm']:.4f}",
+        *(
+            f"{pair(primary[key])}. Holm p {primary[key]['p_holm']:g}"
+            for key in ("answerable_answered", "invented_answer")
+        ),
+        f"without that rule it is {pair(secondary['invented_shipped'])}",
+    ]
+    return [f for f in fragments if f not in flat]
+
+
+def _release_notes_for(scorecard: Path) -> Path | None:
+    """``docs/releases/<version>.md`` for ``scorecards/live-v<version>.json``, if it exists."""
+    version = re.fullmatch(r"live-v(.+)\.json", scorecard.name)
+    notes = REPO_ROOT / "docs" / "releases" / f"{version.group(1)}.md" if version else None
+    return notes if notes is not None and notes.is_file() else None
 
 
 def _split_label(name: str) -> str:
@@ -652,6 +753,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Run artefact to compute the scorecard from (default: the one it names).",
     )
     parser.add_argument(
+        "--release-notes",
+        type=Path,
+        help="Published notes whose figures must match (default: the scorecard version's).",
+    )
+    parser.add_argument(
         "--check",
         action="store_true",
         help="Exit 1 if the scorecard or a generated block would change; write nothing.",
@@ -677,6 +783,13 @@ def main(argv: list[str] | None = None) -> int:
     readme = args.readme.read_text(encoding="utf-8")
     results = args.results_doc.read_text(encoding="utf-8")
     card = args.system_card.read_text(encoding="utf-8")
+    comparison = json.loads(TWO_ARM.read_text(encoding="utf-8"))
+    notes = args.release_notes or _release_notes_for(args.scorecard)
+    stale_notes = (
+        []
+        if notes is None
+        else release_notes_problems(notes.read_text(encoding="utf-8"), payload, comparison)
+    )
     # Render every file before writing any, so a missing marker leaves all as they were.
     judge = judge_label(
         payload["provenance"]["judge_model"],
@@ -692,7 +805,11 @@ def main(argv: list[str] | None = None) -> int:
     rendered_readme = replace_between(
         readme,
         render_key_result(
-            payload, readme_path=args.readme, results_doc=args.results_doc, judge=judge
+            payload,
+            readme_path=args.readme,
+            results_doc=args.results_doc,
+            judge=judge,
+            comparison=comparison,
         ),
         KEY_START,
         KEY_END,
@@ -714,13 +831,20 @@ def main(argv: list[str] | None = None) -> int:
         pending.append((args.readme, rendered_readme))
     if rendered_card != card:
         pending.append((args.system_card, rendered_card))
+    if stale_notes:
+        # Published notes are not regenerated: the owner edits the release and the file.
+        print(f"{notes} does not state these scorecard figures:", file=sys.stderr)
+        for fragment in stale_notes:
+            print(f"  {fragment}", file=sys.stderr)
+        return 1
     # --check only compares: a CI or pre-commit run must never edit the tree.
     if args.check:
         if pending:
             names = ", ".join(str(path) for path, _ in pending)
             print(f"out of date: {names} — run without --check", file=sys.stderr)
             return 1
-        print(f"scorecard, results doc, README and system card match {source}")
+        checked = "" if notes is None else f" and {_repo_path(notes)}"
+        print(f"scorecard, results doc, README, system card{checked} match {source}")
         return 0
     args.scorecard.parent.mkdir(parents=True, exist_ok=True)
     for path, text in pending:

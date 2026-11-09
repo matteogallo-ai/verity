@@ -71,11 +71,11 @@ class TestConsoleJsonLabelInvariant:
     """Every user-visible metric name + denominator is defined ONCE.
     Console and JSON agree on vocabulary AND on scope/n_denominator."""
 
-    def test_json_is_v5_with_both_aggregations(self, stub_run: tuple[str, dict]) -> None:
+    def test_json_is_v7_with_both_aggregations(self, stub_run: tuple[str, dict]) -> None:
         """Faithfulness and citation accuracy carry a macro and a micro figure, each
         with its denominator; each proportion also carries its k and Wilson interval."""
         _, payload = stub_run
-        assert payload["schema"] == "verity.scorecard.headline/v6"
+        assert payload["schema"] == "verity.scorecard.headline/v7"
         for name in ("faithfulness", "citation_accuracy"):
             entry = payload["answer_quality"][name]
             assert set(entry["macro"]) == {"value", "n_questions"}
@@ -97,6 +97,8 @@ class TestConsoleJsonLabelInvariant:
             "n_claims",
             "n_refused",
             "n_answerable_answered",
+            "n_answerable_run",
+            "n_unanswerable_run",
         }
         assert "out_of_scope_answered" in payload["refusal"]
 

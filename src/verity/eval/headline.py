@@ -5,20 +5,22 @@ It is computed from one :class:`~verity.types.EvalRun` artefact and nothing else
 --check`` can rebuild it from the artefact and fail on any difference. A fresh run
 goes through the same function via :meth:`HarnessResult.as_eval_run`.
 
-Schema v6 (v5 plus ``answer_quality.invented_answer_rate`` and
-``cost.per_query_with_judge_usd``):
+Schema v7 (v6 with the run's answerable / unanswerable breakdown moved from
+``dataset`` to ``sample_sizes.n_answerable_run`` / ``n_unanswerable_run``: ``dataset``
+describes the file, and a run stopped early completes fewer of its questions):
 
 - answer-quality metrics come from :mod:`verity.eval.answer_quality` (the one
   definition): faithfulness and citation accuracy carry a ``macro`` (per question)
   and a ``micro`` (per claim) value, each with its denominator; refusals bypass the
   judge and are in neither;
-- ``sample_sizes`` counts judged answers, claims, and judged answers without a usable claim;
+- ``sample_sizes`` counts judged answers, claims, judged answers without a usable claim,
+  and the answerable and unanswerable questions the run completed;
 - model summaries come from the per-example models recorded in the artefact, so a
   routing fallback shows up as a split, e.g. ``"claude-sonnet-4-6 (15/16),
   gpt-4.1-mini (1/16)"``; the judge summary names the refusals that bypassed it;
 - every proportion (per-claim ratios, hallucination rate, refusal precision and
   recall, unanswerable answered) carries its count ``k``, its denominator and its
-  95 % Wilson interval ``ci95_wilson``; a per-question mean of ratios is not a
+  95% Wilson interval ``ci95_wilson``; a per-question mean of ratios is not a
   proportion and has none;
 - ``invented_answer_rate`` is over every judged answer, answerable or not (scope
   ``answered``); ``hallucination_rate`` keeps its answerable-only scope;
@@ -70,7 +72,7 @@ def _hash_dataset_path(dataset_path: Path | None) -> str | None:
     return h.hexdigest()
 
 
-SCHEMA = "verity.scorecard.headline/v6"
+SCHEMA = "verity.scorecard.headline/v7"
 
 
 def _interval(k: int, n: int) -> list[float] | None:
@@ -186,8 +188,6 @@ def build_headline_dict_from_eval_run(
         "dataset": {
             "name": sc.dataset,
             "n_questions": sc.n_examples,
-            "n_answerable": n_answerable,
-            "n_unanswerable": n_unanswerable,
             "sha256": run.dataset_sha256,
         },
         "sample_sizes": {
@@ -200,6 +200,8 @@ def build_headline_dict_from_eval_run(
             "n_claims": quality.faithfulness_micro.denominator,
             "n_refused": n_refused,
             "n_answerable_answered": quality.hallucination_rate.denominator,
+            "n_answerable_run": n_answerable,
+            "n_unanswerable_run": n_unanswerable,
         },
         "cost": {
             "total_usd": None if judge_usd is None else round(agent_usd + judge_usd, 6),

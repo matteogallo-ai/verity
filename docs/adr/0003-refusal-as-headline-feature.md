@@ -1,8 +1,14 @@
 # ADR 0003 — Refusal is a first-class, measured behaviour
 
-**Status:** accepted · 2026-09
+**Status:** partly superseded · 2026-11-02 (accepted · 2026-09)
 
-> 2026-11-02: superseded by measurement, see README.
+> Superseded: the mechanism, refusal below a calibrated `confidence_threshold`, is
+> replaced by deterministic checks (no citation, low citation coverage, suspected
+> injection), because the confidence score is not calibrated and the threshold now
+> defaults to 0, which refuses nothing
+> ([results, open issues](../results.md#open-issues-what-the-numbers-do-not-say)).
+> Still in force: refusal is a first-class output, and refusal precision and recall are
+> headline metrics.
 
 ## Context
 Most RAG systems always answer. The dangerous failure mode is a fluent, ungrounded answer

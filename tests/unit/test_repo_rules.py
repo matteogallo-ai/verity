@@ -87,3 +87,37 @@ def test_every_marked_block_has_a_generator() -> None:
         if not generators or not any(checked_in_ci(p) for p in generators):
             missing.append(name)
     assert missing == []
+
+
+def test_the_version_is_written_once_in_pyproject() -> None:
+    """``verity.__version__`` is read from the installed metadata, so a release bump
+    edits pyproject.toml only and the CLI, /health and the dashboard follow."""
+    import tomllib
+
+    import verity
+
+    declared = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert verity.__version__ == declared["project"]["version"]
+    source = (REPO_ROOT / "src" / "verity" / "__init__.py").read_text(encoding="utf-8")
+    assert not re.search(r"""__version__\s*=\s*["']""", source)
+
+
+def test_ci_runs_the_quickstart_eval_command() -> None:
+    """The README's smoke test is the command the evaluation job runs, floors added, so
+    a quickstart that stops working fails CI."""
+    import yaml
+
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    quickstart = re.search(
+        r"^VERITY_STORE=memory (uv run verity eval run [^#\n]*?)\s*#", readme, re.M
+    )
+    assert quickstart is not None
+    workflow = yaml.safe_load((REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text())
+    steps = [
+        s for s in workflow["jobs"]["evaluation"]["steps"] if "verity eval run" in s.get("run", "")
+    ]
+    assert len(steps) == 1
+    run = " ".join(steps[0]["run"].replace("\\\n", " ").split())
+    assert steps[0]["env"]["VERITY_STORE"] == "memory"
+    assert run.startswith(quickstart.group(1) + " ")
+    assert "--floor-ndcg" in run and "--floor-recall" in run

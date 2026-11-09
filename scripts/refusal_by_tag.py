@@ -118,7 +118,7 @@ def render(report: dict[str, Any], run: str, dataset: str) -> str:
     alt = ua["fails_only_if_invented"]
     lines = [
         f"Run `{run}`, tags from `{dataset}`. Refusal recall = unanswerable questions "
-        "refused / unanswerable questions, Wilson 95 % interval. A question can carry "
+        "refused / unanswerable questions, Wilson 95% interval. A question can carry "
         "several tags, so tag rows overlap.",
         "",
         "| Unanswerable questions | Refused | Answered |",

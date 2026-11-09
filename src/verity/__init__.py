@@ -1,3 +1,7 @@
-"""Verity — evaluated, observable RAG agent platform for enterprise documents."""
+"""Verity: question answering over documents that cites the exact passage or refuses."""
 
-__version__ = "1.1.0"
+from importlib.metadata import version
+
+# pyproject.toml is the one place the version is written; an uninstalled source tree
+# raises PackageNotFoundError here rather than report a stale number.
+__version__ = version("verity")

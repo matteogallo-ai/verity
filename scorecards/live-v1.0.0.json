@@ -62,9 +62,7 @@
     "total_usd": null
   },
   "dataset": {
-    "n_answerable": 11,
     "n_questions": 16,
-    "n_unanswerable": 5,
     "name": "questions",
     "sha256": null
   },
@@ -215,14 +213,17 @@
   },
   "sample_sizes": {
     "n_answerable_answered": 11,
+    "n_answerable_run": 11,
     "n_answered": 12,
     "n_claims": 34,
     "n_errored": 0,
     "n_examples": 16,
     "n_judged": 12,
     "n_judged_without_claims": 0,
-    "n_refused": 4
+    "n_not_run": 0,
+    "n_refused": 4,
+    "n_unanswerable_run": 5
   },
-  "schema": "verity.scorecard.headline/v6",
+  "schema": "verity.scorecard.headline/v7",
   "source_artefact": "datasets/eval/runs/live/eval_d0ca1d5_questions.json"
 }
