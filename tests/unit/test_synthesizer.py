@@ -167,3 +167,54 @@ def test_a_repeated_quote_is_anchored_at_its_first_occurrence() -> None:
     hits = [_hit("ab ab", cs=10)]
     (citation,) = _validate_citations([("ab", 0)], hits)
     assert (citation.char_start, citation.char_end) == (10, 12)
+
+
+# Models often type the ASCII form of a mark the document prints typographically
+# (French elisions and guillemets). Only these marks are interchangeable, within a class.
+RSQ = "\N{RIGHT SINGLE QUOTATION MARK}"
+APOSTROPHES = ("'", RSQ, "\N{LEFT SINGLE QUOTATION MARK}", "\N{MODIFIER LETTER APOSTROPHE}")
+DOUBLE_QUOTES = (
+    '"',
+    "\N{LEFT DOUBLE QUOTATION MARK}",
+    "\N{RIGHT DOUBLE QUOTATION MARK}",
+    "\N{LEFT-POINTING DOUBLE ANGLE QUOTATION MARK}",
+    "\N{RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK}",
+)
+LEASE = f"Le locataire dispose d{RSQ}un délai de cinq jours pour payer."
+
+
+def test_a_straight_apostrophe_quote_finds_a_typographic_apostrophe_in_the_chunk() -> None:
+    hits = [_hit(LEASE, cs=40)]
+    (citation,) = _validate_citations([("dispose d'un délai de cinq jours", 0)], hits)
+    assert (citation.char_start, citation.char_end) == (40 + 13, 40 + 45)
+
+
+def test_the_stored_quote_keeps_the_documents_apostrophe() -> None:
+    hits = [_hit(LEASE, cs=0)]
+    (citation,) = _validate_citations([("dispose d'un délai", 0)], hits)
+    assert citation.quote == f"dispose d{RSQ}un délai"
+    assert citation.quote == LEASE[citation.char_start : citation.char_end]
+
+
+@pytest.mark.parametrize("marks", [APOSTROPHES, DOUBLE_QUOTES], ids=["apostrophe", "double"])
+def test_every_mark_of_a_class_matches_every_other(marks: tuple[str, ...]) -> None:
+    for in_document in marks:
+        hits = [_hit(f"il a dit {in_document}oui{in_document} hier", cs=0)]
+        for in_quote in marks:
+            (citation,) = _validate_citations([(f"dit {in_quote}oui{in_quote}", 0)], hits)
+            assert citation.quote == f"dit {in_document}oui{in_document}"
+
+
+@pytest.mark.parametrize(
+    "quote",
+    [
+        "dispose d'une délai",  # a different word stays a different word
+        "dispose dun délai",  # a missing apostrophe is not an apostrophe
+        'dispose d"un délai',  # the two classes do not mix
+        "dispose d`un délai",  # unlisted look-alikes are not folded
+        "dispose d\N{ACUTE ACCENT}un délai",
+    ],
+)
+def test_marks_outside_the_class_or_different_words_are_still_rejected(quote: str) -> None:
+    hits = [_hit(LEASE, cs=0)]
+    assert _validate_citations([(quote, 0)], hits) == ()
