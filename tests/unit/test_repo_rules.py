@@ -87,3 +87,16 @@ def test_every_marked_block_has_a_generator() -> None:
         if not generators or not any(checked_in_ci(p) for p in generators):
             missing.append(name)
     assert missing == []
+
+
+def test_the_version_is_written_once_in_pyproject() -> None:
+    """``verity.__version__`` is read from the installed metadata, so a release bump
+    edits pyproject.toml only and the CLI, /health and the dashboard follow."""
+    import tomllib
+
+    import verity
+
+    declared = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert verity.__version__ == declared["project"]["version"]
+    source = (REPO_ROOT / "src" / "verity" / "__init__.py").read_text(encoding="utf-8")
+    assert not re.search(r"""__version__\s*=\s*["']""", source)
