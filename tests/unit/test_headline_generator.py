@@ -389,7 +389,7 @@ def test_the_key_result_carries_k_n_and_both_intervals() -> None:
     payload = json.loads((REPO_ROOT / "scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
     block = generator.render_key_result(payload)
     assert "**Refusal recall 0.722**: 13/18" in block
-    assert "Wilson 95 % CI [0.491, 0.875]" in block
+    assert "Wilson 95% CI [0.491, 0.875]" in block
     assert "refusal precision 0.929 (13/14, CI [0.685, 0.987])" in block
     assert "](docs/results.md)" in block
 
@@ -535,11 +535,11 @@ def test_block_prints_the_interval_and_n_next_to_each_proportion() -> None:
     rows = {
         line.split("|")[1].strip(" *"): line for line in block.splitlines() if line.startswith("|")
     }
-    assert "5/5 · 95 % CI [0.566, 1.000]" in rows["Refusal precision"]
-    assert "1/11 · 95 % CI [0.016, 0.377]" in rows["Hallucination rate, answerable only"]
-    assert "517/550 · 95 % CI [" in rows["Faithfulness, per claim"]
+    assert "5/5 · 95% CI [0.566, 1.000]" in rows["Refusal precision"]
+    assert "1/11 · 95% CI [0.016, 0.377]" in rows["Hallucination rate, answerable only"]
+    assert "517/550 · 95% CI [" in rows["Faithfulness, per claim"]
     assert "CI" not in rows["Faithfulness, per question"]
-    assert "0/5 · 95 % CI [0.000, 0.434]" in rows["Unanswerable answered"]
+    assert "0/5 · 95% CI [0.000, 0.434]" in rows["Unanswerable answered"]
 
 
 def test_retrieval_rows_do_not_claim_to_be_deterministic() -> None:
@@ -598,8 +598,8 @@ def test_system_card_slos_are_approved_and_say_what_was_not_measured() -> None:
     assert all(cells[0].endswith("(approved)") for cells in slos)
     # 0 errors in 16: no violation observed, but the upper bound is far above 1 %.
     assert slos[1][1:] == [
-        "0.000 (0/16, 95 % CI [0.000, 0.194])",
-        "no violation observed; n too small to conclude (95 % upper bound 19.4% > 1%)",
+        "0.000 (0/16, 95% CI [0.000, 0.194])",
+        "no violation observed; n too small to conclude (95% upper bound 19.4% > 1%)",
     ]
     assert slos[2][2] == "met"
 
@@ -636,7 +636,7 @@ def test_without_a_run_artefact_the_warm_p95_comes_from_a_warmed_scorecard() -> 
         "met",
     ]
     assert _row_starting(rows, "p95 latency of one answer, cold start included")[1:] == [
-        "not measured as one sample: the first answer after boot, timed apart, took 8460.1 ms",
+        "not measured as one sample: the first answer after boot, timed separately, took 8460.1 ms",
         "not measured",
     ]
 
@@ -652,7 +652,7 @@ def test_an_errored_request_is_published_as_a_missed_error_slo() -> None:
     payload = _committed_scorecard()
     payload["sample_sizes"]["n_errored"] = 1
     assert _row_starting(_card_rows(payload), "Error")[1:] == [
-        "0.062 (1/16, 95 % CI [0.011, 0.283])",
+        "0.062 (1/16, 95% CI [0.011, 0.283])",
         "**SLO not met**: 1 of 16 requests errored; the scorecard does not record why",
     ]
 
@@ -757,8 +757,8 @@ def test_on_the_test_run_the_invented_rate_counts_q074_and_the_hallucination_rat
 @pytest.mark.parametrize(
     ("k", "n", "status"),
     [
-        (0, 56, "no violation observed; n too small to conclude (95 % upper bound 6.4% > 1%)"),
-        (1, 200, "1 of 200 within target; n too small to conclude (95 % upper bound 2.8% > 1%)"),
+        (0, 56, "no violation observed; n too small to conclude (95% upper bound 6.4% > 1%)"),
+        (1, 200, "1 of 200 within target; n too small to conclude (95% upper bound 2.8% > 1%)"),
         (1, 1000, "met"),
         (5, 100, "**SLO not met**: cause"),
         (0, 0, "not measured"),

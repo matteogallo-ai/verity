@@ -13,7 +13,7 @@ argument. The results table sits between ``<!-- RESULTS:START -->`` and
 ``<!-- RESULTS:END -->`` in ``docs/results.md``; the README's key result between
 ``<!-- KEY-RESULT:START -->`` and ``<!-- KEY-RESULT:END -->``; the system card block
 between ``<!-- SYSTEM-CARD:START -->`` and ``<!-- SYSTEM-CARD:END -->`` in
-``docs/SYSTEM_CARD.md`` (each proportion with k/n and a Wilson 95 % interval, and the
+``docs/SYSTEM_CARD.md`` (each proportion with k/n and a Wilson 95% interval, and the
 approved SLOs next to their measured values). Missing markers fail loudly, and every
 file is rendered before any is written.
 """
@@ -89,10 +89,10 @@ def _link(target: Path, doc: Path) -> str:
 
 
 def _ci(k: int, n: int, ci: list[float] | None) -> str:
-    """``k/n · 95 % CI [low, high]`` (Wilson), or ``k/n`` when n is 0."""
+    """``k/n · 95% CI [low, high]`` (Wilson), or ``k/n`` when n is 0."""
     if ci is None:
         return f"{k}/{n}"
-    return f"{k}/{n} · 95 % CI {_bracket(ci)}"
+    return f"{k}/{n} · 95% CI {_bracket(ci)}"
 
 
 def _usd(value: float | None) -> str:
@@ -127,7 +127,7 @@ def judge_label(judge_model: str, judge_prompt_sha: str, validation_dir: Path = 
         low, high = ci["all_claims"]["ci95_percentile"]
         real = ci["n_real_unsupported_by_human"]
         return (
-            f"{label} (bootstrap 95 % CI [{low:.2f}, {high:.2f}]) vs blind human, validated on "
+            f"{label} (bootstrap 95% CI [{low:.2f}, {high:.2f}]) vs blind human, validated on "
             f"{mixed['n_claims']} claims of which {real} real hallucination"
             f"{'' if real == 1 else 's'}"
         )
@@ -392,7 +392,7 @@ def _against(measured: float | None, target: float, cause: str) -> str:
 
 def _against_proportion(k: int, n: int, target: float, cause: str) -> str:
     """A rate meets its target only when its Wilson upper bound does: 0 errors in 56
-    requests is no violation observed, not a rate of 1 % or less. The test is one-sided
+    requests is no violation observed, not a rate of 1% or less. The test is one-sided
     on purpose: a measured rate over target is a miss on the run of record whatever its
     interval, as the latency SLO reads its measured p95."""
     interval = wilson(k, n)
@@ -402,9 +402,7 @@ def _against_proportion(k: int, n: int, target: float, cause: str) -> str:
         return f"**SLO not met**: {cause}"
     if interval[1] > target:
         seen = "no violation observed" if k == 0 else f"{k} of {n} within target"
-        return (
-            f"{seen}; n too small to conclude (95 % upper bound {interval[1]:.1%} > {target:.0%})"
-        )
+        return f"{seen}; n too small to conclude (95% upper bound {interval[1]:.1%} > {target:.0%})"
     return "met"
 
 
@@ -495,7 +493,7 @@ def _latency_slo_rows(data: dict[str, Any], approved: str) -> list[str]:
         )
     else:
         cold_cells = (
-            "not measured as one sample: the first answer after boot, timed apart, "
+            "not measured as one sample: the first answer after boot, timed separately, "
             f"took {_fmt_ms(float(cold_start))}",
             "not measured",
         )
@@ -517,7 +515,7 @@ def _slo_rows(data: dict[str, Any]) -> list[str]:
     errored = int(data["sample_sizes"]["n_errored"])
     error_rate = errored / n if n else None
     count, interval = _count_and_interval(errored, n)
-    error_cell = f"{_fmt(error_rate)} ({count}, 95 % CI {interval})"
+    error_cell = f"{_fmt(error_rate)} ({count}, 95% CI {interval})"
     per_query = float(data["cost"]["per_query_usd"])
     approved = "approved"
     return [
@@ -557,7 +555,7 @@ def render_system_card_block(
         f"judge `{prov['judge_model']}` · {_n_of_asked(data)} "
         f"({ds['n_answerable']} answerable + {ds['n_unanswerable']} out-of-scope).",
         "",
-        "| Metric | Value | k/n | 95 % CI (Wilson) |",
+        "| Metric | Value | k/n | 95% CI (Wilson) |",
         "|---|---:|---:|---:|",
         *_performance_rows(data),
         "",
@@ -619,14 +617,14 @@ def render_key_result(
     compared = None if comparison is None else _comparison_lines(data, comparison, readme_path)
     lines = [
         f"**Invented answers {invented['k']}/{invented['n_questions']}** "
-        f"(Wilson 95 % CI {_bracket(invented['ci95_wilson'])}): answers holding a claim the "
+        f"(Wilson 95% CI {_bracket(invented['ci95_wilson'])}): answers holding a claim the "
         "judge finds unsupported by the retrieved passages, over every judged answer, "
         f"answerable or not{f' ({ids})' if ids else ''}; {_judged_of_shipped(data)}. "
         "Faithfulness to the passages; correctness against the reference answers is "
-        "graded apart in the results. "
+        "graded separately in the results. "
         f"{judge[0].upper()}{judge[1:]}.",
         f"**Refusal recall {_fmt(recall['value'])}**: "
-        f"{recall['k']}/{recall['n']} unanswerable questions refused, Wilson 95 % CI "
+        f"{recall['k']}/{recall['n']} unanswerable questions refused, Wilson 95% CI "
         f"{_bracket(recall['ci95_wilson'])}, at refusal precision {_fmt(precision['value'])} "
         f"({precision['k']}/{precision['n']}, CI {_bracket(precision['ci95_wilson'])}).",
         f"One live run on the {_split_label(ds['name'])}, {_completed(data)}, "

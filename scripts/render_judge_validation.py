@@ -115,7 +115,7 @@ def check_current_prompt(result: dict[str, Any], prompt: Path = JUDGE_PROMPT) ->
 
 def _ci(p: dict[str, Any]) -> str:
     ci = p["ci95_wilson"]
-    interval = "no interval" if ci is None else f"95 % CI [{ci[0]:.3f}, {ci[1]:.3f}]"
+    interval = "no interval" if ci is None else f"95% CI [{ci[0]:.3f}, {ci[1]:.3f}]"
     return f"{p['k']}/{p['n']} · {interval}"
 
 
@@ -139,7 +139,7 @@ def _bootstrap(ci: dict[str, Any] | None) -> str:
         if ci["undefined"]
         else ""
     )
-    return f" · bootstrap 95 % CI [{low:.2f}, {high:.2f}]{undefined}"
+    return f" · bootstrap 95% CI [{low:.2f}, {high:.2f}]{undefined}"
 
 
 def _judge_flags(agreement: dict[str, Any]) -> int:

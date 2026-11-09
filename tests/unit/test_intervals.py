@@ -8,7 +8,7 @@ from verity.eval.intervals import wilson
 
 
 def test_wilson_matches_the_closed_form() -> None:
-    # 17/22 at 95 %: centre (p + z²/2n) / (1 + z²/n), half-width z·sqrt(p(1-p)/n + z²/4n²) / (1 + z²/n).
+    # 17/22 at 95%: centre (p + z²/2n) / (1 + z²/n), half-width z·sqrt(p(1-p)/n + z²/4n²) / (1 + z²/n).
     low, high = wilson(17, 22)
     assert low == pytest.approx(0.5656, abs=1e-4)
     assert high == pytest.approx(0.8988, abs=1e-4)

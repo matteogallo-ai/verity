@@ -538,7 +538,7 @@ def cohen_kappa(pairs: Sequence[tuple[str, str]]) -> float | None:
 def kappa_bootstrap(
     pairs: Sequence[tuple[str, str]], *, resamples: int, seed: int
 ) -> dict[str, Any]:
-    """Percentile 95 % interval of κ over claims resampled with replacement.
+    """Percentile 95% interval of κ over claims resampled with replacement.
 
     κ is not a proportion, so it has no Wilson interval; resampling the claims is the
     standard way to give it one. A resample where κ is undefined (one label only) is

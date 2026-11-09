@@ -18,7 +18,7 @@ Schema v6 (v5 plus ``answer_quality.invented_answer_rate`` and
   gpt-4.1-mini (1/16)"``; the judge summary names the refusals that bypassed it;
 - every proportion (per-claim ratios, hallucination rate, refusal precision and
   recall, unanswerable answered) carries its count ``k``, its denominator and its
-  95 % Wilson interval ``ci95_wilson``; a per-question mean of ratios is not a
+  95% Wilson interval ``ci95_wilson``; a per-question mean of ratios is not a
   proportion and has none;
 - ``invented_answer_rate`` is over every judged answer, answerable or not (scope
   ``answered``); ``hallucination_rate`` keeps its answerable-only scope;

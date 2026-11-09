@@ -71,7 +71,7 @@ Definitions: [`evaluation-methodology.md`](evaluation-methodology.md).
 <!-- SYSTEM-CARD:START -->
 Source: [`scorecards/live-v1.1.0.json`](../scorecards/live-v1.1.0.json) · commit `513b839` · 2026-11-07 · agent `claude-sonnet-4-6 (54/54)` · judge `claude-opus-5-5 (40/54 answered — 14 refusals bypass the judge)` · n=54 of 56 asked (36 answerable + 18 out-of-scope).
 
-| Metric | Value | k/n | 95 % CI (Wilson) |
+| Metric | Value | k/n | 95% CI (Wilson) |
 |---|---:|---:|---:|
 | Refusal recall | 0.722 | 13/18 | [0.491, 0.875] |
 | Refusal precision | 0.929 | 13/14 | [0.685, 0.987] |
@@ -85,9 +85,9 @@ Source: [`scorecards/live-v1.1.0.json`](../scorecards/live-v1.1.0.json) · commi
 
 | SLO | Target | Measured on the run of record | Status |
 |---|---|---|---|
-| p95 latency of one answer, cold start included | ≤ 15,000 ms (approved) | not measured as one sample: the first answer after boot, timed apart, took 8884.6 ms | not measured |
+| p95 latency of one answer, cold start included | ≤ 15,000 ms (approved) | not measured as one sample: the first answer after boot, timed separately, took 8884.6 ms | not measured |
 | p95 latency of one answer, warm (cold start excluded) | ≤ 15,000 ms (approved) | 9857.9 ms (n=54, after one warmup answer) | met |
-| Error rate (requests answered with neither an answer nor a refusal) | ≤ 1% (approved) | 0.000 (0/54, 95 % CI [0.000, 0.066]) | no violation observed; n too small to conclude (95 % upper bound 6.6% > 1%) |
+| Error rate (requests answered with neither an answer nor a refusal) | ≤ 1% (approved) | 0.000 (0/54, 95% CI [0.000, 0.066]) | no violation observed; n too small to conclude (95% upper bound 6.6% > 1%) |
 | Cost per answer (agent calls; the judge is eval-only) | ≤ $0.02 (approved) | $0.0235 (mean, n=54) | **SLO not met**: the scorecard records the mean only, not which answers cost most |
 <!-- SYSTEM-CARD:END -->
 
@@ -97,7 +97,7 @@ The targets in the second table above are approved by the owner. A run that miss
 one is published as **SLO not met** with the cause the scorecard supports; the target
 is not moved to fit the run. The p95 is reported twice, cold start included and warm,
 because the first answer of a process that has not loaded the embedding and reranker
-models pays that load; the run of record timed that first answer apart and excluded it
+models pays that load; the run of record timed that first answer separately and excluded it
 from the warm p95. The API loads them before `/ready` answers `200`. Each answer
 records its per-stage wall-clock and the retries the provider SDKs made; the run of
 record above has the per-stage wall-clock (`stage_ms`) and no retry count. Nothing enforces or alerts on these targets. How each is measured on a

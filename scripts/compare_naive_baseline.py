@@ -8,7 +8,7 @@
     uv run python scripts/compare_naive_baseline.py --check
 
 Metrics and abstention patterns are those of
-``docs/preregistration/naive-rag-baseline.md``: each metric is k/n with a Wilson 95 %
+``docs/preregistration/naive-rag-baseline.md``: each metric is k/n with a Wilson 95%
 interval per arm. The arms answer the same questions, so each per-question row is
 read by an exact McNemar test on the discordant questions (:mod:`verity.eval.paired`,
 p < 0.05 reads "distinguishable"). The pre-registration read overlapping intervals
@@ -200,7 +200,7 @@ def read_paired(test: dict[str, Any] | None, better: str) -> str:
 
 
 def read(verity: dict[str, Any], naive: dict[str, Any]) -> str:
-    """The pre-registered reading: Wilson 95 % intervals overlap or they do not."""
+    """The pre-registered reading: Wilson 95% intervals overlap or they do not."""
     a, b = verity["ci95_wilson"], naive["ci95_wilson"]
     if a is None or b is None:
         return "not computable (n = 0)"
