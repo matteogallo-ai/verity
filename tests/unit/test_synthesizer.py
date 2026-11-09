@@ -218,3 +218,8 @@ def test_every_mark_of_a_class_matches_every_other(marks: tuple[str, ...]) -> No
 def test_marks_outside_the_class_or_different_words_are_still_rejected(quote: str) -> None:
     hits = [_hit(LEASE, cs=0)]
     assert _validate_citations([(quote, 0)], hits) == ()
+
+
+def test_an_apostrophe_does_not_match_a_double_quote_in_the_chunk() -> None:
+    hits = [_hit("il a dit \N{LEFT DOUBLE QUOTATION MARK}oui\N{RIGHT DOUBLE QUOTATION MARK}", cs=0)]
+    assert _validate_citations([("dit 'oui'", 0)], hits) == ()
