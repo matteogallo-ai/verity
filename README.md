@@ -2,10 +2,9 @@
 
 # Verity
 
-**A RAG agent over enterprise documents that refuses when its evidence is weak, and
-publishes how often it gets that right.**
-Cited answers with verbatim quotes. Refusal when the citations do not support the answer.
-Every published number traceable to the run artefact that produced it.
+**Question answering over documents that cites the exact passage or refuses.**
+A retrieval-augmented generation (RAG) agent: each quote is copied verbatim from its
+source, and each published number traces to the run artefact that produced it.
 
 [![ci](https://github.com/matteogallo-ai/verity/actions/workflows/ci.yml/badge.svg)](https://github.com/matteogallo-ai/verity/actions/workflows/ci.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/matteogallo-ai/verity/badge)](https://scorecard.dev/viewer/?uri=github.com/matteogallo-ai/verity)
@@ -33,6 +32,8 @@ and match it, asks a scorer model how well the evidence supports it, and refuses
 a check fails or the scorer refuses. A score threshold exists but is 0 by default, so
 it refuses nothing; the cited-relevance check is off by default (it made more wrong
 refusals than right ones on dev, [measured](docs/results.md#refusal-checks-one-at-a-time)).
+The test corpus is small: 21 fictional documents of one invented company (contracts,
+HR policies, finance), 5,489 words in all ([corpus](datasets/CORPUS.md)).
 
 ## Key result
 

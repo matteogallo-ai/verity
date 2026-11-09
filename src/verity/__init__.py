@@ -1,3 +1,3 @@
-"""Verity — evaluated, observable RAG agent platform for enterprise documents."""
+"""Verity: question answering over documents that cites the exact passage or refuses."""
 
 __version__ = "1.1.0"
