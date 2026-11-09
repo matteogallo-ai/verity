@@ -15,7 +15,9 @@ argument. The results table sits between ``<!-- RESULTS:START -->`` and
 between ``<!-- SYSTEM-CARD:START -->`` and ``<!-- SYSTEM-CARD:END -->`` in
 ``docs/SYSTEM_CARD.md`` (each proportion with k/n and a Wilson 95% interval, and the
 approved SLOs next to their measured values). Missing markers fail loudly, and every
-file is rendered before any is written.
+file is rendered before any is written. The published release notes of the scorecard's
+version (``docs/releases/<version>.md``) are checked, never written: each figure they
+state from this scorecard or ``scorecards/two-arm-comparison.json`` must be there.
 """
 
 from __future__ import annotations
@@ -639,6 +641,65 @@ def render_key_result(
     return "\n".join(lines)
 
 
+def release_notes_problems(
+    text: str, data: dict[str, Any], comparison: dict[str, Any]
+) -> list[str]:
+    """The scorecard figures the published release notes state, each as the notes word
+    it, that the notes do not contain. The notes are published text, never rewritten
+    here: a figure that drifts is reported, and the owner edits the release."""
+    flat = " ".join(text.split())
+    aq, refu, sizes, cost = (
+        data["answer_quality"],
+        data["refusal"],
+        data["sample_sizes"],
+        data["cost"],
+    )
+    inv, hall = aq["invented_answer_rate"], aq["hallucination_rate"]
+    rec, prec, oos = (
+        refu["refusal_recall"],
+        refu["refusal_precision"],
+        refu["out_of_scope_answered"],
+    )
+    asked = _n_asked(data)
+    completed = asked - sizes["n_errored"]
+    primary, secondary = comparison["primary"], comparison["secondary"]
+
+    def pair(row: dict[str, Any]) -> str:
+        v, nv = row["verity"], row["naive"]
+        return f"{v['k']}/{v['n']} against {nv['k']}/{nv['n']}"
+
+    unans = primary["unanswerable_answered"]
+    fragments = [
+        f"{completed} of the {data['dataset']['n_questions']} questions",
+        f"{inv['k']}/{inv['n_questions']}, Wilson",
+        _bracket(inv["ci95_wilson"]),
+        f"answerable-only rate is {hall['k']}/{hall['n_questions']}",
+        f"Refusal recall {rec['k']}/{rec['n']}, {_bracket(rec['ci95_wilson'])}",
+        f"refusal precision {prec['k']}/{prec['n']}, {_bracket(prec['ci95_wilson'])}",
+        f"{oos['count']} of {oos['total']} out-of-scope questions were answered",
+        f"{sizes['n_errored']}/{asked},",
+        f"${cost['per_query_usd']:.4f} for the agent only, "
+        f"${cost['per_query_with_judge_usd']:.4f} with the judge",
+        f"of which {comparison['n_compared']} were completed by both arms",
+        f"Verity {unans['verity']['k']}/{unans['verity']['n']}, naive "
+        f"{unans['naive']['k']}/{unans['naive']['n']}",
+        f"p {unans['p_mcnemar']:.4f}, Holm {unans['p_holm']:.4f}",
+        *(
+            f"{pair(primary[key])}. Holm p {primary[key]['p_holm']:g}"
+            for key in ("answerable_answered", "invented_answer")
+        ),
+        f"without that rule it is {pair(secondary['invented_shipped'])}",
+    ]
+    return [f for f in fragments if f not in flat]
+
+
+def _release_notes_for(scorecard: Path) -> Path | None:
+    """``docs/releases/<version>.md`` for ``scorecards/live-v<version>.json``, if it exists."""
+    version = re.fullmatch(r"live-v(.+)\.json", scorecard.name)
+    notes = REPO_ROOT / "docs" / "releases" / f"{version.group(1)}.md" if version else None
+    return notes if notes is not None and notes.is_file() else None
+
+
 def _split_label(name: str) -> str:
     # Only the test split is held out: dev chose the threshold, so calling it held-out would overstate.
     return "held-out `test` split" if name == "test" else f"`{name}` dataset"
@@ -688,6 +749,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Run artefact to compute the scorecard from (default: the one it names).",
     )
     parser.add_argument(
+        "--release-notes",
+        type=Path,
+        help="Published notes whose figures must match (default: the scorecard version's).",
+    )
+    parser.add_argument(
         "--check",
         action="store_true",
         help="Exit 1 if the scorecard or a generated block would change; write nothing.",
@@ -713,6 +779,13 @@ def main(argv: list[str] | None = None) -> int:
     readme = args.readme.read_text(encoding="utf-8")
     results = args.results_doc.read_text(encoding="utf-8")
     card = args.system_card.read_text(encoding="utf-8")
+    comparison = json.loads(TWO_ARM.read_text(encoding="utf-8"))
+    notes = args.release_notes or _release_notes_for(args.scorecard)
+    stale_notes = (
+        []
+        if notes is None
+        else release_notes_problems(notes.read_text(encoding="utf-8"), payload, comparison)
+    )
     # Render every file before writing any, so a missing marker leaves all as they were.
     judge = judge_label(
         payload["provenance"]["judge_model"],
@@ -732,7 +805,7 @@ def main(argv: list[str] | None = None) -> int:
             readme_path=args.readme,
             results_doc=args.results_doc,
             judge=judge,
-            comparison=json.loads(TWO_ARM.read_text(encoding="utf-8")),
+            comparison=comparison,
         ),
         KEY_START,
         KEY_END,
@@ -754,13 +827,20 @@ def main(argv: list[str] | None = None) -> int:
         pending.append((args.readme, rendered_readme))
     if rendered_card != card:
         pending.append((args.system_card, rendered_card))
+    if stale_notes:
+        # Published notes are not regenerated: the owner edits the release and the file.
+        print(f"{notes} does not state these scorecard figures:", file=sys.stderr)
+        for fragment in stale_notes:
+            print(f"  {fragment}", file=sys.stderr)
+        return 1
     # --check only compares: a CI or pre-commit run must never edit the tree.
     if args.check:
         if pending:
             names = ", ".join(str(path) for path, _ in pending)
             print(f"out of date: {names} — run without --check", file=sys.stderr)
             return 1
-        print(f"scorecard, results doc, README and system card match {source}")
+        checked = "" if notes is None else f" and {_repo_path(notes)}"
+        print(f"scorecard, results doc, README, system card{checked} match {source}")
         return 0
     args.scorecard.parent.mkdir(parents=True, exist_ok=True)
     for path, text in pending:

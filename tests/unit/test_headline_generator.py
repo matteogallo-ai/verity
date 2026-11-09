@@ -886,3 +886,39 @@ def test_the_run_breakdown_adds_up_to_the_questions_that_completed(scorecard: st
     assert sizes["n_answerable_run"] + sizes["n_unanswerable_run"] == completed
     assert sizes["n_answered"] + sizes["n_refused"] == completed
     assert payload["dataset"]["n_questions"] == sizes["n_examples"]
+
+
+NOTES = REPO_ROOT / "docs" / "releases" / "1.1.0.md"
+
+
+def test_the_published_release_notes_carry_the_scorecard_figures() -> None:
+    live, two_arm = _live_and_comparison()
+    notes = NOTES.read_text(encoding="utf-8")
+    assert _load_generator().release_notes_problems(notes, live, two_arm) == []
+
+
+@pytest.mark.parametrize(
+    ("published", "drifted"),
+    [
+        ("Refusal recall 13/18", "Refusal recall 14/18"),
+        ("Verity 4/31, naive 12/31", "Verity 3/31, naive 12/31"),
+        ("Holm 0.0234", "Holm 0.0200"),
+        ("$0.0455 with the judge", "$0.0450 with the judge"),
+    ],
+)
+def test_a_release_note_figure_that_drifts_from_its_scorecard_is_reported(
+    published: str, drifted: str
+) -> None:
+    live, two_arm = _live_and_comparison()
+    notes = NOTES.read_text(encoding="utf-8")
+    assert published in " ".join(notes.split())
+    stale = " ".join(notes.split()).replace(published, drifted)
+    assert _load_generator().release_notes_problems(stale, live, two_arm) != []
+
+
+def test_check_covers_the_release_notes_of_the_scorecard_version(tmp_path: Path) -> None:
+    generator = _load_generator()
+    notes = tmp_path / "1.1.0.md"
+    notes.write_text(NOTES.read_text(encoding="utf-8").replace("13/18", "14/18"), "utf-8")
+    assert generator.main(["--check", "--release-notes", str(notes)]) == 1
+    assert generator.main(["--check"]) == 0

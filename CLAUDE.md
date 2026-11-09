@@ -58,7 +58,7 @@ uv run python scripts/check_claims.py                      # CLAIMS.md ≡ passi
 uv run python scripts/check_claims.py --no-run             # structure only, no tests executed
 uv run python scripts/check_stale_narrative.py             # no sprint labels / future tense / bare TODO
 uv run python scripts/check_commit_messages.py main..HEAD  # Conventional Commits on the branch
-uv run python scripts/generate_headline_results.py --check # scorecard ≡ artefact, results doc + README key result + SYSTEM_CARD ≡ scorecards
+uv run python scripts/generate_headline_results.py --check # scorecard ≡ artefact, results doc + README key result + SYSTEM_CARD ≡ scorecards, release notes state their figures
 uv run python scripts/compare_naive_baseline.py --check   # dev-only baseline block of docs/results.md ≡ the two pinned runs
 uv run python scripts/compare_two_arm.py --check          # two-arm block of docs/results.md ≡ the four 513b839 runs
 uv run python scripts/refusal_by_tag.py --check           # refusal recall by tag ≡ the test run of record
