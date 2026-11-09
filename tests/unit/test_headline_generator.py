@@ -827,3 +827,43 @@ def test_an_incomplete_run_without_unrun_questions_does_not_blame_the_spending_c
     payload = json.loads((REPO_ROOT / "scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
     payload["sample_sizes"] = {**payload["sample_sizes"], "n_not_run": 0, "n_errored": 2}
     assert generator._completed(payload) == "n = 54 of 56 completed (2 errored)"
+
+
+def _live_and_comparison() -> tuple[dict, dict]:  # type: ignore[type-arg]
+    live = json.loads((REPO_ROOT / "scorecards/live-v1.1.0.json").read_text(encoding="utf-8"))
+    two_arm = json.loads(
+        (REPO_ROOT / "scorecards/two-arm-comparison.json").read_text(encoding="utf-8")
+    )
+    return live, two_arm
+
+
+def test_the_key_result_leads_with_the_pre_registered_comparison() -> None:
+    """The figure the profile cites (4/31 against 12/31) is the README's first line,
+    rendered from the two-arm scorecard."""
+    live, two_arm = _live_and_comparison()
+    block = _load_generator().render_key_result(live, comparison=two_arm)
+    first = block.splitlines()[0]
+    assert first.startswith("**Unanswerable questions answered: Verity 4/31, naive RAG 12/31**")
+    assert "exact McNemar, Holm-adjusted p 0.023" in first
+    assert "93 questions (dev + test)" in first
+    assert "pre-registered" in first.lower()
+    assert block.splitlines()[1].startswith("**Invented answers 1/40**")
+
+
+def test_the_key_result_says_why_its_refusal_figures_do_not_compare() -> None:
+    """13/18 (test, self-abstentions as answers) and 4/31 (dev + test, self-abstentions
+    as refusals) are different counts; the block says so and links the rule."""
+    live, two_arm = _live_and_comparison()
+    last = _load_generator().render_key_result(live, comparison=two_arm).splitlines()[-1]
+    assert "4/31 does not compare directly with 13/18 refused or 1/40 invented" in last
+    assert "preregistration/two-arm-comparison.md#metrics" in last
+
+
+def test_a_comparison_of_other_runs_is_left_out_of_the_key_result() -> None:
+    """A comparison that does not contain the headline run says nothing about it."""
+    live, two_arm = _live_and_comparison()
+    for artefact in two_arm["arms"]["verity"]["artefacts"]:
+        artefact["path"] = "datasets/eval/runs/live/other.json"
+    block = _load_generator().render_key_result(live, comparison=two_arm)
+    assert block.startswith("**Invented answers")
+    assert "4/31" not in block

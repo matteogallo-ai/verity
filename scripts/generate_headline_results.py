@@ -42,6 +42,8 @@ DEFAULT_SCORECARD = REPO_ROOT / "scorecards" / "live-v1.1.0.json"
 DEFAULT_README = REPO_ROOT / "README.md"
 DEFAULT_RESULTS_DOC = REPO_ROOT / "docs" / "results.md"
 DEFAULT_SYSTEM_CARD = REPO_ROOT / "docs" / "SYSTEM_CARD.md"
+# Written and checked by scripts/compare_two_arm.py; read here for the README's first line.
+TWO_ARM = REPO_ROOT / "scorecards" / "two-arm-comparison.json"
 VALIDATION = REPO_ROOT / "datasets" / "eval" / "judge_validation"
 START = "<!-- RESULTS:START -->"
 END = "<!-- RESULTS:END -->"
@@ -566,20 +568,55 @@ def render_system_card_block(
     return "\n".join(lines)
 
 
+def _comparison_lines(
+    data: dict[str, Any], comparison: dict[str, Any], readme_path: Path
+) -> tuple[str, str] | None:
+    """The pre-registered two-arm result, and why its refusal count differs from the
+    headline run's, or ``None`` when the comparison does not contain the headline run."""
+    if data["source_artefact"] not in {
+        a["path"] for a in comparison["arms"]["verity"]["artefacts"]
+    }:
+        return None
+    row = comparison["primary"]["unanswerable_answered"]
+    v, nv = row["verity"], row["naive"]
+    recall = data["refusal"]["refusal_recall"]
+    prereg = _link(REPO_ROOT / comparison["preregistration"], readme_path)
+    lead = (
+        f"**Unanswerable questions answered: Verity {v['k']}/{v['n']}, naive RAG "
+        f"{nv['k']}/{nv['n']}** (lower is better; the naive arm has the same retrieval and "
+        f"synthesis and no checks): {comparison['n_compared']} questions (dev + test) both "
+        f"arms completed, exact McNemar, Holm-adjusted p {row['p_holm']:.3f}, "
+        f"[pre-registered]({prereg}) before the runs."
+    )
+    invented = data["answer_quality"]["invented_answer_rate"]
+    why = (
+        f"{v['k']}/{v['n']} does not compare directly with {recall['k']}/{recall['n']} "
+        f"refused or {invented['k']}/{invented['n_questions']} invented: it pools dev and "
+        "test and counts a self-abstention (an answer saying the documents do not hold "
+        f"it) as a refusal, by the [self-abstention rule]({prereg}#metrics); the other two "
+        f"are the test split alone, run `{data['provenance']['run_sha']}`, where a "
+        "self-abstention counts as an answer."
+    )
+    return lead, why
+
+
 def render_key_result(
     data: dict[str, Any],
     *,
     readme_path: Path = DEFAULT_README,
     results_doc: Path = DEFAULT_RESULTS_DOC,
     judge: str = "judge unvalidated",
+    comparison: dict[str, Any] | None = None,
 ) -> str:
-    """Return the README's key result: invented answers over every answer shipped, then
-    refusal recall and precision, each with its interval."""
+    """Return the README's key result: the pre-registered comparison when it contains
+    this run, then invented answers over every answer shipped, then refusal recall and
+    precision, each with its interval."""
     prov, ds, refu = data["provenance"], data["dataset"], data["refusal"]
     recall, precision = refu["refusal_recall"], refu["refusal_precision"]
     invented = data["answer_quality"]["invented_answer_rate"]
     ids = ", ".join(f"`{i}`" for i in invented["example_ids"])
     stub = "stub" in prov["agent_model"] or "stub" in prov["judge_model"]
+    compared = None if comparison is None else _comparison_lines(data, comparison, readme_path)
     lines = [
         f"**Invented answers {invented['k']}/{invented['n_questions']}** "
         f"(Wilson 95 % CI {_bracket(invented['ci95_wilson'])}): answers holding a claim the "
@@ -597,6 +634,8 @@ def render_key_result(
         f"Every metric, the judge's validation and the limits: "
         f"[`docs/results.md`]({_link(results_doc, readme_path)}).",
     ]
+    if compared is not None:
+        lines = [compared[0], *lines, compared[1]]
     if stub:
         lines.append("")
         lines.append("> ⚠️ **Generated on stubs**: this describes the scripted stubs, not Verity.")
@@ -692,7 +731,11 @@ def main(argv: list[str] | None = None) -> int:
     rendered_readme = replace_between(
         readme,
         render_key_result(
-            payload, readme_path=args.readme, results_doc=args.results_doc, judge=judge
+            payload,
+            readme_path=args.readme,
+            results_doc=args.results_doc,
+            judge=judge,
+            comparison=json.loads(TWO_ARM.read_text(encoding="utf-8")),
         ),
         KEY_START,
         KEY_END,
