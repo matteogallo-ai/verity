@@ -6,6 +6,13 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- A citation typed with a straight apostrophe or double quote is found in a document that
+  prints the typographic form (`d’un`, `« … »`); it was dropped, and a correct answer refused.
+  Only `' ’ ‘ ʼ` and `" “ ” « »` are interchangeable, each within its class; the stored quote
+  stays the document's own text.
+
 ### Changed
 
 - Scorecard schema v7: the run's answerable / unanswerable counts move from `dataset`

@@ -164,15 +164,38 @@ def _validate_citations(
 
 _WORD_GAP_RE = re.compile(rf"[\s{DATAMARK}]+")
 
+# A model often types the ASCII form of a mark the document prints typographically
+# (French elisions and guillemets), which made a correct quote unfindable. Each mark
+# matches only the marks of its own class; every other character must match exactly.
+_APOSTROPHES = (
+    "'\N{RIGHT SINGLE QUOTATION MARK}\N{LEFT SINGLE QUOTATION MARK}\N{MODIFIER LETTER APOSTROPHE}"
+)
+_DOUBLE_QUOTES = (
+    '"'
+    "\N{LEFT DOUBLE QUOTATION MARK}"
+    "\N{RIGHT DOUBLE QUOTATION MARK}"
+    "\N{LEFT-POINTING DOUBLE ANGLE QUOTATION MARK}"
+    "\N{RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK}"
+)
+_EQUIVALENT_MARKS = {
+    mark: f"[{re.escape(marks)}]" for marks in (_APOSTROPHES, _DOUBLE_QUOTES) for mark in marks
+}
+# A literal mark in a document reaches the model as "^" (see evidence.datamark).
+_EQUIVALENT_MARKS["^"] = f"[\\^{DATAMARK}]"
+
+
+def _word_pattern(word: str) -> str:
+    return "".join(_EQUIVALENT_MARKS.get(char) or re.escape(char) for char in word)
+
 
 def _locate(quote: str, text: str) -> tuple[int, int] | None:
     """The first span of ``text`` holding ``quote``'s words in order, separated by any
-    whitespace; ``None`` if there is none."""
+    whitespace, where an apostrophe or a double quote matches any mark of its class;
+    ``None`` if there is none."""
     words = [w for w in _WORD_GAP_RE.split(quote) if w]
     if not words:
         return None
-    # A literal mark in a document reaches the model as "^" (see evidence.datamark).
-    pattern = r"\s+".join(re.escape(w).replace(r"\^", f"[\\^{DATAMARK}]") for w in words)
+    pattern = r"\s+".join(_word_pattern(w) for w in words)
     match = re.search(pattern, text)
     return None if match is None else (match.start(), match.end())
 
