@@ -154,7 +154,7 @@ def _fixture_result() -> HarnessResult:
 def test_build_headline_dict_carries_full_provenance_and_totals() -> None:
     result = _fixture_result()
     payload = build_headline_dict(result)
-    assert payload["schema"] == "verity.scorecard.headline/v6"
+    assert payload["schema"] == "verity.scorecard.headline/v7"
     prov = payload["provenance"]
     # Agent summary: all 16 answers stamped claude-sonnet-4-6 → "(16/16)"
     assert prov["agent_model"] == "claude-sonnet-4-6 (16/16)"
@@ -170,9 +170,8 @@ def test_build_headline_dict_carries_full_provenance_and_totals() -> None:
     assert payload["cost"]["total_usd"] == pytest.approx(1.4)
     assert payload["cost"]["agent_usd"] == pytest.approx(0.8)
     assert payload["cost"]["judge_usd"] == pytest.approx(0.6)
-    # Dataset counts derive from per_refusal — not from raw n_examples.
-    assert payload["dataset"]["n_answerable"] == 11
-    assert payload["dataset"]["n_unanswerable"] == 5
+    # The dataset block describes the file; the run's breakdown is a sample size.
+    assert set(payload["dataset"]) == {"name", "n_questions", "sha256"}
 
     # v3 sample-size table: every denominator is one click away from the scorecard.
     sizes = payload["sample_sizes"]
@@ -186,6 +185,8 @@ def test_build_headline_dict_carries_full_provenance_and_totals() -> None:
         "n_claims": 550,
         "n_refused": 5,
         "n_answerable_answered": 11,
+        "n_answerable_run": 11,
+        "n_unanswerable_run": 5,
     }
     assert payload["run"]["agent_tokens"] == {"input": 1600, "output": 160}
     assert payload["run"]["judge_tokens"] == {"input": 112, "output": 0}
@@ -281,7 +282,7 @@ def test_write_headline_scorecard_round_trips(tmp_path: Path) -> None:
     result = _fixture_result()
     out = write_headline_scorecard(result.as_eval_run(), tmp_path / "live.json")
     parsed = json.loads(out.read_text(encoding="utf-8"))
-    assert parsed["schema"] == "verity.scorecard.headline/v6"
+    assert parsed["schema"] == "verity.scorecard.headline/v7"
     assert parsed["cost"]["total_usd"] == pytest.approx(1.4)
 
 
@@ -671,11 +672,11 @@ def test_a_missing_card_marker_writes_neither_file(tmp_path: Path) -> None:
         generator.main(["--readme", str(readme), "--system-card", str(tmp_path / "absent.md")])
 
 
-def test_a_scorecard_older_than_v6_is_refused_by_the_card() -> None:
-    """Only v6 stores every k/n the card prints; an older scorecard would need them guessed."""
+def test_a_scorecard_older_than_v7_is_refused_by_the_card() -> None:
+    """Only v7 stores every k/n the card prints; an older scorecard would need them guessed."""
     payload = _committed_scorecard()
-    payload["schema"] = "verity.scorecard.headline/v3"
-    with pytest.raises(SystemExit, match="v6"):
+    payload["schema"] = "verity.scorecard.headline/v6"
+    with pytest.raises(SystemExit, match="v7"):
         _card_rows(payload)
 
 
@@ -867,3 +868,21 @@ def test_a_comparison_of_other_runs_is_left_out_of_the_key_result() -> None:
     block = _load_generator().render_key_result(live, comparison=two_arm)
     assert block.startswith("**Invented answers")
     assert "4/31" not in block
+
+
+@pytest.mark.parametrize(
+    "scorecard", ["scorecards/live-v1.1.0.json", None], ids=["run-of-record", "fixture"]
+)
+def test_the_run_breakdown_adds_up_to_the_questions_that_completed(scorecard: str | None) -> None:
+    """The run of record asked 54 of the 56 questions of test.jsonl (36 answerable and
+    20 unanswerable): its 36 + 18 is a property of the run, not of the dataset."""
+    payload = (
+        build_headline_dict(_fixture_result())
+        if scorecard is None
+        else json.loads((REPO_ROOT / scorecard).read_text(encoding="utf-8"))
+    )
+    sizes = payload["sample_sizes"]
+    completed = sizes["n_examples"] - sizes["n_errored"] - sizes["n_not_run"]
+    assert sizes["n_answerable_run"] + sizes["n_unanswerable_run"] == completed
+    assert sizes["n_answered"] + sizes["n_refused"] == completed
+    assert payload["dataset"]["n_questions"] == sizes["n_examples"]

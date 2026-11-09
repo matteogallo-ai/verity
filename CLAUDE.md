@@ -23,7 +23,7 @@ src/verity/
   retrieval/          memory_store (cosine+BM25), pgvector_store, fusion (RRF), reranker, hybrid
   agent/              agent, decomposer, synthesizer, scorer, evidence, scripted_stub
   llm/                clients (Anthropic, OpenAI, stub), routing (fallback), prompt loader, json_output
-  eval/               retrieval_metric, refusal, judge, harness, headline (scorecard v6), run_store
+  eval/               retrieval_metric, refusal, judge, harness, headline (scorecard v7), run_store
   observability/      tracer (OTel in-memory), logging (structlog), warmup
   api/                server (/health, /ready, /metrics, /dashboard), router (/status, /ask, /ingest), state
   db/                 SQL migration runner

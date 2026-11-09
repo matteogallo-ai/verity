@@ -6,6 +6,12 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Scorecard schema v7: the run's answerable / unanswerable counts move from `dataset`
+  to `sample_sizes.n_answerable_run` / `n_unanswerable_run`. `dataset` describes the
+  file (`test.jsonl`: 56 questions); the run of record completed 54 of them (36 + 18).
+
 ## [1.1.0] — 2026-11-07
 
 ### Added

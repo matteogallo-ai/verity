@@ -215,8 +215,8 @@ def render_block(
         f"`judge={prov['judge_model']}` · "
         f"`embedding={prov['embedding_model']}` · "
         f"commit `{prov['run_sha']}` · {date} · dataset `{ds['name']}` · "
-        f"{_n_of_asked(data)} ({ds['n_answerable']} answerable + "
-        f"{ds['n_unanswerable']} unanswerable) · "
+        f"{_n_of_asked(data)} ({sizes['n_answerable_run']} answerable + "
+        f"{sizes['n_unanswerable_run']} unanswerable) · "
         f"**{sizes['n_errored']} errored, {sizes.get('n_not_run', 0)} not run** (kept out of "
         "every metric) · "
         f"total cost **{_usd(cost['total_usd'])}**",
@@ -373,7 +373,7 @@ def _performance_rows(data: dict[str, Any]) -> list[str]:
             f"{_ci_cells(micro['k'], micro['n_claims'])} |"
         )
     retrieval = data["retrieval"]
-    n_answerable = data["dataset"]["n_answerable"]
+    n_answerable = data["sample_sizes"]["n_answerable_run"]
     for label, key in (("nDCG", "ndcg_at_k"), ("Recall", "recall_at_k")):
         rows.append(
             f"| Retrieval {label}@{retrieval['k']}, per-question mean | "
@@ -545,15 +545,14 @@ def render_system_card_block(
     data: dict[str, Any], *, scorecard_path: Path, card_path: Path = DEFAULT_SYSTEM_CARD
 ) -> str:
     """Markdown for the system card: measured performance with intervals, then SLOs."""
-    prov = data["provenance"]
-    ds = data["dataset"]
+    prov, sizes = data["provenance"], data["sample_sizes"]
     source = _repo_path(scorecard_path)
     link = _link(scorecard_path, card_path)
     lines = [
         f"Source: [`{source}`]({link}) · commit `{prov['run_sha']}` · "
         f"{_short_date(str(data['generated_at']))} · agent `{prov['agent_model']}` · "
         f"judge `{prov['judge_model']}` · {_n_of_asked(data)} "
-        f"({ds['n_answerable']} answerable + {ds['n_unanswerable']} out-of-scope).",
+        f"({sizes['n_answerable_run']} answerable + {sizes['n_unanswerable_run']} out-of-scope).",
         "",
         "| Metric | Value | k/n | 95% CI (Wilson) |",
         "|---|---:|---:|---:|",
