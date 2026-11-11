@@ -9,6 +9,12 @@ minimal (``text`` is a plain string; structure lives in metadata).
 Docling's model uses ``NodeItem.self_ref`` (opaque strings) rather than typed classes we
 can import cheaply, so we detect item kinds by ``label``/attribute presence, which keeps
 this module resilient to minor docling API drift.
+
+A PDF can render correctly yet carry a corrupt text layer: a font whose ToUnicode map
+is wrong extracts shifted letters, and digits come out as control characters or
+U+FFFD (the annexes of cantonal CCTs published in the Vaud FAO do this). Docling
+detects such pages and reads them with OCR instead; a page still broken after that
+fails the document rather than indexing text whose every figure is gone.
 """
 
 from __future__ import annotations
@@ -19,6 +25,8 @@ import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
+
+from docling.utils.text_quality import is_broken_text_layer
 
 from verity.ingestion.ids import document_id_for_uri
 from verity.ingestion.parsers.text import _read_bytes
@@ -32,6 +40,10 @@ if TYPE_CHECKING:  # pragma: no cover — types only, avoids importing at module
 _HEADING_LABELS = {"title", "section_header", "subtitle", "header"}
 
 
+class UnreadableTextLayerError(ValueError):
+    """A PDF page whose text layer is broken and that OCR did not make readable."""
+
+
 @functools.cache
 def _lazy_converter() -> DocumentConverter:
     """Import docling only when a PDF/DOCX is actually parsed (cold-start cost).
@@ -39,10 +51,26 @@ def _lazy_converter() -> DocumentConverter:
     One converter per process: a converter loads its layout and OCR models on first
     use, so a new one per document reloaded them every time (8 corpus documents:
     14.8 s with a converter each, 1.3-2.3 s with one shared).
-    """
-    from docling.document_converter import DocumentConverter
 
-    return DocumentConverter()
+    ``replace_broken_text_layer`` OCRs only the pages docling finds broken; the other
+    pages keep their PDF text, so a clean PDF converts exactly as before.
+    """
+    from docling.datamodel.base_models import InputFormat
+    from docling.datamodel.pipeline_options import OcrAutoOptions, PdfPipelineOptions
+    from docling.document_converter import DocumentConverter, PdfFormatOption
+
+    options = PdfPipelineOptions(ocr_options=OcrAutoOptions(replace_broken_text_layer=True))
+    return DocumentConverter(
+        format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=options)}
+    )
+
+
+def broken_pages(text: str, sections: tuple[Section, ...]) -> list[int | None]:
+    """The pages of ``text`` that docling's own detector still finds broken."""
+    by_page: dict[int | None, list[str]] = {}
+    for section in sections:
+        by_page.setdefault(section.page, []).append(text[section.char_start : section.char_end])
+    return [page for page, parts in by_page.items() if is_broken_text_layer("\n".join(parts))]
 
 
 def _flatten(docling_doc: Any) -> tuple[str, tuple[Section, ...]]:
@@ -166,6 +194,11 @@ class DoclingParser:
         finally:
             if cleanup is not None:
                 cleanup.unlink(missing_ok=True)
+
+        if source_type is SourceType.PDF and (pages := broken_pages(text, sections)):
+            raise UnreadableTextLayerError(
+                f"{uri}: broken text layer on page(s) {pages}; OCR did not make it readable"
+            )
 
         structure = DocumentStructure(sections=sections)
         # The URI names the document; source_path may be a temporary copy.
