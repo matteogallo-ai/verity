@@ -32,7 +32,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from verity.types import Answer
+from verity.agent.support import best_cited_rerank_score, citation_coverage
+from verity.agent.synthesizer import CitedSynthesizer, SynthesisResult
+from verity.types import Answer, RetrievalHit
 
 Code = Literal["R+S", "R", "NT", "F"]
 POINTS: dict[Code, int] = {"R+S": 2, "R": 1, "NT": 0, "F": -1}
@@ -61,6 +63,31 @@ class CitedQuote(BaseModel, frozen=True):
     section: str | None
 
 
+class HitRecord(BaseModel, frozen=True):
+    rank: int
+    kind: str
+    score: float
+    section: str | None
+    excerpt: str
+
+
+class Decision(BaseModel, frozen=True):
+    """Why the agent answered or refused, from the values its checks compare.
+
+    The coverage and cited relevance are recomputed on the draft with the functions
+    the agent's support check uses (``verity.agent.support``), since a refused
+    answer no longer carries its draft.
+    """
+
+    reason: str | None
+    rationale: str
+    scorer_score: float
+    citation_coverage: float | None
+    cited_rerank_score: float | None
+    draft: str | None
+    hits: tuple[HitRecord, ...]
+
+
 class Result(BaseModel, frozen=True):
     question: Question
     answer: str
@@ -69,6 +96,7 @@ class Result(BaseModel, frozen=True):
     citations: tuple[CitedQuote, ...]
     cost_usd: float
     latency_ms: float
+    decision: Decision | None  # None when the answer failed
     graded: Graded
 
 
@@ -79,6 +107,8 @@ class Run(BaseModel):
     started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     corpus: dict[str, str]  # file name -> sha256
     n_chunks: int
+    # Models, thresholds and refusal text in force: what an A/B comparison must vary.
+    config: dict[str, str | float | int | bool]
     budget_usd: float
     spent_usd: float = 0.0
     results: list[Result] = Field(default_factory=list)
@@ -211,6 +241,44 @@ def _citations(answer: Answer) -> tuple[CitedQuote, ...]:
     )
 
 
+_EXCERPT_CHARS = 200
+
+
+def decision_of(answer: Answer, draft: SynthesisResult | None) -> Decision:
+    confidence = answer.confidence
+    if confidence is None:
+        raise ValueError("an answer that failed has no decision")
+    hits = list(answer.hits_used)
+    return Decision(
+        reason=str(confidence.reason) if confidence.reason else None,
+        rationale=confidence.rationale,
+        scorer_score=confidence.score,
+        citation_coverage=citation_coverage(draft.text, draft.citations) if draft else None,
+        cited_rerank_score=best_cited_rerank_score(draft.citations, hits) if draft else None,
+        draft=draft.text if draft else None,
+        hits=tuple(
+            HitRecord(
+                rank=h.rank,
+                kind=str(h.kind),
+                score=h.score,
+                section=h.chunk.section,
+                excerpt=h.chunk.text[:_EXCERPT_CHARS],
+            )
+            for h in hits
+        ),
+    )
+
+
+class _RecordingSynthesizer(CitedSynthesizer):
+    """Keeps the last draft, which the agent drops when it refuses."""
+
+    last: SynthesisResult | None = None
+
+    async def synthesize(self, question: str, hits: list[RetrievalHit]) -> SynthesisResult:
+        self.last = await super().synthesize(question, hits)
+        return self.last
+
+
 def _fingerprint(corpus: Path) -> dict[str, str]:
     """The files ingestion reads, so the run record names exactly what was asked."""
     from verity.ingestion.pipeline import discover_sources
@@ -231,10 +299,18 @@ def _git_sha() -> str:
 
 
 async def run_bench(
-    corpus: Path, questions: list[Question], *, stub: bool, budget_usd: float
+    corpus: Path,
+    questions: list[Question],
+    *,
+    stub: bool,
+    budget_usd: float,
+    refusal_text: str,
 ) -> Run:
-    from verity.agent import create_default_agent
+    from verity.agent.agent import RagAgent
+    from verity.agent.decomposer import LLMQuestionDecomposer
+    from verity.agent.scorer import LLMConfidenceScorer
     from verity.agent.scripted_stub import build_stub_router
+    from verity.config import get_settings
     from verity.llm import create_default_routing_client
     from verity.llm.budget import SpendCappedClient
     from verity.llm.routing import primary_client_identity
@@ -248,16 +324,40 @@ async def run_bench(
     retriever = build_retriever(store=store, embedder=embedder, reranker=reranker)
     router = build_stub_router() if stub else create_default_routing_client()
     client = SpendCappedClient(router, cap_usd=budget_usd)
-    agent = create_default_agent(retriever=retriever, client=client)
+    # The agent create_default_agent builds, with a synthesizer that keeps the draft.
+    synthesizer = _RecordingSynthesizer(client)
+    provider, model = primary_client_identity(client)
+    agent = RagAgent(
+        retriever=retriever,
+        decomposer=LLMQuestionDecomposer(client),
+        synthesizer=synthesizer,
+        scorer=LLMConfidenceScorer(client),
+        preferred_provider=provider,
+        preferred_model=model,
+        refusal_text=refusal_text,
+    )
+    settings = get_settings()
     run = Run(
         mode="stub" if stub else "live",
         model=None if stub else primary_client_identity(router)[1],
         git_sha=_git_sha(),
         corpus=await asyncio.to_thread(_fingerprint, corpus),
         n_chunks=len(ingested.chunks),
+        config={
+            "embedding_model": settings.embedding_model,
+            "reranker_model": settings.reranker_model,
+            "rerank_k": settings.rerank_k,
+            "retrieval_k": settings.retrieval_k,
+            "min_citation_coverage": settings.min_citation_coverage,
+            "min_cited_rerank_score": settings.min_cited_rerank_score,
+            "irrelevant_citation_check": settings.irrelevant_citation_check,
+            "confidence_threshold": settings.confidence_threshold,
+            "refusal_text": refusal_text,
+        },
         budget_usd=budget_usd,
     )
     for question in questions:
+        synthesizer.last = None
         answer = await agent.answer(question.question)
         refused = bool(answer.confidence and answer.confidence.refused)
         # The kind only, as the eval harness records errors: provider messages can quote secrets.
@@ -272,6 +372,7 @@ async def run_bench(
                 citations=citations,
                 cost_usd=answer.usage.cost_usd,
                 latency_ms=answer.usage.latency_ms,
+                decision=None if answer.error else decision_of(answer, synthesizer.last),
                 graded=grade(
                     question, answer.text, refused=refused, error=error, citations=citations
                 ),
@@ -293,17 +394,30 @@ def main(argv: list[str] | None = None) -> int:
         default=3.0,
         help="Cap on the whole run; a question that would pass it is not asked.",
     )
+    parser.add_argument(
+        "--refusal-text",
+        help="What a refused question reads for this corpus. Default: VERITY_REFUSAL_TEXT.",
+    )
     args = parser.parse_args(argv)
+    if args.refusal_text is not None and not args.refusal_text.strip():
+        parser.error("--refusal-text must not be blank")
     if args.budget_usd <= 0:
         parser.error("--budget-usd must be positive")
-    if not args.stub:
-        from verity.config import get_settings
+    from verity.config import get_settings
 
-        if not get_settings().has_llm_api_key:
-            parser.error("no LLM API key configured; set one or pass --stub")
+    if not args.stub and not get_settings().has_llm_api_key:
+        parser.error("no LLM API key configured; set one or pass --stub")
 
     questions = load_questions(args.questions)
-    run = asyncio.run(run_bench(args.corpus, questions, stub=args.stub, budget_usd=args.budget_usd))
+    run = asyncio.run(
+        run_bench(
+            args.corpus,
+            questions,
+            stub=args.stub,
+            budget_usd=args.budget_usd,
+            refusal_text=args.refusal_text or get_settings().refusal_text,
+        )
+    )
     out = args.out or args.questions.parent
     out.mkdir(parents=True, exist_ok=True)
     (out / "resultats.json").write_text(run.model_dump_json(indent=2))

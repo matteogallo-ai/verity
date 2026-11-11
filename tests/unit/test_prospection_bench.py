@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 from tools.prospection.bench import (
@@ -12,11 +13,24 @@ from tools.prospection.bench import (
     Result,
     Run,
     _fingerprint,
+    decision_of,
     grade,
     load_questions,
     main,
     normalise,
     render_table,
+)
+
+from verity.agent.synthesizer import SynthesisResult
+from verity.types import (
+    Answer,
+    Chunk,
+    Citation,
+    Confidence,
+    RefusalReason,
+    RetrievalHit,
+    RetrieverKind,
+    UsageStats,
 )
 
 _SALARY = Question(
@@ -105,6 +119,54 @@ def test_an_error_is_not_found_and_flagged() -> None:
     assert _grade(_SALARY, "", error="budget_exceeded: cap") == ("NT", 0, True)
 
 
+_DOC = uuid4()
+_CHUNK = Chunk(
+    document_id=_DOC,
+    text="B2) salaire minimum dès l'obtention du CFC 26.05 4'775.85",
+    ordinal=0,
+    char_start=0,
+    char_end=57,
+    section="CHAPITRE III > Article 8 - Salaires",
+)
+_HIT = RetrievalHit(chunk=_CHUNK, score=3.2, kind=RetrieverKind.RERANKED, rank=0)
+
+
+def _refused(reason: RefusalReason, rationale: str) -> Answer:
+    return Answer(
+        query="q",
+        text="refus",
+        confidence=Confidence(score=0.0, refused=True, rationale=rationale, reason=reason),
+        hits_used=(_HIT,),
+    )
+
+
+def _draft(text: str, quote: str) -> SynthesisResult:
+    citation = Citation(
+        chunk_id=_CHUNK.id, document_id=_DOC, quote=quote, char_start=0, char_end=len(quote)
+    )
+    return SynthesisResult(
+        text=text, citations=(citation,), usage=UsageStats(), provider=None, model=None
+    )
+
+
+def test_a_refusal_records_its_reason_coverage_draft_and_passages() -> None:
+    draft = _draft("Le salaire minimum est de 26.05 de l'heure", "CFC 26.05")
+    decision = decision_of(_refused(RefusalReason.LOW_CITATION_COVERAGE, "Only 20% ..."), draft)
+    assert decision.reason == "low_citation_coverage"
+    assert decision.rationale == "Only 20% ..."
+    assert decision.draft == "Le salaire minimum est de 26.05 de l'heure"
+    assert decision.citation_coverage is not None and 0 < decision.citation_coverage < 0.5
+    assert decision.cited_rerank_score == 3.2
+    assert [(h.rank, h.kind, h.section) for h in decision.hits] == [
+        (0, "reranked", "CHAPITRE III > Article 8 - Salaires")
+    ]
+
+
+def test_without_a_draft_there_is_no_coverage() -> None:
+    decision = decision_of(_refused(RefusalReason.NO_CITATION, "none"), None)
+    assert decision.citation_coverage is None and decision.draft is None
+
+
 def _write(path: Path, *questions: dict[str, object]) -> Path:
     path.write_text("\n".join(json.dumps(q) for q in questions) + "\n")
     return path
@@ -147,6 +209,7 @@ def _result(question: Question, code: str, points: int, error: str | None = None
             "citations": [],
             "cost_usd": 0.0,
             "latency_ms": 0.0,
+            "decision": None,
             "graded": {"code": code, "points": points, "needs_review": False, "reason": "x"},
         }
     )
@@ -160,6 +223,7 @@ def _run(mode: str, *results: Result) -> Run:
             "git_sha": "abc",
             "corpus": {},
             "n_chunks": 0,
+            "config": {},
             "budget_usd": 3.0,
             "results": [r.model_dump() for r in results],
         }
@@ -191,14 +255,38 @@ def test_a_stub_run_says_its_score_measures_nothing() -> None:
     assert render_table(_run("stub")).startswith("**STUB")
 
 
+def test_a_blank_refusal_text_is_rejected(tmp_path: Path) -> None:
+    questions = _write(tmp_path / "q.jsonl", _SALARY.model_dump(mode="json"))
+    with pytest.raises(SystemExit):
+        main(
+            [
+                "--stub",
+                "--corpus",
+                str(tmp_path),
+                "--questions",
+                str(questions),
+                "--refusal-text",
+                " ",
+            ]
+        )
+
+
 @pytest.mark.slow
 def test_a_stub_run_writes_both_files(tmp_path: Path) -> None:
     corpus = tmp_path / "corpus"
     corpus.mkdir()
     (corpus / "cct.md").write_text("# Article 8 \u2013 Salaires\n\n8.1 Jardinier CFC : 26.05.\n")
     questions = _write(tmp_path / "q.jsonl", _SALARY.model_dump(mode="json"))
-    assert main(["--stub", "--corpus", str(corpus), "--questions", str(questions)]) == 0
+    referral = "Contactez le secrétariat de l'association."
+    args = ["--stub", "--corpus", str(corpus), "--questions", str(questions)]
+    assert main([*args, "--refusal-text", referral]) == 0
     run = json.loads((tmp_path / "resultats.json").read_text())
     assert run["mode"] == "stub"
+    assert run["config"]["min_citation_coverage"] == 0.5
+    assert run["config"]["refusal_text"] == referral
+    if run["results"][0]["refused"]:
+        assert run["results"][0]["answer"] == referral
+    decision = run["results"][0]["decision"]
+    assert decision["hits"] and decision["hits"][0]["excerpt"]
     assert [r["question"]["id"] for r in run["results"]] == [1]
     assert (tmp_path / "tableau.md").read_text().startswith("**STUB")
