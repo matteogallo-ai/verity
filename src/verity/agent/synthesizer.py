@@ -20,6 +20,7 @@ the draft ships or is replaced by a refusal.
 
 from __future__ import annotations
 
+import itertools
 import re
 from dataclasses import dataclass
 
@@ -193,14 +194,28 @@ def _word_pattern(word: str) -> str:
     return "".join(_EQUIVALENT_MARKS.get(char) or re.escape(char) for char in word)
 
 
+# French typography spaces the inside of guillemets, often with a no-break space, and a
+# model may type that space or not whatever the document does: next to a double quote
+# mark the gap is optional. Between two words it is still required.
+_DOUBLE_QUOTE_SPLIT_RE = re.compile(f"([{re.escape(_DOUBLE_QUOTES)}])")
+
+
 def _locate(quote: str, text: str) -> tuple[int, int] | None:
     """The first span of ``text`` holding ``quote``'s words in order, separated by any
-    whitespace, where an apostrophe or a double quote matches any mark of its class;
-    ``None`` if there is none."""
-    words = [w for w in _WORD_GAP_RE.split(quote) if w]
-    if not words:
+    whitespace, where an apostrophe or a double quote matches any mark of its class
+    and the space next to a double quote mark is optional; ``None`` if there is none."""
+    tokens = [
+        piece
+        for word in _WORD_GAP_RE.split(quote)
+        for piece in _DOUBLE_QUOTE_SPLIT_RE.split(word)
+        if piece
+    ]
+    if not tokens:
         return None
-    pattern = r"\s+".join(_word_pattern(w) for w in words)
+    pattern = _word_pattern(tokens[0])
+    for before, token in itertools.pairwise(tokens):
+        gap = r"\s*" if before in _DOUBLE_QUOTES or token in _DOUBLE_QUOTES else r"\s+"
+        pattern += gap + _word_pattern(token)
     match = re.search(pattern, text)
     return None if match is None else (match.start(), match.end())
 

@@ -223,3 +223,37 @@ def test_marks_outside_the_class_or_different_words_are_still_rejected(quote: st
 def test_an_apostrophe_does_not_match_a_double_quote_in_the_chunk() -> None:
     hits = [_hit("il a dit \N{LEFT DOUBLE QUOTATION MARK}oui\N{RIGHT DOUBLE QUOTATION MARK}", cs=0)]
     assert _validate_citations([("dit 'oui'", 0)], hits) == ()
+
+
+# French typography puts a space, often a no-break one, inside guillemets; a model may
+# type it or not, whatever the document does. Around a double quote mark the spacing
+# is free; everywhere else words still need a gap and must match exactly.
+NBSP, NNBSP = "\N{NO-BREAK SPACE}", "\N{NARROW NO-BREAK SPACE}"
+
+
+@pytest.mark.parametrize(
+    ("in_document", "in_quote"),
+    [
+        ("«de panier»", "« de panier »"),
+        (f"«{NBSP}de panier{NBSP}»", "«de panier»"),
+        (f"«{NNBSP}de panier{NNBSP}»", '"de panier"'),
+        ("« de panier »", "«de panier »"),
+    ],
+)
+def test_the_space_inside_guillemets_may_differ(in_document: str, in_quote: str) -> None:
+    text = f"une indemnité dite {in_document} de Fr. 19.- par jour"
+    hits = [_hit(text, cs=0)]
+    (citation,) = _validate_citations([(f"dite {in_quote} de Fr. 19.-", 0)], hits)
+    assert citation.quote == f"dite {in_document} de Fr. 19.-"
+
+
+@pytest.mark.parametrize(
+    "quote",
+    [
+        "dite « de paniers »",  # a different word stays a different word
+        "dite « depanier »",  # words still need their gap
+    ],
+)
+def test_free_spacing_around_guillemets_does_not_loosen_the_words(quote: str) -> None:
+    hits = [_hit("une indemnité dite «de panier» par jour", cs=0)]
+    assert _validate_citations([(quote, 0)], hits) == ()
