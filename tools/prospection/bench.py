@@ -108,7 +108,7 @@ class Run(BaseModel):
     corpus: dict[str, str]  # file name -> sha256
     n_chunks: int
     # Models, thresholds and refusal text in force: what an A/B comparison must vary.
-    config: dict[str, str | float | int | bool]
+    run_settings: dict[str, str | float | int | bool]
     budget_usd: float
     spent_usd: float = 0.0
     results: list[Result] = Field(default_factory=list)
@@ -306,9 +306,7 @@ async def run_bench(
     budget_usd: float,
     refusal_text: str,
 ) -> Run:
-    from verity.agent.agent import RagAgent
-    from verity.agent.decomposer import LLMQuestionDecomposer
-    from verity.agent.scorer import LLMConfidenceScorer
+    from verity.agent import create_default_agent
     from verity.agent.scripted_stub import build_stub_router
     from verity.config import get_settings
     from verity.llm import create_default_routing_client
@@ -324,17 +322,9 @@ async def run_bench(
     retriever = build_retriever(store=store, embedder=embedder, reranker=reranker)
     router = build_stub_router() if stub else create_default_routing_client()
     client = SpendCappedClient(router, cap_usd=budget_usd)
-    # The agent create_default_agent builds, with a synthesizer that keeps the draft.
     synthesizer = _RecordingSynthesizer(client)
-    provider, model = primary_client_identity(client)
-    agent = RagAgent(
-        retriever=retriever,
-        decomposer=LLMQuestionDecomposer(client),
-        synthesizer=synthesizer,
-        scorer=LLMConfidenceScorer(client),
-        preferred_provider=provider,
-        preferred_model=model,
-        refusal_text=refusal_text,
+    agent = create_default_agent(
+        retriever=retriever, client=client, synthesizer=synthesizer, refusal_text=refusal_text
     )
     settings = get_settings()
     run = Run(
@@ -343,7 +333,10 @@ async def run_bench(
         git_sha=_git_sha(),
         corpus=await asyncio.to_thread(_fingerprint, corpus),
         n_chunks=len(ingested.chunks),
-        config={
+        run_settings={
+            "provider_order": ",".join(settings.provider_order),
+            "max_agent_steps": settings.max_agent_steps,
+            "synthesis_max_tokens": synthesizer.max_tokens,
             "embedding_model": settings.embedding_model,
             "reranker_model": settings.reranker_model,
             "rerank_k": settings.rerank_k,

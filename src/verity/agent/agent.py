@@ -23,8 +23,8 @@ What holds on the returned :class:`Answer`:
   cannot ship an answer on its own;
 - ``confidence.refused`` is also True when the scorer model asked to refuse OR its
   self-reported score is below ``confidence_threshold`` (the score is the model's
-  self-report and is not calibrated; at the default threshold, 0, no score is below it). A refused answer's text is a fixed "I don't know"
-  with the rationale;
+  self-report and is not calibrated; at the default threshold, 0, no score is below it). A refused answer's text is the configured
+  ``refusal_text`` (default: a fixed "I don't know"), with the rationale;
 - ``hits_used`` and ``usage`` are populated for observability and eval.
 
 With ``checks=False`` the agent is the naive RAG baseline the eval compares against
@@ -101,6 +101,8 @@ class RagAgent(Agent):
     ) -> None:
         settings = get_settings()
         self._checks = checks
+        if refusal_text is not None and not refusal_text.strip():
+            raise ValueError("refusal_text must not be blank")
         self._refusal_text = refusal_text or settings.refusal_text
         self._retriever = retriever
         self._decomposer = decomposer
@@ -409,6 +411,8 @@ def create_default_agent(
     client: RoutingClient,
     tracer: Tracer | None = None,
     checks: bool = True,
+    synthesizer: CitedSynthesizer | None = None,
+    refusal_text: str | None = None,
 ) -> RagAgent:
     """Wire the default agent: LLM-based decomposer + synthesizer + scorer.
 
@@ -422,12 +426,13 @@ def create_default_agent(
     return RagAgent(
         retriever=retriever,
         decomposer=LLMQuestionDecomposer(client),
-        synthesizer=CitedSynthesizer(client),
+        synthesizer=synthesizer or CitedSynthesizer(client),
         scorer=LLMConfidenceScorer(client),
         tracer=tracer,
         preferred_provider=preferred_provider,
         preferred_model=preferred_model,
         checks=checks,
+        refusal_text=refusal_text,
     )
 
 

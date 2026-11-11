@@ -74,6 +74,11 @@ class CitedSynthesizer:
         self._max_tokens = max_tokens
         self.last_usage: UsageStats | None = None
 
+    @property
+    def max_tokens(self) -> int:
+        """The draft's output cap: a draft cut off by it is unparseable and refused."""
+        return self._max_tokens
+
     async def synthesize(self, question: str, hits: list[RetrievalHit]) -> SynthesisResult:
         evidence = render_evidence(hits, with_scores=False, datamarked=self._datamarked)
         messages = self._prompt.render(

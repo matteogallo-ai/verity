@@ -47,15 +47,15 @@ async def test_the_setting_sets_the_refusal_text(monkeypatch: pytest.MonkeyPatch
 async def test_an_agent_can_carry_its_own_refusal_text() -> None:
     """One process can serve several corpora, each with its own contact."""
     router, _ = _router_with_synthesis(_UNCITED)
-    default = create_default_agent(retriever=await _seed_retriever(), client=router)
-    agent = RagAgent(
-        retriever=default._retriever,
-        decomposer=default._decomposer,
-        synthesizer=default._synthesizer,
-        scorer=default._scorer,
-        refusal_text=_FR,
-    )
+    agent = create_default_agent(retriever=await _seed_retriever(), client=router, refusal_text=_FR)
     assert await _refusal(agent) == _FR
+
+
+@pytest.mark.asyncio
+async def test_an_agent_rejects_a_blank_refusal_text() -> None:
+    router, _ = _router_with_synthesis(_UNCITED)
+    with pytest.raises(ValueError, match="blank"):
+        create_default_agent(retriever=await _seed_retriever(), client=router, refusal_text="  ")
 
 
 @pytest.mark.parametrize("text", ["", "   "])

@@ -223,7 +223,7 @@ def _run(mode: str, *results: Result) -> Run:
             "git_sha": "abc",
             "corpus": {},
             "n_chunks": 0,
-            "config": {},
+            "run_settings": {},
             "budget_usd": 3.0,
             "results": [r.model_dump() for r in results],
         }
@@ -282,10 +282,12 @@ def test_a_stub_run_writes_both_files(tmp_path: Path) -> None:
     assert main([*args, "--refusal-text", referral]) == 0
     run = json.loads((tmp_path / "resultats.json").read_text())
     assert run["mode"] == "stub"
-    assert run["config"]["min_citation_coverage"] == 0.5
-    assert run["config"]["refusal_text"] == referral
-    if run["results"][0]["refused"]:
-        assert run["results"][0]["answer"] == referral
+    assert run["run_settings"]["min_citation_coverage"] == 0.5
+    assert run["run_settings"]["synthesis_max_tokens"] == 512
+    assert run["run_settings"]["refusal_text"] == referral
+    # The scripted stub knows none of this corpus's themes, so it refuses.
+    assert run["results"][0]["refused"]
+    assert run["results"][0]["answer"] == referral
     decision = run["results"][0]["decision"]
     assert decision["hits"] and decision["hits"][0]["excerpt"]
     assert [r["question"]["id"] for r in run["results"]] == [1]
