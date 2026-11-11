@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from uuid import UUID
 
@@ -289,3 +290,21 @@ async def test_the_setting_asks_the_draft_to_name_the_article(
             CitedSynthesizer(off := _RecordingClient("{}"), name_articles=False), off
         )
     )
+
+
+@pytest.mark.asyncio
+async def test_the_default_system_prompt_is_the_one_the_published_runs_used() -> None:
+    """Pinned on the template of 9165978, before the article note existed: the file's
+    hash changed with the placeholder, the rendered prompt must not."""
+    client = _RecordingClient('{"answer": "a", "citations": []}')
+    system = await _system_prompt(CitedSynthesizer(client, name_articles=False), client)
+    assert hashlib.sha256(system.encode()).hexdigest() == (
+        "a80cccad4fbffd791561ca3347d5c3ffa8acda2a8a67c3f094f1b14b921af2c9"
+    )
+
+
+@pytest.mark.asyncio
+async def test_the_article_note_is_a_paragraph_of_its_own() -> None:
+    client = _RecordingClient('{"answer": "a", "citations": []}')
+    system = await _system_prompt(CitedSynthesizer(client, name_articles=True), client)
+    assert "\n\nWhen the documents number" in system

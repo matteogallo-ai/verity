@@ -34,7 +34,7 @@ from verity.types import Citation, Provider, RetrievalHit, UsageStats
 # Appended to the system message with VERITY_NAME_ARTICLES. The number comes from the
 # quoted text: a chunk's section attribute can name a neighbouring article.
 ARTICLE_NOTE = (
-    "\n\n  When the documents number their provisions (articles, sections, clauses), "
+    "\n\nWhen the documents number their provisions (articles, sections, clauses), "
     "name the article each claim comes from in the answer, as the cited text numbers it "
     '(for example "art. 8.1").'
 )

@@ -85,8 +85,9 @@ class Decision(BaseModel, frozen=True):
     citation_coverage: float | None
     cited_rerank_score: float | None
     draft: str | None
-    # Output tokens equal to the cap mean the provider cut the draft off; its JSON is
-    # then unparseable and the agent refuses it as uncited.
+    # Output tokens at the cap: the provider most likely cut the draft off, leaving
+    # unparseable JSON the agent refuses as uncited. No stop reason is recorded, so a
+    # draft that ends exactly at the cap is flagged too.
     draft_output_tokens: int | None
     draft_truncated: bool | None
     hits: tuple[HitRecord, ...]

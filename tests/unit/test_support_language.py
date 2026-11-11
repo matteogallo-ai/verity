@@ -103,3 +103,19 @@ def test_the_agent_checks_coverage_in_the_configured_language(
 
     asyncio.run(ask())
     assert seen == ["fr"]
+
+
+@pytest.mark.parametrize(
+    ("one", "other"),
+    [("plus de 30 jours", "moins de 30 jours"), ("sans frais", "avec frais")],
+)
+def test_french_comparatives_carry_meaning(one: str, other: str) -> None:
+    """English keeps more, less and without; French drops only the negation, whose
+    polarity the scorer judges."""
+    assert content_words(one, language="fr") != content_words(other, language="fr")
+
+
+def test_french_ligatures_fold_to_their_letters() -> None:
+    assert content_words("cœur ŒUVRE", language="fr") == content_words(
+        "coeur oeuvre", language="fr"
+    )

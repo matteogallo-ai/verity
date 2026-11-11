@@ -124,7 +124,7 @@ _STOPWORDS = frozenset(
 )
 
 
-# Function words only: a word that carries meaning (doit, peut, sauf) stays content.
+# Function words only: a word that carries meaning (doit, sauf, plus, sans) stays content.
 # Written without accents, as words are compared after folding.
 _STOPWORDS_FR = frozenset(
     [
@@ -140,7 +140,6 @@ _STOPWORDS_FR = frozenset(
         "sous",
         "dans",
         "avec",
-        "sans",
         "entre",
         "vers",
         "chez",
@@ -209,8 +208,6 @@ _STOPWORDS_FR = frozenset(
         "tous",
         "toute",
         "toutes",
-        "plus",
-        "moins",
         "tres",
         "oui",
         "non",
@@ -219,9 +216,13 @@ _STOPWORDS_FR = frozenset(
 )
 
 
+_LIGATURES = str.maketrans({"œ": "oe", "Œ": "OE", "æ": "ae", "Æ": "AE"})
+
+
 def _fold(text: str) -> str:
     """Lower case without accents: "Réalisé" and "realise" compare equal."""
-    decomposed = unicodedata.normalize("NFKD", text)
+    # NFKD keeps œ and æ whole; French writes both "cœur" and "coeur".
+    decomposed = unicodedata.normalize("NFKD", text.translate(_LIGATURES))
     return "".join(c for c in decomposed if not unicodedata.combining(c)).casefold()
 
 
