@@ -32,7 +32,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from verity.agent.support import best_cited_rerank_score, citation_coverage
+from verity.agent.support import Language, best_cited_rerank_score, citation_coverage
 from verity.agent.synthesizer import CitedSynthesizer, SynthesisResult
 from verity.types import Answer, RetrievalHit
 
@@ -85,6 +85,10 @@ class Decision(BaseModel, frozen=True):
     citation_coverage: float | None
     cited_rerank_score: float | None
     draft: str | None
+    # Output tokens equal to the cap mean the provider cut the draft off; its JSON is
+    # then unparseable and the agent refuses it as uncited.
+    draft_output_tokens: int | None
+    draft_truncated: bool | None
     hits: tuple[HitRecord, ...]
 
 
@@ -244,7 +248,9 @@ def _citations(answer: Answer) -> tuple[CitedQuote, ...]:
 _EXCERPT_CHARS = 200
 
 
-def decision_of(answer: Answer, draft: SynthesisResult | None) -> Decision:
+def decision_of(
+    answer: Answer, draft: SynthesisResult | None, *, language: Language, max_tokens: int
+) -> Decision:
     confidence = answer.confidence
     if confidence is None:
         raise ValueError("an answer that failed has no decision")
@@ -253,9 +259,13 @@ def decision_of(answer: Answer, draft: SynthesisResult | None) -> Decision:
         reason=str(confidence.reason) if confidence.reason else None,
         rationale=confidence.rationale,
         scorer_score=confidence.score,
-        citation_coverage=citation_coverage(draft.text, draft.citations) if draft else None,
+        citation_coverage=(
+            citation_coverage(draft.text, draft.citations, language=language) if draft else None
+        ),
         cited_rerank_score=best_cited_rerank_score(draft.citations, hits) if draft else None,
         draft=draft.text if draft else None,
+        draft_output_tokens=draft.usage.output_tokens if draft else None,
+        draft_truncated=draft.usage.output_tokens >= max_tokens if draft else None,
         hits=tuple(
             HitRecord(
                 rank=h.rank,
@@ -336,6 +346,8 @@ async def run_bench(
         run_settings={
             "provider_order": ",".join(settings.provider_order),
             "max_agent_steps": settings.max_agent_steps,
+            "language": settings.language,
+            "name_articles": settings.name_articles,
             "synthesis_max_tokens": synthesizer.max_tokens,
             "embedding_model": settings.embedding_model,
             "reranker_model": settings.reranker_model,
@@ -365,7 +377,14 @@ async def run_bench(
                 citations=citations,
                 cost_usd=answer.usage.cost_usd,
                 latency_ms=answer.usage.latency_ms,
-                decision=None if answer.error else decision_of(answer, synthesizer.last),
+                decision=None
+                if answer.error
+                else decision_of(
+                    answer,
+                    synthesizer.last,
+                    language=settings.language,
+                    max_tokens=synthesizer.max_tokens,
+                ),
                 graded=grade(
                     question, answer.text, refused=refused, error=error, citations=citations
                 ),

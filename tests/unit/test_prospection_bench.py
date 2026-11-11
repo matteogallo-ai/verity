@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -131,6 +132,9 @@ _CHUNK = Chunk(
 _HIT = RetrievalHit(chunk=_CHUNK, score=3.2, kind=RetrieverKind.RERANKED, rank=0)
 
 
+_RUN: dict[str, Any] = {"language": "en", "max_tokens": 512}
+
+
 def _refused(reason: RefusalReason, rationale: str) -> Answer:
     return Answer(
         query="q",
@@ -140,18 +144,24 @@ def _refused(reason: RefusalReason, rationale: str) -> Answer:
     )
 
 
-def _draft(text: str, quote: str) -> SynthesisResult:
+def _draft(text: str, quote: str, output_tokens: int = 40) -> SynthesisResult:
     citation = Citation(
         chunk_id=_CHUNK.id, document_id=_DOC, quote=quote, char_start=0, char_end=len(quote)
     )
     return SynthesisResult(
-        text=text, citations=(citation,), usage=UsageStats(), provider=None, model=None
+        text=text,
+        citations=(citation,),
+        usage=UsageStats(output_tokens=output_tokens),
+        provider=None,
+        model=None,
     )
 
 
 def test_a_refusal_records_its_reason_coverage_draft_and_passages() -> None:
     draft = _draft("Le salaire minimum est de 26.05 de l'heure", "CFC 26.05")
-    decision = decision_of(_refused(RefusalReason.LOW_CITATION_COVERAGE, "Only 20% ..."), draft)
+    decision = decision_of(
+        _refused(RefusalReason.LOW_CITATION_COVERAGE, "Only 20% ..."), draft, **_RUN
+    )
     assert decision.reason == "low_citation_coverage"
     assert decision.rationale == "Only 20% ..."
     assert decision.draft == "Le salaire minimum est de 26.05 de l'heure"
@@ -163,8 +173,26 @@ def test_a_refusal_records_its_reason_coverage_draft_and_passages() -> None:
 
 
 def test_without_a_draft_there_is_no_coverage() -> None:
-    decision = decision_of(_refused(RefusalReason.NO_CITATION, "none"), None)
+    decision = decision_of(_refused(RefusalReason.NO_CITATION, "none"), None, **_RUN)
     assert decision.citation_coverage is None and decision.draft is None
+    assert decision.draft_output_tokens is None and decision.draft_truncated is None
+
+
+def test_a_draft_that_used_its_whole_budget_is_marked_truncated() -> None:
+    """An unparseable draft cut off by max_tokens reads as an empty, uncited draft."""
+    cut = decision_of(_refused(RefusalReason.NO_CITATION, "none"), _draft("", "x", 512), **_RUN)
+    assert (cut.draft_output_tokens, cut.draft_truncated) == (512, True)
+    whole = decision_of(_refused(RefusalReason.NO_CITATION, "none"), _draft("", "x", 300), **_RUN)
+    assert whole.draft_truncated is False
+
+
+def test_the_recorded_coverage_is_computed_in_the_run_language() -> None:
+    draft = _draft("Le montant est calculé sur l'AVS", "le montant se calcule sur l'ÁVS")
+    refusal = _refused(RefusalReason.LOW_CITATION_COVERAGE, "low")
+    french = decision_of(refusal, draft, language="fr", max_tokens=512)
+    english = decision_of(refusal, draft, language="en", max_tokens=512)
+    assert french.citation_coverage == 1.0
+    assert english.citation_coverage is not None and english.citation_coverage < 1.0
 
 
 def _write(path: Path, *questions: dict[str, object]) -> Path:
@@ -284,6 +312,8 @@ def test_a_stub_run_writes_both_files(tmp_path: Path) -> None:
     assert run["mode"] == "stub"
     assert run["run_settings"]["min_citation_coverage"] == 0.5
     assert run["run_settings"]["synthesis_max_tokens"] == 512
+    assert run["run_settings"]["language"] == "en"
+    assert run["run_settings"]["name_articles"] is False
     assert run["run_settings"]["refusal_text"] == referral
     # The scripted stub knows none of this corpus's themes, so it refuses.
     assert run["results"][0]["refused"]
