@@ -110,6 +110,7 @@ class RagAgent(Agent):
         self._scorer = scorer
         self._rerank_k = rerank_k if rerank_k is not None else settings.rerank_k
         self._min_citation_coverage = settings.min_citation_coverage
+        self._language = settings.language
         # A floor of -inf turns the cited relevance check off without a second code
         # path in verity.agent.support: no score is below it.
         self._min_cited_rerank_score = (
@@ -217,6 +218,7 @@ class RagAgent(Agent):
                 hits,
                 min_coverage=self._min_citation_coverage,
                 min_rerank_score=self._min_cited_rerank_score,
+                language=self._language,
             )
             if not synthesis.citations or not synthesis.text.strip():
                 confidence = Confidence(

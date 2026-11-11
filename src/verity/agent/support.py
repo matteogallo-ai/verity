@@ -28,6 +28,10 @@ What this gets wrong by design:
   quote saying "may terminate". A lexical polarity rule, measured on the live runs,
   refused correct answers ("No, ... is explicitly prohibited"), so polarity is left to
   the confidence scorer (docs/audit/2026-11-03-neutral-audit.md).
+- Coverage is lexical, so it needs the corpus language: ``en`` (the default) splits on
+  ASCII letters and digits; ``fr`` splits on Unicode letters, compares accent-folded
+  words and drops French stopwords, since the English rule cuts "réalisé" into "alis"
+  and counts "dans" or "pour" as content. The threshold is the same for both.
 - Coverage does not check figures: "60 days" is covered by a quote saying "30 days"
   if the other words match. A rule requiring every number and date to be quoted,
   measured on the live runs, refused correct answers that compute or restate a figure
@@ -39,12 +43,18 @@ What this gets wrong by design:
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass
+from typing import Literal
 
 from verity.agent.evidence import DELIMITER_TAGS, neutralise
 from verity.types import Citation, RefusalReason, RetrievalHit, RetrieverKind
 
+Language = Literal["en", "fr"]
+
 _WORD_RE = re.compile(r"[a-z0-9]+")
+# Letters and digits of any script; ``_`` is a word character but not a letter.
+_UNICODE_WORD_RE = re.compile(r"[^\W_]+")
 _INJECTION_MARKERS = re.compile(
     r"""["'](?:score|refused|confidence|should_refuse)["']\s*:"""
     r"|ignore\s+(?:all\s+|any\s+)?(?:the\s+)?(?:previous|prior|above)\s+instructions"
@@ -114,14 +124,119 @@ _STOPWORDS = frozenset(
 )
 
 
-def content_words(text: str) -> set[str]:
+# Function words only: a word that carries meaning (doit, peut, sauf) stays content.
+# Written without accents, as words are compared after folding.
+_STOPWORDS_FR = frozenset(
+    [
+        "les",
+        "des",
+        "une",
+        "uns",
+        "unes",
+        "aux",
+        "par",
+        "pour",
+        "sur",
+        "sous",
+        "dans",
+        "avec",
+        "sans",
+        "entre",
+        "vers",
+        "chez",
+        "est",
+        "sont",
+        "etre",
+        "ete",
+        "etait",
+        "ont",
+        "avait",
+        "avoir",
+        "sera",
+        "que",
+        "qui",
+        "quoi",
+        "dont",
+        "quel",
+        "quelle",
+        "quels",
+        "quelles",
+        "lequel",
+        "laquelle",
+        "lesquels",
+        "son",
+        "sa",
+        "ses",
+        "leur",
+        "leurs",
+        "mon",
+        "mes",
+        "ton",
+        "tes",
+        "notre",
+        "nos",
+        "votre",
+        "vos",
+        "cet",
+        "cette",
+        "ces",
+        "ceci",
+        "cela",
+        "celui",
+        "celle",
+        "ceux",
+        "celles",
+        "ils",
+        "elle",
+        "elles",
+        "nous",
+        "vous",
+        "lui",
+        "eux",
+        "et",
+        "ou",
+        "mais",
+        "donc",
+        "car",
+        "comme",
+        "aussi",
+        "ainsi",
+        "alors",
+        "puis",
+        "selon",
+        "lors",
+        "tout",
+        "tous",
+        "toute",
+        "toutes",
+        "plus",
+        "moins",
+        "tres",
+        "oui",
+        "non",
+        "pas",
+    ]
+)
+
+
+def _fold(text: str) -> str:
+    """Lower case without accents: "Réalisé" and "realise" compare equal."""
+    decomposed = unicodedata.normalize("NFKD", text)
+    return "".join(c for c in decomposed if not unicodedata.combining(c)).casefold()
+
+
+def content_words(text: str, *, language: Language = "en") -> set[str]:
     """Lower-cased content words of ``text``: stopwords and one- or two-letter words
     dropped, words cut to their first five letters, numbers kept whole."""
+    if language == "fr":
+        tokens, stopwords = _UNICODE_WORD_RE.findall(_fold(text)), _STOPWORDS_FR
+    else:
+        tokens, stopwords = _WORD_RE.findall(text.lower()), _STOPWORDS
     words: set[str] = set()
-    for word in _WORD_RE.findall(text.lower()):
+    for word in tokens:
         if word.isdigit():
             words.add(word)
-        elif len(word) > 2 and word not in _STOPWORDS:
+        elif len(word) > 2 and word not in stopwords:
             words.add(word[:_STEM_LENGTH])
     return words
 
@@ -141,13 +256,15 @@ def suspected_documents(hits: list[RetrievalHit]) -> set[str]:
     }
 
 
-def citation_coverage(answer: str, citations: tuple[Citation, ...]) -> float:
+def citation_coverage(
+    answer: str, citations: tuple[Citation, ...], *, language: Language = "en"
+) -> float:
     """Share of ``answer``'s content words found in the cited quotes; 1.0 when the
     answer has none."""
-    answer_words = content_words(answer)
+    answer_words = content_words(answer, language=language)
     if not answer_words:
         return 1.0
-    quoted = content_words(" ".join(c.quote for c in citations))
+    quoted = content_words(" ".join(c.quote for c in citations), language=language)
     return len(answer_words & quoted) / len(answer_words)
 
 
@@ -189,8 +306,9 @@ def check_support(
     *,
     min_coverage: float,
     min_rerank_score: float,
+    language: Language = "en",
 ) -> SupportCheck:
-    coverage = citation_coverage(answer, citations)
+    coverage = citation_coverage(answer, citations, language=language)
     rerank = best_cited_rerank_score(citations, hits)
     suspected = suspected_documents(hits)
     reason: RefusalReason | None = None
