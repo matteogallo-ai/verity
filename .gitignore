@@ -40,3 +40,6 @@ out/
 # Hypothesis example database and mutmut working copy
 .hypothesis/
 mutants/
+
+# Private prospection data (association documents, questions, paid run results).
+/prospection/
