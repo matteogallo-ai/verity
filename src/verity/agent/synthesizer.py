@@ -25,10 +25,19 @@ import re
 from dataclasses import dataclass
 
 from verity.agent.evidence import DATAMARK, DATAMARK_NOTE, neutralise, render_evidence
+from verity.config import get_settings
 from verity.llm.base import RoutingClient
 from verity.llm.json_output import parse_json_object
 from verity.llm.prompt import load_prompt
 from verity.types import Citation, Provider, RetrievalHit, UsageStats
+
+# Appended to the system message with VERITY_NAME_ARTICLES. The number comes from the
+# quoted text: a chunk's section attribute can name a neighbouring article.
+ARTICLE_NOTE = (
+    "\n\n  When the documents number their provisions (articles, sections, clauses), "
+    "name the article each claim comes from in the answer, as the cited text numbers it "
+    '(for example "art. 8.1").'
+)
 
 
 @dataclass(frozen=True)
@@ -67,8 +76,12 @@ class CitedSynthesizer:
         prompt_name: str = "synthesize",
         max_tokens: int = 512,
         datamarked: bool = True,
+        name_articles: bool | None = None,
     ) -> None:
         self._client = client
+        self._name_articles = (
+            get_settings().name_articles if name_articles is None else name_articles
+        )
         # Off only to measure what the mark changes (scripts/run_injection_eval.py).
         self._datamarked = datamarked
         self._prompt = load_prompt(prompt_name)
@@ -86,6 +99,7 @@ class CitedSynthesizer:
             question=neutralise(question),
             evidence=evidence,
             datamark_note=DATAMARK_NOTE if self._datamarked else "",
+            article_note=ARTICLE_NOTE if self._name_articles else "",
         )
         completion = await self._client.complete(messages, max_tokens=self._max_tokens)
         self.last_usage = completion.usage

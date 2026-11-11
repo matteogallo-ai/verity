@@ -257,3 +257,35 @@ def test_the_space_inside_guillemets_may_differ(in_document: str, in_quote: str)
 def test_free_spacing_around_guillemets_does_not_loosen_the_words(quote: str) -> None:
     hits = [_hit("une indemnité dite «de panier» par jour", cs=0)]
     assert _validate_citations([(quote, 0)], hits) == ()
+
+
+# Asked to name the article, a draft lets a member find the provision in the text; off
+# by default, so the default prompt is the one the published runs used.
+async def _system_prompt(synthesizer: CitedSynthesizer, client: _RecordingClient) -> str:
+    await synthesizer.synthesize("q?", [_hit("Art. 8.1 Foo bar baz.", cs=0)])
+    ((messages, _),) = client.calls
+    return messages[0].content
+
+
+@pytest.mark.asyncio
+async def test_by_default_the_draft_is_not_asked_to_name_the_article() -> None:
+    client = _RecordingClient('{"answer": "a", "citations": []}')
+    assert "provision" not in await _system_prompt(CitedSynthesizer(client), client)
+
+
+@pytest.mark.asyncio
+async def test_the_setting_asks_the_draft_to_name_the_article(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from verity.config import get_settings
+
+    monkeypatch.setenv("VERITY_NAME_ARTICLES", "true")
+    get_settings.cache_clear()
+    client = _RecordingClient('{"answer": "a", "citations": []}')
+    system = await _system_prompt(CitedSynthesizer(client), client)
+    assert "name the article" in system
+    assert system.startswith(
+        await _system_prompt(
+            CitedSynthesizer(off := _RecordingClient("{}"), name_articles=False), off
+        )
+    )
