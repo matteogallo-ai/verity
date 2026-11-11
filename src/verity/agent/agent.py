@@ -62,7 +62,6 @@ from verity.observability.tracer import NoOpTracer
 from verity.retrieval.base import ModelUnavailableError, RetrievalUnavailableError, Retriever
 from verity.types import (
     NO_CITATION_RATIONALE,
-    REFUSAL_TEXT,
     Answer,
     AnswerError,
     Confidence,
@@ -98,9 +97,11 @@ class RagAgent(Agent):
         preferred_provider: Provider | None = None,
         preferred_model: str | None = None,
         checks: bool = True,
+        refusal_text: str | None = None,
     ) -> None:
         settings = get_settings()
         self._checks = checks
+        self._refusal_text = refusal_text or settings.refusal_text
         self._retriever = retriever
         self._decomposer = decomposer
         self._synthesizer = synthesizer
@@ -263,7 +264,7 @@ class RagAgent(Agent):
         if confidence.refused:
             return Answer(
                 query=question,
-                text=REFUSAL_TEXT,
+                text=self._refusal_text,
                 citations=(),
                 confidence=confidence,
                 hits_used=tuple(hits),

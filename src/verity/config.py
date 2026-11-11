@@ -13,7 +13,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from verity.types import Provider
+from verity.types import REFUSAL_TEXT, Provider
 
 
 class ModelPrice(BaseModel, frozen=True):
@@ -102,6 +102,9 @@ class Settings(BaseSettings):
             "score lies in [0, 1], so the default 0 refuses nothing."
         ),
     )
+    # What a refused question reads. A deployment serves one organisation's members:
+    # set it in their language, naming whom to ask when the documents do not answer.
+    refusal_text: str = Field(default=REFUSAL_TEXT, min_length=1, pattern=r"\S")
     max_agent_steps: int = 4  # cap on multi-step retrieval decomposition
     # Deterministic checks a cited draft must pass before the scorer runs
     # (verity.agent.support). On the committed live run (d0ca1d5), the 12 answered
