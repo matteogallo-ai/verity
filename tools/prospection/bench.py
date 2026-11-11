@@ -33,7 +33,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from verity.agent.support import Language, best_cited_rerank_score, citation_coverage
-from verity.agent.synthesizer import CitedSynthesizer, SynthesisResult
+from verity.agent.synthesizer import DRAFT_MAX_TOKENS, CitedSynthesizer, SynthesisResult
 from verity.types import Answer, RetrievalHit
 
 Code = Literal["R+S", "R", "NT", "F"]
@@ -316,7 +316,7 @@ async def run_bench(
     stub: bool,
     budget_usd: float,
     refusal_text: str,
-    draft_max_tokens: int = 512,
+    draft_max_tokens: int = DRAFT_MAX_TOKENS,
 ) -> Run:
     from verity.agent import create_default_agent
     from verity.agent.scripted_stub import build_stub_router
@@ -415,7 +415,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--draft-max-tokens",
         type=int,
-        default=512,
+        default=DRAFT_MAX_TOKENS,
         help="Output cap of the cited draft; a draft cut off at it is refused as uncited.",
     )
     args = parser.parse_args(argv)

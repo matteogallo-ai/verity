@@ -300,7 +300,9 @@ def test_a_blank_refusal_text_is_rejected(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("cap", ["0", "-5"])
-def test_a_draft_cap_that_is_not_positive_is_rejected(tmp_path: Path, cap: str) -> None:
+def test_a_draft_cap_that_is_not_positive_is_rejected(
+    tmp_path: Path, cap: str, capsys: pytest.CaptureFixture[str]
+) -> None:
     questions = _write(tmp_path / "q.jsonl", _SALARY.model_dump(mode="json"))
     with pytest.raises(SystemExit):
         main(
@@ -314,6 +316,7 @@ def test_a_draft_cap_that_is_not_positive_is_rejected(tmp_path: Path, cap: str) 
                 cap,
             ]
         )
+    assert "--draft-max-tokens must be positive" in capsys.readouterr().err
 
 
 @pytest.mark.slow
@@ -335,12 +338,12 @@ def test_a_stub_run_writes_both_files(tmp_path: Path) -> None:
     # The scripted stub knows none of this corpus's themes, so it refuses.
     assert run["results"][0]["refused"]
     assert run["results"][0]["answer"] == referral
+    decision = run["results"][0]["decision"]
+    assert decision["hits"] and decision["hits"][0]["excerpt"]
+    assert [r["question"]["id"] for r in run["results"]] == [1]
+    assert (tmp_path / "tableau.md").read_text().startswith("**STUB")
     # A French draft that cites several articles outgrows the repo's 512 tokens; the
     # bench raises the cap for its own run without touching the default.
     assert main([*args, "--draft-max-tokens", "1024"]) == 0
     run = json.loads((tmp_path / "resultats.json").read_text())
     assert run["run_settings"]["synthesis_max_tokens"] == 1024
-    decision = run["results"][0]["decision"]
-    assert decision["hits"] and decision["hits"][0]["excerpt"]
-    assert [r["question"]["id"] for r in run["results"]] == [1]
-    assert (tmp_path / "tableau.md").read_text().startswith("**STUB")

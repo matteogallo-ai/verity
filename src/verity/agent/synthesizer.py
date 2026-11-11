@@ -31,6 +31,8 @@ from verity.llm.json_output import parse_json_object
 from verity.llm.prompt import load_prompt
 from verity.types import Citation, Provider, RetrievalHit, UsageStats
 
+DRAFT_MAX_TOKENS = 512
+
 # Appended to the system message with VERITY_NAME_ARTICLES. The number comes from the
 # quoted text: a chunk's section attribute can name a neighbouring article.
 ARTICLE_NOTE = (
@@ -74,7 +76,7 @@ class CitedSynthesizer:
         client: RoutingClient,
         *,
         prompt_name: str = "synthesize",
-        max_tokens: int = 512,
+        max_tokens: int = DRAFT_MAX_TOKENS,
         datamarked: bool = True,
         name_articles: bool | None = None,
     ) -> None:
