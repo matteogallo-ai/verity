@@ -92,6 +92,8 @@ def load_questions(path: Path) -> list[Question]:
     if len(set(ids)) != len(ids):
         raise ValueError(f"{path}: duplicate question ids")
     for q in questions:
+        if any(not group or not all(f.strip() for f in group) for group in q.facts):
+            raise ValueError(f"question {q.id}: a fact group or a fact is empty")
         if not q.expect_refusal and not q.facts:
             raise ValueError(f"question {q.id}: an answerable question needs facts to grade")
     return questions
@@ -122,7 +124,9 @@ def _sourced(question: Question, answer: str, citations: tuple[CitedQuote, ...])
         if re.search(rf"\bart(?:icle|\.)?\s*{n}(?:\.\d+)?\b", answer, re.IGNORECASE):
             return True
         for cited in citations:
-            if cited.section and re.search(rf"\barticle\s+{n}\b", cited.section, re.IGNORECASE):
+            if cited.section and re.search(
+                rf"\bart(?:icle|\.)?\s*{n}\b", cited.section, re.IGNORECASE
+            ):
                 return True
             if re.match(rf"\s*{n}\.\d", cited.quote):
                 return True
@@ -187,6 +191,12 @@ def render_table(run: Run) -> str:
     total = " ".join(f"{code} : {n}" for code, n in counts.items())
     on_100 = max(0.0, points / maximum * 100) if maximum else 0.0
     lines += ["", f"**Total** {total} · score {points} / {maximum} · {on_100:.0f} / 100"]
+    if stopped := [r.question.id for r in run.results if r.error]:
+        lines += [
+            "",
+            f"**Run incomplet** : pas de réponse pour les questions {stopped} "
+            "(erreur ou plafond de dépense) ; le score ne vaut pas mesure.",
+        ]
     return "\n".join(lines) + "\n"
 
 
@@ -202,10 +212,14 @@ def _citations(answer: Answer) -> tuple[CitedQuote, ...]:
 
 
 def _fingerprint(corpus: Path) -> dict[str, str]:
+    """The files ingestion reads, so the run record names exactly what was asked."""
+    from verity.ingestion.pipeline import discover_sources
+
     return {
-        p.name: hashlib.sha256(p.read_bytes()).hexdigest()
-        for p in sorted(corpus.iterdir())
-        if p.is_file()
+        str(Path(uri).resolve().relative_to(corpus.resolve())): hashlib.sha256(
+            Path(uri).read_bytes()
+        ).hexdigest()
+        for uri in sorted(discover_sources(str(corpus)))
     }
 
 
@@ -246,7 +260,8 @@ async def run_bench(
     for question in questions:
         answer = await agent.answer(question.question)
         refused = bool(answer.confidence and answer.confidence.refused)
-        error = f"{answer.error.kind}: {answer.error.detail}" if answer.error else None
+        # The kind only, as the eval harness records errors: provider messages can quote secrets.
+        error = str(answer.error.kind) if answer.error else None
         citations = _citations(answer)
         run.results.append(
             Result(

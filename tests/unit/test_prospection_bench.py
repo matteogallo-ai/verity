@@ -11,6 +11,7 @@ from tools.prospection.bench import (
     Question,
     Result,
     Run,
+    _fingerprint,
     grade,
     load_questions,
     main,
@@ -66,6 +67,11 @@ def test_a_quote_that_starts_with_the_article_number_counts_as_the_source() -> N
     assert _grade(_SALARY, "26.05 / heure, 4'775.85 / mois", citations=cited)[0] == "R+S"
 
 
+def test_a_section_headed_art_counts_as_the_source() -> None:
+    cited = (CitedQuote(quote="z", section="Art. 8 Salaires"),)
+    assert _grade(_SALARY, "26.05 / heure, 4'775.85 / mois", citations=cited)[0] == "R+S"
+
+
 def test_another_article_is_not_the_source() -> None:
     cited = (CitedQuote(quote="12.1 repas", section="Article 12 \u2013 Indemnité"),)
     assert _grade(_SALARY, "Art. 12 : 26.05 / heure, 4'775.85 / mois", citations=cited) == (
@@ -116,13 +122,28 @@ def test_an_answerable_question_without_facts_is_rejected(tmp_path: Path) -> Non
         load_questions(_write(tmp_path / "q.jsonl", q))
 
 
-def _result(question: Question, code: str, points: int) -> Result:
+@pytest.mark.parametrize("facts", [[[]], [[""]]])
+def test_an_empty_fact_is_rejected(tmp_path: Path, facts: list[list[str]]) -> None:
+    q = {**_SALARY.model_dump(mode="json"), "facts": facts}
+    with pytest.raises(ValueError, match="empty"):
+        load_questions(_write(tmp_path / "q.jsonl", q))
+
+
+def test_the_fingerprint_names_every_ingested_file(tmp_path: Path) -> None:
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "annexe.md").write_text("# A")
+    (tmp_path / "cct.md").write_text("# B")
+    (tmp_path / "notes.xyz").write_text("not ingested")
+    assert sorted(_fingerprint(tmp_path)) == ["cct.md", "sub/annexe.md"]
+
+
+def _result(question: Question, code: str, points: int, error: str | None = None) -> Result:
     return Result.model_validate(
         {
             "question": question.model_dump(),
             "answer": "",
             "refused": False,
-            "error": None,
+            "error": error,
             "citations": [],
             "cost_usd": 0.0,
             "latency_ms": 0.0,
@@ -154,6 +175,16 @@ def test_the_table_totals_and_scales_to_100() -> None:
 def test_a_negative_score_floors_at_zero_on_100() -> None:
     table = render_table(_run("live", _result(_SALARY, "F", -1)))
     assert "score -1 / 2 · 0 / 100" in table
+
+
+def test_a_run_cut_short_says_so() -> None:
+    cut = _result(_NIGHT, "NT", 0, error="budget_exceeded")
+    table = render_table(_run("live", _result(_SALARY, "R", 1), cut))
+    assert "**Run incomplet** : pas de réponse pour les questions [20]" in table
+
+
+def test_a_complete_run_has_no_incomplete_line() -> None:
+    assert "incomplet" not in render_table(_run("live", _result(_SALARY, "R", 1)))
 
 
 def test_a_stub_run_says_its_score_measures_nothing() -> None:

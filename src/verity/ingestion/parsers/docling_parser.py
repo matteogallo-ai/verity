@@ -26,8 +26,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
-from docling.utils.text_quality import is_broken_text_layer
-
 from verity.ingestion.ids import document_id_for_uri
 from verity.ingestion.parsers.text import _read_bytes
 from verity.ingestion.structure import DocumentStructure, Section
@@ -67,6 +65,8 @@ def _lazy_converter() -> DocumentConverter:
 
 def broken_pages(text: str, sections: tuple[Section, ...]) -> list[int | None]:
     """The pages of ``text`` that docling's own detector still finds broken."""
+    from docling.utils.text_quality import is_broken_text_layer
+
     by_page: dict[int | None, list[str]] = {}
     for section in sections:
         by_page.setdefault(section.page, []).append(text[section.char_start : section.char_end])

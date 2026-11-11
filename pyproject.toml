@@ -85,6 +85,7 @@ known-first-party = ["verity"]
 [tool.vulture]
 paths = [
   "src",
+  "tools",
   "scripts/refusal_analysis.py",
   "scripts/judge_agreement.py",
   "scripts/generate_headline_results.py",
@@ -133,7 +134,7 @@ warn_unreachable = true
 disallow_any_generics = true
 plugins = ["pydantic.mypy"]
 mypy_path = "src"
-packages = ["verity"]
+packages = ["verity", "tools"]
 
 [[tool.mypy.overrides]]
 module = [
