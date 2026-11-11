@@ -316,6 +316,7 @@ async def run_bench(
     stub: bool,
     budget_usd: float,
     refusal_text: str,
+    draft_max_tokens: int = 512,
 ) -> Run:
     from verity.agent import create_default_agent
     from verity.agent.scripted_stub import build_stub_router
@@ -333,7 +334,7 @@ async def run_bench(
     retriever = build_retriever(store=store, embedder=embedder, reranker=reranker)
     router = build_stub_router() if stub else create_default_routing_client()
     client = SpendCappedClient(router, cap_usd=budget_usd)
-    synthesizer = _RecordingSynthesizer(client)
+    synthesizer = _RecordingSynthesizer(client, max_tokens=draft_max_tokens)
     agent = create_default_agent(
         retriever=retriever, client=client, synthesizer=synthesizer, refusal_text=refusal_text
     )
@@ -411,11 +412,19 @@ def main(argv: list[str] | None = None) -> int:
         "--refusal-text",
         help="What a refused question reads for this corpus. Default: VERITY_REFUSAL_TEXT.",
     )
+    parser.add_argument(
+        "--draft-max-tokens",
+        type=int,
+        default=512,
+        help="Output cap of the cited draft; a draft cut off at it is refused as uncited.",
+    )
     args = parser.parse_args(argv)
     if args.refusal_text is not None and not args.refusal_text.strip():
         parser.error("--refusal-text must not be blank")
     if args.budget_usd <= 0:
         parser.error("--budget-usd must be positive")
+    if args.draft_max_tokens <= 0:
+        parser.error("--draft-max-tokens must be positive")
     from verity.config import get_settings
 
     if not args.stub and not get_settings().has_llm_api_key:
@@ -429,6 +438,7 @@ def main(argv: list[str] | None = None) -> int:
             stub=args.stub,
             budget_usd=args.budget_usd,
             refusal_text=args.refusal_text or get_settings().refusal_text,
+            draft_max_tokens=args.draft_max_tokens,
         )
     )
     out = args.out or args.questions.parent
