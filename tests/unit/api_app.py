@@ -72,6 +72,7 @@ def api_app(
     embedder_factory: Callable[[str], Any] | None = None,
     reranker_factory: Callable[[str], Any] | None = None,
     wait_for_preload: bool = True,
+    corpus_dir: Path = Path("datasets/corpus"),
 ) -> Iterator[TestClient]:
     """The app on the in-memory store unless ``store`` says otherwise: the fast lane
     has no database. A ``live`` agent builds its provider clients but calls none.
@@ -95,7 +96,7 @@ def api_app(
     ):
         app = create_app(
             runs_dir=tmp_path / "runs",
-            corpus_dir=Path("datasets/corpus"),
+            corpus_dir=corpus_dir,
             agent_mode=agent_mode,
             cors_origins=(),
             settings=settings,

@@ -16,6 +16,7 @@ from pydantic import SecretStr
 
 from tests.unit.api_app import FakeEmbeddingBackend, FakeRerankerBackend, api_app
 from verity.config import Settings, get_settings
+from verity.ingestion.pipeline import discover_sources
 from verity.llm.base import AuthenticationError, ProviderUnavailableError
 from verity.retrieval.base import StoreUnavailableError
 
@@ -126,7 +127,7 @@ def test_a_failed_preload_is_not_ready_and_is_retried(tmp_path: Path) -> None:
         status = client.get("/status", headers={"X-API-Key": _KEY})
         n_docs = status.json()["corpus"]["n_documents"]
     assert len(attempts) == 2
-    assert n_docs == len([p for p in Path("datasets/corpus").iterdir() if p.is_file()])
+    assert n_docs == len(discover_sources("datasets/corpus"))
 
 
 def test_ready_is_503_when_postgres_is_unreachable(tmp_path: Path) -> None:
