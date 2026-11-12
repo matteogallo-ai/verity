@@ -122,6 +122,33 @@ def test_list_numbers_and_article_references_are_not_figures() -> None:
     assert figures(answer, language="fr", skip_references=True) == {"125", "28"}
 
 
+@pytest.mark.parametrize(
+    ("answer", "expected"),
+    [
+        ("Après 5 ans, 99 jours de vacances.", {"5", "99"}),
+        ("25 % et 99 %", {"25", "99"}),
+        ("1, 2 et 9 mois", {"1", "2", "9"}),
+        ("Entre 8 et 99 semaines.", {"8", "99"}),
+        ("Selon l'art. 12, 5 semaines de vacances.", {"5"}),
+        ("Selon les art. 3, 4 et 5, le délai est de 2 mois.", {"4", "5", "2"}),
+    ],
+)
+def test_only_the_number_right_after_a_reference_label_is_skipped(
+    answer: str, expected: set[str]
+) -> None:
+    assert figures(answer, language="fr", skip_references=True) == expected
+
+
+@pytest.mark.parametrize(("written", "value"), [("$1,000", "1000"), ("4,775.85", "4775.85")])
+def test_an_english_comma_groups_thousands(written: str, value: str) -> None:
+    assert figures(written, language="en") == {value}
+
+
+def test_a_compound_number_word_is_not_read_as_its_parts() -> None:
+    """ "vingt-quatre" is not 20 and 4; reading it so would let a wrong 4 through."""
+    assert figures("après vingt-quatre mois dans un bâtiment neuf", language="fr") == set()
+
+
 def test_a_number_written_in_words_in_the_quote_counts() -> None:
     quote = "Le passage interviendra après trois ans d'expérience."
     assert "3" in figures(quote, language="fr")
@@ -191,6 +218,17 @@ def test_a_figure_only_in_a_passage_the_answer_does_not_cite_is_refused() -> Non
     check = _check(draft, quote, "Article 8 - Salaires", question, "figures", uncited=uncited)
     assert check.reason is RefusalReason.UNQUOTED_FIGURE  # type: ignore[attr-defined]
     assert check.missing_figures == ("2200",)  # type: ignore[attr-defined]
+
+
+def test_a_wrong_figure_after_a_comma_is_refused() -> None:
+    quote = "Après 5 ans de service, le travailleur a droit à 25 jours de vacances."
+    for draft in (
+        "Après 5 ans de service, 99 jours de vacances.",
+        "Après 5 ans de service, le travailleur a droit à 25 et 99 jours de vacances.",
+    ):
+        check = _check(draft, quote, None, "Combien de jours de vacances ?", "figures")
+        assert check.reason is RefusalReason.UNQUOTED_FIGURE  # type: ignore[attr-defined]
+        assert check.missing_figures == ("99",)  # type: ignore[attr-defined]
 
 
 def test_words_found_nowhere_still_refuse() -> None:

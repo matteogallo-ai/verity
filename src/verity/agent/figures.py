@@ -8,7 +8,7 @@ Figures are compared as written values, not computed: "4'775.85", "4 775,85" and
 from "42.2 h x 52.14". A date such as "1.1.2026" is one figure. Ordinals keep their
 digits ("13e" is 13). In a quote, number words count too ("trois ans" holds 3), so an
 answer may write in digits what the text writes in letters; in the answer, only
-digits are read.
+digits are read. "neuf" is not read: it also means "new".
 
 Not figures, in the answer: list numbers ("1." at the start of a line) and the number
 after a reference label ("art. 15 ch. 5", "al. 2", "annexe 3"). A wrong article number
@@ -28,14 +28,21 @@ _NUMBER_RE = re.compile(r"\d+(?:[.,]\d+)*")
 # Swiss and French thousands separators: apostrophes, (narrow) no-break spaces, spaces.
 _THOUSANDS_RE = re.compile("(?<=\\d)['\u2019\u02bc\u00a0\u202f ](?=\\d{3}(?!\\d))")
 _LIST_ITEM_RE = re.compile(r"^\s*(?:[-*]\s*)?\d+[.)]\s", re.MULTILINE)
-# A number right after one of these is a reference to a provision, not a figure.
+# A number right after one of these labels is a reference to a provision, not a
+# figure. The further numbers of a list ("art. 3, 4 et 5") are read as figures: after a
+# comma or "et" a number may be an amount ("art. 12, 5 semaines"), and an unquoted
+# reference is a false refusal where a skipped amount would be a wrong answer shipped.
 _REFERENCE_BEFORE_RE = re.compile(
     r"(?:\bart(?:icles?|s)?\.?|\bal(?:in[eé]a)?s?\.?|\bch(?:iffres?)?\.?|\blet(?:tre)?\.?"
-    r"|\bannexes?|\bsections?|\bclauses?|\bschedules?|\bn°|\bno\.?"
-    r"|\b(?:et|and)|,)\s*$",
+    r"|\bannexes?|\bsections?|\bclauses?|\bschedules?|\bn°|\bno\.?)"
+    r"\s*$",
     re.IGNORECASE,
 )
 _REFERENCE_WINDOW = 14
+# English groups thousands with a comma ("1,000"); French writes a decimal comma.
+_EN_THOUSANDS_RE = re.compile(r"(?<=\d),(?=\d{3}(?!\d))")
+# A hyphenated compound ("vingt-quatre") is one number, not its parts; it is not read.
+_WORD_RE = re.compile(r"[^\W\d_]+(?:-[^\W\d_]+)*")
 _NUMBER_WORDS: dict[Language, dict[str, int]] = {
     "fr": {
         "deux": 2,
@@ -45,7 +52,6 @@ _NUMBER_WORDS: dict[Language, dict[str, int]] = {
         "six": 6,
         "sept": 7,
         "huit": 8,
-        "neuf": 9,
         "dix": 10,
         "onze": 11,
         "douze": 12,
@@ -97,12 +103,14 @@ def figures(text: str, *, language: Language, skip_references: bool = False) -> 
     reference label are left out, and number words are not read.
     """
     text = _THOUSANDS_RE.sub("", text)
+    if language == "en":
+        text = _EN_THOUSANDS_RE.sub("", text)
     found: set[str] = set()
     if skip_references:
         text = _LIST_ITEM_RE.sub(" ", text)
     else:
         words = _NUMBER_WORDS[language]
-        found |= {str(words[w]) for w in re.findall(r"[^\W\d_]+", _fold(text)) if w in words}
+        found |= {str(words[w]) for w in _WORD_RE.findall(_fold(text)) if w in words}
     for match in _NUMBER_RE.finditer(text):
         before = text[max(0, match.start() - _REFERENCE_WINDOW) : match.start()]
         if skip_references and _REFERENCE_BEFORE_RE.search(before):
