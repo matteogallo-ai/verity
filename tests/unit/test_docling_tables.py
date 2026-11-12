@@ -18,8 +18,14 @@ import pytest
 from verity.ingestion.parsers.docling_parser import DoclingParser, _flatten
 
 
-def _cell(text: str, *, col: bool = False, row: bool = False) -> SimpleNamespace:
-    return SimpleNamespace(text=text, column_header=col, row_header=row)
+def _cell(
+    text: str, *, col: bool = False, row: bool = False, start: int | None = None
+) -> SimpleNamespace:
+    """``start`` is the first grid column of a merged cell, repeated where it spans."""
+    cell = SimpleNamespace(text=text, column_header=col, row_header=row)
+    if start is not None:
+        cell.start_col_offset_idx = start
+    return cell
 
 
 def _table(*rows: list[SimpleNamespace], caption: str = "", page: int = 13) -> SimpleNamespace:
@@ -134,10 +140,56 @@ def test_a_table_without_column_headers_joins_its_cells() -> None:
 def test_a_spanning_cell_is_written_once() -> None:
     """Docling repeats a merged cell in every grid position it spans."""
     merged = _table(
-        [_cell("Category", col=True), _cell("2026", col=True), _cell("2026", col=True)],
-        [_cell("A"), _cell("100"), _cell("100")],
+        [
+            _cell("Category", col=True),
+            _cell("2026", col=True, start=1),
+            _cell("2026", col=True, start=1),
+        ],
+        [_cell("A", start=0), _cell("100", start=1), _cell("100", start=1)],
     )
     assert "A — 2026 : 100" in _flat_tables(merged).splitlines()
+
+
+@pytest.mark.parametrize(
+    ("rows", "line"),
+    [
+        ([[_cell("A"), _cell("0"), _cell("0")]], "A | 0 | 0"),
+        (
+            [[_cell("Cat", col=True)], [_cell("A"), _cell("0"), _cell("0")]],
+            "A — 0 ; 0",
+        ),
+    ],
+)
+def test_equal_values_in_separate_cells_are_both_kept(
+    rows: list[list[SimpleNamespace]], line: str
+) -> None:
+    assert line in _flat_tables(_table(*rows)).splitlines()
+
+
+def test_a_header_row_below_data_heads_only_the_rows_after_it() -> None:
+    sections = _table(
+        [_cell("Cat", col=True), _cell("2026", col=True)],
+        [_cell("A"), _cell("1")],
+        [_cell("Section B", col=True, start=0), _cell("Section B", col=True, start=0)],
+        [_cell("B"), _cell("2")],
+    )
+    assert _flat_tables(sections).splitlines() == ["A — 2026 : 1", "Section B", "B — 2026 : 2"]
+
+
+def test_a_label_flagged_as_both_headers_is_kept() -> None:
+    table = _table(
+        [_cell("Cat", col=True), _cell("2026", col=True)],
+        [_cell("I", col=True, row=True), _cell("1")],
+    )
+    assert "I — 2026 : 1" in _flat_tables(table).splitlines()
+
+
+def test_an_empty_label_does_not_promote_a_value() -> None:
+    table = _table(
+        [_cell("Cat", col=True), _cell("2026", col=True), _cell("2027", col=True)],
+        [_cell(""), _cell("1"), _cell("2")],
+    )
+    assert "2026 : 1 ; 2027 : 2" in _flat_tables(table).splitlines()
 
 
 def test_a_table_with_no_text_adds_nothing() -> None:

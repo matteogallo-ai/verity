@@ -80,48 +80,52 @@ def broken_pages(text: str, sections: tuple[Section, ...]) -> list[int | None]:
     return [page for page, parts in by_page.items() if is_broken_text_layer("\n".join(parts))]
 
 
-def _distinct(texts: list[str]) -> list[str]:
-    """Docling repeats a merged cell in every grid position it spans."""
-    return [t for i, t in enumerate(texts) if i == 0 or t != texts[i - 1]]
-
-
 def _table_rows(item: Any) -> list[str]:
-    """One line per row of a docling table grid; header-only rows are left out."""
+    """One line per row of a docling table grid.
+
+    A header row heads the data rows below it, up to the next header row; header rows
+    that follow each other stack, as a two-line header does. A header row that is one
+    cell across the whole table titles a group of rows and is written as a line.
+    """
     grid = getattr(getattr(item, "data", None), "grid", None) or []
-    cells = [
-        [
-            (j, (c.text or "").strip(), bool(c.column_header), bool(c.row_header))
-            for j, c in enumerate(row)
-        ]
-        for row in grid
-    ]
-    stacked: dict[int, list[str]] = {}
-    for row in cells:
-        for j, text, is_header, _ in row:
-            if text and is_header:
-                stacked.setdefault(j, []).append(text)
-    headers = {j: " ".join(_distinct(texts)) for j, texts in stacked.items()}
     lines: list[str] = []
-    for row in cells:
+    headers: dict[int, str] = {}
+    stacking = False
+    for row in grid:
+        # Docling repeats a merged cell in every column it spans: the copies keep the
+        # cell's first column, so they are read once while equal values in separate
+        # cells are both kept.
         filled = [
-            (j, text, row_header)
-            for j, text, is_header, row_header in row
-            if text and not is_header
+            (j, (cell.text or "").strip(), bool(cell.column_header), bool(cell.row_header))
+            for j, cell in enumerate(row)
+            if (cell.text or "").strip()
         ]
+        own = [c for c in filled if getattr(row[c[0]], "start_col_offset_idx", c[0]) >= c[0]]
         if not filled:
             continue
-        if not headers:
-            lines.append(" | ".join(_distinct([text for _, text, _ in filled])))
+        if all(is_header for _, _, is_header, _ in filled):
+            if len(own) == 1 and len(filled) == len(row) > 1:
+                lines.append(own[0][1])
+                stacking = False
+                continue
+            if not stacking:
+                headers = {}
+            for j, text, _, _ in filled:
+                above = headers.get(j)
+                headers[j] = f"{above} {text}" if above and above != text else text
+            stacking = True
             continue
-        labels = [text for _, text, row_header in filled if row_header]
-        values = [(j, text) for j, text, row_header in filled if not row_header]
-        if not labels:
-            labels, values = [filled[0][1]], [(j, text) for j, text, _ in filled[1:]]
-        pairs = _distinct(
-            [f"{headers[j]} : {text}" if j in headers else text for j, text in values]
-        )
-        label = " ".join(_distinct(labels))
-        lines.append(f"{label} — {' ; '.join(pairs)}" if pairs else label)
+        stacking = False
+        if not headers:
+            lines.append(" | ".join(text for _, text, _, _ in own))
+            continue
+        labels = [text for _, text, _, row_header in own if row_header]
+        values = [(j, text) for j, text, _, row_header in own if not row_header]
+        if not labels and values and values[0][0] == 0:
+            labels, values = [values[0][1]], values[1:]
+        pairs = " ; ".join(f"{headers[j]} : {text}" if j in headers else text for j, text in values)
+        label = " ".join(labels)
+        lines.append(f"{label} — {pairs}" if label and pairs else label or pairs)
     return lines
 
 
