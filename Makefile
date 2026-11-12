@@ -18,12 +18,16 @@ demo: ui-install db
 		cd web && NEXT_PUBLIC_API_BASE=http://localhost:8000 corepack pnpm dev'
 
 # Demo on one collective agreement, in French, for a client meeting:
-#   make demo-cct CORPUS=<folder of the agreement> [LIVE=1] [CORPUS_NAME="CCT Métal-Vaud"]
+#   make demo-cct CORPUS=<folder of the agreement> [LIVE=1] [CORPUS_NAME="CCT Métal-Vaud"] [UI_DEV=1]
 # The API ingests CORPUS in memory under profiles/demo-cct-fr.env while the web UI
 # starts on :3000; the UI answers once /ready does. Only LIVE=1 keeps the provider key
 # (from .env or the shell), and every answer is then paid; any other value, LIVE=0
 # included, blanks the keys and the scripted stub answers.
 LIVE_DEMO = $(filter 1,$(LIVE))
+# The UI is a production build (next build, then next start): the dev server shows the
+# Next.js badge in front of the client. UI_DEV=1 keeps the dev server, with hot reload.
+# NEXT_PUBLIC_API_BASE goes to the build, where Next inlines it.
+CCT_WEB = $(if $(filter 1,$(UI_DEV)),corepack pnpm dev,corepack pnpm build && corepack pnpm start)
 # The title of the presentation view; without CORPUS_NAME it reads only "Assistant CCT".
 # The name is passed as written: French titles hold apostrophes, and the recipe runs in
 # a single-quoted bash -c, so each quote is escaped once for the inner assignment and
@@ -36,7 +40,7 @@ demo-cct: demo-cct-args ui-install
 	@echo "==> CCT demo on $(CORPUS) (API :8000 · web :3000, $(if $(LIVE_DEMO),live: answers are paid,stub))"
 	@bash -c 'trap "kill %1 2>/dev/null" EXIT; \
 		set -a; . profiles/demo-cct-fr.env; set +a; $(if $(LIVE_DEMO),,$(BLANK_KEYS)) $(CORPUS_NAME_ENV) uv run verity serve --host 127.0.0.1 --port 8000 --corpus "$(CORPUS)" & \
-		cd web && NEXT_PUBLIC_API_BASE=http://localhost:8000 corepack pnpm dev'
+		cd web && NEXT_PUBLIC_API_BASE=http://localhost:8000 $(CCT_WEB)'
 
 # Before ui-install, so a missing folder fails at once.
 demo-cct-args:
