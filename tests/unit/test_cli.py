@@ -549,3 +549,42 @@ def test_naive_baseline_runs_an_unchecked_agent_under_its_own_artefact_name(
     result = runner.invoke(app, ["eval", "run", "--ci", "--runs-dir", str(tmp_path), *flags])
     assert result.exit_code == 4, result.output
     assert seen == expected
+
+
+def test_eval_run_refuses_a_sampling_temperature(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An eval run records no temperature (ADR 0007); a run at another temperature
+    would be compared with runs of record as if only sampling noise separated them."""
+    from verity.config import get_settings
+
+    monkeypatch.setenv("VERITY_LLM_TEMPERATURE", "0")
+    get_settings.cache_clear()
+    result = runner.invoke(app, ["eval", "run", "--ci", "--runs-dir", str(tmp_path)])
+    assert result.exit_code == 2
+    assert "VERITY_LLM_TEMPERATURE" in result.output
+    assert not list(tmp_path.iterdir())
+
+
+def test_ingest_chunks_with_the_configured_chunker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """VERITY_CHUNKING applies to `verity ingest` as to the API and the eval."""
+    from verity.config import get_settings
+    from verity.ingestion.article_chunker import ArticleChunker
+    from verity.ingestion.pipeline import IngestionPipeline
+    from verity.retrieval.pgvector_store import SchemaNotMigratedError
+
+    used: list[object] = []
+
+    async def _record(self, uris):  # type: ignore[no-untyped-def]
+        used.append(self._chunker)
+        raise SchemaNotMigratedError("stop before any write")
+
+    monkeypatch.setattr(IngestionPipeline, "ingest", _record)
+    monkeypatch.setenv("VERITY_CHUNKING", "articles")
+    get_settings.cache_clear()
+    (tmp_path / "a.md").write_text("# A\n\nbody\n")
+    runner.invoke(app, ["ingest", str(tmp_path)], env={"COLUMNS": "200"})
+    get_settings.cache_clear()
+    assert [type(c) for c in used] == [ArticleChunker]

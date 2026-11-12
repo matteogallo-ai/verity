@@ -14,8 +14,8 @@ A retrieval-augmented question-answering agent over one team's documents. A ques
 is decomposed, answered from hybrid-retrieved passages with verbatim quotes, checked
 deterministically (citation coverage, injection markers; cited relevance only when
 `VERITY_IRRELEVANT_CITATION_CHECK` is set), then scored by a model; when a check fails
-or the scorer refuses, it answers "I don't know based on the provided documents" with
-the reason. The score threshold defaults to 0 and refuses nothing. Surfaces: the `verity` CLI, an HTTP
+or the scorer refuses, it answers "I don't know based on the provided documents" (or the
+text set in `VERITY_REFUSAL_TEXT`) with the reason. The score threshold defaults to 0 and refuses nothing. Surfaces: the `verity` CLI, an HTTP
 API (`/ask`, `/ingest`, `/status`) and a Next.js UI. Each shipped capability is a
 `shipped` row of [`CLAIMS.md`](CLAIMS.md) with the tests that prove it.
 

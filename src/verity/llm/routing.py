@@ -123,7 +123,9 @@ def create_judge_client(
     from verity.config import get_settings
     from verity.llm.clients import AnthropicClient, OpenAIClient
 
-    settings = settings or get_settings()
+    # The agent's temperature is for its answers; the default judge model (Claude 4.7+)
+    # rejects any temperature, and a judge has no fallback to absorb the 400 (ADR 0009).
+    settings = (settings or get_settings()).model_copy(update={"llm_temperature": None})
     provider = settings.judge_provider
     if provider == "auto":
         provider = "openai" if settings.openai_api_key is not None else "anthropic"

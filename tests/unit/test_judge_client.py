@@ -47,3 +47,12 @@ def test_every_default_judge_model_is_priced() -> None:
     settings = Settings()
     for model in (settings.judge_anthropic_model, settings.judge_openai_model):
         assert model in settings.model_prices
+
+
+def test_the_judge_samples_at_its_default_whatever_the_agent_temperature() -> None:
+    """The default judge (Claude Opus 5.5) rejects any temperature with a 400 and has no
+    fallback; the agent's temperature is for the agent's answers (ADR 0009)."""
+    settings = Settings(anthropic_api_key=SecretStr("k"), llm_temperature=0.0)
+    (judge,) = create_judge_client(agent_client=_agent(settings), settings=settings).clients
+    assert isinstance(judge, AnthropicClient)
+    assert judge._sampling() == {}

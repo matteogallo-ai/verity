@@ -9,6 +9,18 @@ minimal (``text`` is a plain string; structure lives in metadata).
 Docling's model uses ``NodeItem.self_ref`` (opaque strings) rather than typed classes we
 can import cheaply, so we detect item kinds by ``label``/attribute presence, which keeps
 this module resilient to minor docling API drift.
+
+A PDF can render correctly yet carry a corrupt text layer: a font whose ToUnicode map
+is wrong extracts shifted letters, and digits come out as control characters or
+U+FFFD (the annexes of cantonal CCTs published in the Vaud FAO do this). Docling
+detects such pages and reads them with OCR instead; a page still broken after that
+fails the document rather than indexing text whose every figure is gone.
+
+A table is a grid of cells without text of its own. With VERITY_INDEX_TABLES each table
+becomes a block that opens with its caption, or else the heading it sits under, then
+one line per row: the row's label, then each value after its column header. A wage
+scale then reads "I a) Collaborateurs sans apprentissage — dès le 1.1.2026 : 3'713.-",
+a line both the retriever and the citation check can match.
 """
 
 from __future__ import annotations
@@ -20,6 +32,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
+from verity.config import get_settings
 from verity.ingestion.ids import document_id_for_uri
 from verity.ingestion.parsers.text import _read_bytes
 from verity.ingestion.structure import DocumentStructure, Section
@@ -32,6 +45,10 @@ if TYPE_CHECKING:  # pragma: no cover — types only, avoids importing at module
 _HEADING_LABELS = {"title", "section_header", "subtitle", "header"}
 
 
+class UnreadableTextLayerError(ValueError):
+    """A PDF page whose text layer is broken and that OCR did not make readable."""
+
+
 @functools.cache
 def _lazy_converter() -> DocumentConverter:
     """Import docling only when a PDF/DOCX is actually parsed (cold-start cost).
@@ -39,13 +56,80 @@ def _lazy_converter() -> DocumentConverter:
     One converter per process: a converter loads its layout and OCR models on first
     use, so a new one per document reloaded them every time (8 corpus documents:
     14.8 s with a converter each, 1.3-2.3 s with one shared).
+
+    ``replace_broken_text_layer`` OCRs only the pages docling finds broken; the other
+    pages keep their PDF text, so a clean PDF converts exactly as before.
     """
-    from docling.document_converter import DocumentConverter
+    from docling.datamodel.base_models import InputFormat
+    from docling.datamodel.pipeline_options import OcrAutoOptions, PdfPipelineOptions
+    from docling.document_converter import DocumentConverter, PdfFormatOption
 
-    return DocumentConverter()
+    options = PdfPipelineOptions(ocr_options=OcrAutoOptions(replace_broken_text_layer=True))
+    return DocumentConverter(
+        format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=options)}
+    )
 
 
-def _flatten(docling_doc: Any) -> tuple[str, tuple[Section, ...]]:
+def broken_pages(text: str, sections: tuple[Section, ...]) -> list[int | None]:
+    """The pages of ``text`` that docling's own detector still finds broken."""
+    from docling.utils.text_quality import is_broken_text_layer
+
+    by_page: dict[int | None, list[str]] = {}
+    for section in sections:
+        by_page.setdefault(section.page, []).append(text[section.char_start : section.char_end])
+    return [page for page, parts in by_page.items() if is_broken_text_layer("\n".join(parts))]
+
+
+def _table_rows(item: Any) -> list[str]:
+    """One line per row of a docling table grid.
+
+    A header row heads the data rows below it, up to the next header row; header rows
+    that follow each other stack, as a two-line header does. A header row that is one
+    cell across the whole table titles a group of rows and is written as a line.
+    """
+    grid = getattr(getattr(item, "data", None), "grid", None) or []
+    lines: list[str] = []
+    headers: dict[int, str] = {}
+    stacking = False
+    for row in grid:
+        # Docling repeats a merged cell in every column it spans: the copies keep the
+        # cell's first column, so they are read once while equal values in separate
+        # cells are both kept.
+        filled = [
+            (j, (cell.text or "").strip(), bool(cell.column_header), bool(cell.row_header))
+            for j, cell in enumerate(row)
+            if (cell.text or "").strip()
+        ]
+        own = [c for c in filled if getattr(row[c[0]], "start_col_offset_idx", c[0]) >= c[0]]
+        if not filled:
+            continue
+        if all(is_header for _, _, is_header, _ in filled):
+            if len(own) == 1 and len(filled) == len(row) > 1:
+                lines.append(own[0][1])
+                stacking = False
+                continue
+            if not stacking:
+                headers = {}
+            for j, text, _, _ in filled:
+                above = headers.get(j)
+                headers[j] = f"{above} {text}" if above and above != text else text
+            stacking = True
+            continue
+        stacking = False
+        if not headers:
+            lines.append(" | ".join(text for _, text, _, _ in own))
+            continue
+        labels = [text for _, text, _, row_header in own if row_header]
+        values = [(j, text) for j, text, _, row_header in own if not row_header]
+        if not labels and values and values[0][0] == 0:
+            labels, values = [values[0][1]], values[1:]
+        pairs = " ; ".join(f"{headers[j]} : {text}" if j in headers else text for j, text in values)
+        label = " ".join(labels)
+        lines.append(f"{label} — {pairs}" if label and pairs else label or pairs)
+    return lines
+
+
+def _flatten(docling_doc: Any, *, tables: bool = False) -> tuple[str, tuple[Section, ...]]:
     """Walk a DoclingDocument and produce (plain_text, sections).
 
     Each item becomes one line-block in ``plain_text``, separated by a single blank
@@ -82,6 +166,15 @@ def _flatten(docling_doc: Any) -> tuple[str, tuple[Section, ...]]:
             return level
         return 1
 
+    def _table_text(item: Any) -> str:
+        rows = _table_rows(item)
+        if not rows:
+            return ""
+        caption_text = getattr(item, "caption_text", None)
+        caption = caption_text(docling_doc) if callable(caption_text) else ""
+        title = (caption or "").strip() or (heading_stack[-1][1] if heading_stack else "")
+        return "\n".join([title, *rows] if title else rows)
+
     iter_items = getattr(docling_doc, "iterate_items", None)
     if iter_items is None:
         # Fallback: single blob from the whole document.
@@ -91,10 +184,12 @@ def _flatten(docling_doc: Any) -> tuple[str, tuple[Section, ...]]:
 
     for item, _ in iter_items():
         text = _item_text(item)
+        label = _item_label(item)
+        if not text and tables and label == "table":
+            text = _table_text(item)
         if not text:
             continue
 
-        label = _item_label(item)
         if label in _HEADING_LABELS:
             level = _item_level(item)
             while heading_stack and heading_stack[-1][0] >= level:
@@ -126,8 +221,11 @@ def _flatten(docling_doc: Any) -> tuple[str, tuple[Section, ...]]:
 class DoclingParser:
     """Structure-aware PDF and DOCX parser powered by docling."""
 
-    def __init__(self, converter: DocumentConverter | None = None) -> None:
+    def __init__(
+        self, converter: DocumentConverter | None = None, *, index_tables: bool | None = None
+    ) -> None:
         self._converter = converter
+        self._index_tables = get_settings().index_tables if index_tables is None else index_tables
 
     def supports(self, source_type: SourceType) -> bool:
         return source_type in {SourceType.PDF, SourceType.DOCX}
@@ -162,10 +260,15 @@ class DoclingParser:
         try:
             result = await asyncio.to_thread(converter.convert, str(source_path))
             docling_doc = getattr(result, "document", result)
-            text, sections = _flatten(docling_doc)
+            text, sections = _flatten(docling_doc, tables=self._index_tables)
         finally:
             if cleanup is not None:
                 cleanup.unlink(missing_ok=True)
+
+        if source_type is SourceType.PDF and (pages := broken_pages(text, sections)):
+            raise UnreadableTextLayerError(
+                f"{uri}: broken text layer on page(s) {pages}; OCR did not make it readable"
+            )
 
         structure = DocumentStructure(sections=sections)
         # The URI names the document; source_path may be a temporary copy.

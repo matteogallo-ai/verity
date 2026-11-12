@@ -20,14 +20,47 @@ the draft ships or is replaced by a refusal.
 
 from __future__ import annotations
 
+import itertools
 import re
 from dataclasses import dataclass
 
 from verity.agent.evidence import DATAMARK, DATAMARK_NOTE, neutralise, render_evidence
+from verity.config import get_settings
 from verity.llm.base import RoutingClient
 from verity.llm.json_output import parse_json_object
 from verity.llm.prompt import load_prompt
 from verity.types import Citation, Provider, RetrievalHit, UsageStats
+
+DRAFT_MAX_TOKENS = 512
+
+# Appended to the system message with VERITY_NAME_ARTICLES. The number comes from the
+# quoted text: a chunk's section attribute can name a neighbouring article.
+ARTICLE_NOTE = (
+    "\n\nWhen the documents number their provisions (articles, sections, clauses), "
+    "name the article each claim comes from in the answer, as the cited text numbers it "
+    '(for example "art. 8.1").'
+)
+
+
+# Appended to the system message with VERITY_COMPLETE_ANSWERS. The uncovered part goes
+# in its own field: the agent appends it after the support check, which a sentence
+# citing nothing would otherwise fail.
+COMPLETE_NOTE = (
+    "\n\nAnswer every part of the question. When the documents answer only some parts, "
+    'answer those in "answer", and put one short sentence naming each part they do not '
+    'cover, in the language of the question, in a "not_covered" field; leave it out when '
+    "nothing is missing. Copy every amount, duration, date and percentage exactly as the "
+    "cited text writes it: do not convert, round or reword it."
+)
+
+
+@dataclass(frozen=True)
+class ProposedCitation:
+    """A quote as the draft proposed it, and whether the citation check found it."""
+
+    quote: str
+    chunk_index: int
+    verified: bool
 
 
 @dataclass(frozen=True)
@@ -54,6 +87,11 @@ class SynthesisResult:
     usage: UsageStats
     provider: Provider | None
     model: str | None
+    # What the documents do not cover, as the draft names it (VERITY_COMPLETE_ANSWERS).
+    not_covered: str | None = None
+    # Every quote the draft proposed, kept or not: a refused answer carries no
+    # citation, and a rejected quote is the only trace of why.
+    proposed: tuple[ProposedCitation, ...] = ()
 
 
 class CitedSynthesizer:
@@ -64,15 +102,28 @@ class CitedSynthesizer:
         client: RoutingClient,
         *,
         prompt_name: str = "synthesize",
-        max_tokens: int = 512,
+        max_tokens: int = DRAFT_MAX_TOKENS,
         datamarked: bool = True,
+        name_articles: bool | None = None,
+        complete_answers: bool | None = None,
     ) -> None:
         self._client = client
+        self._name_articles = (
+            get_settings().name_articles if name_articles is None else name_articles
+        )
+        self._complete_answers = (
+            get_settings().complete_answers if complete_answers is None else complete_answers
+        )
         # Off only to measure what the mark changes (scripts/run_injection_eval.py).
         self._datamarked = datamarked
         self._prompt = load_prompt(prompt_name)
         self._max_tokens = max_tokens
         self.last_usage: UsageStats | None = None
+
+    @property
+    def max_tokens(self) -> int:
+        """The draft's output cap: a draft cut off by it is unparseable and refused."""
+        return self._max_tokens
 
     async def synthesize(self, question: str, hits: list[RetrievalHit]) -> SynthesisResult:
         evidence = render_evidence(hits, with_scores=False, datamarked=self._datamarked)
@@ -80,6 +131,8 @@ class CitedSynthesizer:
             question=neutralise(question),
             evidence=evidence,
             datamark_note=DATAMARK_NOTE if self._datamarked else "",
+            article_note=ARTICLE_NOTE if self._name_articles else "",
+            answer_note=COMPLETE_NOTE if self._complete_answers else "",
         )
         completion = await self._client.complete(messages, max_tokens=self._max_tokens)
         self.last_usage = completion.usage
@@ -91,7 +144,27 @@ class CitedSynthesizer:
             usage=completion.usage,
             provider=completion.provider,
             model=completion.model,
+            not_covered=_parse_not_covered(completion.text) if self._complete_answers else None,
+            proposed=tuple(
+                ProposedCitation(q, i, verified=bool(_validate_citations([(q, i)], hits)))
+                for q, i in raw_citations
+            ),
         )
+
+
+# The field is model text that no check reads before it reaches the user: a statement
+# longer than this is no longer the one sentence the prompt asks for, so it is dropped
+# and the checked answer ships alone.
+NOT_COVERED_MAX_CHARS = 300
+
+
+def _parse_not_covered(text: str) -> str | None:
+    parsed = parse_json_object(text)
+    value = parsed.get("not_covered") if parsed else None
+    if not isinstance(value, str):
+        return None
+    value = value.replace(DATAMARK, " ").strip()
+    return value if value and len(value) <= NOT_COVERED_MAX_CHARS else None
 
 
 def _parse_synth_output(text: str) -> tuple[str, list[tuple[str, int]]]:
@@ -188,16 +261,48 @@ def _word_pattern(word: str) -> str:
     return "".join(_EQUIVALENT_MARKS.get(char) or re.escape(char) for char in word)
 
 
+# French typography spaces the inside of guillemets, often with a no-break space, and a
+# model may type that space or not whatever the document does: next to a double quote
+# mark the gap is optional. Between two words it is still required.
+_DOUBLE_QUOTE_SPLIT_RE = re.compile(f"([{re.escape(_DOUBLE_QUOTES)}])")
+
+
+# A PDF prints an ordinal's suffix as a superscript, and text extraction separates it
+# from its number ("au 1 er janvier") where a model types "1er", or the reverse: the
+# gap between a number and its ordinal suffix is optional too.
+# Only a whole suffix, at the end of the word or before punctuation, is one: "2e-mail"
+# or "1e5" are not ordinals.
+_ORDINAL_SUFFIX = r"(?:ères?|ers?|res?|èmes?|emes?|es?|ndes?|nds?)[,.;:!?»]*"
+_ORDINAL_SPLIT_RE = re.compile(rf"(?<=\d)(?={_ORDINAL_SUFFIX}$)")
+_ORDINAL_SUFFIX_RE = re.compile(_ORDINAL_SUFFIX)
+
+
+def _free_gap(before: str, token: str) -> bool:
+    if before in _DOUBLE_QUOTES or token in _DOUBLE_QUOTES:
+        return True
+    return before[-1:].isdigit() and _ORDINAL_SUFFIX_RE.fullmatch(token) is not None
+
+
 def _locate(quote: str, text: str) -> tuple[int, int] | None:
     """The first span of ``text`` holding ``quote``'s words in order, separated by any
-    whitespace, where an apostrophe or a double quote matches any mark of its class;
-    ``None`` if there is none."""
-    words = [w for w in _WORD_GAP_RE.split(quote) if w]
-    if not words:
+    whitespace, where an apostrophe or a double quote matches any mark of its class
+    and the space next to a double quote mark, or between a number and its ordinal
+    suffix, is optional; ``None`` if there is none."""
+    tokens = [
+        part
+        for word in _WORD_GAP_RE.split(quote)
+        for piece in _DOUBLE_QUOTE_SPLIT_RE.split(word)
+        for part in _ORDINAL_SPLIT_RE.split(piece)
+        if part
+    ]
+    if not tokens:
         return None
-    pattern = r"\s+".join(_word_pattern(w) for w in words)
+    pattern = _word_pattern(tokens[0])
+    for before, token in itertools.pairwise(tokens):
+        gap = r"\s*" if _free_gap(before, token) else r"\s+"
+        pattern += gap + _word_pattern(token)
     match = re.search(pattern, text)
     return None if match is None else (match.start(), match.end())
 
 
-__all__ = ["CitedSynthesizer", "SynthesisResult"]
+__all__ = ["CitedSynthesizer", "ProposedCitation", "SynthesisResult"]

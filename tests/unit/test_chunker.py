@@ -111,3 +111,15 @@ async def test_chunker_deterministic_ids(tmp_path: Path) -> None:
     ids_second = [c.id for c in chunker.chunk(doc)]
     assert ids_first == ids_second
     assert len(ids_first) == len(set(ids_first))
+
+
+def test_article_chunker_invariant_holds_on_corpus() -> None:
+    """VERITY_CHUNKING=articles keeps every chunk a verbatim slice, on every document."""
+    from verity.ingestion.article_chunker import ArticleChunker
+
+    for doc in _load_corpus_documents():
+        chunks = ArticleChunker().chunk(doc)
+        assert chunks, f"article chunker produced no chunks for {doc.uri}"
+        for chunk in chunks:
+            assert doc.text[chunk.char_start : chunk.char_end] == chunk.text, doc.uri
+        assert " ".join(c.text for c in chunks).split() == doc.text.split(), doc.uri

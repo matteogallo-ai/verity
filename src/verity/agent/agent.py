@@ -23,8 +23,8 @@ What holds on the returned :class:`Answer`:
   cannot ship an answer on its own;
 - ``confidence.refused`` is also True when the scorer model asked to refuse OR its
   self-reported score is below ``confidence_threshold`` (the score is the model's
-  self-report and is not calibrated; at the default threshold, 0, no score is below it). A refused answer's text is a fixed "I don't know"
-  with the rationale;
+  self-report and is not calibrated; at the default threshold, 0, no score is below it). A refused answer's text is the configured
+  ``refusal_text`` (default: a fixed "I don't know"), with the rationale;
 - ``hits_used`` and ``usage`` are populated for observability and eval.
 
 With ``checks=False`` the agent is the naive RAG baseline the eval compares against
@@ -62,7 +62,6 @@ from verity.observability.tracer import NoOpTracer
 from verity.retrieval.base import ModelUnavailableError, RetrievalUnavailableError, Retriever
 from verity.types import (
     NO_CITATION_RATIONALE,
-    REFUSAL_TEXT,
     Answer,
     AnswerError,
     Confidence,
@@ -98,15 +97,22 @@ class RagAgent(Agent):
         preferred_provider: Provider | None = None,
         preferred_model: str | None = None,
         checks: bool = True,
+        refusal_text: str | None = None,
     ) -> None:
         settings = get_settings()
         self._checks = checks
+        if refusal_text is not None and not refusal_text.strip():
+            raise ValueError("refusal_text must not be blank")
+        self._refusal_text = refusal_text or settings.refusal_text
         self._retriever = retriever
         self._decomposer = decomposer
         self._synthesizer = synthesizer
         self._scorer = scorer
         self._rerank_k = rerank_k if rerank_k is not None else settings.rerank_k
         self._min_citation_coverage = settings.min_citation_coverage
+        self._language = settings.language
+        self._retrieve_original_question = settings.retrieve_original_question
+        self._complete_answers = settings.complete_answers
         # A floor of -inf turns the cited relevance check off without a second code
         # path in verity.agent.support: no score is below it.
         self._min_cited_rerank_score = (
@@ -190,7 +196,12 @@ class RagAgent(Agent):
             log.info("decomposed", n_sub_questions=len(sub_questions))
 
         async with self._stage("agent.retrieve", trace_id, stage_ms) as span:
-            hits = await self._collect_hits(sub_questions)
+            queries = (
+                list(dict.fromkeys(q.strip() for q in [question, *sub_questions] if q.strip()))
+                if self._retrieve_original_question
+                else sub_questions
+            )
+            hits = await self._collect_hits(queries)
             span.record_hits(len(hits), hits[0].score if hits else None)
             log.info("aggregated_hits", n_hits=len(hits))
 
@@ -214,6 +225,7 @@ class RagAgent(Agent):
                 hits,
                 min_coverage=self._min_citation_coverage,
                 min_rerank_score=self._min_cited_rerank_score,
+                language=self._language,
             )
             if not synthesis.citations or not synthesis.text.strip():
                 confidence = Confidence(
@@ -263,7 +275,7 @@ class RagAgent(Agent):
         if confidence.refused:
             return Answer(
                 query=question,
-                text=REFUSAL_TEXT,
+                text=self._refusal_text,
                 citations=(),
                 confidence=confidence,
                 hits_used=tuple(hits),
@@ -274,9 +286,12 @@ class RagAgent(Agent):
                 stage_ms=dict(stage_ms),
             )
 
+        text = synthesis.text
+        if self._complete_answers and synthesis.not_covered:
+            text = f"{text}\n\n{synthesis.not_covered} {self._refusal_text}"
         return Answer(
             query=question,
-            text=synthesis.text,
+            text=text,
             citations=synthesis.citations,
             confidence=confidence,
             hits_used=tuple(hits),
@@ -408,6 +423,9 @@ def create_default_agent(
     client: RoutingClient,
     tracer: Tracer | None = None,
     checks: bool = True,
+    synthesizer: CitedSynthesizer | None = None,
+    refusal_text: str | None = None,
+    decomposer: LLMQuestionDecomposer | None = None,
 ) -> RagAgent:
     """Wire the default agent: LLM-based decomposer + synthesizer + scorer.
 
@@ -420,13 +438,14 @@ def create_default_agent(
     preferred_provider, preferred_model = primary_client_identity(client)
     return RagAgent(
         retriever=retriever,
-        decomposer=LLMQuestionDecomposer(client),
-        synthesizer=CitedSynthesizer(client),
+        decomposer=decomposer or LLMQuestionDecomposer(client),
+        synthesizer=synthesizer or CitedSynthesizer(client),
         scorer=LLMConfidenceScorer(client),
         tracer=tracer,
         preferred_provider=preferred_provider,
         preferred_model=preferred_model,
         checks=checks,
+        refusal_text=refusal_text,
     )
 
 

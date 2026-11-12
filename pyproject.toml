@@ -85,6 +85,7 @@ known-first-party = ["verity"]
 [tool.vulture]
 paths = [
   "src",
+  "tools",
   "scripts/refusal_analysis.py",
   "scripts/judge_agreement.py",
   "scripts/generate_headline_results.py",
@@ -103,6 +104,10 @@ ignore_names = [
   # pydantic / pydantic-settings fields read by the framework or serialized to JSON.
   "model_config", "cited", "version", "reference_answer", "tags", "answer_text",
   "refusal_rationale", "judge_usage", "failed_stage", "checks_disabled",
+  # tools/prospection/bench.py run record fields, read from resultats.json.
+  "scorer_score", "decision", "run_settings", "draft_output_tokens", "draft_truncated",
+  "sub_questions",
+  "draft_citations",
   # Parameters of Protocol method signatures that mirror third-party APIs
   # (sentence-transformers encode / predict).
   "sentences", "normalize_embeddings", "show_progress_bar", "convert_to_numpy",
@@ -133,7 +138,7 @@ warn_unreachable = true
 disallow_any_generics = true
 plugins = ["pydantic.mypy"]
 mypy_path = "src"
-packages = ["verity"]
+packages = ["verity", "tools"]
 
 [[tool.mypy.overrides]]
 module = [

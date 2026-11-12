@@ -18,6 +18,7 @@ import structlog
 
 from verity.agent.agent import RagAgent, create_default_agent
 from verity.agent.scripted_stub import build_stub_router
+from verity.config import get_settings
 from verity.ingestion import (
     IngestionPipeline,
     IngestionResult,
@@ -25,6 +26,8 @@ from verity.ingestion import (
     StructureAwareChunker,
     create_default_parser,
 )
+from verity.ingestion.article_chunker import ArticleChunker
+from verity.ingestion.base import Chunker
 from verity.ingestion.ids import (
     document_id_for_identity,
     document_id_for_uri,
@@ -48,6 +51,13 @@ log = structlog.get_logger(__name__)
 
 AgentMode = Literal["stub", "live"]
 StoreKind = Literal["pgvector", "memory"]
+
+
+def create_chunker() -> Chunker:
+    """The chunker VERITY_CHUNKING names: by article for legal texts, else by structure."""
+    if get_settings().chunking == "articles":
+        return ArticleChunker()
+    return StructureAwareChunker()
 
 
 def build_store(kind: StoreKind) -> CorpusStore:
@@ -78,7 +88,7 @@ async def ingest_corpus(
     unchanged ones, and remove documents whose file left the directory."""
     pipeline = IngestionPipeline(
         parser=create_default_parser(),
-        chunker=StructureAwareChunker(),
+        chunker=create_chunker(),
         embedder=embedder,
         sink=store,
     )
@@ -143,7 +153,7 @@ async def ingest_uri(
     """Ingest a single source, optionally supplying its bytes (used by upload endpoints
     where the file is not on the local filesystem yet)."""
     parser = create_default_parser()
-    chunker = StructureAwareChunker()
+    chunker = create_chunker()
     doc = await parser.parse(uri, raw)
     chunks = chunker.chunk(doc)
     embedded = await embedder.embed_chunks(chunks)

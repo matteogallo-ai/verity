@@ -73,13 +73,12 @@ def ingest(
     from verity.ingestion import (
         IngestionPipeline,
         LocalEmbedder,
-        StructureAwareChunker,
         create_default_parser,
     )
     from verity.ingestion.pipeline import IngestionResult, discover_sources
     from verity.retrieval import PgVectorStore
     from verity.retrieval.base import StoreSchemaError, StoreUnavailableError
-    from verity.runtime import prune_missing
+    from verity.runtime import create_chunker, prune_missing
 
     uris = discover_sources(str(path))
     if not uris:
@@ -88,7 +87,7 @@ def ingest(
 
     settings = get_settings()
     parser = create_default_parser()
-    chunker = StructureAwareChunker()
+    chunker = create_chunker()
     embedder = LocalEmbedder()
     sink = None if dry_run else PgVectorStore(settings.database_url.get_secret_value())
 
@@ -725,6 +724,14 @@ def eval_run(
     judge_mode = "stub" if ci else judge.lower()
     if judge_mode not in {"stub", "live"}:
         raise typer.BadParameter("--judge must be 'stub' or 'live'")
+
+    # Runs of record sample at the provider default and record no temperature (ADR
+    # 0007); a run at another temperature would read as sampling noise next to them.
+    if get_settings().llm_temperature is not None:
+        console.print(
+            "[red]VERITY_LLM_TEMPERATURE is set; eval runs use the default sampling.[/red]"
+        )
+        raise typer.Exit(code=2)
 
     if judge_mode == "live":
         _require_llm_api_key()

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from uuid import UUID
 
@@ -223,3 +224,154 @@ def test_marks_outside_the_class_or_different_words_are_still_rejected(quote: st
 def test_an_apostrophe_does_not_match_a_double_quote_in_the_chunk() -> None:
     hits = [_hit("il a dit \N{LEFT DOUBLE QUOTATION MARK}oui\N{RIGHT DOUBLE QUOTATION MARK}", cs=0)]
     assert _validate_citations([("dit 'oui'", 0)], hits) == ()
+
+
+# French typography puts a space, often a no-break one, inside guillemets; a model may
+# type it or not, whatever the document does. Around a double quote mark the spacing
+# is free; everywhere else words still need a gap and must match exactly.
+NBSP, NNBSP = "\N{NO-BREAK SPACE}", "\N{NARROW NO-BREAK SPACE}"
+
+
+@pytest.mark.parametrize(
+    ("in_document", "in_quote"),
+    [
+        ("«de panier»", "« de panier »"),
+        (f"«{NBSP}de panier{NBSP}»", "«de panier»"),
+        (f"«{NNBSP}de panier{NNBSP}»", '"de panier"'),
+        ("« de panier »", "«de panier »"),
+    ],
+)
+def test_the_space_inside_guillemets_may_differ(in_document: str, in_quote: str) -> None:
+    text = f"une indemnité dite {in_document} de Fr. 19.- par jour"
+    hits = [_hit(text, cs=0)]
+    (citation,) = _validate_citations([(f"dite {in_quote} de Fr. 19.-", 0)], hits)
+    assert citation.quote == f"dite {in_document} de Fr. 19.-"
+
+
+@pytest.mark.parametrize(
+    "quote",
+    [
+        "dite « de paniers »",  # a different word stays a different word
+        "dite « depanier »",  # words still need their gap
+    ],
+)
+def test_free_spacing_around_guillemets_does_not_loosen_the_words(quote: str) -> None:
+    hits = [_hit("une indemnité dite «de panier» par jour", cs=0)]
+    assert _validate_citations([(quote, 0)], hits) == ()
+
+
+# Asked to name the article, a draft lets a member find the provision in the text; off
+# by default, so the default prompt is the one the published runs used.
+async def _system_prompt(synthesizer: CitedSynthesizer, client: _RecordingClient) -> str:
+    await synthesizer.synthesize("q?", [_hit("Art. 8.1 Foo bar baz.", cs=0)])
+    ((messages, _),) = client.calls
+    return messages[0].content
+
+
+@pytest.mark.asyncio
+async def test_by_default_the_draft_is_not_asked_to_name_the_article() -> None:
+    client = _RecordingClient('{"answer": "a", "citations": []}')
+    assert "provision" not in await _system_prompt(CitedSynthesizer(client), client)
+
+
+@pytest.mark.asyncio
+async def test_the_setting_asks_the_draft_to_name_the_article(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from verity.config import get_settings
+
+    monkeypatch.setenv("VERITY_NAME_ARTICLES", "true")
+    get_settings.cache_clear()
+    client = _RecordingClient('{"answer": "a", "citations": []}')
+    system = await _system_prompt(CitedSynthesizer(client), client)
+    assert "name the article" in system
+    assert system.startswith(
+        await _system_prompt(
+            CitedSynthesizer(off := _RecordingClient("{}"), name_articles=False), off
+        )
+    )
+
+
+@pytest.mark.asyncio
+async def test_the_default_system_prompt_is_the_one_the_published_runs_used() -> None:
+    """Pinned on the template of 9165978, before the article note existed: the file's
+    hash changed with the placeholder, the rendered prompt must not."""
+    client = _RecordingClient('{"answer": "a", "citations": []}')
+    system = await _system_prompt(CitedSynthesizer(client, name_articles=False), client)
+    assert hashlib.sha256(system.encode()).hexdigest() == (
+        "a80cccad4fbffd791561ca3347d5c3ffa8acda2a8a67c3f094f1b14b921af2c9"
+    )
+
+
+@pytest.mark.asyncio
+async def test_the_article_note_is_a_paragraph_of_its_own() -> None:
+    client = _RecordingClient('{"answer": "a", "citations": []}')
+    system = await _system_prompt(CitedSynthesizer(client, name_articles=True), client)
+    assert "\n\nWhen the documents number" in system
+
+
+# A PDF prints an ordinal's suffix as a superscript, which text extraction separates
+# from its number ("au 1 er janvier"); a model quotes it as written ("1er"). The gap
+# between a number and its ordinal suffix is free; everywhere else it is not.
+@pytest.mark.parametrize(
+    ("in_document", "in_quote"),
+    [
+        ("au 1 er janvier", "au 1er janvier"),
+        ("au 1er janvier", "au 1 er janvier"),
+        ("de la 2 e année", "de la 2e année"),
+        ("dès la 3 ème année", "dès la 3ème année"),
+        ("dès la 3ème année", "dès la 3 ème année"),
+        ("la 1 re année,", "la 1re année,"),
+        ("la 1 ère année", "la 1ère année"),
+    ],
+)
+def test_the_gap_between_a_number_and_its_ordinal_suffix_may_differ(
+    in_document: str, in_quote: str
+) -> None:
+    text = f"Le passage est effectif {in_document} qui suit."
+    hits = [_hit(text, cs=0)]
+    (citation,) = _validate_citations([(f"effectif {in_quote}", 0)], hits)
+    assert citation.quote == f"effectif {in_document}"
+
+
+@pytest.mark.parametrize(
+    "quote",
+    [
+        "au 2er janvier",  # a different number stays a different number
+        "au 1 ex janvier",  # only an ordinal suffix joins its number
+        "au1er janvier",  # the word before the number still needs its gap
+    ],
+)
+def test_a_free_ordinal_gap_does_not_loosen_the_words(quote: str) -> None:
+    hits = [_hit("effectif au 1 er janvier", cs=0)]
+    assert _validate_citations([(quote, 0)], hits) == ()
+
+
+@pytest.mark.parametrize(
+    ("in_document", "quote"),
+    [("envoyer 2 e-mail", "envoyer 2e-mail"), ("lettre 2 e)", "lettre 2e)"), ("1 e5", "1e5")],
+)
+def test_only_a_whole_ordinal_suffix_joins_its_number(in_document: str, quote: str) -> None:
+    assert _validate_citations([(quote, 0)], [_hit(in_document, cs=0)]) == ()
+
+
+@pytest.mark.asyncio
+async def test_every_quote_the_draft_proposed_is_kept_with_whether_it_was_found() -> None:
+    """A refused answer drops its citations; the proposed quotes say why one was rejected."""
+    hits = [_hit("Either party may terminate on thirty (30) days notice.", cs=0)]
+    payload = json.dumps(
+        {
+            "answer": "Thirty days.",
+            "citations": [
+                {"quote": "thirty (30) days", "chunk_index": 0},
+                {"quote": "sixty days", "chunk_index": 0},
+                {"quote": "thirty", "chunk_index": 4},
+            ],
+        }
+    )
+    result = await CitedSynthesizer(_router(lambda _: payload)).synthesize("q?", hits)
+    assert [(p.quote, p.chunk_index, p.verified) for p in result.proposed] == [
+        ("thirty (30) days", 0, True),
+        ("sixty days", 0, False),
+        ("thirty", 4, False),
+    ]

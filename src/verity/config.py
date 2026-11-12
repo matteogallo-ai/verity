@@ -13,7 +13,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from verity.types import Provider
+from verity.types import REFUSAL_TEXT, Provider
 
 
 class ModelPrice(BaseModel, frozen=True):
@@ -83,6 +83,10 @@ class Settings(BaseSettings):
     # Worst case per provider: llm_timeout_s * (llm_max_retries + 1).
     llm_timeout_s: float = Field(default=30.0, gt=0.0)
     llm_max_retries: int = Field(default=2, ge=0)
+    # Sampling temperature of every model call. None sends none, the provider default
+    # (ADR 0007); a value is sent on Anthropic API version 2023-06-01, the last that
+    # accepts one, so legal answers to the same question vary less (ADR 0009).
+    llm_temperature: float | None = Field(default=None, ge=0.0, le=1.0)
     model_prices: dict[str, ModelPrice] = Field(default_factory=lambda: dict(DEFAULT_MODEL_PRICES))
     # Default cap for one `verity ask`. A live answer on the default model cost
     # $0.012 on average in the run of record (scorecards/live-v1.0.0.json); $1 stops a
@@ -102,6 +106,9 @@ class Settings(BaseSettings):
             "score lies in [0, 1], so the default 0 refuses nothing."
         ),
     )
+    # What a refused question reads. A deployment serves one organisation's members:
+    # set it in their language, naming whom to ask when the documents do not answer.
+    refusal_text: str = Field(default=REFUSAL_TEXT, min_length=1, pattern=r"\S")
     max_agent_steps: int = 4  # cap on multi-step retrieval decomposition
     # Deterministic checks a cited draft must pass before the scorer runs
     # (verity.agent.support). On the committed live run (d0ca1d5), the 12 answered
@@ -109,6 +116,28 @@ class Settings(BaseSettings):
     # q-015, labelled out of scope and answered, had 0.30 and -0.85. Both values were
     # chosen on those same 16 examples: they need a held-out split to be validated.
     min_citation_coverage: float = Field(default=0.5, ge=0.0, le=1.0)
+    # The corpus language, for the lexical coverage check (verity.agent.support). The
+    # threshold above is the same in every language.
+    language: Literal["en", "fr"] = "en"
+    # Ask the draft to name the article or section each claim comes from, so a member
+    # can find the provision. Off by default: it changes the prompt of the published runs.
+    name_articles: bool = False
+    # Index PDF and DOCX tables as "label — header : value" lines. Off by default: it
+    # changes the text, hence the chunks and their ids, of every corpus document with a
+    # table, and the published runs were labelled on chunks without them.
+    index_tables: bool = False
+    # Retrieve the question as asked as well as its sub-questions. A decomposition can
+    # drop the term that finds the passage. Off by default: it changes the evidence of
+    # every decomposed question in the published runs.
+    retrieve_original_question: bool = False
+    # Ask the draft to answer every part, to copy figures as the text writes them, and
+    # to name the part the documents do not cover; the agent then appends that and the
+    # referral text. Off by default: it changes the prompt of the published runs.
+    complete_answers: bool = False
+    # "articles" cuts a legal text at each article and labels every passage with the
+    # article's number and title (verity.ingestion.article_chunker). Default "structure":
+    # it changes the chunks, and their ids, of every document with article headings.
+    chunking: Literal["structure", "articles"] = "structure"
     min_cited_rerank_score: float = 0.0
     # Off by default: as the first failing check on the dev runs it refused 11
     # answerable records (4 distinct questions) for 5 unanswerable ones (2), and

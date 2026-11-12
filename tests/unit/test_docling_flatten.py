@@ -112,7 +112,7 @@ def test_one_docling_converter_serves_every_document(monkeypatch: pytest.MonkeyP
 
     built: list[object] = []
     monkeypatch.setattr(
-        docling.document_converter, "DocumentConverter", lambda: built.append(1) or object()
+        docling.document_converter, "DocumentConverter", lambda **_: built.append(1) or object()
     )
     docling_parser._lazy_converter.cache_clear()
     try:
