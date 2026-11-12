@@ -74,9 +74,10 @@ make demo-cct CORPUS=… UI_DEV=1                                   # interface 
 L'API ingère le dossier (PDF, DOCX, Markdown ou texte) en mémoire avec les réglages de
 [`profiles/demo-cct-fr.env`](profiles/demo-cct-fr.env) : passages découpés par article,
 tableaux indexés, contrôle des citations en français, température 0, refus en français
-avec renvoi au secrétariat. L'interface, compilée pour la production (`next build` puis `next start`, sans le
-badge du serveur de dev ; `UI_DEV=1` garde le serveur de dev), démarre en même temps sur
-http://localhost:3000 et répond une fois l'ingestion finie (`/ready`) ; une citation tirée d'un article en
+avec renvoi au secrétariat. L'interface est compilée pour la production (`next build` puis `next start`, sans le
+badge du serveur de dev ; `UI_DEV=1` garde le serveur de dev) : elle écoute sur
+http://localhost:3000 une fois la compilation finie, environ 25 s (lancez la démo avant
+le rendez-vous), et répond une fois l'ingestion finie (`/ready`) ; une citation tirée d'un article en
 affiche le numéro et le titre. Il faut Node 22 et corepack, pas Docker. Seul `LIVE=1`
 garde la clé du fournisseur (de `.env` ou de l'environnement) ; le budget de l'API
 (`VERITY_API_BUDGET_USD`, 5 $ par heure par défaut) borne la dépense. La zone de

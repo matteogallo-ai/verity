@@ -20,7 +20,7 @@ demo: ui-install db
 # Demo on one collective agreement, in French, for a client meeting:
 #   make demo-cct CORPUS=<folder of the agreement> [LIVE=1] [CORPUS_NAME="CCT Métal-Vaud"] [UI_DEV=1]
 # The API ingests CORPUS in memory under profiles/demo-cct-fr.env while the web UI
-# starts on :3000; the UI answers once /ready does. Only LIVE=1 keeps the provider key
+# is built, then served on :3000; the UI answers once /ready does. Only LIVE=1 keeps the provider key
 # (from .env or the shell), and every answer is then paid; any other value, LIVE=0
 # included, blanks the keys and the scripted stub answers.
 LIVE_DEMO = $(filter 1,$(LIVE))
@@ -44,7 +44,7 @@ demo-cct: demo-cct-args ui-install
 
 # Before ui-install, so a missing folder fails at once.
 demo-cct-args:
-	@test -n "$(CORPUS)" || { echo "usage: make demo-cct CORPUS=<folder> [LIVE=1]"; exit 2; }
+	@test -n "$(CORPUS)" || { echo "usage: make demo-cct CORPUS=<folder> [LIVE=1] [CORPUS_NAME=<title>] [UI_DEV=1]"; exit 2; }
 	@test -d "$(CORPUS)" || { echo "$(CORPUS): no such folder"; exit 2; }
 
 # API only — for the demo transcript that shows API responses directly.

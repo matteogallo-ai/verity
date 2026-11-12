@@ -111,8 +111,10 @@ def test_the_cct_demo_serves_a_production_build_of_the_ui() -> None:
     """The dev server shows the Next.js badge in front of a client; a build does not.
     The API base is set for the build, since Next inlines NEXT_PUBLIC_ values there."""
     web = _web_command()
-    assert "NEXT_PUBLIC_API_BASE=http://localhost:8000 corepack pnpm build" in web
-    assert "corepack pnpm start" in web
+    assert (
+        "NEXT_PUBLIC_API_BASE=http://localhost:8000 corepack pnpm build && corepack pnpm start"
+        in web
+    )
     assert "pnpm dev" not in web
 
 
