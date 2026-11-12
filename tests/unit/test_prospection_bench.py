@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -22,7 +23,7 @@ from tools.prospection.bench import (
     render_table,
 )
 
-from verity.agent.synthesizer import SynthesisResult
+from verity.agent.synthesizer import ProposedCitation, SynthesisResult
 from verity.types import (
     Answer,
     Chunk,
@@ -202,6 +203,29 @@ def test_the_recorded_coverage_is_computed_in_the_run_language() -> None:
     english = decision_of(refusal, draft, language="en", max_tokens=512)
     assert french.citation_coverage == 1.0
     assert english.citation_coverage is not None and english.citation_coverage < 1.0
+
+
+def test_a_refusal_records_the_quotes_the_draft_proposed() -> None:
+    """A no_citation refusal is diagnosed from the quotes the citation check rejected."""
+    draft = _draft("Le salaire est de 26.05.", "CFC 26.05")
+    draft = replace(
+        draft,
+        proposed=(
+            ProposedCitation(quote="CFC 26.05", chunk_index=0, verified=True),
+            ProposedCitation(quote="CFC 26,05", chunk_index=0, verified=False),
+            ProposedCitation(quote="x", chunk_index=7, verified=False),
+        ),
+    )
+    decision = decision_of(_refused(RefusalReason.NO_CITATION, "none"), draft, **_RUN)
+    assert [(c.quote, c.section, c.verified) for c in decision.draft_citations or ()] == [
+        ("CFC 26.05", "CHAPITRE III > Article 8 - Salaires", True),
+        ("CFC 26,05", "CHAPITRE III > Article 8 - Salaires", False),
+        ("x", None, False),
+    ]
+    assert (
+        decision_of(_refused(RefusalReason.NO_CITATION, "none"), None, **_RUN).draft_citations
+        is None
+    )
 
 
 def _write(path: Path, *questions: dict[str, object]) -> Path:

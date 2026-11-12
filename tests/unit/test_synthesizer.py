@@ -344,3 +344,25 @@ def test_the_gap_between_a_number_and_its_ordinal_suffix_may_differ(
 def test_a_free_ordinal_gap_does_not_loosen_the_words(quote: str) -> None:
     hits = [_hit("effectif au 1 er janvier", cs=0)]
     assert _validate_citations([(quote, 0)], hits) == ()
+
+
+@pytest.mark.asyncio
+async def test_every_quote_the_draft_proposed_is_kept_with_whether_it_was_found() -> None:
+    """A refused answer drops its citations; the proposed quotes say why one was rejected."""
+    hits = [_hit("Either party may terminate on thirty (30) days notice.", cs=0)]
+    payload = json.dumps(
+        {
+            "answer": "Thirty days.",
+            "citations": [
+                {"quote": "thirty (30) days", "chunk_index": 0},
+                {"quote": "sixty days", "chunk_index": 0},
+                {"quote": "thirty", "chunk_index": 4},
+            ],
+        }
+    )
+    result = await CitedSynthesizer(_router(lambda _: payload)).synthesize("q?", hits)
+    assert [(p.quote, p.chunk_index, p.verified) for p in result.proposed] == [
+        ("thirty (30) days", 0, True),
+        ("sixty days", 0, False),
+        ("thirty", 4, False),
+    ]

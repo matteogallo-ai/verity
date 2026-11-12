@@ -55,6 +55,15 @@ COMPLETE_NOTE = (
 
 
 @dataclass(frozen=True)
+class ProposedCitation:
+    """A quote as the draft proposed it, and whether the citation check found it."""
+
+    quote: str
+    chunk_index: int
+    verified: bool
+
+
+@dataclass(frozen=True)
 class SynthesisResult:
     """Output of the synthesizer — draft text, validated citations, usage, and the
     concrete LLM provider/model that produced ``text``.
@@ -80,6 +89,9 @@ class SynthesisResult:
     model: str | None
     # What the documents do not cover, as the draft names it (VERITY_COMPLETE_ANSWERS).
     not_covered: str | None = None
+    # Every quote the draft proposed, kept or not: a refused answer carries no
+    # citation, and a rejected quote is the only trace of why.
+    proposed: tuple[ProposedCitation, ...] = ()
 
 
 class CitedSynthesizer:
@@ -133,6 +145,10 @@ class CitedSynthesizer:
             provider=completion.provider,
             model=completion.model,
             not_covered=_parse_not_covered(completion.text) if self._complete_answers else None,
+            proposed=tuple(
+                ProposedCitation(q, i, verified=bool(_validate_citations([(q, i)], hits)))
+                for q, i in raw_citations
+            ),
         )
 
 
@@ -287,4 +303,4 @@ def _locate(quote: str, text: str) -> tuple[int, int] | None:
     return None if match is None else (match.start(), match.end())
 
 
-__all__ = ["CitedSynthesizer", "SynthesisResult"]
+__all__ = ["CitedSynthesizer", "ProposedCitation", "SynthesisResult"]

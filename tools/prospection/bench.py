@@ -72,6 +72,14 @@ class HitRecord(BaseModel, frozen=True):
     excerpt: str
 
 
+class DraftCitation(BaseModel, frozen=True):
+    quote: str
+    chunk_index: int
+    # The section of the passage the quote names; None for an index past the evidence.
+    section: str | None
+    verified: bool
+
+
 class Decision(BaseModel, frozen=True):
     """Why the agent answered or refused, from the values its checks compare.
 
@@ -94,6 +102,9 @@ class Decision(BaseModel, frozen=True):
     # The queries' source: a decomposition that differs between runs retrieves
     # different passages for the same question.
     sub_questions: tuple[str, ...] | None
+    # Every quote the draft proposed, kept or not: what a no_citation or a
+    # low_citation_coverage refusal was decided on.
+    draft_citations: tuple[DraftCitation, ...] | None
     hits: tuple[HitRecord, ...]
 
 
@@ -277,6 +288,23 @@ def decision_of(
         draft_output_tokens=draft.usage.output_tokens if draft else None,
         draft_truncated=draft.usage.output_tokens >= max_tokens if draft else None,
         sub_questions=tuple(sub_questions) if sub_questions is not None else None,
+        draft_citations=(
+            tuple(
+                DraftCitation(
+                    quote=p.quote,
+                    chunk_index=p.chunk_index,
+                    section=(
+                        hits[p.chunk_index].chunk.section
+                        if 0 <= p.chunk_index < len(hits)
+                        else None
+                    ),
+                    verified=p.verified,
+                )
+                for p in draft.proposed
+            )
+            if draft
+            else None
+        ),
         hits=tuple(
             HitRecord(
                 rank=h.rank,

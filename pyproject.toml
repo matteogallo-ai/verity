@@ -107,6 +107,7 @@ ignore_names = [
   # tools/prospection/bench.py run record fields, read from resultats.json.
   "scorer_score", "decision", "run_settings", "draft_output_tokens", "draft_truncated",
   "sub_questions",
+  "draft_citations",
   # Parameters of Protocol method signatures that mirror third-party APIs
   # (sentence-transformers encode / predict).
   "sentences", "normalize_embeddings", "show_progress_bar", "convert_to_numpy",
