@@ -62,6 +62,7 @@ def test_the_profile_holds_the_settings_the_bench_measured(profile: dict[str, st
     assert settings.llm_temperature == 0.0
     assert settings.synthesis_max_tokens == 1024
     assert settings.min_citation_coverage == 0.5
+    assert settings.support_check == "figures"
     assert settings.store == "memory"
     assert settings.refusal_text == (
         "Les documents fournis ne permettent pas de répondre. "
