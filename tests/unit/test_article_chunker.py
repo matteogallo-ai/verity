@@ -166,3 +166,31 @@ def test_a_text_without_articles_is_chunked_as_before() -> None:
     document = _doc(text)
     assert ArticleChunker().chunk(document) == StructureAwareChunker().chunk(document)
 
+
+def test_the_setting_selects_the_chunker(monkeypatch: pytest.MonkeyPatch) -> None:
+    from verity.config import get_settings
+    from verity.runtime import create_chunker
+
+    get_settings.cache_clear()
+    assert isinstance(create_chunker(), StructureAwareChunker)
+    monkeypatch.setenv("VERITY_CHUNKING", "articles")
+    get_settings.cache_clear()
+    assert isinstance(create_chunker(), ArticleChunker)
+
+
+def test_the_bench_source_check_reads_the_real_article_from_the_passage() -> None:
+    """Q11 of the landscapers' bench: a citation from the art. 9 passage sources art. 9."""
+    from tools.prospection.bench import CitedQuote, Question, grade
+
+    sunday = _holding(_chunks(_fixture("paysagistes_vd_art8-10.txt")), "supplément de 50%.")
+    question = Question(
+        id=11,
+        question="Quel supplément pour le dimanche ou un jour férié travaillé ?",
+        article="Art. 9.1",
+        expected="50 %",
+        articles=("9",),
+        facts=(("50",),),
+    )
+    cited = (CitedQuote(quote="un supplément de 50%", section=sunday.section),)
+    graded = grade(question, "Un supplément de 50 %.", refused=False, error=None, citations=cited)
+    assert graded.code == "R+S"

@@ -404,6 +404,7 @@ async def run_bench(
             "language": settings.language,
             "name_articles": settings.name_articles,
             "index_tables": settings.index_tables,
+            "chunking": settings.chunking,
             "llm_temperature": settings.llm_temperature,
             "retrieve_original_question": settings.retrieve_original_question,
             "complete_answers": settings.complete_answers,

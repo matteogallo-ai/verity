@@ -134,6 +134,10 @@ class Settings(BaseSettings):
     # to name the part the documents do not cover; the agent then appends that and the
     # referral text. Off by default: it changes the prompt of the published runs.
     complete_answers: bool = False
+    # "articles" cuts a legal text at each article and labels every passage with the
+    # article's number and title (verity.ingestion.article_chunker). Default "structure":
+    # it changes the chunks, and their ids, of every document with article headings.
+    chunking: Literal["structure", "articles"] = "structure"
     min_cited_rerank_score: float = 0.0
     # Off by default: as the first failing check on the dev runs it refused 11
     # answerable records (4 distinct questions) for 5 unanswerable ones (2), and
