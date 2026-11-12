@@ -28,6 +28,9 @@ type Status =
 
 export default function HomePage() {
   const [status, setStatus] = useState<Status>({ kind: "unknown" });
+  // The last /status that answered: it keeps the mode, title and language while the
+  // API is briefly down, so a client never sees the developer view meanwhile.
+  const [lastUp, setLastUp] = useState<StatusResponse | null>(null);
   const [asking, setAsking] = useState(false);
   const [result, setResult] = useState<AskResponse | null>(null);
   const [askError, setAskError] = useState<string | null>(null);
@@ -38,6 +41,7 @@ export default function HomePage() {
     try {
       const response = await fetchStatus();
       setStatus({ kind: "up", response });
+      setLastUp(response);
     } catch (exc) {
       const detail = exc instanceof ApiError ? exc.detail : String(exc);
       setStatus({ kind: "down", detail });
@@ -94,15 +98,16 @@ export default function HomePage() {
     setActiveCitation(idx >= 0 ? idx + 1 : null);
   }, [result]);
 
+  const known = status.kind === "up" ? status.response : lastUp;
   const provenance = result?.provenance ?? (status.kind === "up" ? status.response.provenance : null);
-  const language = labelsLanguage(status.kind === "up" ? status.response.language : undefined);
+  const language = labelsLanguage(known?.language);
   const labels = labelsFor(language);
   const questions = status.kind === "up" ? (status.response.suggested_questions ?? []) : [];
-  const presenting = status.kind === "up" && status.response.ui_mode === "presentation";
-  // Until /status answers, the mode is unknown: show neither view's chrome, so a
-  // client never sees the developer read-outs flash before the presentation.
-  const developer = status.kind === "down" || (status.kind === "up" && !presenting);
-  const corpusName = status.kind === "up" ? status.response.corpus_name : null;
+  // Until a /status answers, the mode is unknown: neither view's chrome is shown, so a
+  // client never sees the developer read-outs before the presentation.
+  const presenting = known !== null && known.ui_mode === "presentation";
+  const developer = known !== null && !presenting;
+  const corpusName = known?.corpus_name ?? null;
   const title = corpusName ? `${labels.presentationTitle} \u2013 ${corpusName}` : labels.presentationTitle;
 
   return (
@@ -126,9 +131,16 @@ export default function HomePage() {
               {status.response.corpus.n_chunks} chunks
             </span>
           )}
-          {status.kind === "down" && (
-            <span role="alert" className="mono down">backend down: {status.detail}</span>
-          )}
+          {status.kind === "down" &&
+            (developer ? (
+              <span role="alert" className="mono down">
+                backend down: {status.detail}
+              </span>
+            ) : (
+              <span role="status" className="mono down" aria-label="connecting">
+                {"\u2026"}
+              </span>
+            ))}
         </div>
       </header>
 

@@ -16,11 +16,19 @@ export function StubModeBanner({
   if (!provenance || !provenance.is_stub) return null;
   return (
     <div role="status" className="banner">
-      {notice ? <span>{notice}</span> : <>
-      <strong>Stub mode</strong>
-      <span> — no LLM key configured. Answers are deterministic and only cover the four demo themes shipped with the corpus. Set{" "}
-        <code>VERITY_ANTHROPIC_API_KEY</code> and restart <code>verity serve</code> for live answers.</span>
-      </>}
+      {notice ? (
+        <span>{notice}</span>
+      ) : (
+        <>
+          <strong>Stub mode</strong>
+          <span>
+            {" "}
+            — no LLM key configured. Answers are deterministic and only cover the four demo
+            themes shipped with the corpus. Set <code>VERITY_ANTHROPIC_API_KEY</code> and
+            restart <code>verity serve</code> for live answers.
+          </span>
+        </>
+      )}
       <style jsx>{`
         .banner {
           display: flex;

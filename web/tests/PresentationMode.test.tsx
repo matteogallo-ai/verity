@@ -158,18 +158,27 @@ describe("presentation mode", () => {
     expect(document.body.textContent).not.toMatch(/evaluated, observable RAG|Drop a file/);
   });
 
-  it("retries /status until the API is up", async () => {
+  it("retries /status until the API is up, showing no developer text meanwhile", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { fetchStatus } = await import("@/lib/api");
     state.uiMode = "presentation";
     state.statusFailures = 1;
     render(<HomePage />);
-    expect(await screen.findByRole("alert")).toHaveTextContent(/connection refused/);
+    expect(await screen.findByRole("status")).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(
+      /connection refused|backend down|evaluated, observable RAG|Drop a file/,
+    );
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5000);
     });
     expect(
       await screen.findByRole("heading", { name: "Assistant CCT – CCT Métal-Vaud" }),
     ).toBeInTheDocument();
+    const calls = vi.mocked(fetchStatus).mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10000);
+    });
+    expect(vi.mocked(fetchStatus).mock.calls.length).toBe(calls);
   });
 
   it("hides the technical detail of a failed question", async () => {

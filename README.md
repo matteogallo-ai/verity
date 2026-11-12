@@ -86,7 +86,7 @@ justification en français. Les motifs fixes (citation absente, réponses du stu
 plus) ; sans ce fichier, aucune n'est proposée (C39).
 
 Le profil ouvre le **mode présentation** (`VERITY_UI_MODE=presentation`), la vue d'un
-membre : un titre « Assistant CCT », suivi de `NAME` s'il est donné, la question, les
+membre : un titre « Assistant CCT », suivi de `CORPUS_NAME` s'il est donné, la question, les
 questions proposées, puis la réponse avec, pour chaque citation, l'article et l'extrait,
 ou le seul message de refus. Sont masqués l'ajout de document, le modèle, la confiance,
 la justification, la latence, les jetons, le coût, les identifiants, les positions et les
