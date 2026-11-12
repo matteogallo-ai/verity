@@ -320,6 +320,7 @@ async def test_the_article_note_is_a_paragraph_of_its_own() -> None:
         ("au 1er janvier", "au 1 er janvier"),
         ("de la 2 e année", "de la 2e année"),
         ("dès la 3 ème année", "dès la 3ème année"),
+        ("dès la 3ème année", "dès la 3 ème année"),
         ("la 1 re année,", "la 1re année,"),
         ("la 1 ère année", "la 1ère année"),
     ],
