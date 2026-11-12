@@ -380,6 +380,47 @@ def test_serve_warns_when_bound_to_all_interfaces(monkeypatch: pytest.MonkeyPatc
     assert "reachable from other machines" in output
 
 
+def test_serve_ingests_the_corpus_it_is_given(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The CCT demo serves one agreement's folder, not the shipped eval corpus."""
+    import uvicorn
+
+    import verity.api
+
+    built: dict = {}  # type: ignore[type-arg]
+    monkeypatch.setattr(verity.api, "create_app", lambda **kw: built.update(kw) or object())
+    monkeypatch.setattr(uvicorn, "run", lambda *_a, **_kw: None)
+    result = runner.invoke(app, ["serve", "--corpus", str(tmp_path)], env={"COLUMNS": "200"})
+    assert result.exit_code == 0, result.output
+    assert built["corpus_dir"] == tmp_path
+
+
+def test_serve_defaults_to_the_shipped_corpus(monkeypatch: pytest.MonkeyPatch) -> None:
+    import uvicorn
+
+    import verity.api
+
+    built: dict = {}  # type: ignore[type-arg]
+    monkeypatch.setattr(verity.api, "create_app", lambda **kw: built.update(kw) or object())
+    monkeypatch.setattr(uvicorn, "run", lambda *_a, **_kw: None)
+    assert runner.invoke(app, ["serve"]).exit_code == 0
+    assert built["corpus_dir"] == Path("datasets/corpus")
+
+
+def test_serve_refuses_a_corpus_that_does_not_exist(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A mistyped CORPUS= would otherwise serve an empty index and refuse every question."""
+    import uvicorn
+
+    monkeypatch.setattr(uvicorn, "run", lambda *_a, **_kw: pytest.fail("must not serve"))
+    result = runner.invoke(
+        app, ["serve", "--corpus", str(tmp_path / "absent")], env={"COLUMNS": "200"}
+    )
+    assert result.exit_code == 2
+
+
 def test_serve_refuses_to_start_without_api_keys(monkeypatch: pytest.MonkeyPatch) -> None:
     import uvicorn
 
