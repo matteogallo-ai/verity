@@ -28,6 +28,10 @@ export interface Labels {
   cited: string;
   notCited: string;
   noSection: string;
+  readoutGroup: string;
+  signalsGroup: string;
+  usageGroup: string;
+  operationalGroup: string;
   hitKind: Record<string, string>;
   chunk: string;
   doc: string;
@@ -68,6 +72,10 @@ const EN: Labels = {
   cited: "cited",
   notCited: "not-cited",
   noSection: "(no section)",
+  readoutGroup: "Confidence readout (agent-reported score plus underlying signals)",
+  signalsGroup: "underlying signals",
+  usageGroup: "Usage",
+  operationalGroup: "Operational",
   hitKind: {},
   chunk: "chunk",
   doc: "doc",
@@ -84,10 +92,10 @@ const FR: Labels = {
   answer: "réponse",
   refused: "refus",
   refusalNote:
-    "L'agent a refusé plutôt que de livrer le brouillon : une vérification des citations a " +
+    "L'agent a refusé plutôt que de livrer le brouillon : une vérification des citations a " +
     "échoué, l'évaluateur a refusé, ou son score était sous le seuil. La justification " +
-    "ci-dessus en donne la cause ; les passages examinés restent affichés dans le panneau " +
-    "de droite.",
+    "ci-dessus en donne la cause ; les passages examinés restent affichés dans le panneau " +
+    "de droite, pour vérification.",
   confidence: "confiance",
   agentReported: "fourni par l'agent",
   refusedSignal: "refusé",
@@ -103,19 +111,23 @@ const FR: Labels = {
     "calcul ni mise à l'échelle par l'interface. À lire avec les indicateurs ci-dessus.",
   citation: "Citation",
   sources: "sources",
-  sourcesNote: "score de pertinence · « citée » selon l'API",
+  sourcesNote: "score de pertinence · « citée » selon l'API",
   sourcesEmpty: "Les passages utilisés par l'agent s'affichent ici après une question.",
   cited: "citée",
   notCited: "non citée",
   noSection: "(sans section)",
+  readoutGroup: "Lecture de la confiance (score fourni par l'agent et indicateurs)",
+  signalsGroup: "indicateurs",
+  usageGroup: "Consommation",
+  operationalGroup: "Fonctionnement",
   hitKind: { dense: "dense", sparse: "lexical", fused: "fusion", reranked: "reclassement" },
   chunk: "passage",
   doc: "doc",
   chars: "car.",
   latency: "latence",
   llmCalls: "appels LLM",
-  inTokens: "tokens entrée",
-  outTokens: "tokens sortie",
+  inTokens: "jetons d'entrée",
+  outTokens: "jetons de sortie",
   cost: "coût",
   trace: "trace",
 };
@@ -131,8 +143,9 @@ export function labelsFor(language: string | undefined): Labels {
   return LABELS[labelsLanguage(language)];
 }
 
-/** "reranked: 4.038" in English, "reclassement : 4.038" in French; an unknown kind as sent. */
+/** "reranked: 4.038" in English, "reclassement : 4.038" in French (a narrow no-break
+ * space before the colon); an unknown kind as sent. */
 export function hitScoreLabel(labels: Labels, kind: string): string {
   const name = labels.hitKind[kind];
-  return name === undefined ? `${kind}:` : `${name} :`;
+  return name === undefined ? `${kind}:` : `${name} :`;
 }

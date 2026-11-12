@@ -96,7 +96,7 @@ export function AnswerCard(props: AnswerCardProps) {
           );
         })}
       </ul>
-      <footer className="usage mono" aria-label="Usage">
+      <footer className="usage mono" aria-label={t.usageGroup}>
         <span>{t.latency} <b>{answer.usage.latency_ms.toFixed(0)} ms</b></span>
         <span>{t.llmCalls} <b>{answer.usage.llm_calls}</b></span>
         <span>{t.inTokens} <b>{answer.usage.input_tokens}</b></span>

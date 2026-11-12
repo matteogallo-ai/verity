@@ -4,7 +4,7 @@ import { AnswerCard } from "@/components/AnswerCard";
 import { ConfidenceReadout } from "@/components/ConfidenceReadout";
 import { RefusalState } from "@/components/RefusalState";
 import { SourcePanel } from "@/components/SourcePanel";
-import { labelsFor } from "@/lib/labels";
+import { labelsFor, type Labels } from "@/lib/labels";
 import { CITED_ANSWER, REFUSED_ANSWER } from "./fixtures";
 
 // VERITY_LANGUAGE=fr: the API answers and refuses in French, so the text around a
@@ -84,7 +84,7 @@ describe("labels in the corpus language", () => {
     );
     expect(screen.getAllByText("citée").length).toBeGreaterThan(0);
     expect(screen.queryByText(/^reranked:/)).toBeNull();
-    expect(screen.getAllByText(/^reclassement :/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^reclassement\s:/).length).toBeGreaterThan(0);
     expect(screen.queryByText("cited")).toBeNull();
     expect(screen.queryByText("not-cited")).toBeNull();
   });
@@ -94,5 +94,39 @@ describe("labels in the corpus language", () => {
       <SourcePanel answer={null} activeChunkId={null} onChunkClick={() => {}} language="fr" />
     );
     expect(screen.getByText(/s'affichent ici/)).toBeInTheDocument();
+  });
+});
+
+describe("French labels for assistive technology and typography", () => {
+  it("names the readout and usage groups in French", () => {
+    render(
+      <RefusalState
+        answer={REFUSED_ANSWER.answer}
+        provenance={REFUSED_ANSWER.provenance}
+        language="fr"
+      />
+    );
+    expect(screen.getByRole("group", { name: /lecture de la confiance/i })).toBeInTheDocument();
+    expect(screen.getByLabelText("indicateurs")).toBeInTheDocument();
+    expect(screen.getByLabelText("Fonctionnement")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/underlying signals|Operational/)).toBeNull();
+  });
+
+  it("keeps the English labels for assistive technology by default", () => {
+    render(
+      <RefusalState answer={REFUSED_ANSWER.answer} provenance={REFUSED_ANSWER.provenance} />
+    );
+    expect(screen.getByLabelText("underlying signals")).toBeInTheDocument();
+    expect(screen.getByLabelText("Operational")).toBeInTheDocument();
+  });
+
+  it("never lets a French line break before : ; ! ? » or after «", () => {
+    const fr: Labels = labelsFor("fr");
+    const strings = Object.values(fr).flatMap((v) =>
+      typeof v === "string" ? [v] : Object.values(v as Record<string, string>)
+    );
+    for (const s of strings) {
+      expect(s, s).not.toMatch(/ [:;!?»]|« /);
+    }
   });
 });

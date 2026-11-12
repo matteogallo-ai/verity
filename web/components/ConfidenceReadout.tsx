@@ -40,14 +40,14 @@ export function ConfidenceReadout({
     <section
       className="readout"
       role="group"
-      aria-label="Confidence readout (agent-reported score plus underlying signals)"
+      aria-label={t.readoutGroup}
     >
       <div className="head">
         <span className="lbl">{t.confidence}</span>
         <span className="mono val">{scoreDisplay}</span>
         <span className="prov mono">· {label}</span>
       </div>
-      <ul className="signals" aria-label="underlying signals">
+      <ul className="signals" aria-label={t.signalsGroup}>
         <li>
           <span className="k">{t.refusedSignal}</span>
           <span className="v mono">{answer.confidence.refused ? t.yes : t.no}</span>

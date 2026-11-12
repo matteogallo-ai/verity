@@ -34,7 +34,7 @@ export function RefusalState({
       </header>
       <p className="text">{answer.text}</p>
       <ConfidenceReadout answer={answer} provenance={provenance} language={language} />
-      <div className="ops mono" aria-label="Operational">
+      <div className="ops mono" aria-label={t.operationalGroup}>
         <span>{t.latency} <b>{answer.usage.latency_ms.toFixed(0)} ms</b></span>
         <span>{t.llmCalls} <b>{answer.usage.llm_calls}</b></span>
       </div>
