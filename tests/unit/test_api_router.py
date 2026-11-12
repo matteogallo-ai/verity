@@ -23,6 +23,16 @@ def client(tmp_path: Path):  # type: ignore[no-untyped-def]
         yield test_client
 
 
+def test_status_reports_the_corpus_language_for_the_ui(client) -> None:  # type: ignore[no-untyped-def]
+    """The UI labels a refusal and its citations in this language; English by default."""
+    assert client.get("/status").json()["language"] == "en"
+
+
+def test_status_reports_french_when_the_corpus_is_french(tmp_path: Path) -> None:
+    with api_app(tmp_path, Settings(api_auth_disabled=True, language="fr")) as test_client:
+        assert test_client.get("/status").json()["language"] == "fr"
+
+
 def test_status_reports_real_provenance_and_corpus(client) -> None:  # type: ignore[no-untyped-def]
     r = client.get("/status")
     assert r.status_code == 200

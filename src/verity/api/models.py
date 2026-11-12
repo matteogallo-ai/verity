@@ -14,6 +14,8 @@ Rule of iron: no computed field, no fabricated score, no invented composite
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from verity.types import Answer, RetrievalHit
@@ -122,6 +124,8 @@ class StatusResponse(BaseModel, frozen=True):
     provenance: Provenance
     corpus: CorpusSummary
     otel_endpoint: str | None
+    # The corpus language (VERITY_LANGUAGE): the UI labels refusals and citations in it.
+    language: Literal["en", "fr"]
 
 
 # --------------------------------------------------------------------------------------
