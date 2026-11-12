@@ -1,5 +1,6 @@
 /**
- * The text around an answer, a refusal and their evidence, in the corpus language the
+ * The text of the question box, and around an answer, a refusal and their evidence, in
+ * the corpus language the
  * API reports on /status (VERITY_LANGUAGE). The answer and the refusal are already in
  * that language; a French refusal under an English explanation reads as a broken page.
  * Any language the API names that is not listed here falls back to English.
@@ -7,6 +8,13 @@
 export type Language = "en" | "fr";
 
 export interface Labels {
+  questionPlaceholder: string;
+  ask: string;
+  asking: string;
+  askFailed: string;
+  ready: string;
+  readyHint: string;
+  readyHintWithQuestions: string;
   answer: string;
   refused: string;
   refusalNote: string;
@@ -45,6 +53,15 @@ export interface Labels {
 }
 
 const EN: Labels = {
+  questionPlaceholder: "Ask a question about the ingested documents\u2026",
+  ask: "Ask",
+  asking: "asking\u2026",
+  askFailed: "ask failed:",
+  ready: "Ready.",
+  readyHint: "Ask a question about the ingested documents (or upload a doc first).",
+  readyHintWithQuestions:
+    "Ask a question about the ingested documents. Try one of the demo questions above " +
+    "(or upload a doc first).",
   answer: "answer",
   refused: "refused",
   refusalNote:
@@ -89,6 +106,15 @@ const EN: Labels = {
 };
 
 const FR: Labels = {
+  questionPlaceholder: "Posez une question sur les documents\u2026",
+  ask: "Demander",
+  asking: "recherche en cours\u2026",
+  askFailed: "échec de la question\u202f:",
+  ready: "Prêt.",
+  readyHint: "Posez une question sur les documents (ou ajoutez d'abord un document).",
+  readyHintWithQuestions:
+    "Posez une question sur les documents. Essayez l'une des questions proposées " +
+    "ci-dessus (ou ajoutez d'abord un document).",
   answer: "réponse",
   refused: "refus",
   refusalNote:
