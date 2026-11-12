@@ -79,6 +79,8 @@ async def status_endpoint(request: Request) -> StatusResponse:
         otel_endpoint=settings.otel_endpoint,
         language=settings.language,
         suggested_questions=runtime.suggested_questions(),
+        ui_mode=settings.ui_mode,
+        corpus_name=settings.corpus_name,
     )
 
 

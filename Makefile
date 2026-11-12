@@ -18,17 +18,19 @@ demo: ui-install db
 		cd web && NEXT_PUBLIC_API_BASE=http://localhost:8000 corepack pnpm dev'
 
 # Demo on one collective agreement, in French, for a client meeting:
-#   make demo-cct CORPUS=<folder of the agreement> [LIVE=1]
+#   make demo-cct CORPUS=<folder of the agreement> [LIVE=1] [NAME="CCT Métal-Vaud"]
 # The API ingests CORPUS in memory under profiles/demo-cct-fr.env while the web UI
 # starts on :3000; the UI answers once /ready does. Only LIVE=1 keeps the provider key
 # (from .env or the shell), and every answer is then paid; any other value, LIVE=0
 # included, blanks the keys and the scripted stub answers.
 LIVE_DEMO = $(filter 1,$(LIVE))
+# The title of the presentation view; without NAME it reads only "Assistant CCT".
+CORPUS_NAME_ENV = $(if $(NAME),VERITY_CORPUS_NAME="$(NAME)",)
 
 demo-cct: demo-cct-args ui-install
 	@echo "==> CCT demo on $(CORPUS) (API :8000 · web :3000, $(if $(LIVE_DEMO),live: answers are paid,stub))"
 	@bash -c 'trap "kill %1 2>/dev/null" EXIT; \
-		set -a; . profiles/demo-cct-fr.env; set +a; $(if $(LIVE_DEMO),,$(BLANK_KEYS)) uv run verity serve --host 127.0.0.1 --port 8000 --corpus "$(CORPUS)" & \
+		set -a; . profiles/demo-cct-fr.env; set +a; $(if $(LIVE_DEMO),,$(BLANK_KEYS)) $(CORPUS_NAME_ENV) uv run verity serve --host 127.0.0.1 --port 8000 --corpus "$(CORPUS)" & \
 		cd web && NEXT_PUBLIC_API_BASE=http://localhost:8000 corepack pnpm dev'
 
 # Before ui-install, so a missing folder fails at once.
