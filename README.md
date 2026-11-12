@@ -67,7 +67,7 @@ runs the stub agent even when `.env` holds a provider key.
 ```bash
 make demo-cct CORPUS=chemin/vers/le/dossier/de/la/cct           # agent stub, gratuit (LIVE=0 aussi)
 make demo-cct CORPUS=chemin/vers/le/dossier/de/la/cct LIVE=1    # modèle réel, réponses payantes
-make demo-cct CORPUS=… LIVE=1 NAME="CCT Métal-Vaud"                # titre « Assistant CCT – CCT Métal-Vaud »
+make demo-cct CORPUS=… LIVE=1 CORPUS_NAME="CCT Métal-Vaud"         # titre « Assistant CCT – CCT Métal-Vaud »
 ```
 
 L'API ingère le dossier (PDF, DOCX, Markdown ou texte) en mémoire avec les réglages de
