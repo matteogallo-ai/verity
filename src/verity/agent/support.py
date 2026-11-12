@@ -35,7 +35,14 @@ What this gets wrong by design:
 - Coverage does not check figures: "60 days" is covered by a quote saying "30 days"
   if the other words match. A rule requiring every number and date to be quoted,
   measured on the live runs, refused correct answers that compute or restate a figure
-  (docs/audit/2026-11-03-figure-rule-measurement.md), so it is not applied.
+  (docs/audit/2026-11-03-figure-rule-measurement.md), so it is not the default.
+
+``VERITY_SUPPORT_CHECK=figures`` is that rule, for corpora where the figure is the
+answer (wages, notice periods, percentages of a collective agreement): every figure
+of the answer must be in a verified quote, the question or a cited heading
+(``unquoted_figure``), and coverage counts the words of the question and of the cited
+headings as covered, since an answer restates what it was asked. It still refuses a
+correct answer that adds a figure it does not quote, or computes one.
 - The marker list is fixed patterns: a benign document with a ``System:`` line or a
   ``"score":`` key is distrusted as a whole, and every answer citing it is refused.
 """
@@ -48,9 +55,11 @@ from dataclasses import dataclass
 from typing import Literal
 
 from verity.agent.evidence import DELIMITER_TAGS, neutralise
+from verity.agent.figures import figures
 from verity.types import Citation, RefusalReason, RetrievalHit, RetrieverKind
 
 Language = Literal["en", "fr"]
+SupportRule = Literal["coverage", "figures"]
 
 _WORD_RE = re.compile(r"[a-z0-9]+")
 # Letters and digits of any script; ``_`` is a word character but not a letter.
@@ -258,15 +267,32 @@ def suspected_documents(hits: list[RetrievalHit]) -> set[str]:
 
 
 def citation_coverage(
-    answer: str, citations: tuple[Citation, ...], *, language: Language = "en"
+    answer: str,
+    citations: tuple[Citation, ...],
+    *,
+    language: Language = "en",
+    given: str = "",
 ) -> float:
-    """Share of ``answer``'s content words found in the cited quotes; 1.0 when the
-    answer has none."""
+    """Share of ``answer``'s content words found in the cited quotes or in ``given``
+    (text the answer may restate without a quote); 1.0 when the answer has none."""
     answer_words = content_words(answer, language=language)
     if not answer_words:
         return 1.0
-    quoted = content_words(" ".join(c.quote for c in citations), language=language)
+    quoted = content_words(" ".join([*(c.quote for c in citations), given]), language=language)
     return len(answer_words & quoted) / len(answer_words)
+
+
+def unquoted_figures(
+    answer: str, citations: tuple[Citation, ...], *, language: Language, given: str
+) -> set[str]:
+    """Figures of ``answer`` found in no cited quote and not in ``given``."""
+    known = figures(" ".join([*(c.quote for c in citations), given]), language=language)
+    return figures(answer, language=language, skip_references=True) - known
+
+
+def _cited_sections(citations: tuple[Citation, ...], hits: list[RetrievalHit]) -> str:
+    cited = {c.chunk_id for c in citations}
+    return " ".join(h.chunk.section for h in hits if h.chunk.id in cited and h.chunk.section)
 
 
 def best_cited_rerank_score(
@@ -282,11 +308,17 @@ class SupportCheck:
     coverage: float
     cited_rerank_score: float | None
     reason: RefusalReason | None
+    missing_figures: tuple[str, ...] = ()
 
     @property
     def rationale(self) -> str:
         if self.reason is RefusalReason.SUSPECTED_INJECTION:
             return "A cited document contains text that tries to instruct the model."
+        if self.reason is RefusalReason.UNQUOTED_FIGURE:
+            return (
+                f"The answer states {', '.join(self.missing_figures)}, which no cited "
+                "quote contains."
+            )
         if self.reason is RefusalReason.LOW_CITATION_COVERAGE:
             return (
                 f"Only {self.coverage:.0%} of the answer's content words appear in its "
@@ -308,26 +340,43 @@ def check_support(
     min_coverage: float,
     min_rerank_score: float,
     language: Language = "en",
+    rule: SupportRule = "coverage",
+    question: str = "",
 ) -> SupportCheck:
-    coverage = citation_coverage(answer, citations, language=language)
+    given = f"{question} {_cited_sections(citations, hits)}" if rule == "figures" else ""
+    coverage = citation_coverage(answer, citations, language=language, given=given)
+    missing = (
+        sorted(unquoted_figures(answer, citations, language=language, given=given))
+        if rule == "figures"
+        else []
+    )
     rerank = best_cited_rerank_score(citations, hits)
     suspected = suspected_documents(hits)
     reason: RefusalReason | None = None
     if any(str(c.document_id) in suspected for c in citations):
         reason = RefusalReason.SUSPECTED_INJECTION
+    elif missing:
+        reason = RefusalReason.UNQUOTED_FIGURE
     elif coverage < min_coverage:
         reason = RefusalReason.LOW_CITATION_COVERAGE
     elif rerank is not None and rerank < min_rerank_score:
         reason = RefusalReason.IRRELEVANT_CITATION
-    return SupportCheck(coverage=coverage, cited_rerank_score=rerank, reason=reason)
+    return SupportCheck(
+        coverage=coverage,
+        cited_rerank_score=rerank,
+        reason=reason,
+        missing_figures=tuple(missing),
+    )
 
 
 __all__ = [
     "SupportCheck",
+    "SupportRule",
     "best_cited_rerank_score",
     "check_support",
     "citation_coverage",
     "content_words",
     "has_injection_marker",
     "suspected_documents",
+    "unquoted_figures",
 ]

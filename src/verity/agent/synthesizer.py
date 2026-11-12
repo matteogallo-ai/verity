@@ -54,6 +54,15 @@ COMPLETE_NOTE = (
 )
 
 
+# Appended to the system message with VERITY_SUPPORT_CHECK=figures, whose gate refuses
+# an answer stating a figure no citation quotes.
+FIGURE_NOTE = (
+    "\n\nQuote, in a citation, the text holding every amount, duration, date and "
+    "percentage the answer states, and write each one as that text does. Leave out a "
+    "figure you cannot quote."
+)
+
+
 @dataclass(frozen=True)
 class ProposedCitation:
     """A quote as the draft proposed it, and whether the citation check found it."""
@@ -106,8 +115,12 @@ class CitedSynthesizer:
         datamarked: bool = True,
         name_articles: bool | None = None,
         complete_answers: bool | None = None,
+        quote_figures: bool | None = None,
     ) -> None:
         self._client = client
+        self._quote_figures = (
+            get_settings().support_check == "figures" if quote_figures is None else quote_figures
+        )
         self._name_articles = (
             get_settings().name_articles if name_articles is None else name_articles
         )
@@ -135,6 +148,7 @@ class CitedSynthesizer:
             datamark_note=DATAMARK_NOTE if self._datamarked else "",
             article_note=ARTICLE_NOTE if self._name_articles else "",
             answer_note=COMPLETE_NOTE if self._complete_answers else "",
+            figure_note=FIGURE_NOTE if self._quote_figures else "",
         )
         completion = await self._client.complete(messages, max_tokens=self._max_tokens)
         self.last_usage = completion.usage

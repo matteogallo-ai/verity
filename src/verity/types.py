@@ -143,6 +143,7 @@ class RefusalReason(StrEnum):
     SCORER_UNPARSEABLE = "scorer_unparseable"
     NO_CITATION = "no_citation"
     LOW_CITATION_COVERAGE = "low_citation_coverage"
+    UNQUOTED_FIGURE = "unquoted_figure"
     IRRELEVANT_CITATION = "irrelevant_citation"
     SUSPECTED_INJECTION = "suspected_injection"
 
