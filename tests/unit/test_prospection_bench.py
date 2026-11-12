@@ -335,6 +335,7 @@ def test_a_stub_run_writes_both_files(tmp_path: Path) -> None:
     assert run["run_settings"]["language"] == "en"
     assert run["run_settings"]["name_articles"] is False
     assert run["run_settings"]["index_tables"] is False
+    assert run["run_settings"]["llm_temperature"] is None
     assert run["run_settings"]["refusal_text"] == referral
     # The scripted stub knows none of this corpus's themes, so it refuses.
     assert run["results"][0]["refused"]

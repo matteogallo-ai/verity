@@ -83,6 +83,10 @@ class Settings(BaseSettings):
     # Worst case per provider: llm_timeout_s * (llm_max_retries + 1).
     llm_timeout_s: float = Field(default=30.0, gt=0.0)
     llm_max_retries: int = Field(default=2, ge=0)
+    # Sampling temperature of every model call. None sends none, the provider default
+    # (ADR 0007); a value is sent on Anthropic API version 2023-06-01, the last that
+    # accepts one, so legal answers to the same question vary less (ADR 0009).
+    llm_temperature: float | None = Field(default=None, ge=0.0, le=1.0)
     model_prices: dict[str, ModelPrice] = Field(default_factory=lambda: dict(DEFAULT_MODEL_PRICES))
     # Default cap for one `verity ask`. A live answer on the default model cost
     # $0.012 on average in the run of record (scorecards/live-v1.0.0.json); $1 stops a

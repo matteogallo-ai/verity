@@ -96,12 +96,18 @@ def _lazy_anthropic() -> Any:
     return anthropic
 
 
+# The last Anthropic API version that accepts a sampling temperature.
+_SAMPLING_API_VERSION = "2023-06-01"
+
+
 class AnthropicClient(LLMClient):
     """Anthropic Messages API. Model + key resolved from config/env.
 
-    No sampling parameter is sent: API version 2026-10-21 rejects ``temperature``,
-    ``top_p`` and ``top_k`` (400), and Claude 4.7+ models accept only the defaults.
-    Eval reproducibility rests on the recorded artefacts, not on sampling (ADR 0007).
+    By default no sampling parameter is sent: API version 2026-10-21 rejects
+    ``temperature``, ``top_p`` and ``top_k`` (400), and Claude 4.7+ models accept only
+    the defaults. Eval reproducibility rests on the recorded artefacts (ADR 0007).
+    With ``llm_temperature`` set, the call goes out on API version 2023-06-01 with that
+    temperature, which only models before Claude 4.7 accept (ADR 0009).
     """
 
     def __init__(
@@ -130,6 +136,17 @@ class AnthropicClient(LLMClient):
             input_tokens * self._price.input_usd_per_mtok
             + output_tokens * self._price.output_usd_per_mtok
         ) / 1_000_000
+
+    def _sampling(self) -> dict[str, Any]:
+        temperature = self._settings.llm_temperature
+        if temperature is None:
+            return {}
+        # The pinned SDK's typed signature no longer has ``temperature``, and its
+        # default API version rejects the field: both are overridden for this call only.
+        return {
+            "extra_headers": {"anthropic-version": _SAMPLING_API_VERSION},
+            "extra_body": {"temperature": temperature},
+        }
 
     def _get_client(self) -> Any:
         if self._client is None:
@@ -171,6 +188,7 @@ class AnthropicClient(LLMClient):
                 max_tokens=max_tokens,
                 system=system,
                 messages=[{"role": m.role.value, "content": m.content} for m in chat],
+                **self._sampling(),
             )
             resp = await _parsed(raw)
         # Every vendor failure is translated to a typed Verity error and re-raised.
@@ -285,6 +303,11 @@ class OpenAIClient(LLMClient):
                 model=self._model,
                 max_tokens=max_tokens,
                 messages=[{"role": m.role.value, "content": m.content} for m in messages],
+                **(
+                    {}
+                    if self._settings.llm_temperature is None
+                    else {"temperature": self._settings.llm_temperature}
+                ),
             )
             resp = await _parsed(raw)
         # Every vendor failure is translated to a typed Verity error and re-raised.

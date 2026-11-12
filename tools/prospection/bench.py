@@ -113,7 +113,7 @@ class Run(BaseModel):
     corpus: dict[str, str]  # file name -> sha256
     n_chunks: int
     # Models, thresholds and refusal text in force: what an A/B comparison must vary.
-    run_settings: dict[str, str | float | int | bool]
+    run_settings: dict[str, str | float | int | bool | None]
     budget_usd: float
     spent_usd: float = 0.0
     results: list[Result] = Field(default_factory=list)
@@ -351,6 +351,7 @@ async def run_bench(
             "language": settings.language,
             "name_articles": settings.name_articles,
             "index_tables": settings.index_tables,
+            "llm_temperature": settings.llm_temperature,
             "synthesis_max_tokens": synthesizer.max_tokens,
             "embedding_model": settings.embedding_model,
             "reranker_model": settings.reranker_model,

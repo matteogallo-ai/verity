@@ -1,6 +1,6 @@
 # ADR 0007 — Eval reproducibility rests on recorded artefacts, not on sampling
 
-**Status:** accepted · 2026-11
+**Status:** accepted · 2026-11 · amended by [ADR 0009](0009-opt-in-sampling-temperature.md)
 
 ## Context
 The agent and the judge used to send `temperature=0.0` (Anthropic through `extra_body`,
