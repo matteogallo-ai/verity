@@ -122,3 +122,4 @@ def test_article_chunker_invariant_holds_on_corpus() -> None:
         assert chunks, f"article chunker produced no chunks for {doc.uri}"
         for chunk in chunks:
             assert doc.text[chunk.char_start : chunk.char_end] == chunk.text, doc.uri
+        assert " ".join(c.text for c in chunks).split() == doc.text.split(), doc.uri

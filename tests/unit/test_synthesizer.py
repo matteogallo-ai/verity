@@ -346,6 +346,14 @@ def test_a_free_ordinal_gap_does_not_loosen_the_words(quote: str) -> None:
     assert _validate_citations([(quote, 0)], hits) == ()
 
 
+@pytest.mark.parametrize(
+    ("in_document", "quote"),
+    [("envoyer 2 e-mail", "envoyer 2e-mail"), ("lettre 2 e)", "lettre 2e)"), ("1 e5", "1e5")],
+)
+def test_only_a_whole_ordinal_suffix_joins_its_number(in_document: str, quote: str) -> None:
+    assert _validate_citations([(quote, 0)], [_hit(in_document, cs=0)]) == ()
+
+
 @pytest.mark.asyncio
 async def test_every_quote_the_draft_proposed_is_kept_with_whether_it_was_found() -> None:
     """A refused answer drops its citations; the proposed quotes say why one was rejected."""

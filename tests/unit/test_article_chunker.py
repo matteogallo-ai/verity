@@ -77,7 +77,9 @@ def test_a_long_article_is_split_by_paragraph_under_the_same_label() -> None:
     article_10 = [c for c in chunks if c.metadata["article"] == "10"]
     assert len(article_10) > 1
     assert {c.section for c in article_10} == {"Art. 10 Salaires minimums"}
+    # Only a single paragraph over the budget may exceed it: it is never cut.
     assert all(len(c.text.split()) <= 120 or "\n\n" not in c.text for c in article_10)
+    assert all(len(c.text.split()) <= 120 for c in article_10 if "\n\n" in c.text)
     assert [c.ordinal for c in chunks] == list(range(len(chunks)))
 
 
@@ -194,3 +196,70 @@ def test_the_bench_source_check_reads_the_real_article_from_the_passage() -> Non
     cited = (CitedQuote(quote="un supplément de 50%", section=sunday.section),)
     graded = grade(question, "Un supplément de 50 %.", refused=False, error=None, citations=cited)
     assert graded.code == "R+S"
+
+
+_S = "Le travailleur a droit à cette disposition dans tous les cas prévus."
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "Art. 15 de la présente convention s'applique par analogie.",
+        "Art. 15 du Code des obligations est réservé.",
+        "Article 3 LAA",
+        "Article 1 de la CCT reste applicable aux apprentis :",
+    ],
+)
+def test_a_sentence_that_names_an_article_does_not_swallow_the_articles_after_it(
+    line: str,
+) -> None:
+    text = f"Art. 9 Vacances\n\n{_S}\n\n{line}\n\n{_S}\n\nArt. 10 Salaires\n\n{_S}\n\nArt. 11 Fin\n\n{_S}"
+    chunks = _chunks(_doc(text))
+    assert [c.metadata["article"] for c in chunks] == ["9", "10", "11"]
+
+
+def test_a_line_of_prose_that_starts_with_annexe_opens_no_annex() -> None:
+    text = (
+        f"Art. 9 Vacances\n\n{_S}\n\n"
+        "Annexe au présent contrat : les salaires figurent dans le tableau.\n\n"
+        f"Art. 10 Salaires\n\n{_S}"
+    )
+    chunks = _chunks(_doc(text))
+    assert [c.section for c in chunks] == ["Art. 9 Vacances", "Art. 10 Salaires"]
+
+
+def test_art_1er_is_article_1() -> None:
+    (chunk,) = _chunks(_doc(f"Art. 1er Champ d'application\n\n{_S}"))
+    assert chunk.metadata == {"article": "1", "article_title": "Champ d'application"}
+
+
+def test_a_small_table_under_a_title_keeps_that_title() -> None:
+    text = (
+        "ANNEXE II\n\nTous les cantons\n\nClasse A : 5'509\n\n"
+        f"Genève\n\nClasse A : 4'958 ; {_S} {_S} {_S}"
+    )
+    chunks = _chunks(_doc(text))
+    assert _holding(chunks, "5'509").section == "ANNEXE II > Tous les cantons"
+    assert _holding(chunks, "4'958").section == "ANNEXE II > Genève"
+
+
+def test_a_small_last_table_under_a_new_title_is_not_merged_into_the_one_before() -> None:
+    text = (
+        f"ANNEXE II\n\n{_S}\n\nTous les cantons\n\nClasse A : 5'509 ; {_S} {_S} {_S}\n\n"
+        "Genève\n\nClasse A : 4'958 ; classe B : 4'500"
+    )
+    chunks = _chunks(_doc(text))
+    assert _holding(chunks, "5'509").section == "ANNEXE II > Tous les cantons"
+    assert _holding(chunks, "4'958").section == "ANNEXE II > Genève"
+
+
+def test_an_annex_head_before_a_list_entry_opens_the_next_article() -> None:
+    text = (
+        f"Art. 9 Vacances\n\n{_S}\n\n"
+        "Annexe VI\n\nCaution\n\nArt. 1 Principe\n\n"
+        f"Art. 2 Utilisation\n\n{_S}"
+    )
+    chunks = _chunks(_doc(text))
+    assert chunks[0].text == f"Art. 9 Vacances\n\n{_S}"
+    assert chunks[1].section == "Annexe VI > Art. 2 Utilisation"
+    assert chunks[1].text.startswith("Annexe VI")

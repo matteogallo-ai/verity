@@ -270,15 +270,17 @@ _DOUBLE_QUOTE_SPLIT_RE = re.compile(f"([{re.escape(_DOUBLE_QUOTES)}])")
 # A PDF prints an ordinal's suffix as a superscript, and text extraction separates it
 # from its number ("au 1 er janvier") where a model types "1er", or the reverse: the
 # gap between a number and its ordinal suffix is optional too.
-_ORDINAL_SUFFIX = r"(?:ères?|ers?|res?|èmes?|emes?|es?|ndes?|nds?)(?![^\W\d_])"
-_ORDINAL_SPLIT_RE = re.compile(rf"(?<=\d)(?={_ORDINAL_SUFFIX})")
+# Only a whole suffix, at the end of the word or before punctuation, is one: "2e-mail"
+# or "1e5" are not ordinals.
+_ORDINAL_SUFFIX = r"(?:ères?|ers?|res?|èmes?|emes?|es?|ndes?|nds?)[,.;:!?»]*"
+_ORDINAL_SPLIT_RE = re.compile(rf"(?<=\d)(?={_ORDINAL_SUFFIX}$)")
 _ORDINAL_SUFFIX_RE = re.compile(_ORDINAL_SUFFIX)
 
 
 def _free_gap(before: str, token: str) -> bool:
     if before in _DOUBLE_QUOTES or token in _DOUBLE_QUOTES:
         return True
-    return before[-1:].isdigit() and _ORDINAL_SUFFIX_RE.match(token) is not None
+    return before[-1:].isdigit() and _ORDINAL_SUFFIX_RE.fullmatch(token) is not None
 
 
 def _locate(quote: str, text: str) -> tuple[int, int] | None:

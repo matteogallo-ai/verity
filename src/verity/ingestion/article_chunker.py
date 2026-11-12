@@ -51,13 +51,15 @@ _MAX_HEADING_CHARS = 160
 _ANNEX_ARTICLES_WITHIN_PARAGRAPHS = 3
 
 _ARTICLE_RE = re.compile(
-    r"(?:Art(?:icle)?\.?|ART(?:ICLE)?\.?|§)[ \t]*(?P<num>premier|\d+)"
+    r"(?:Art(?:icle)?\.?|ART(?:ICLE)?\.?|§)[ \t]*(?P<num>premier|1er|1re|\d+)"
     r"(?P<suffix>bis|ter|quater|[a-z](?![^\W\d_]))?(?P<rest>.*)"
 )
 _REFERENCE_RE = re.compile(
     r"(?:al|alin[ée]a|ch|chiffre|let|lettre|lit|litt|ss|et|à|ou|CO|CC|CCT|LTN|LTr|OLT)\b"
 )
-_ANNEX_RE = re.compile(r"(?:ANNEXE|Annexe)(?:[ \t]+\S.*)?")
+# A colon or a final period makes a line of prose ("Annexe au présent contrat : ..."),
+# not the heading of an annex.
+_ANNEX_RE = re.compile(r"(?:ANNEXE|Annexe)(?:[ \t]+[^:]*[^:.\s])?")
 _SEPARATORS = " \t\N{EN DASH}\N{EM DASH}-:|."
 
 
@@ -93,7 +95,11 @@ def _article(line: str) -> tuple[str, int, str] | None:
     title = rest.strip(_SEPARATORS)
     if title.startswith(("(", ",", ";")) or _REFERENCE_RE.match(title):
         return None
-    digits = "1" if match["num"] == "premier" else match["num"]
+    # A title starts with a capital or a figure and ends without a sentence's
+    # punctuation; "Art. 15 de la présente convention s'applique." names an article.
+    if title and (title[0].islower() or rest.rstrip()[-1] in ".:;"):
+        return None
+    digits = "1" if match["num"] in ("premier", "1er", "1re") else match["num"]
     suffix = match["suffix"] or ""
     return digits + suffix, int(digits) * 2 + (1 if suffix else 0), title
 
@@ -147,14 +153,18 @@ def _units(text: str, headings: list[_Heading]) -> list[_Unit]:
             opened_at = heading.pos if opened_at is None else opened_at
             continue
         if units and not heading.is_annex and not _has_provision(text, heading.pos, end):
-            units[-1].end = end
-            opened_at = None
+            if opened_at is None:
+                units[-1].end = end
             continue
         start = heading.pos if opened_at is None else opened_at
         units.append(_Unit(start, end, heading.label, heading.metadata, heading.is_annex))
         opened_at = None
     if opened_at is not None:
-        units[-1].end = len(text)
+        # The annex heads opened nothing: no article with a provision followed them.
+        if units:
+            units[-1].end = len(text)
+        else:
+            units.append(_Unit(opened_at, len(text), None))
     return units
 
 
@@ -223,6 +233,7 @@ class ArticleChunker:
     def _pieces(self, text: str, unit: _Unit) -> list[tuple[int, int, str | None]]:
         paragraphs = _find_paragraphs(text, Section(char_start=unit.start, char_end=unit.end))
         pieces: list[tuple[int, int, str | None]] = []
+        last_words = 0
         current: list[_Paragraph] = []
         words = 0
         path: list[str] = []
@@ -232,15 +243,18 @@ class ArticleChunker:
             return " > ".join([unit.label, *path]) if unit.label else None
 
         def flush() -> None:
-            nonlocal current, words
+            nonlocal current, words, last_words
             if current:
                 pieces.append((current[0].char_start, current[-1].char_end, label()))
+                last_words = words
             current, words = [], 0
 
         for i, paragraph in enumerate(paragraphs):
             if unit.is_annex and i > 0 and _is_title(text, paragraph):
                 if not after_title:
-                    if words >= _MIN_PIECE_WORDS:
+                    # Text under a title is that title's, however short; text before
+                    # any title (the annex's own heading) opens the first titled part.
+                    if words >= _MIN_PIECE_WORDS or path:
                         flush()
                     path = []
                 path.append(text[paragraph.char_start : paragraph.char_end])
@@ -251,7 +265,15 @@ class ArticleChunker:
                 after_title = False
             current.append(paragraph)
             words += paragraph.word_count
-        if current and pieces and words < _MIN_PIECE_WORDS:
+        # A short tail joins the part before it only when it is under the same title
+        # and the two fit the budget.
+        if (
+            current
+            and pieces
+            and words < _MIN_PIECE_WORDS
+            and pieces[-1][2] == label()
+            and last_words + words <= self._max
+        ):
             start, _, previous = pieces[-1]
             pieces[-1] = (start, current[-1].char_end, previous)
         else:
