@@ -102,7 +102,7 @@ class CitedSynthesizer:
         client: RoutingClient,
         *,
         prompt_name: str = "synthesize",
-        max_tokens: int = DRAFT_MAX_TOKENS,
+        max_tokens: int | None = None,
         datamarked: bool = True,
         name_articles: bool | None = None,
         complete_answers: bool | None = None,
@@ -117,6 +117,8 @@ class CitedSynthesizer:
         # Off only to measure what the mark changes (scripts/run_injection_eval.py).
         self._datamarked = datamarked
         self._prompt = load_prompt(prompt_name)
+        if max_tokens is None:
+            max_tokens = get_settings().synthesis_max_tokens or DRAFT_MAX_TOKENS
         self._max_tokens = max_tokens
         self.last_usage: UsageStats | None = None
 
