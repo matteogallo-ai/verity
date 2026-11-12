@@ -3,15 +3,24 @@ import type { Provenance } from "@/lib/types";
 /**
  * Persistent banner across the top of the page whenever the API is serving
  * the stub agent. Rendered iff `provenance.is_stub === true` — the same
- * condition the tests assert against.
+ * condition the tests assert against. A `notice` replaces the operator's
+ * instructions with one line a client can read (presentation mode).
  */
-export function StubModeBanner({ provenance }: { provenance: Provenance | null }) {
+export function StubModeBanner({
+  provenance,
+  notice,
+}: {
+  provenance: Provenance | null;
+  notice?: string;
+}) {
   if (!provenance || !provenance.is_stub) return null;
   return (
     <div role="status" className="banner">
+      {notice ? <span>{notice}</span> : <>
       <strong>Stub mode</strong>
       <span> — no LLM key configured. Answers are deterministic and only cover the four demo themes shipped with the corpus. Set{" "}
         <code>VERITY_ANTHROPIC_API_KEY</code> and restart <code>verity serve</code> for live answers.</span>
+      </>}
       <style jsx>{`
         .banner {
           display: flex;

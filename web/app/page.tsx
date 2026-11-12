@@ -18,6 +18,9 @@ import type {
   StatusResponse,
 } from "@/lib/types";
 
+// A demo started before the API is up must find it without a reload.
+const STATUS_RETRY_MS = 3000;
+
 type Status =
   | { kind: "unknown" }
   | { kind: "up"; response: StatusResponse }
@@ -44,6 +47,12 @@ export default function HomePage() {
   useEffect(() => {
     void refreshStatus();
   }, [refreshStatus]);
+
+  useEffect(() => {
+    if (status.kind !== "down") return;
+    const timer = setTimeout(() => void refreshStatus(), STATUS_RETRY_MS);
+    return () => clearTimeout(timer);
+  }, [status, refreshStatus]);
 
   const handleAsk = useCallback(async (question: string) => {
     setAskError(null);
@@ -90,16 +99,18 @@ export default function HomePage() {
   const labels = labelsFor(language);
   const questions = status.kind === "up" ? (status.response.suggested_questions ?? []) : [];
   const presenting = status.kind === "up" && status.response.ui_mode === "presentation";
+  // Until /status answers, the mode is unknown: show neither view's chrome, so a
+  // client never sees the developer read-outs flash before the presentation.
+  const developer = status.kind === "down" || (status.kind === "up" && !presenting);
   const corpusName = status.kind === "up" ? status.response.corpus_name : null;
   const title = corpusName ? `${labels.presentationTitle} \u2013 ${corpusName}` : labels.presentationTitle;
 
   return (
     <>
-      <StubModeBanner provenance={provenance} />
+      <StubModeBanner provenance={provenance} notice={presenting ? labels.stubNotice : undefined} />
       <header className="topbar">
-        {presenting ? (
-          <h1 className="title">{title}</h1>
-        ) : (
+        {presenting && <h1 className="title">{title}</h1>}
+        {developer && (
           <div className="brand">
             <span className="mark mono">verity</span>
             <span className="tagline">evaluated, observable RAG</span>
@@ -121,9 +132,9 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main className={presenting ? "page presenting" : "page"}>
+      <main className={developer ? "page" : "page presenting"}>
         <section className="left">
-          {!presenting && <UploadPanel onIngested={handleIngested} />}
+          {developer && <UploadPanel onIngested={handleIngested} />}
           <div className="ask-wrap">
             <AskBox
               disabled={asking || status.kind !== "up"}
@@ -134,7 +145,13 @@ export default function HomePage() {
             {asking && <p className="pending mono">{labels.asking}</p>}
             {askError && (
               <p role="alert" className="err">
-                <b>{labels.askFailed}</b> {askError}
+                {presenting ? (
+                  labels.presentationAskFailed
+                ) : (
+                  <>
+                    <b>{labels.askFailed}</b> {askError}
+                  </>
+                )}
               </p>
             )}
           </div>
@@ -153,12 +170,20 @@ export default function HomePage() {
           )}
           {!result && !asking && status.kind === "up" && (
             <div className="empty">
-              <h3>{labels.ready}</h3>
-              <p>{questions.length > 0 ? labels.readyHintWithQuestions : labels.readyHint}</p>
+              <h2>{labels.ready}</h2>
+              <p>
+                {presenting
+                  ? questions.length > 0
+                    ? labels.presentationReadyHintWithQuestions
+                    : labels.presentationReadyHint
+                  : questions.length > 0
+                    ? labels.readyHintWithQuestions
+                    : labels.readyHint}
+              </p>
             </div>
           )}
         </section>
-        {!presenting && (
+        {developer && (
           <SourcePanel
             answer={result?.answer ?? null}
             activeChunkId={activeChunkId}
@@ -249,7 +274,7 @@ export default function HomePage() {
           background: var(--bg-panel);
           color: var(--fg-dim);
         }
-        .empty h3 { margin: 0 0 6px; color: var(--fg); font-size: 15px; }
+        .empty h2 { margin: 0 0 6px; color: var(--fg); font-size: 15px; }
         .empty p { margin: 0; font-size: 13px; }
         @media (max-width: 900px) {
           .page {

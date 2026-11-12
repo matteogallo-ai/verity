@@ -9,6 +9,10 @@ export type Language = "en" | "fr";
 
 export interface Labels {
   presentationTitle: string;
+  presentationReadyHint: string;
+  presentationReadyHintWithQuestions: string;
+  presentationAskFailed: string;
+  stubNotice: string;
   questionPlaceholder: string;
   ask: string;
   asking: string;
@@ -55,6 +59,11 @@ export interface Labels {
 
 const EN: Labels = {
   presentationTitle: "Agreement assistant",
+  presentationReadyHint: "Ask a question about the agreement.",
+  presentationReadyHintWithQuestions:
+    "Ask a question about the agreement, or pick one of the suggested questions above.",
+  presentationAskFailed: "The question could not be answered. Try again.",
+  stubNotice: "Offline demo: prepared answers, no language model.",
   questionPlaceholder: "Ask a question about the ingested documents\u2026",
   ask: "Ask",
   asking: "asking\u2026",
@@ -109,6 +118,12 @@ const EN: Labels = {
 
 const FR: Labels = {
   presentationTitle: "Assistant CCT",
+  presentationReadyHint: "Posez une question sur la convention.",
+  presentationReadyHintWithQuestions:
+    "Posez une question sur la convention, ou choisissez l'une des questions proposées " +
+    "ci-dessus.",
+  presentationAskFailed: "La question n'a pas pu être traitée. Réessayez.",
+  stubNotice: "Démonstration hors ligne\u202f: réponses préparées, sans modèle de langue.",
   questionPlaceholder: "Posez une question sur les documents\u2026",
   ask: "Demander",
   asking: "recherche en cours\u2026",
