@@ -555,6 +555,14 @@ def serve(
     dataset: Annotated[
         str, typer.Option(help="Dataset whose eval history to surface on /dashboard.")
     ] = "questions",
+    corpus: Annotated[
+        Path,
+        typer.Option(
+            help="Directory ingested at startup and answered from.",
+            exists=True,
+            file_okay=False,
+        ),
+    ] = Path("datasets/corpus"),
 ) -> None:
     """Serve /metrics + /dashboard (FastAPI + uvicorn).
 
@@ -572,7 +580,9 @@ def serve(
     configure_logging(settings.log_level)
     tracer = OTelTracer(otel_endpoint=settings.otel_endpoint, max_spans=settings.trace_max_spans)
     try:
-        app_instance = create_app(tracer=tracer, runs_dir=runs_dir, dataset=dataset)
+        app_instance = create_app(
+            tracer=tracer, runs_dir=runs_dir, dataset=dataset, corpus_dir=corpus
+        )
     except ValueError as exc:
         console.print(f"[red]Cannot start:[/red] {exc}")
         raise typer.Exit(code=2) from exc

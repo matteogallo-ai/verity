@@ -62,6 +62,25 @@ The first run downloads the embedding and reranker models (~200 MB) into the
 Hugging Face cache. `make demo` needs Docker (for pgvector), Node 22 and corepack, and
 runs the stub agent even when `.env` holds a provider key.
 
+### Démo CCT en local
+
+```bash
+make demo-cct CORPUS=chemin/vers/le/dossier/de/la/cct           # agent stub, gratuit (LIVE=0 aussi)
+make demo-cct CORPUS=chemin/vers/le/dossier/de/la/cct LIVE=1    # modèle réel, réponses payantes
+```
+
+L'API ingère le dossier (PDF, DOCX, Markdown ou texte) en mémoire avec les réglages de
+[`profiles/demo-cct-fr.env`](profiles/demo-cct-fr.env) : passages découpés par article,
+tableaux indexés, contrôle des citations en français, température 0, refus en français
+avec renvoi au secrétariat. L'interface démarre en même temps sur http://localhost:3000
+et répond une fois l'ingestion finie (`/ready`) ; une citation tirée d'un article en
+affiche le numéro et le titre. Il faut Node 22 et corepack, pas Docker. Seul `LIVE=1`
+garde la clé du fournisseur (de `.env` ou de l'environnement) ; le budget de l'API
+(`VERITY_API_BUDGET_USD`, 5 $ par heure par défaut) borne la dépense. La réponse, le
+refus, ses explications et le panneau des sources sont libellés en français ; la
+justification de l'agent, la zone de question et les questions suggérées restent en
+anglais (C39).
+
 ## Documentation
 
 - [Features and roadmap](docs/features.md), each backed by a claim with passing tests in [`docs/CLAIMS.md`](docs/CLAIMS.md).

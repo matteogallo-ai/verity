@@ -1,9 +1,10 @@
 # Verity — dev shortcuts. Every target runs offline with no keys.
-.PHONY: demo demo-web demo-api db ui-install ui-test test test-fast test-slow mutation all
+.PHONY: demo demo-cct demo-cct-args demo-web demo-api db ui-install ui-test test test-fast test-slow mutation all
 
 # Blank provider keys override a key in .env, which would switch the API to the live,
 # paid agent.
-STUB_ENV = VERITY_API_AUTH_DISABLED=true VERITY_ANTHROPIC_API_KEY= VERITY_OPENAI_API_KEY=
+BLANK_KEYS = VERITY_ANTHROPIC_API_KEY= VERITY_OPENAI_API_KEY=
+STUB_ENV = VERITY_API_AUTH_DISABLED=true $(BLANK_KEYS)
 
 # One-command demo path:
 #   0. Postgres + pgvector (docker compose service db), migrations applied
@@ -15,6 +16,25 @@ demo: ui-install db
 	@bash -c 'trap "kill %1 2>/dev/null" EXIT; \
 		$(STUB_ENV) uv run verity serve --host 127.0.0.1 --port 8000 & \
 		cd web && NEXT_PUBLIC_API_BASE=http://localhost:8000 corepack pnpm dev'
+
+# Demo on one collective agreement, in French, for a client meeting:
+#   make demo-cct CORPUS=<folder of the agreement> [LIVE=1]
+# The API ingests CORPUS in memory under profiles/demo-cct-fr.env while the web UI
+# starts on :3000; the UI answers once /ready does. Only LIVE=1 keeps the provider key
+# (from .env or the shell), and every answer is then paid; any other value, LIVE=0
+# included, blanks the keys and the scripted stub answers.
+LIVE_DEMO = $(filter 1,$(LIVE))
+
+demo-cct: demo-cct-args ui-install
+	@echo "==> CCT demo on $(CORPUS) (API :8000 · web :3000, $(if $(LIVE_DEMO),live: answers are paid,stub))"
+	@bash -c 'trap "kill %1 2>/dev/null" EXIT; \
+		set -a; . profiles/demo-cct-fr.env; set +a; $(if $(LIVE_DEMO),,$(BLANK_KEYS)) uv run verity serve --host 127.0.0.1 --port 8000 --corpus "$(CORPUS)" & \
+		cd web && NEXT_PUBLIC_API_BASE=http://localhost:8000 corepack pnpm dev'
+
+# Before ui-install, so a missing folder fails at once.
+demo-cct-args:
+	@test -n "$(CORPUS)" || { echo "usage: make demo-cct CORPUS=<folder> [LIVE=1]"; exit 2; }
+	@test -d "$(CORPUS)" || { echo "$(CORPUS): no such folder"; exit 2; }
 
 # API only — for the demo transcript that shows API responses directly.
 demo-api: db

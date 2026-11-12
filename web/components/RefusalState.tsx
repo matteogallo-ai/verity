@@ -1,3 +1,4 @@
+import { labelsFor, type Language } from "@/lib/labels";
 import type { AnswerView, Provenance } from "@/lib/types";
 import { ConfidenceReadout } from "./ConfidenceReadout";
 import { ProvenanceBadge } from "./ProvenanceBadge";
@@ -12,10 +13,13 @@ import { ProvenanceBadge } from "./ProvenanceBadge";
 export function RefusalState({
   answer,
   provenance,
+  language,
 }: {
   answer: AnswerView;
   provenance: Provenance;
+  language?: Language;
 }) {
+  const t = labelsFor(language);
   return (
     <article
       className="refusal"
@@ -24,22 +28,17 @@ export function RefusalState({
     >
       <header>
         <h2 id="refusal-heading">
-          <span className="mono">refused</span>
+          <span className="mono">{t.refused}</span>
         </h2>
         <ProvenanceBadge provenance={provenance} />
       </header>
       <p className="text">{answer.text}</p>
-      <ConfidenceReadout answer={answer} provenance={provenance} />
-      <div className="ops mono" aria-label="Operational">
-        <span>latency <b>{answer.usage.latency_ms.toFixed(0)} ms</b></span>
-        <span>llm calls <b>{answer.usage.llm_calls}</b></span>
+      <ConfidenceReadout answer={answer} provenance={provenance} language={language} />
+      <div className="ops mono" aria-label={t.operationalGroup}>
+        <span>{t.latency} <b>{answer.usage.latency_ms.toFixed(0)} ms</b></span>
+        <span>{t.llmCalls} <b>{answer.usage.llm_calls}</b></span>
       </div>
-      <p className="note">
-        The agent declined rather than ship the draft answer: a citation check failed, the
-        scorer refused, or its score fell below the threshold. The rationale above names the
-        cause; the hits used to make this decision are still shown on the right panel for
-        auditability.
-      </p>
+      <p className="note">{t.refusalNote}</p>
       <style jsx>{`
         .refusal {
           background: var(--refuse-soft);

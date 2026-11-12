@@ -77,6 +77,7 @@ async def status_endpoint(request: Request) -> StatusResponse:
         provenance=runtime.provenance(),
         corpus=await _corpus_summary(runtime),
         otel_endpoint=settings.otel_endpoint,
+        language=settings.language,
     )
 
 

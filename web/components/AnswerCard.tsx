@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { segmentAnswer } from "@/lib/highlight";
+import { labelsFor, type Language } from "@/lib/labels";
 import type { AnswerView, Citation, Provenance } from "@/lib/types";
 import { ConfidenceReadout } from "./ConfidenceReadout";
 import { ProvenanceBadge } from "./ProvenanceBadge";
@@ -13,10 +14,13 @@ export interface AnswerCardProps {
   activeCitationIndex: number | null;
   activeChunkId: string | null;
   onCitationClick: (marker: { index: number; citation: Citation }) => void;
+  language?: Language;
 }
 
 export function AnswerCard(props: AnswerCardProps) {
-  const { answer, provenance, activeCitationIndex, activeChunkId, onCitationClick } = props;
+  const { answer, provenance, activeCitationIndex, activeChunkId, onCitationClick, language } =
+    props;
+  const t = labelsFor(language);
 
   // Compute segments unconditionally so React hooks stay in a stable order
   // across refused / non-refused renders. When the answer is refused we never
@@ -26,14 +30,21 @@ export function AnswerCard(props: AnswerCardProps) {
     [answer.text, answer.citations]
   );
 
+  // The passage a citation quotes, for its section: on an agreement chunked by
+  // article, the article the member looks up.
+  const sectionOf = useMemo(
+    () => new Map(answer.hits_used.map((hit) => [hit.chunk_id, hit.section])),
+    [answer.hits_used]
+  );
+
   if (answer.confidence.refused) {
-    return <RefusalState answer={answer} provenance={provenance} />;
+    return <RefusalState answer={answer} provenance={provenance} language={language} />;
   }
 
   return (
     <article className="answer" role="region" aria-labelledby="answer-heading">
       <header>
-        <h2 id="answer-heading" className="mono">answer</h2>
+        <h2 id="answer-heading" className="mono">{t.answer}</h2>
         <ProvenanceBadge provenance={provenance} />
       </header>
       <p className="text">
@@ -50,7 +61,7 @@ export function AnswerCard(props: AnswerCardProps) {
               key={i}
               type="button"
               className={`cite ${isActive ? "cite-active" : ""}`}
-              aria-label={`Citation ${marker.index}: ${marker.citation.quote}`}
+              aria-label={`${t.citation} ${marker.index}: ${marker.citation.quote}`}
               aria-pressed={isActive}
               onClick={() => onCitationClick(marker)}
               data-testid={`citation-${marker.index}`}
@@ -60,12 +71,13 @@ export function AnswerCard(props: AnswerCardProps) {
           );
         })}
       </p>
-      <ConfidenceReadout answer={answer} provenance={provenance} />
+      <ConfidenceReadout answer={answer} provenance={provenance} language={language} />
       <ul className="citations">
         {answer.citations.map((c, i) => {
           const idx = i + 1;
           const isActive =
             activeCitationIndex === idx || activeChunkId === c.chunk_id;
+          const where = sectionOf.get(c.chunk_id);
           return (
             <li key={c.chunk_id} className={isActive ? "active" : ""}>
               <button
@@ -73,22 +85,24 @@ export function AnswerCard(props: AnswerCardProps) {
                 className="cite-row"
                 aria-pressed={isActive}
                 onClick={() => onCitationClick({ index: idx, citation: c })}
+                data-testid={`citation-row-${idx}`}
               >
                 <span className="marker">[{idx}]</span>
+                {where ? <span className="where">{where}</span> : null}
                 <span className="quote">“{c.quote}”</span>
-                <span className="ids mono">chunk {c.chunk_id.slice(0, 8)}</span>
+                <span className="ids mono">{t.chunk} {c.chunk_id.slice(0, 8)}</span>
               </button>
             </li>
           );
         })}
       </ul>
-      <footer className="usage mono" aria-label="Usage">
-        <span>latency <b>{answer.usage.latency_ms.toFixed(0)} ms</b></span>
-        <span>llm calls <b>{answer.usage.llm_calls}</b></span>
-        <span>in tokens <b>{answer.usage.input_tokens}</b></span>
-        <span>out tokens <b>{answer.usage.output_tokens}</b></span>
-        <span>cost <b>${answer.usage.cost_usd.toFixed(4)}</b></span>
-        <span title={answer.trace_id}>trace <b>{answer.trace_id.slice(0, 8)}</b></span>
+      <footer className="usage mono" aria-label={t.usageGroup}>
+        <span>{t.latency} <b>{answer.usage.latency_ms.toFixed(0)} ms</b></span>
+        <span>{t.llmCalls} <b>{answer.usage.llm_calls}</b></span>
+        <span>{t.inTokens} <b>{answer.usage.input_tokens}</b></span>
+        <span>{t.outTokens} <b>{answer.usage.output_tokens}</b></span>
+        <span>{t.cost} <b>${answer.usage.cost_usd.toFixed(4)}</b></span>
+        <span title={answer.trace_id}>{t.trace} <b>{answer.trace_id.slice(0, 8)}</b></span>
       </footer>
       <style jsx>{`
         .answer {
@@ -153,6 +167,7 @@ export function AnswerCard(props: AnswerCardProps) {
           background: var(--accent-soft);
         }
         .marker { color: var(--accent); font-family: var(--mono); font-size: 11px; }
+        .where { color: var(--fg-dim); font-size: 12px; font-weight: 600; }
         .quote { color: var(--fg); font-size: 13px; }
         .ids { color: var(--fg-mute); margin-left: auto; }
         .usage {

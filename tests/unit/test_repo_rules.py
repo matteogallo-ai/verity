@@ -19,10 +19,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 KEYS = ("VERITY_ANTHROPIC_API_KEY", "VERITY_OPENAI_API_KEY")
 
 
-def _serve_command(target: str) -> str:
+def _serve_command(target: str, *variables: str) -> str:
     """The ``verity serve`` line of a target, as make expands it (``-n`` runs nothing)."""
     out = subprocess.run(
-        ["make", "-n", "--no-print-directory", target],
+        ["make", "-n", "--no-print-directory", target, *variables],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -34,13 +34,42 @@ def _serve_command(target: str) -> str:
 
 
 @pytest.mark.skipif(shutil.which("make") is None, reason="make is not installed")
-@pytest.mark.parametrize("target", ["demo", "demo-api"])
-def test_the_demo_targets_blank_the_provider_keys(target: str) -> None:
+@pytest.mark.parametrize(
+    ("target", "variables"),
+    [("demo", ()), ("demo-api", ()), ("demo-cct", ("CORPUS=datasets/corpus",))],
+)
+def test_the_demo_targets_blank_the_provider_keys(target: str, variables: tuple[str, ...]) -> None:
     """A key in .env would otherwise switch the demo API to the live agent."""
-    command = _serve_command(target)
+    command = _serve_command(target, *variables)
     env, _, _ = command.partition("uv run verity serve")
     for key in KEYS:
         assert f" {key}= " in f" {env}", (target, key)
+
+
+@pytest.mark.skipif(shutil.which("make") is None, reason="make is not installed")
+def test_the_cct_demo_calls_the_model_only_when_asked() -> None:
+    """LIVE=1 is the one way a make target reaches a paid model: a client meeting."""
+    command = _serve_command("demo-cct", "CORPUS=datasets/corpus", "LIVE=1")
+    env, _, args = command.partition("uv run verity serve")
+    assert not [key for key in KEYS if f" {key}= " in f" {env}"]
+    assert ". profiles/demo-cct-fr.env" in env
+    assert '--corpus "datasets/corpus"' in args
+
+
+@pytest.mark.skipif(shutil.which("make") is None, reason="make is not installed")
+@pytest.mark.parametrize("live", ["LIVE=0", "LIVE=false", "LIVE=no", "LIVE="])
+def test_a_live_value_other_than_1_stays_on_the_stub(live: str) -> None:
+    """Someone typing LIVE=0 to be safe must not reach the paid model."""
+    command = _serve_command("demo-cct", "CORPUS=datasets/corpus", live)
+    env, _, _ = command.partition("uv run verity serve")
+    for key in KEYS:
+        assert f" {key}= " in f" {env}", (live, key)
+
+
+@pytest.mark.skipif(shutil.which("make") is None, reason="make is not installed")
+def test_a_corpus_path_with_a_space_stays_one_argument() -> None:
+    command = _serve_command("demo-cct", "CORPUS=CCT Métal Vaud")
+    assert '--corpus "CCT Métal Vaud"' in command
 
 
 def test_a_blank_environment_key_overrides_a_key_in_dotenv(

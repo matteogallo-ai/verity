@@ -138,6 +138,10 @@ class Settings(BaseSettings):
     # article's number and title (verity.ingestion.article_chunker). Default "structure":
     # it changes the chunks, and their ids, of every document with article headings.
     chunking: Literal["structure", "articles"] = "structure"
+    # Output cap of the cited draft; unset, verity.agent.synthesizer.DRAFT_MAX_TOKENS. A
+    # draft cut off at the cap loses its citations and is refused; a complete answer on a
+    # collective agreement can need more than the default.
+    synthesis_max_tokens: int | None = Field(default=None, gt=0)
     min_cited_rerank_score: float = 0.0
     # Off by default: as the first failing check on the dev runs it refused 11
     # answerable records (4 distinct questions) for 5 unanswerable ones (2), and
