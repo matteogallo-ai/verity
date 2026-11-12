@@ -36,15 +36,16 @@ What this gets wrong by design:
   if the other words match. A rule requiring every number and date to be quoted,
   measured on the live runs, refused correct answers that compute or restate a figure
   (docs/audit/2026-11-03-figure-rule-measurement.md), so it is not the default.
+- The marker list is fixed patterns: a benign document with a ``System:`` line or a
+  ``"score":`` key is distrusted as a whole, and every answer citing it is refused.
 
 ``VERITY_SUPPORT_CHECK=figures`` is that rule, for corpora where the figure is the
 answer (wages, notice periods, percentages of a collective agreement): every figure
-of the answer must be in a verified quote, the question or a cited heading
+of the answer must be in a passage it cites with a verified quote, or in the question
 (``unquoted_figure``), and coverage counts the words of the question and of the cited
 headings as covered, since an answer restates what it was asked. It still refuses a
-correct answer that adds a figure it does not quote, or computes one.
-- The marker list is fixed patterns: a benign document with a ``System:`` line or a
-  ``"score":`` key is distrusted as a whole, and every answer citing it is refused.
+correct answer that adds a figure from a passage it does not cite, or computes one; it
+passes a wrong figure taken from the right passage (another row of the cited table).
 """
 
 from __future__ import annotations
@@ -295,6 +296,11 @@ def _cited_sections(citations: tuple[Citation, ...], hits: list[RetrievalHit]) -
     return " ".join(h.chunk.section for h in hits if h.chunk.id in cited and h.chunk.section)
 
 
+def _cited_passages(citations: tuple[Citation, ...], hits: list[RetrievalHit]) -> str:
+    cited = {c.chunk_id for c in citations}
+    return " ".join(h.chunk.text for h in hits if h.chunk.id in cited)
+
+
 def best_cited_rerank_score(
     citations: tuple[Citation, ...], hits: list[RetrievalHit]
 ) -> float | None:
@@ -345,8 +351,18 @@ def check_support(
 ) -> SupportCheck:
     given = f"{question} {_cited_sections(citations, hits)}" if rule == "figures" else ""
     coverage = citation_coverage(answer, citations, language=language, given=given)
+    # A figure may come from anywhere in a cited passage, not only its quote: the
+    # amendment's date in the article heading, the rate a table row is compared with.
+    # A figure from a passage the answer does not cite is refused.
     missing = (
-        sorted(unquoted_figures(answer, citations, language=language, given=given))
+        sorted(
+            unquoted_figures(
+                answer,
+                citations,
+                language=language,
+                given=f"{given} {_cited_passages(citations, hits)}",
+            )
+        )
         if rule == "figures"
         else []
     )

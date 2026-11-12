@@ -54,8 +54,11 @@ def _hit(text: str, section: str | None) -> RetrievalHit:
     return RetrievalHit(chunk=chunk, score=5.0, kind=RetrieverKind.RERANKED, rank=0)
 
 
-def _cited(text: str, section: str | None = None) -> tuple[Citation, list[RetrievalHit]]:
-    hit = _hit(text, section)
+def _cited(
+    text: str, section: str | None = None, passage: str | None = None
+) -> tuple[Citation, list[RetrievalHit]]:
+    """A citation quoting ``text`` from a passage (by default, the quote itself)."""
+    hit = _hit(passage or text, section)
     citation = Citation(
         chunk_id=hit.chunk.id,
         document_id=hit.chunk.document_id,
@@ -66,8 +69,19 @@ def _cited(text: str, section: str | None = None) -> tuple[Citation, list[Retrie
     return citation, [hit]
 
 
-def _check(answer: str, quote: str, section: str | None, question: str, rule: str) -> object:
-    citation, hits = _cited(quote, section)
+def _check(
+    answer: str,
+    quote: str,
+    section: str | None,
+    question: str,
+    rule: str,
+    *,
+    passage: str | None = None,
+    uncited: str | None = None,
+) -> object:
+    citation, hits = _cited(quote, section, passage)
+    if uncited is not None:
+        hits.append(_hit(uncited, None))
     return check_support(
         answer,
         (citation,),
@@ -147,13 +161,36 @@ def test_a_figure_the_member_gave_in_the_question_may_be_repeated() -> None:
     assert check.reason is None  # type: ignore[attr-defined]
 
 
-def test_a_figure_from_a_quote_that_failed_verification_is_refused() -> None:
-    """The CCNT Q2 draft: CHF 4'635 came from a quote the citation check rejected."""
-    question = "Salaire minimum en 2026 d'un cuisinier titulaire d'un CFC ?"
-    draft = "Le minimum est de CHF 4'528.- (art. 10), et de CHF 4'635.- après formation."
-    quote = "III a) ... certificat fédéral de capacité — dès le 1.1.2026 : 4'528.-"
-    check = _check(draft, quote, "Art. 10 Salaires minimums", question, "figures")
+def test_a_figure_of_the_cited_article_may_frame_the_quoted_one() -> None:
+    """Métal-Vaud Q1, the demo's wage question: the quote is the table row, and the
+    amendment's date is in the heading of the same cited passage."""
+    question = (
+        "Quel est le salaire horaire minimum d'un travailleur titulaire d'un CFC, dès la "
+        "fin de son apprentissage ?"
+    )
+    draft = (
+        "Selon l'avenant n°2 du 13 décembre 2022 (art. 38, classe e), le salaire horaire "
+        "minimum d'un travailleur titulaire d'un CFC dès la fin de son apprentissage est "
+        "de CHF 25.60."
+    )
+    quote = "e) Travailleur avec CFC dès fin de l'apprentissage — Salaire horaire (CHF) : 25.60"
+    passage = f"Art. 38 Salaires (Avenant N°2 du 13 décembre 2022)\n{quote}"
+    check = _check(draft, quote, "Art. 38 Salaires", question, "figures", passage=passage)
+    assert check.reason is None  # type: ignore[attr-defined]
+
+
+def test_a_figure_only_in_a_passage_the_answer_does_not_cite_is_refused() -> None:
+    """The draft saw the 2'200 hours in another article, and cited only the wage row."""
+    question = "Combien payer un aide-jardinier sans CFC qui a 2 ans d'expérience ?"
+    draft = (
+        "Selon l'art. 8 (catégorie C2), le salaire minimum est de 23.70 CHF à l'heure, "
+        "calculé sur la base de 2'200 heures annuelles."
+    )
+    quote = "aide-jardinier sans CFC ... expérience de 2 ans dans le métier - salaire minimum 23.70"
+    uncited = "Article 3 - Durée du travail : 2200 heures par an"
+    check = _check(draft, quote, "Article 8 - Salaires", question, "figures", uncited=uncited)
     assert check.reason is RefusalReason.UNQUOTED_FIGURE  # type: ignore[attr-defined]
+    assert check.missing_figures == ("2200",)  # type: ignore[attr-defined]
 
 
 def test_words_found_nowhere_still_refuse() -> None:

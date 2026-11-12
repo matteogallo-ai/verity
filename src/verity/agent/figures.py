@@ -1,7 +1,7 @@
 """The figures of a text: the amounts, durations, dates and percentages a reader acts on.
 
 Used by the ``figures`` support rule (verity.agent.support): a figure of the answer
-must be in a verified quote, the question, or the cited section's heading.
+must be in a passage the answer cites with a verified quote, or in the question.
 
 Figures are compared as written values, not computed: "4'775.85", "4 775,85" and
 "4775.85" are one figure, "31.00" and "31.-" are "31", but "2 200 h" is not derived
