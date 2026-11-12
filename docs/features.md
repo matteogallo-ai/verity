@@ -26,6 +26,7 @@ claim, or a claim's status disagrees with the section it is listed in.
 - `docker compose up`: non-root image, Postgres, migrations, corpus ingestion and the API in order, smoke-tested in CI (C26).
 - `make demo` stays on the stub agent, at no cost, even with a provider key in `.env` (C38).
 - `make demo-cct CORPUS=<folder>`: one collective agreement served in French with the settings measured on such texts, each passage under an article heading labelled with it, with the one-click questions listed in the folder's `suggested_questions.json`; the model is called only with `LIVE=1` (C39).
+- `VERITY_SUPPORT_CHECK=figures`: an answer is refused when it states a figure that neither a passage it cites nor the question contains; the words it takes from the question no longer count against it (C40).
 - API hardening: API keys on `/status`, `/ask` and `/ingest`, per-key rate limit, a limit on failed key attempts, bounded inputs, file-type allow-list, generic errors with a request ID (C23).
 - Bounded spend: per-key spending budget on `/ask`, a per-answer cap on `verity ask` checked before each LLM call, bounded `max_tokens` and timeouts (C31).
 - Liveness and readiness split: `/health` answers while the process lives; `/ready` answers `503` until the corpus and the local models are loaded at startup, and unless Postgres answers and the LLM providers can serve as routing uses them, without spending tokens (C32).

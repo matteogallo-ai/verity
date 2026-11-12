@@ -111,6 +111,7 @@ class RagAgent(Agent):
         self._rerank_k = rerank_k if rerank_k is not None else settings.rerank_k
         self._min_citation_coverage = settings.min_citation_coverage
         self._language = settings.language
+        self._support_check = settings.support_check
         self._retrieve_original_question = settings.retrieve_original_question
         self._complete_answers = settings.complete_answers
         # A floor of -inf turns the cited relevance check off without a second code
@@ -226,6 +227,8 @@ class RagAgent(Agent):
                 min_coverage=self._min_citation_coverage,
                 min_rerank_score=self._min_cited_rerank_score,
                 language=self._language,
+                rule=self._support_check,
+                question=question,
             )
             if not synthesis.citations or not synthesis.text.strip():
                 confidence = Confidence(

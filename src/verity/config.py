@@ -119,6 +119,11 @@ class Settings(BaseSettings):
     # The corpus language, for the lexical coverage check (verity.agent.support). The
     # threshold above is the same in every language.
     language: Literal["en", "fr"] = "en"
+    # How the support check weighs a draft (verity.agent.support). "figures" requires
+    # every figure of the answer to be in a cited passage and counts the question's
+    # words as covered; it also asks the draft to quote each figure. Off by default: it changes
+    # the published runs' gate and draft prompt.
+    support_check: Literal["coverage", "figures"] = "coverage"
     # Ask the draft to name the article or section each claim comes from, so a member
     # can find the provision. Off by default: it changes the prompt of the published runs.
     name_articles: bool = False
