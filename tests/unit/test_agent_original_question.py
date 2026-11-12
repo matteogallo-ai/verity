@@ -70,3 +70,4 @@ async def test_a_question_kept_whole_is_retrieved_once(monkeypatch: pytest.Monke
     assert await _queries("Q?", ["Q?"]) == ["Q?"]
     assert await _queries("Q?", ["a?", "a?"]) == ["Q?", "a?"]
     assert await _queries("Q? ", ["Q?", "a?"]) == ["Q?", "a?"]
+    assert await _queries("  ", ["a?"]) == ["a?"]

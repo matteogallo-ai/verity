@@ -197,7 +197,7 @@ class RagAgent(Agent):
 
         async with self._stage("agent.retrieve", trace_id, stage_ms) as span:
             queries = (
-                list(dict.fromkeys(q.strip() for q in [question, *sub_questions]))
+                list(dict.fromkeys(q.strip() for q in [question, *sub_questions] if q.strip()))
                 if self._retrieve_original_question
                 else sub_questions
             )
