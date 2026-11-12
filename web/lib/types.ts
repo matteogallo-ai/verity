@@ -86,6 +86,8 @@ export interface StatusResponse {
   provenance: Provenance;
   corpus: CorpusSummary;
   otel_endpoint: string | null;
+  // VERITY_LANGUAGE; absent from an older API, which the UI reads as English.
+  language?: string;
 }
 
 // -----------------------------------------------------------------------------

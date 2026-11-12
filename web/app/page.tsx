@@ -8,6 +8,7 @@ import { SourcePanel } from "@/components/SourcePanel";
 import { StubModeBanner } from "@/components/StubModeBanner";
 import { UploadPanel } from "@/components/UploadPanel";
 import { ApiError, ask, fetchStatus } from "@/lib/api";
+import { labelsLanguage } from "@/lib/labels";
 import type {
   AskResponse,
   Citation,
@@ -84,6 +85,7 @@ export default function HomePage() {
   }, [result]);
 
   const provenance = result?.provenance ?? (status.kind === "up" ? status.response.provenance : null);
+  const language = labelsLanguage(status.kind === "up" ? status.response.language : undefined);
 
   return (
     <>
@@ -128,6 +130,7 @@ export default function HomePage() {
               activeCitationIndex={activeCitation}
               activeChunkId={activeChunkId}
               onCitationClick={onCitationClick}
+              language={language}
             />
           )}
           {!result && !asking && status.kind === "up" && (
@@ -144,6 +147,7 @@ export default function HomePage() {
           answer={result?.answer ?? null}
           activeChunkId={activeChunkId}
           onChunkClick={onChunkClick}
+          language={language}
         />
       </main>
 

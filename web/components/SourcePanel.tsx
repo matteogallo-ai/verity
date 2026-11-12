@@ -1,11 +1,13 @@
 "use client";
 
+import { hitScoreLabel, labelsFor, type Language } from "@/lib/labels";
 import type { AnswerView, RetrievedChunk } from "@/lib/types";
 
 export interface SourcePanelProps {
   answer: AnswerView | null;
   activeChunkId: string | null;
   onChunkClick: (chunk: RetrievedChunk) => void;
+  language?: Language;
 }
 
 /**
@@ -14,12 +16,13 @@ export interface SourcePanelProps {
  * as it came back from the API. Never a synthetic composite; never rounded
  * to hide a value.
  */
-export function SourcePanel({ answer, activeChunkId, onChunkClick }: SourcePanelProps) {
+export function SourcePanel({ answer, activeChunkId, onChunkClick, language }: SourcePanelProps) {
+  const t = labelsFor(language);
   if (!answer) {
     return (
       <aside className="panel">
         <div className="empty">
-          <p>The evidence used by the agent will appear here after you ask a question.</p>
+          <p>{t.sourcesEmpty}</p>
         </div>
         <style jsx>{scoped}</style>
       </aside>
@@ -28,9 +31,9 @@ export function SourcePanel({ answer, activeChunkId, onChunkClick }: SourcePanel
   return (
     <aside className="panel" aria-labelledby="sources-heading">
       <header>
-        <h2 id="sources-heading" className="mono">sources · {answer.hits_used.length}</h2>
+        <h2 id="sources-heading" className="mono">{t.sources} · {answer.hits_used.length}</h2>
         <span className="mono note">
-          rerank score · cited flag from API set-membership
+          {t.sourcesNote}
         </span>
       </header>
       <ol className="chunks">
@@ -47,20 +50,20 @@ export function SourcePanel({ answer, activeChunkId, onChunkClick }: SourcePanel
               >
                 <div className="head">
                   <span className={`badge ${hit.cited ? "cited" : "uncited"} mono`}>
-                    {hit.cited ? "cited" : "not-cited"}
+                    {hit.cited ? t.cited : t.notCited}
                   </span>
                   <span className="section" title={hit.section ?? ""}>
-                    {hit.section ?? "(no section)"}
+                    {hit.section ?? t.noSection}
                   </span>
                   <span className="score mono">
-                    {hit.kind}: {hit.score.toFixed(3)}
+                    {hitScoreLabel(t, hit.kind)} {hit.score.toFixed(3)}
                   </span>
                 </div>
                 <p className="body">{hit.text}</p>
                 <div className="meta mono">
-                  <span title={hit.chunk_id}>chunk {hit.chunk_id.slice(0, 8)}</span>
-                  <span title={hit.document_id}>doc {hit.document_id.slice(0, 8)}</span>
-                  <span>chars {hit.char_start}–{hit.char_end}</span>
+                  <span title={hit.chunk_id}>{t.chunk} {hit.chunk_id.slice(0, 8)}</span>
+                  <span title={hit.document_id}>{t.doc} {hit.document_id.slice(0, 8)}</span>
+                  <span>{t.chars} {hit.char_start}–{hit.char_end}</span>
                 </div>
               </button>
             </li>

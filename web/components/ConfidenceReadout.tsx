@@ -1,3 +1,4 @@
+import { labelsFor, type Language } from "@/lib/labels";
 import type { AnswerView, Provenance } from "@/lib/types";
 
 /**
@@ -22,15 +23,18 @@ import type { AnswerView, Provenance } from "@/lib/types";
 export function ConfidenceReadout({
   answer,
   provenance,
+  language,
 }: {
   answer: AnswerView;
   provenance: Provenance;
+  language?: Language;
 }) {
+  const t = labelsFor(language);
   const topScore = answer.hits_used.length > 0 ? answer.hits_used[0].score : null;
   const scoreDisplay = answer.confidence.score.toFixed(2);
   const label = provenance.is_stub
-    ? `agent-reported (stub: ${provenance.agent_model})`
-    : `agent-reported (${provenance.agent_model})`;
+    ? `${t.agentReported} (stub: ${provenance.agent_model})`
+    : `${t.agentReported} (${provenance.agent_model})`;
 
   return (
     <section
@@ -39,41 +43,37 @@ export function ConfidenceReadout({
       aria-label="Confidence readout (agent-reported score plus underlying signals)"
     >
       <div className="head">
-        <span className="lbl">confidence</span>
+        <span className="lbl">{t.confidence}</span>
         <span className="mono val">{scoreDisplay}</span>
         <span className="prov mono">· {label}</span>
       </div>
       <ul className="signals" aria-label="underlying signals">
         <li>
-          <span className="k">refused</span>
-          <span className="v mono">{answer.confidence.refused ? "true" : "false"}</span>
+          <span className="k">{t.refusedSignal}</span>
+          <span className="v mono">{answer.confidence.refused ? t.yes : t.no}</span>
         </li>
         <li>
-          <span className="k">citations</span>
+          <span className="k">{t.citations}</span>
           <span className="v mono">{answer.citations.length}</span>
         </li>
         <li>
-          <span className="k">top rerank score</span>
+          <span className="k">{t.topRerankScore}</span>
           <span className="v mono">
-            {topScore !== null ? topScore.toFixed(3) : "n/a"}
+            {topScore !== null ? topScore.toFixed(3) : t.notAvailable}
           </span>
         </li>
         <li>
-          <span className="k">evidence hits</span>
+          <span className="k">{t.evidenceHits}</span>
           <span className="v mono">{answer.hits_used.length}</span>
         </li>
       </ul>
       {answer.confidence.rationale && (
         <p className="rationale">
-          <span className="lbl">rationale · </span>
+          <span className="lbl">{t.rationale} · </span>
           {answer.confidence.rationale}
         </p>
       )}
-      <p className="note">
-        Score is passed through verbatim from the confidence scorer for this
-        request — no client-side composite, no rescaling. Interpret alongside
-        the signals above.
-      </p>
+      <p className="note">{t.scoreNote}</p>
       <style jsx>{`
         .readout {
           display: flex;

@@ -76,8 +76,10 @@ avec renvoi au secrétariat. L'interface démarre en même temps sur http://loca
 et répond une fois l'ingestion finie (`/ready`) ; une citation tirée d'un article en
 affiche le numéro et le titre. Il faut Node 22 et corepack, pas Docker. Seul `LIVE=1`
 garde la clé du fournisseur (de `.env` ou de l'environnement) ; le budget de l'API
-(`VERITY_API_BUDGET_USD`, 5 $ par heure par défaut) borne la dépense. Le reste de
-l'interface est en anglais (C39).
+(`VERITY_API_BUDGET_USD`, 5 $ par heure par défaut) borne la dépense. La réponse, le
+refus, ses explications et le panneau des sources sont libellés en français ; la
+justification de l'agent, la zone de question et les questions suggérées restent en
+anglais (C39).
 
 ## Documentation
 
