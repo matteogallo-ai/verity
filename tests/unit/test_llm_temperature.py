@@ -96,6 +96,8 @@ async def test_openai_receives_the_same_temperature(monkeypatch: pytest.MonkeyPa
     fake = MagicMock()
     fake.chat.completions.with_raw_response.create = AsyncMock(side_effect=create)
     monkeypatch.setattr(OpenAIClient, "_get_client", lambda _self: fake)
+    await OpenAIClient(api_key=SecretStr("k"), settings=Settings()).complete(_MESSAGES)
+    assert "temperature" not in sent
     client = OpenAIClient(api_key=SecretStr("k"), settings=Settings(llm_temperature=0.0))
     await client.complete(_MESSAGES, max_tokens=8)
     assert sent["temperature"] == 0.0

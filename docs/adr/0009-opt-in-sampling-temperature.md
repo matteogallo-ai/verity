@@ -13,8 +13,10 @@ nothing but sampling between them. For answers about a collective labour agreeme
 same question getting a different answer is a product defect, not only eval noise.
 
 The pinned `anthropic` 2.x SDK sends API version `2026-10-21`, which rejects
-`temperature`, `top_p` and `top_k` with a 400 on every model. API version `2023-06-01`
-still accepts a temperature on models before Claude 4.7, Claude Sonnet 4.6 included.
+`temperature`, `top_p` and `top_k` with a 400 on every model (Anthropic's API version
+migration guide, change 1). On `2023-06-01`, models before Claude 4.7 still accept a
+temperature: on 2026-11-12 one call to `claude-sonnet-4-6` with `temperature: 0` on that
+version returned `200` (15 input and 4 output tokens).
 
 ## Decision
 
@@ -23,7 +25,12 @@ still accepts a temperature on models before Claude 4.7, Claude Sonnet 4.6 inclu
 - Set, the Anthropic client sends that temperature through `extra_body` on API version
   `2023-06-01`, for that request only (`extra_headers`); the OpenAI fallback sends the
   same temperature, so the router keeps one sampling policy.
-- Runs record the value (`run_settings.llm_temperature` in the prospecting bench).
+- The judge never gets it: the default judge model is Claude 4.7 or later, which
+  rejects a temperature, and the judge has no fallback.
+- The prospecting bench records the value (`run_settings.llm_temperature`). An eval
+  run records none, so `verity eval run` exits with code 2 while the setting is set:
+  its artefact would otherwise be compared with the runs of record as if only
+  sampling noise separated them.
 
 ## Consequences
 

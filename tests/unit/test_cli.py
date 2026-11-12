@@ -549,3 +549,18 @@ def test_naive_baseline_runs_an_unchecked_agent_under_its_own_artefact_name(
     result = runner.invoke(app, ["eval", "run", "--ci", "--runs-dir", str(tmp_path), *flags])
     assert result.exit_code == 4, result.output
     assert seen == expected
+
+
+def test_eval_run_refuses_a_sampling_temperature(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An eval run records no temperature (ADR 0007); a run at another temperature
+    would be compared with runs of record as if only sampling noise separated them."""
+    from verity.config import get_settings
+
+    monkeypatch.setenv("VERITY_LLM_TEMPERATURE", "0")
+    get_settings.cache_clear()
+    result = runner.invoke(app, ["eval", "run", "--ci", "--runs-dir", str(tmp_path)])
+    assert result.exit_code == 2
+    assert "VERITY_LLM_TEMPERATURE" in result.output
+    assert not list(tmp_path.iterdir())

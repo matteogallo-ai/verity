@@ -726,6 +726,14 @@ def eval_run(
     if judge_mode not in {"stub", "live"}:
         raise typer.BadParameter("--judge must be 'stub' or 'live'")
 
+    # Runs of record sample at the provider default and record no temperature (ADR
+    # 0007); a run at another temperature would read as sampling noise next to them.
+    if get_settings().llm_temperature is not None:
+        console.print(
+            "[red]VERITY_LLM_TEMPERATURE is set; eval runs use the default sampling.[/red]"
+        )
+        raise typer.Exit(code=2)
+
     if judge_mode == "live":
         _require_llm_api_key()
 
