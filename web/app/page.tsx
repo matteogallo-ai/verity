@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnswerCard } from "@/components/AnswerCard";
 import { AskBox } from "@/components/AskBox";
+import { PresentationAnswer } from "@/components/PresentationAnswer";
 import { ProvenanceBadge } from "@/components/ProvenanceBadge";
 import { SourcePanel } from "@/components/SourcePanel";
 import { StubModeBanner } from "@/components/StubModeBanner";
@@ -88,20 +89,27 @@ export default function HomePage() {
   const language = labelsLanguage(status.kind === "up" ? status.response.language : undefined);
   const labels = labelsFor(language);
   const questions = status.kind === "up" ? (status.response.suggested_questions ?? []) : [];
+  const presenting = status.kind === "up" && status.response.ui_mode === "presentation";
+  const corpusName = status.kind === "up" ? status.response.corpus_name : null;
+  const title = corpusName ? `${labels.presentationTitle} \u2013 ${corpusName}` : labels.presentationTitle;
 
   return (
     <>
       <StubModeBanner provenance={provenance} />
       <header className="topbar">
-        <div className="brand">
-          <span className="mark mono">verity</span>
-          <span className="tagline">evaluated, observable RAG</span>
-        </div>
+        {presenting ? (
+          <h1 className="title">{title}</h1>
+        ) : (
+          <div className="brand">
+            <span className="mark mono">verity</span>
+            <span className="tagline">evaluated, observable RAG</span>
+          </div>
+        )}
         <div className="topbar-right">
-          {status.kind === "up" && provenance && (
+          {status.kind === "up" && !presenting && provenance && (
             <ProvenanceBadge provenance={provenance} />
           )}
-          {status.kind === "up" && (
+          {status.kind === "up" && !presenting && (
             <span className="mono corpus">
               corpus · {status.response.corpus.n_documents} docs ·{" "}
               {status.response.corpus.n_chunks} chunks
@@ -113,9 +121,9 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main className="page">
+      <main className={presenting ? "page presenting" : "page"}>
         <section className="left">
-          <UploadPanel onIngested={handleIngested} />
+          {!presenting && <UploadPanel onIngested={handleIngested} />}
           <div className="ask-wrap">
             <AskBox
               disabled={asking || status.kind !== "up"}
@@ -130,7 +138,10 @@ export default function HomePage() {
               </p>
             )}
           </div>
-          {result && (
+          {result && presenting && (
+            <PresentationAnswer answer={result.answer} language={language} />
+          )}
+          {result && !presenting && (
             <AnswerCard
               answer={result.answer}
               provenance={result.provenance}
@@ -147,12 +158,14 @@ export default function HomePage() {
             </div>
           )}
         </section>
-        <SourcePanel
-          answer={result?.answer ?? null}
-          activeChunkId={activeChunkId}
-          onChunkClick={onChunkClick}
-          language={language}
-        />
+        {!presenting && (
+          <SourcePanel
+            answer={result?.answer ?? null}
+            activeChunkId={activeChunkId}
+            onChunkClick={onChunkClick}
+            language={language}
+          />
+        )}
       </main>
 
       <style jsx>{`
@@ -191,6 +204,15 @@ export default function HomePage() {
         .down {
           font-size: 11px;
           color: var(--error);
+        }
+        .title {
+          margin: 0;
+          font-size: 18px;
+          font-weight: 600;
+        }
+        .page.presenting {
+          grid-template-columns: minmax(0, 1fr);
+          max-width: 860px;
         }
         .page {
           display: grid;

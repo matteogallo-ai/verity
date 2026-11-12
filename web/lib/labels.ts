@@ -8,6 +8,7 @@
 export type Language = "en" | "fr";
 
 export interface Labels {
+  presentationTitle: string;
   questionPlaceholder: string;
   ask: string;
   asking: string;
@@ -53,6 +54,7 @@ export interface Labels {
 }
 
 const EN: Labels = {
+  presentationTitle: "Agreement assistant",
   questionPlaceholder: "Ask a question about the ingested documents\u2026",
   ask: "Ask",
   asking: "asking\u2026",
@@ -106,6 +108,7 @@ const EN: Labels = {
 };
 
 const FR: Labels = {
+  presentationTitle: "Assistant CCT",
   questionPlaceholder: "Posez une question sur les documents\u2026",
   ask: "Demander",
   asking: "recherche en cours\u2026",

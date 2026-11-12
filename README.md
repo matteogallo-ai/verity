@@ -67,6 +67,7 @@ runs the stub agent even when `.env` holds a provider key.
 ```bash
 make demo-cct CORPUS=chemin/vers/le/dossier/de/la/cct           # agent stub, gratuit (LIVE=0 aussi)
 make demo-cct CORPUS=chemin/vers/le/dossier/de/la/cct LIVE=1    # modèle réel, réponses payantes
+make demo-cct CORPUS=… LIVE=1 NAME="CCT Métal-Vaud"                # titre « Assistant CCT – CCT Métal-Vaud »
 ```
 
 L'API ingère le dossier (PDF, DOCX, Markdown ou texte) en mémoire avec les réglages de
@@ -83,6 +84,14 @@ justification en français. Les motifs fixes (citation absente, réponses du stu
 `LIVE=1`), l'ajout de document et l'en-tête restent en anglais. Les questions proposées en un clic viennent de
 `suggested_questions.json` dans le dossier du corpus (une liste JSON de chaînes, 8 au
 plus) ; sans ce fichier, aucune n'est proposée (C39).
+
+Le profil ouvre le **mode présentation** (`VERITY_UI_MODE=presentation`), la vue d'un
+membre : un titre « Assistant CCT », suivi de `NAME` s'il est donné, la question, les
+questions proposées, puis la réponse avec, pour chaque citation, l'article et l'extrait,
+ou le seul message de refus. Sont masqués l'ajout de document, le modèle, la confiance,
+la justification, la latence, les jetons, le coût, les identifiants, les positions et les
+scores des passages, et le panneau des sources. `VERITY_UI_MODE=developer`, le défaut
+hors de ce profil, rend la vue complète (C39).
 
 ## Documentation
 
