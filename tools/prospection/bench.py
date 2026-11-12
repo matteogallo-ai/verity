@@ -32,6 +32,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from verity.agent.decomposer import LLMQuestionDecomposer
 from verity.agent.support import Language, best_cited_rerank_score, citation_coverage
 from verity.agent.synthesizer import DRAFT_MAX_TOKENS, CitedSynthesizer, SynthesisResult
 from verity.types import Answer, RetrievalHit
@@ -90,6 +91,9 @@ class Decision(BaseModel, frozen=True):
     # draft that ends exactly at the cap is flagged too.
     draft_output_tokens: int | None
     draft_truncated: bool | None
+    # The queries' source: a decomposition that differs between runs retrieves
+    # different passages for the same question.
+    sub_questions: tuple[str, ...] | None
     hits: tuple[HitRecord, ...]
 
 
@@ -250,7 +254,12 @@ _EXCERPT_CHARS = 200
 
 
 def decision_of(
-    answer: Answer, draft: SynthesisResult | None, *, language: Language, max_tokens: int
+    answer: Answer,
+    draft: SynthesisResult | None,
+    *,
+    language: Language,
+    max_tokens: int,
+    sub_questions: list[str] | None = None,
 ) -> Decision:
     confidence = answer.confidence
     if confidence is None:
@@ -267,6 +276,7 @@ def decision_of(
         draft=draft.text if draft else None,
         draft_output_tokens=draft.usage.output_tokens if draft else None,
         draft_truncated=draft.usage.output_tokens >= max_tokens if draft else None,
+        sub_questions=tuple(sub_questions) if sub_questions is not None else None,
         hits=tuple(
             HitRecord(
                 rank=h.rank,
@@ -287,6 +297,16 @@ class _RecordingSynthesizer(CitedSynthesizer):
 
     async def synthesize(self, question: str, hits: list[RetrievalHit]) -> SynthesisResult:
         self.last = await super().synthesize(question, hits)
+        return self.last
+
+
+class _RecordingDecomposer(LLMQuestionDecomposer):
+    """Keeps the last decomposition, which the agent does not return."""
+
+    last: list[str] | None = None
+
+    async def decompose(self, question: str) -> list[str]:
+        self.last = await super().decompose(question)
         return self.last
 
 
@@ -335,8 +355,13 @@ async def run_bench(
     router = build_stub_router() if stub else create_default_routing_client()
     client = SpendCappedClient(router, cap_usd=budget_usd)
     synthesizer = _RecordingSynthesizer(client, max_tokens=draft_max_tokens)
+    decomposer = _RecordingDecomposer(client)
     agent = create_default_agent(
-        retriever=retriever, client=client, synthesizer=synthesizer, refusal_text=refusal_text
+        retriever=retriever,
+        client=client,
+        synthesizer=synthesizer,
+        refusal_text=refusal_text,
+        decomposer=decomposer,
     )
     settings = get_settings()
     run = Run(
@@ -352,6 +377,8 @@ async def run_bench(
             "name_articles": settings.name_articles,
             "index_tables": settings.index_tables,
             "llm_temperature": settings.llm_temperature,
+            "retrieve_original_question": settings.retrieve_original_question,
+            "complete_answers": settings.complete_answers,
             "synthesis_max_tokens": synthesizer.max_tokens,
             "embedding_model": settings.embedding_model,
             "reranker_model": settings.reranker_model,
@@ -367,6 +394,7 @@ async def run_bench(
     )
     for question in questions:
         synthesizer.last = None
+        decomposer.last = None
         answer = await agent.answer(question.question)
         refused = bool(answer.confidence and answer.confidence.refused)
         # The kind only, as the eval harness records errors: provider messages can quote secrets.
@@ -388,6 +416,7 @@ async def run_bench(
                     synthesizer.last,
                     language=settings.language,
                     max_tokens=synthesizer.max_tokens,
+                    sub_questions=decomposer.last,
                 ),
                 graded=grade(
                     question, answer.text, refused=refused, error=error, citations=citations

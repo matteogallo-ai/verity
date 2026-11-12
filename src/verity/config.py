@@ -126,6 +126,14 @@ class Settings(BaseSettings):
     # changes the text, hence the chunks and their ids, of every corpus document with a
     # table, and the published runs were labelled on chunks without them.
     index_tables: bool = False
+    # Retrieve the question as asked as well as its sub-questions. A decomposition can
+    # drop the term that finds the passage. Off by default: it changes the evidence of
+    # every decomposed question in the published runs.
+    retrieve_original_question: bool = False
+    # Ask the draft to answer every part, to copy figures as the text writes them, and
+    # to name the part the documents do not cover; the agent then appends that and the
+    # referral text. Off by default: it changes the prompt of the published runs.
+    complete_answers: bool = False
     min_cited_rerank_score: float = 0.0
     # Off by default: as the first failing check on the dev runs it refused 11
     # answerable records (4 distinct questions) for 5 unanswerable ones (2), and

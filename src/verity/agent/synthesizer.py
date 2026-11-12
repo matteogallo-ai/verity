@@ -42,6 +42,18 @@ ARTICLE_NOTE = (
 )
 
 
+# Appended to the system message with VERITY_COMPLETE_ANSWERS. The uncovered part goes
+# in its own field: the agent appends it after the support check, which a sentence
+# citing nothing would otherwise fail.
+COMPLETE_NOTE = (
+    "\n\nAnswer every part of the question. When the documents answer only some parts, "
+    'answer those in "answer", and put one short sentence naming each part they do not '
+    'cover, in the language of the question, in a "not_covered" field; leave it out when '
+    "nothing is missing. Copy every amount, duration, date and percentage exactly as the "
+    "cited text writes it: do not convert, round or reword it."
+)
+
+
 @dataclass(frozen=True)
 class SynthesisResult:
     """Output of the synthesizer — draft text, validated citations, usage, and the
@@ -66,6 +78,8 @@ class SynthesisResult:
     usage: UsageStats
     provider: Provider | None
     model: str | None
+    # What the documents do not cover, as the draft names it (VERITY_COMPLETE_ANSWERS).
+    not_covered: str | None = None
 
 
 class CitedSynthesizer:
@@ -79,10 +93,14 @@ class CitedSynthesizer:
         max_tokens: int = DRAFT_MAX_TOKENS,
         datamarked: bool = True,
         name_articles: bool | None = None,
+        complete_answers: bool | None = None,
     ) -> None:
         self._client = client
         self._name_articles = (
             get_settings().name_articles if name_articles is None else name_articles
+        )
+        self._complete_answers = (
+            get_settings().complete_answers if complete_answers is None else complete_answers
         )
         # Off only to measure what the mark changes (scripts/run_injection_eval.py).
         self._datamarked = datamarked
@@ -102,6 +120,7 @@ class CitedSynthesizer:
             evidence=evidence,
             datamark_note=DATAMARK_NOTE if self._datamarked else "",
             article_note=ARTICLE_NOTE if self._name_articles else "",
+            answer_note=COMPLETE_NOTE if self._complete_answers else "",
         )
         completion = await self._client.complete(messages, max_tokens=self._max_tokens)
         self.last_usage = completion.usage
@@ -113,7 +132,16 @@ class CitedSynthesizer:
             usage=completion.usage,
             provider=completion.provider,
             model=completion.model,
+            not_covered=_parse_not_covered(completion.text) if self._complete_answers else None,
         )
+
+
+def _parse_not_covered(text: str) -> str | None:
+    parsed = parse_json_object(text)
+    value = parsed.get("not_covered") if parsed else None
+    if not isinstance(value, str):
+        return None
+    return value.replace(DATAMARK, " ").strip() or None
 
 
 def _parse_synth_output(text: str) -> tuple[str, list[tuple[str, int]]]:

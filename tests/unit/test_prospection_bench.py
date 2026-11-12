@@ -172,6 +172,15 @@ def test_a_refusal_records_its_reason_coverage_draft_and_passages() -> None:
     ]
 
 
+def test_the_sub_questions_the_agent_retrieved_are_recorded() -> None:
+    """A question whose decomposition changes between two runs retrieves different
+    passages; the record shows it."""
+    refusal = _refused(RefusalReason.NO_CITATION, "none")
+    decision = decision_of(refusal, None, **_RUN, sub_questions=["a?", "b?"])
+    assert decision.sub_questions == ("a?", "b?")
+    assert decision_of(refusal, None, **_RUN).sub_questions is None
+
+
 def test_without_a_draft_there_is_no_coverage() -> None:
     decision = decision_of(_refused(RefusalReason.NO_CITATION, "none"), None, **_RUN)
     assert decision.citation_coverage is None and decision.draft is None
@@ -336,6 +345,9 @@ def test_a_stub_run_writes_both_files(tmp_path: Path) -> None:
     assert run["run_settings"]["name_articles"] is False
     assert run["run_settings"]["index_tables"] is False
     assert run["run_settings"]["llm_temperature"] is None
+    assert run["run_settings"]["retrieve_original_question"] is False
+    assert run["run_settings"]["complete_answers"] is False
+    assert run["results"][0]["decision"]["sub_questions"]
     assert run["run_settings"]["refusal_text"] == referral
     # The scripted stub knows none of this corpus's themes, so it refuses.
     assert run["results"][0]["refused"]
