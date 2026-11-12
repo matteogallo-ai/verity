@@ -77,8 +77,10 @@ def test_the_shipped_corpus_keeps_its_demo_questions(tmp_path: Path) -> None:
     """make demo shows the questions the UI carried before they moved to the corpus."""
     with api_app(tmp_path, Settings(api_auth_disabled=True)) as client:
         questions = client.get("/status").json()["suggested_questions"]
-    assert questions[0] == (
-        "What is the notice period for terminating the master services agreement?"
-    )
-    assert questions[-1] == "What is the CEO's home address?"
-    assert len(questions) == 5
+    assert questions == [
+        "What is the notice period for terminating the master services agreement?",
+        "Which entity is liable for data-processing breaches, and up to what cap?",
+        "Where is personal data stored, and what mechanism covers EU-to-US transfers?",
+        "What is the response time for a Priority 1 support request?",
+        "What is the CEO's home address?",
+    ]

@@ -1,8 +1,8 @@
 /**
  * The text of the question box, and around an answer, a refusal and their evidence, in
- * the corpus language the
- * API reports on /status (VERITY_LANGUAGE). The answer and the refusal are already in
- * that language; a French refusal under an English explanation reads as a broken page.
+ * the corpus language the API reports on /status (VERITY_LANGUAGE). The answer and the
+ * refusal are already in that language; a French refusal under an English explanation
+ * reads as a broken page.
  * Any language the API names that is not listed here falls back to English.
  */
 export type Language = "en" | "fr";
