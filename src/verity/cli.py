@@ -73,13 +73,12 @@ def ingest(
     from verity.ingestion import (
         IngestionPipeline,
         LocalEmbedder,
-        StructureAwareChunker,
         create_default_parser,
     )
     from verity.ingestion.pipeline import IngestionResult, discover_sources
     from verity.retrieval import PgVectorStore
     from verity.retrieval.base import StoreSchemaError, StoreUnavailableError
-    from verity.runtime import prune_missing
+    from verity.runtime import create_chunker, prune_missing
 
     uris = discover_sources(str(path))
     if not uris:
@@ -88,7 +87,7 @@ def ingest(
 
     settings = get_settings()
     parser = create_default_parser()
-    chunker = StructureAwareChunker()
+    chunker = create_chunker()
     embedder = LocalEmbedder()
     sink = None if dry_run else PgVectorStore(settings.database_url.get_secret_value())
 
