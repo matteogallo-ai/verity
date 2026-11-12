@@ -414,6 +414,7 @@ async def run_bench(
             "rerank_k": settings.rerank_k,
             "retrieval_k": settings.retrieval_k,
             "min_citation_coverage": settings.min_citation_coverage,
+            "support_check": settings.support_check,
             "min_cited_rerank_score": settings.min_cited_rerank_score,
             "irrelevant_citation_check": settings.irrelevant_citation_check,
             "confidence_threshold": settings.confidence_threshold,
