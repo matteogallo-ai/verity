@@ -136,12 +136,19 @@ class CitedSynthesizer:
         )
 
 
+# The field is model text that no check reads before it reaches the user: a statement
+# longer than this is no longer the one sentence the prompt asks for, so it is dropped
+# and the checked answer ships alone.
+NOT_COVERED_MAX_CHARS = 300
+
+
 def _parse_not_covered(text: str) -> str | None:
     parsed = parse_json_object(text)
     value = parsed.get("not_covered") if parsed else None
     if not isinstance(value, str):
         return None
-    return value.replace(DATAMARK, " ").strip() or None
+    value = value.replace(DATAMARK, " ").strip()
+    return value if value and len(value) <= NOT_COVERED_MAX_CHARS else None
 
 
 def _parse_synth_output(text: str) -> tuple[str, list[tuple[str, int]]]:

@@ -36,8 +36,11 @@ class _Retriever:
 
 async def _queries(question: str, sub_questions: list[str]) -> list[str]:
     retriever = _Retriever()
-    agent = create_default_agent(retriever=retriever, client=build_stub_router())  # type: ignore[arg-type]
-    agent._decomposer = _Decomposer(sub_questions)  # type: ignore[assignment]
+    agent = create_default_agent(
+        retriever=retriever,  # type: ignore[arg-type]
+        client=build_stub_router(),
+        decomposer=_Decomposer(sub_questions),  # type: ignore[arg-type]
+    )
     await agent.answer(question)
     return retriever.queries
 
@@ -66,3 +69,4 @@ async def test_a_question_kept_whole_is_retrieved_once(monkeypatch: pytest.Monke
     get_settings.cache_clear()
     assert await _queries("Q?", ["Q?"]) == ["Q?"]
     assert await _queries("Q?", ["a?", "a?"]) == ["Q?", "a?"]
+    assert await _queries("Q? ", ["Q?", "a?"]) == ["Q?", "a?"]

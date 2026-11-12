@@ -13,13 +13,13 @@ from uuid import UUID
 
 import pytest
 
-from verity.agent.agent import create_default_agent
+from verity.agent.agent import RagAgent
 from verity.agent.evidence import DATAMARK
-from verity.agent.scripted_stub import build_stub_router
 from verity.agent.synthesizer import CitedSynthesizer, SynthesisResult
 from verity.types import (
     Chunk,
     Completion,
+    Confidence,
     DocumentId,
     Message,
     Provider,
@@ -98,6 +98,15 @@ async def test_an_empty_or_malformed_field_means_nothing_is_missing(value: objec
 
 
 @pytest.mark.asyncio
+async def test_an_over_long_field_is_dropped() -> None:
+    """The field is model text no check reads: it stays the one sentence it is asked for."""
+    result, _ = await _synthesize(_payload(not_covered="x" * 301), on=True)
+    assert result.not_covered is None
+    result, _ = await _synthesize(_payload(not_covered="x" * 300), on=True)
+    assert result.not_covered == "x" * 300
+
+
+@pytest.mark.asyncio
 async def test_without_the_setting_the_field_is_ignored() -> None:
     result, _ = await _synthesize(_payload(not_covered="x"), on=False)
     assert result.not_covered is None
@@ -113,22 +122,41 @@ class _Synthesizer:
         return self._result
 
 
+class _Decomposer:
+    last_usage = None
+
+    async def decompose(self, question: str) -> list[str]:
+        return [question]
+
+
+class _Scorer:
+    """Accepts every draft, so the deterministic checks alone decide."""
+
+    last_usage = None
+
+    async def score(self, question: str, draft: str, hits: list[RetrievalHit]) -> Confidence:
+        return Confidence(score=0.9, refused=False, rationale="ok")
+
+
 class _Retriever:
     async def retrieve(self, query: str, *, k: int) -> list[RetrievalHit]:
         return [_HIT]
 
 
-async def _answer(result: SynthesisResult, monkeypatch: pytest.MonkeyPatch, *, on: bool) -> str:
+async def _answer(
+    result: SynthesisResult, monkeypatch: pytest.MonkeyPatch, *, on: bool, checks: bool = False
+) -> str:
     from verity.config import get_settings
 
     monkeypatch.setenv("VERITY_COMPLETE_ANSWERS", "true" if on else "false")
     get_settings.cache_clear()
-    agent = create_default_agent(
+    agent = RagAgent(
         retriever=_Retriever(),  # type: ignore[arg-type]
-        client=build_stub_router(),
+        decomposer=_Decomposer(),
         synthesizer=_Synthesizer(result),  # type: ignore[arg-type]
+        scorer=_Scorer(),
         refusal_text=_REFERRAL,
-        checks=False,
+        checks=checks,
     )
     return (await agent.answer("q?")).text
 
@@ -166,3 +194,19 @@ async def test_without_the_setting_the_answer_is_the_draft(
 ) -> None:
     text = await _answer(_result("Rien sur le congé maternité."), monkeypatch, on=False)
     assert text == "6 jours fériés payés par an."
+
+
+@pytest.mark.asyncio
+async def test_a_checked_answer_names_what_is_missing_then_refers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    text = await _answer(_result("Rien sur le congé maternité."), monkeypatch, on=True, checks=True)
+    assert text == f"6 jours fériés payés par an.\n\nRien sur le congé maternité. {_REFERRAL}"
+
+
+@pytest.mark.asyncio
+async def test_a_refused_answer_drops_what_is_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    text = await _answer(
+        _result("Rien sur le congé maternité.", cited=False), monkeypatch, on=True, checks=True
+    )
+    assert text == _REFERRAL
