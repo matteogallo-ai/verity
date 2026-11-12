@@ -6,6 +6,9 @@ third-party text is included, so there is no licence to check beyond that one. P
 and companies named in them (Northwind Logistics, Maria Chen, Dana Whitfield, ...) are
 invented.
 
+`corpus/suggested_questions.json` is not a document: it lists the example questions the
+web UI offers for this corpus (`/status.suggested_questions`); ingestion skips it.
+
 **Origin.** Most of the text was written with a coding agent running Claude Opus 5.5,
 the model family of the judge (`claude-opus-5-5`) and of the agent (`claude-sonnet-4-6`):
 

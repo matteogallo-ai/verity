@@ -78,6 +78,7 @@ async def status_endpoint(request: Request) -> StatusResponse:
         corpus=await _corpus_summary(runtime),
         otel_endpoint=settings.otel_endpoint,
         language=settings.language,
+        suggested_questions=runtime.suggested_questions(),
     )
 
 

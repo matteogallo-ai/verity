@@ -25,6 +25,15 @@ from verity.llm.json_output import first_matching, parse_json_object, strict_boo
 from verity.llm.prompt import load_prompt
 from verity.types import Confidence, RefusalReason, RetrievalHit, UsageStats
 
+# Appended to the system message in the corpus language: the rationale is shown under a
+# refused answer, next to the answer's own language. English adds nothing, so the
+# published runs keep their prompt.
+LANGUAGE_NOTE = {
+    "en": "",
+    "fr": "\n\nWrite the rationale in French, the language of the documents and of the "
+    "question; keep the JSON keys as given.",
+}
+
 
 class LLMConfidenceScorer(ConfidenceScorer):
     """Prompt-driven confidence + refusal.
@@ -57,6 +66,7 @@ class LLMConfidenceScorer(ConfidenceScorer):
             question=neutralise(question),
             answer=neutralise(draft_answer),
             evidence=render_evidence(hits, with_scores=True),
+            language_note=LANGUAGE_NOTE[get_settings().language],
         )
         completion = await self._client.complete(messages, max_tokens=256)
         self.last_usage = completion.usage

@@ -1,22 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { labelsFor, type Language } from "@/lib/labels";
 
 export interface AskBoxProps {
   disabled?: boolean;
+  // The corpus's one-click questions (/status.suggested_questions); none shows none.
+  questions: readonly string[];
+  language: Language;
   onAsk: (question: string) => void;
 }
 
-const DEMO_QUESTIONS = [
-  "What is the notice period for terminating the master services agreement?",
-  "Which entity is liable for data-processing breaches, and up to what cap?",
-  "Where is personal data stored, and what mechanism covers EU-to-US transfers?",
-  "What is the response time for a Priority 1 support request?",
-  // Out-of-scope — triggers the refusal panel.
-  "What is the CEO's home address?",
-];
-
-export function AskBox({ disabled, onAsk }: AskBoxProps) {
+export function AskBox({ disabled, questions, language, onAsk }: AskBoxProps) {
+  const labels = labelsFor(language);
   const [text, setText] = useState("");
   const canSubmit = text.trim().length > 0 && !disabled;
   return (
@@ -29,7 +25,7 @@ export function AskBox({ disabled, onAsk }: AskBoxProps) {
     >
       <textarea
         aria-label="Question"
-        placeholder="Ask a question about the ingested documents…"
+        placeholder={labels.questionPlaceholder}
         value={text}
         rows={2}
         onChange={(e) => setText(e.target.value)}
@@ -42,11 +38,12 @@ export function AskBox({ disabled, onAsk }: AskBoxProps) {
       />
       <div className="row">
         <div className="demo">
-          {DEMO_QUESTIONS.map((q) => (
+          {questions.map((q) => (
             <button
               key={q}
               type="button"
               className="chip"
+              title={q}
               disabled={disabled}
               onClick={() => {
                 setText(q);
@@ -61,9 +58,9 @@ export function AskBox({ disabled, onAsk }: AskBoxProps) {
           type="submit"
           className="primary"
           disabled={!canSubmit}
-          aria-label="Ask"
+          aria-label={labels.ask}
         >
-          Ask ↵
+          {labels.ask} ↵
         </button>
       </div>
       <style jsx>{`

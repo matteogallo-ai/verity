@@ -126,6 +126,8 @@ class StatusResponse(BaseModel, frozen=True):
     otel_endpoint: str | None
     # The corpus language (VERITY_LANGUAGE): the UI labels refusals and citations in it.
     language: Literal["en", "fr"]
+    # One-click example questions about the served corpus, from its folder; [] if none.
+    suggested_questions: list[str]
 
 
 # --------------------------------------------------------------------------------------

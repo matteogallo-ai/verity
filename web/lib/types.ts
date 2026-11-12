@@ -88,6 +88,8 @@ export interface StatusResponse {
   otel_endpoint: string | null;
   // VERITY_LANGUAGE; absent from an older API, which the UI reads as English.
   language?: string;
+  // The corpus's example questions; absent from an older API, which the UI reads as none.
+  suggested_questions?: string[];
 }
 
 // -----------------------------------------------------------------------------

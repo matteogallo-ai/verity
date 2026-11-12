@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import re
 import time
 from collections.abc import Sequence
@@ -57,6 +58,37 @@ _UPLOAD_URI_PREFIX = "upload://"
 _PRELOAD_QUERY = "preload"
 PreloadState = Literal["loading", "ok", "failed"]
 _FILENAME_SANITISE_RE = re.compile(r"[^A-Za-z0-9._-]+")
+
+
+# The UI offers these questions as one-click examples. The file sits beside the documents
+# so that each corpus carries its own; its suffix is not one the ingestion reads.
+SUGGESTED_QUESTIONS_FILE = "suggested_questions.json"
+_MAX_SUGGESTED_QUESTIONS = 8
+_MAX_SUGGESTED_QUESTION_CHARS = 300
+
+
+def read_suggested_questions(corpus_dir: Path) -> list[str]:
+    """The questions in ``corpus_dir/suggested_questions.json``: a JSON list of strings.
+
+    A missing or invalid file yields none: an example question is a convenience, so a
+    bad file must not stop the API, and a partial list could show a stray entry.
+    """
+    path = corpus_dir / SUGGESTED_QUESTIONS_FILE
+    try:
+        questions = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return []
+    except (OSError, ValueError) as exc:
+        _log.warning("suggested_questions_unreadable", path=str(path), error=str(exc))
+        return []
+    valid = isinstance(questions, list) and all(
+        isinstance(q, str) and q.strip() and len(q) <= _MAX_SUGGESTED_QUESTION_CHARS
+        for q in questions
+    )
+    if not valid:
+        _log.warning("suggested_questions_invalid", path=str(path))
+        return []
+    return list(questions[:_MAX_SUGGESTED_QUESTIONS])
 
 
 class CorpusFullError(Exception):
@@ -229,6 +261,9 @@ class AppRuntime:
 
     async def sources(self) -> Sequence[DocumentSummary]:
         return await self.store.list_documents()
+
+    def suggested_questions(self) -> list[str]:
+        return read_suggested_questions(self._corpus_dir)
 
     def provenance(self) -> Provenance:
         """Fallback provenance derived from the boot-time configuration.

@@ -8,7 +8,7 @@ import { SourcePanel } from "@/components/SourcePanel";
 import { StubModeBanner } from "@/components/StubModeBanner";
 import { UploadPanel } from "@/components/UploadPanel";
 import { ApiError, ask, fetchStatus } from "@/lib/api";
-import { labelsLanguage } from "@/lib/labels";
+import { labelsFor, labelsLanguage } from "@/lib/labels";
 import type {
   AskResponse,
   Citation,
@@ -86,6 +86,8 @@ export default function HomePage() {
 
   const provenance = result?.provenance ?? (status.kind === "up" ? status.response.provenance : null);
   const language = labelsLanguage(status.kind === "up" ? status.response.language : undefined);
+  const labels = labelsFor(language);
+  const questions = status.kind === "up" ? (status.response.suggested_questions ?? []) : [];
 
   return (
     <>
@@ -115,11 +117,16 @@ export default function HomePage() {
         <section className="left">
           <UploadPanel onIngested={handleIngested} />
           <div className="ask-wrap">
-            <AskBox disabled={asking || status.kind !== "up"} onAsk={handleAsk} />
-            {asking && <p className="pending mono">asking…</p>}
+            <AskBox
+              disabled={asking || status.kind !== "up"}
+              questions={questions}
+              language={language}
+              onAsk={handleAsk}
+            />
+            {asking && <p className="pending mono">{labels.asking}</p>}
             {askError && (
               <p role="alert" className="err">
-                <b>ask failed:</b> {askError}
+                <b>{labels.askFailed}</b> {askError}
               </p>
             )}
           </div>
@@ -135,11 +142,8 @@ export default function HomePage() {
           )}
           {!result && !asking && status.kind === "up" && (
             <div className="empty">
-              <h3>Ready.</h3>
-              <p>
-                Ask a question about the ingested documents. Try one of the demo
-                questions above (or upload a doc first).
-              </p>
+              <h3>{labels.ready}</h3>
+              <p>{questions.length > 0 ? labels.readyHintWithQuestions : labels.readyHint}</p>
             </div>
           )}
         </section>

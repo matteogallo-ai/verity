@@ -6,7 +6,10 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { REFUSED_ANSWER } from "./fixtures";
 
-const status = vi.hoisted(() => ({ language: undefined as string | undefined }));
+const status = vi.hoisted(() => ({
+  language: undefined as string | undefined,
+  questions: [] as string[],
+}));
 
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
@@ -18,6 +21,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
       corpus: { n_documents: 1, n_chunks: 1, sources: [] },
       otel_endpoint: null,
       ...(status.language === undefined ? {} : { language: status.language }),
+      suggested_questions: status.questions,
     })),
     ask: vi.fn(async () => REFUSED_ANSWER),
   };
@@ -29,13 +33,14 @@ async function refuse() {
   render(<HomePage />);
   const box = await screen.findByRole("textbox", { name: "Question" });
   fireEvent.change(box, { target: { value: "Quelle indemnité de télétravail ?" } });
-  fireEvent.click(screen.getByRole("button", { name: /^Ask/ }));
+  fireEvent.click(screen.getByRole("button", { name: /^(Ask|Demander)$/ }));
   return screen.findByRole("region", { name: /refus/i });
 }
 
 describe("page language", () => {
   beforeEach(() => {
     status.language = undefined;
+    status.questions = [];
   });
 
   it("labels the refusal and the evidence in French when /status says fr", async () => {
@@ -49,5 +54,22 @@ describe("page language", () => {
     const refusal = await refuse();
     expect(refusal).toHaveTextContent("The agent declined");
     expect(screen.getAllByText("not-cited").length).toBeGreaterThan(0);
+  });
+
+  it("offers the corpus questions and a French empty state when /status says fr", async () => {
+    status.language = "fr";
+    status.questions = ["Quel est le délai de congé ?"];
+    render(<HomePage />);
+    expect(await screen.findByRole("button", { name: "Quel est le délai de congé ?" })).toBeEnabled();
+    expect(screen.getByText("Prêt.")).toBeInTheDocument();
+    expect(screen.getByText(/Essayez l'une des questions proposées/)).toBeInTheDocument();
+  });
+
+  it("does not point to suggested questions when the corpus has none", async () => {
+    status.language = "fr";
+    render(<HomePage />);
+    expect(await screen.findByText("Prêt.")).toBeInTheDocument();
+    expect(screen.queryByText(/questions proposées/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Posez une question sur les documents/)).toBeInTheDocument();
   });
 });
