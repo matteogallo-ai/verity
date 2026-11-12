@@ -128,6 +128,9 @@ class StatusResponse(BaseModel, frozen=True):
     language: Literal["en", "fr"]
     # One-click example questions about the served corpus, from its folder; [] if none.
     suggested_questions: list[str]
+    # VERITY_UI_MODE and VERITY_CORPUS_NAME: which view the UI renders, under which title.
+    ui_mode: Literal["developer", "presentation"]
+    corpus_name: str | None
 
 
 # --------------------------------------------------------------------------------------

@@ -90,6 +90,9 @@ export interface StatusResponse {
   language?: string;
   // The corpus's example questions; absent from an older API, which the UI reads as none.
   suggested_questions?: string[];
+  // VERITY_UI_MODE and VERITY_CORPUS_NAME; absent from an older API: the developer view.
+  ui_mode?: string;
+  corpus_name?: string | null;
 }
 
 // -----------------------------------------------------------------------------

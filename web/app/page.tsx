@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnswerCard } from "@/components/AnswerCard";
 import { AskBox } from "@/components/AskBox";
+import { PresentationAnswer } from "@/components/PresentationAnswer";
 import { ProvenanceBadge } from "@/components/ProvenanceBadge";
 import { SourcePanel } from "@/components/SourcePanel";
 import { StubModeBanner } from "@/components/StubModeBanner";
@@ -17,6 +18,9 @@ import type {
   StatusResponse,
 } from "@/lib/types";
 
+// A demo started before the API is up must find it without a reload.
+const STATUS_RETRY_MS = 3000;
+
 type Status =
   | { kind: "unknown" }
   | { kind: "up"; response: StatusResponse }
@@ -24,6 +28,9 @@ type Status =
 
 export default function HomePage() {
   const [status, setStatus] = useState<Status>({ kind: "unknown" });
+  // The last /status that answered: it keeps the mode, title and language while the
+  // API is briefly down, so a client never sees the developer view meanwhile.
+  const [lastUp, setLastUp] = useState<StatusResponse | null>(null);
   const [asking, setAsking] = useState(false);
   const [result, setResult] = useState<AskResponse | null>(null);
   const [askError, setAskError] = useState<string | null>(null);
@@ -34,6 +41,7 @@ export default function HomePage() {
     try {
       const response = await fetchStatus();
       setStatus({ kind: "up", response });
+      setLastUp(response);
     } catch (exc) {
       const detail = exc instanceof ApiError ? exc.detail : String(exc);
       setStatus({ kind: "down", detail });
@@ -43,6 +51,12 @@ export default function HomePage() {
   useEffect(() => {
     void refreshStatus();
   }, [refreshStatus]);
+
+  useEffect(() => {
+    if (status.kind !== "down") return;
+    const timer = setTimeout(() => void refreshStatus(), STATUS_RETRY_MS);
+    return () => clearTimeout(timer);
+  }, [status, refreshStatus]);
 
   const handleAsk = useCallback(async (question: string) => {
     setAskError(null);
@@ -84,38 +98,55 @@ export default function HomePage() {
     setActiveCitation(idx >= 0 ? idx + 1 : null);
   }, [result]);
 
+  const known = status.kind === "up" ? status.response : lastUp;
   const provenance = result?.provenance ?? (status.kind === "up" ? status.response.provenance : null);
-  const language = labelsLanguage(status.kind === "up" ? status.response.language : undefined);
+  const language = labelsLanguage(known?.language);
   const labels = labelsFor(language);
   const questions = status.kind === "up" ? (status.response.suggested_questions ?? []) : [];
+  // Until a /status answers, the mode is unknown: neither view's chrome is shown, so a
+  // client never sees the developer read-outs before the presentation.
+  const presenting = known !== null && known.ui_mode === "presentation";
+  const developer = known !== null && !presenting;
+  const corpusName = known?.corpus_name ?? null;
+  const title = corpusName ? `${labels.presentationTitle} \u2013 ${corpusName}` : labels.presentationTitle;
 
   return (
     <>
-      <StubModeBanner provenance={provenance} />
+      <StubModeBanner provenance={provenance} notice={presenting ? labels.stubNotice : undefined} />
       <header className="topbar">
-        <div className="brand">
-          <span className="mark mono">verity</span>
-          <span className="tagline">evaluated, observable RAG</span>
-        </div>
+        {presenting && <h1 className="title">{title}</h1>}
+        {developer && (
+          <div className="brand">
+            <span className="mark mono">verity</span>
+            <span className="tagline">evaluated, observable RAG</span>
+          </div>
+        )}
         <div className="topbar-right">
-          {status.kind === "up" && provenance && (
+          {status.kind === "up" && !presenting && provenance && (
             <ProvenanceBadge provenance={provenance} />
           )}
-          {status.kind === "up" && (
+          {status.kind === "up" && !presenting && (
             <span className="mono corpus">
               corpus · {status.response.corpus.n_documents} docs ·{" "}
               {status.response.corpus.n_chunks} chunks
             </span>
           )}
-          {status.kind === "down" && (
-            <span role="alert" className="mono down">backend down: {status.detail}</span>
-          )}
+          {status.kind === "down" &&
+            (developer ? (
+              <span role="alert" className="mono down">
+                backend down: {status.detail}
+              </span>
+            ) : (
+              <span role="status" className="mono down" aria-label="connecting">
+                {"\u2026"}
+              </span>
+            ))}
         </div>
       </header>
 
-      <main className="page">
+      <main className={developer ? "page" : "page presenting"}>
         <section className="left">
-          <UploadPanel onIngested={handleIngested} />
+          {developer && <UploadPanel onIngested={handleIngested} />}
           <div className="ask-wrap">
             <AskBox
               disabled={asking || status.kind !== "up"}
@@ -126,11 +157,20 @@ export default function HomePage() {
             {asking && <p className="pending mono">{labels.asking}</p>}
             {askError && (
               <p role="alert" className="err">
-                <b>{labels.askFailed}</b> {askError}
+                {presenting ? (
+                  labels.presentationAskFailed
+                ) : (
+                  <>
+                    <b>{labels.askFailed}</b> {askError}
+                  </>
+                )}
               </p>
             )}
           </div>
-          {result && (
+          {result && presenting && (
+            <PresentationAnswer answer={result.answer} language={language} />
+          )}
+          {result && !presenting && (
             <AnswerCard
               answer={result.answer}
               provenance={result.provenance}
@@ -142,17 +182,27 @@ export default function HomePage() {
           )}
           {!result && !asking && status.kind === "up" && (
             <div className="empty">
-              <h3>{labels.ready}</h3>
-              <p>{questions.length > 0 ? labels.readyHintWithQuestions : labels.readyHint}</p>
+              <h2>{labels.ready}</h2>
+              <p>
+                {presenting
+                  ? questions.length > 0
+                    ? labels.presentationReadyHintWithQuestions
+                    : labels.presentationReadyHint
+                  : questions.length > 0
+                    ? labels.readyHintWithQuestions
+                    : labels.readyHint}
+              </p>
             </div>
           )}
         </section>
-        <SourcePanel
-          answer={result?.answer ?? null}
-          activeChunkId={activeChunkId}
-          onChunkClick={onChunkClick}
-          language={language}
-        />
+        {developer && (
+          <SourcePanel
+            answer={result?.answer ?? null}
+            activeChunkId={activeChunkId}
+            onChunkClick={onChunkClick}
+            language={language}
+          />
+        )}
       </main>
 
       <style jsx>{`
@@ -192,6 +242,15 @@ export default function HomePage() {
           font-size: 11px;
           color: var(--error);
         }
+        .title {
+          margin: 0;
+          font-size: 18px;
+          font-weight: 600;
+        }
+        .page.presenting {
+          grid-template-columns: minmax(0, 1fr);
+          max-width: 860px;
+        }
         .page {
           display: grid;
           grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
@@ -227,7 +286,7 @@ export default function HomePage() {
           background: var(--bg-panel);
           color: var(--fg-dim);
         }
-        .empty h3 { margin: 0 0 6px; color: var(--fg); font-size: 15px; }
+        .empty h2 { margin: 0 0 6px; color: var(--fg); font-size: 15px; }
         .empty p { margin: 0; font-size: 13px; }
         @media (max-width: 900px) {
           .page {

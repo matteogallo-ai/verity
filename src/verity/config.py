@@ -124,6 +124,12 @@ class Settings(BaseSettings):
     # words as covered; it also asks the draft to quote each figure. Off by default: it changes
     # the published runs' gate and draft prompt.
     support_check: Literal["coverage", "figures"] = "coverage"
+    # What the web UI shows (/status.ui_mode). "presentation" shows a member's view
+    # (question, answer, cited article and quote, refusal) and hides the developer
+    # read-outs: model, confidence, rationale, usage, ids, uncited sources.
+    ui_mode: Literal["developer", "presentation"] = "developer"
+    # The corpus title the presentation view shows, e.g. "CCT Métal-Vaud".
+    corpus_name: str | None = None
     # Ask the draft to name the article or section each claim comes from, so a member
     # can find the provision. Off by default: it changes the prompt of the published runs.
     name_articles: bool = False
