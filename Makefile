@@ -1,9 +1,10 @@
 # Verity — dev shortcuts. Every target runs offline with no keys.
-.PHONY: demo demo-web demo-api db ui-install ui-test test test-fast test-slow mutation all
+.PHONY: demo demo-cct demo-web demo-api db ui-install ui-test test test-fast test-slow mutation all
 
 # Blank provider keys override a key in .env, which would switch the API to the live,
 # paid agent.
-STUB_ENV = VERITY_API_AUTH_DISABLED=true VERITY_ANTHROPIC_API_KEY= VERITY_OPENAI_API_KEY=
+BLANK_KEYS = VERITY_ANTHROPIC_API_KEY= VERITY_OPENAI_API_KEY=
+STUB_ENV = VERITY_API_AUTH_DISABLED=true $(BLANK_KEYS)
 
 # One-command demo path:
 #   0. Postgres + pgvector (docker compose service db), migrations applied
@@ -14,6 +15,19 @@ demo: ui-install db
 	@echo "==> Starting Verity demo (API :8000 · web :3000, both stub-mode)"
 	@bash -c 'trap "kill %1 2>/dev/null" EXIT; \
 		$(STUB_ENV) uv run verity serve --host 127.0.0.1 --port 8000 & \
+		cd web && NEXT_PUBLIC_API_BASE=http://localhost:8000 corepack pnpm dev'
+
+# Demo on one collective agreement, in French, for a client meeting:
+#   make demo-cct CORPUS=<folder of the agreement> [LIVE=1]
+# The API ingests CORPUS in memory under profiles/demo-cct-fr.env (/ready answers once
+# it is done), then the web UI starts on :3000. Without LIVE=1 the keys are blanked and
+# the scripted stub answers; LIVE=1 keeps the key in .env, and every answer is paid.
+demo-cct: ui-install
+	@test -n "$(CORPUS)" || { echo "usage: make demo-cct CORPUS=<folder> [LIVE=1]"; exit 2; }
+	@test -d "$(CORPUS)" || { echo "$(CORPUS): no such folder"; exit 2; }
+	@echo "==> CCT demo on $(CORPUS) (API :8000 · web :3000, $(if $(LIVE),live: answers are paid,stub))"
+	@bash -c 'trap "kill %1 2>/dev/null" EXIT; \
+		set -a; . profiles/demo-cct-fr.env; set +a; $(if $(LIVE),,$(BLANK_KEYS)) uv run verity serve --host 127.0.0.1 --port 8000 --corpus $(CORPUS) & \
 		cd web && NEXT_PUBLIC_API_BASE=http://localhost:8000 corepack pnpm dev'
 
 # API only — for the demo transcript that shows API responses directly.
