@@ -26,6 +26,13 @@ export function AnswerCard(props: AnswerCardProps) {
     [answer.text, answer.citations]
   );
 
+  // The passage a citation quotes, for its section: on an agreement chunked by
+  // article, the article the member looks up.
+  const sectionOf = useMemo(
+    () => new Map(answer.hits_used.map((hit) => [hit.chunk_id, hit.section])),
+    [answer.hits_used]
+  );
+
   if (answer.confidence.refused) {
     return <RefusalState answer={answer} provenance={provenance} />;
   }
@@ -66,6 +73,7 @@ export function AnswerCard(props: AnswerCardProps) {
           const idx = i + 1;
           const isActive =
             activeCitationIndex === idx || activeChunkId === c.chunk_id;
+          const where = sectionOf.get(c.chunk_id);
           return (
             <li key={c.chunk_id} className={isActive ? "active" : ""}>
               <button
@@ -73,8 +81,10 @@ export function AnswerCard(props: AnswerCardProps) {
                 className="cite-row"
                 aria-pressed={isActive}
                 onClick={() => onCitationClick({ index: idx, citation: c })}
+                data-testid={`citation-row-${idx}`}
               >
                 <span className="marker">[{idx}]</span>
+                {where ? <span className="where">{where}</span> : null}
                 <span className="quote">“{c.quote}”</span>
                 <span className="ids mono">chunk {c.chunk_id.slice(0, 8)}</span>
               </button>
@@ -153,6 +163,7 @@ export function AnswerCard(props: AnswerCardProps) {
           background: var(--accent-soft);
         }
         .marker { color: var(--accent); font-family: var(--mono); font-size: 11px; }
+        .where { color: var(--fg-dim); font-size: 12px; font-weight: 600; }
         .quote { color: var(--fg); font-size: 13px; }
         .ids { color: var(--fg-mute); margin-left: auto; }
         .usage {

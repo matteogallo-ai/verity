@@ -116,3 +116,54 @@ describe("AnswerCard — refusal", () => {
     expect(screen.queryByTestId("citation-1")).toBeNull();
   });
 });
+
+describe("AnswerCard — where each citation comes from", () => {
+  // On a collective agreement the passage's section is its article
+  // (VERITY_CHUNKING=articles): the member reads which article to look up.
+  const withSection = (section: string | null) => ({
+    ...CITED_ANSWER.answer,
+    hits_used: CITED_ANSWER.answer.hits_used.map((hit) =>
+      hit.chunk_id === CITED_ANSWER.answer.citations[0].chunk_id ? { ...hit, section } : hit
+    ),
+  });
+
+  it("names the article of the passage next to the quote", () => {
+    render(
+      <AnswerCard
+        answer={withSection("Art. 38 Salaires")}
+        provenance={CITED_ANSWER.provenance}
+        activeCitationIndex={null}
+        activeChunkId={null}
+        onCitationClick={() => {}}
+      />
+    );
+    const row = screen.getByTestId("citation-row-1");
+    expect(row).toHaveTextContent("Art. 38 Salaires");
+  });
+
+  it("shows no label when the cited passage has no section", () => {
+    render(
+      <AnswerCard
+        answer={withSection(null)}
+        provenance={CITED_ANSWER.provenance}
+        activeCitationIndex={null}
+        activeChunkId={null}
+        onCitationClick={() => {}}
+      />
+    );
+    expect(screen.getByTestId("citation-row-1").querySelector(".where")).toBeNull();
+  });
+
+  it("shows no label when the cited passage is not among the hits", () => {
+    render(
+      <AnswerCard
+        answer={{ ...CITED_ANSWER.answer, hits_used: [] }}
+        provenance={CITED_ANSWER.provenance}
+        activeCitationIndex={null}
+        activeChunkId={null}
+        onCitationClick={() => {}}
+      />
+    );
+    expect(screen.getByTestId("citation-row-1").querySelector(".where")).toBeNull();
+  });
+});
