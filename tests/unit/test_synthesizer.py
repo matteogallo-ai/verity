@@ -308,3 +308,39 @@ async def test_the_article_note_is_a_paragraph_of_its_own() -> None:
     client = _RecordingClient('{"answer": "a", "citations": []}')
     system = await _system_prompt(CitedSynthesizer(client, name_articles=True), client)
     assert "\n\nWhen the documents number" in system
+
+
+# A PDF prints an ordinal's suffix as a superscript, which text extraction separates
+# from its number ("au 1 er janvier"); a model quotes it as written ("1er"). The gap
+# between a number and its ordinal suffix is free; everywhere else it is not.
+@pytest.mark.parametrize(
+    ("in_document", "in_quote"),
+    [
+        ("au 1 er janvier", "au 1er janvier"),
+        ("au 1er janvier", "au 1 er janvier"),
+        ("de la 2 e année", "de la 2e année"),
+        ("dès la 3 ème année", "dès la 3ème année"),
+        ("la 1 re année,", "la 1re année,"),
+        ("la 1 ère année", "la 1ère année"),
+    ],
+)
+def test_the_gap_between_a_number_and_its_ordinal_suffix_may_differ(
+    in_document: str, in_quote: str
+) -> None:
+    text = f"Le passage est effectif {in_document} qui suit."
+    hits = [_hit(text, cs=0)]
+    (citation,) = _validate_citations([(f"effectif {in_quote}", 0)], hits)
+    assert citation.quote == f"effectif {in_document}"
+
+
+@pytest.mark.parametrize(
+    "quote",
+    [
+        "au 2er janvier",  # a different number stays a different number
+        "au 1 ex janvier",  # only an ordinal suffix joins its number
+        "au1er janvier",  # the word before the number still needs its gap
+    ],
+)
+def test_a_free_ordinal_gap_does_not_loosen_the_words(quote: str) -> None:
+    hits = [_hit("effectif au 1 er janvier", cs=0)]
+    assert _validate_citations([(quote, 0)], hits) == ()

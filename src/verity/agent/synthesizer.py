@@ -251,21 +251,37 @@ def _word_pattern(word: str) -> str:
 _DOUBLE_QUOTE_SPLIT_RE = re.compile(f"([{re.escape(_DOUBLE_QUOTES)}])")
 
 
+# A PDF prints an ordinal's suffix as a superscript, and text extraction separates it
+# from its number ("au 1 er janvier") where a model types "1er", or the reverse: the
+# gap between a number and its ordinal suffix is optional too.
+_ORDINAL_SUFFIX = r"(?:ères?|ers?|res?|èmes?|emes?|es?|ndes?|nds?)(?![^\W\d_])"
+_ORDINAL_SPLIT_RE = re.compile(rf"(?<=\d)(?={_ORDINAL_SUFFIX})")
+_ORDINAL_SUFFIX_RE = re.compile(_ORDINAL_SUFFIX)
+
+
+def _free_gap(before: str, token: str) -> bool:
+    if before in _DOUBLE_QUOTES or token in _DOUBLE_QUOTES:
+        return True
+    return before[-1:].isdigit() and _ORDINAL_SUFFIX_RE.match(token) is not None
+
+
 def _locate(quote: str, text: str) -> tuple[int, int] | None:
     """The first span of ``text`` holding ``quote``'s words in order, separated by any
     whitespace, where an apostrophe or a double quote matches any mark of its class
-    and the space next to a double quote mark is optional; ``None`` if there is none."""
+    and the space next to a double quote mark, or between a number and its ordinal
+    suffix, is optional; ``None`` if there is none."""
     tokens = [
-        piece
+        part
         for word in _WORD_GAP_RE.split(quote)
         for piece in _DOUBLE_QUOTE_SPLIT_RE.split(word)
-        if piece
+        for part in _ORDINAL_SPLIT_RE.split(piece)
+        if part
     ]
     if not tokens:
         return None
     pattern = _word_pattern(tokens[0])
     for before, token in itertools.pairwise(tokens):
-        gap = r"\s*" if before in _DOUBLE_QUOTES or token in _DOUBLE_QUOTES else r"\s+"
+        gap = r"\s*" if _free_gap(before, token) else r"\s+"
         pattern += gap + _word_pattern(token)
     match = re.search(pattern, text)
     return None if match is None else (match.start(), match.end())
