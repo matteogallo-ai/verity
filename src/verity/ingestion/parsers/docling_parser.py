@@ -15,6 +15,12 @@ is wrong extracts shifted letters, and digits come out as control characters or
 U+FFFD (the annexes of cantonal CCTs published in the Vaud FAO do this). Docling
 detects such pages and reads them with OCR instead; a page still broken after that
 fails the document rather than indexing text whose every figure is gone.
+
+A table is a grid of cells without text of its own. With VERITY_INDEX_TABLES each table
+becomes a block that opens with its caption, or else the heading it sits under, then
+one line per row: the row's label, then each value after its column header. A wage
+scale then reads "I a) Collaborateurs sans apprentissage — dès le 1.1.2026 : 3'713.-",
+a line both the retriever and the citation check can match.
 """
 
 from __future__ import annotations
@@ -26,6 +32,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
+from verity.config import get_settings
 from verity.ingestion.ids import document_id_for_uri
 from verity.ingestion.parsers.text import _read_bytes
 from verity.ingestion.structure import DocumentStructure, Section
@@ -73,7 +80,52 @@ def broken_pages(text: str, sections: tuple[Section, ...]) -> list[int | None]:
     return [page for page, parts in by_page.items() if is_broken_text_layer("\n".join(parts))]
 
 
-def _flatten(docling_doc: Any) -> tuple[str, tuple[Section, ...]]:
+def _distinct(texts: list[str]) -> list[str]:
+    """Docling repeats a merged cell in every grid position it spans."""
+    return [t for i, t in enumerate(texts) if i == 0 or t != texts[i - 1]]
+
+
+def _table_rows(item: Any) -> list[str]:
+    """One line per row of a docling table grid; header-only rows are left out."""
+    grid = getattr(getattr(item, "data", None), "grid", None) or []
+    cells = [
+        [
+            (j, (c.text or "").strip(), bool(c.column_header), bool(c.row_header))
+            for j, c in enumerate(row)
+        ]
+        for row in grid
+    ]
+    stacked: dict[int, list[str]] = {}
+    for row in cells:
+        for j, text, is_header, _ in row:
+            if text and is_header:
+                stacked.setdefault(j, []).append(text)
+    headers = {j: " ".join(_distinct(texts)) for j, texts in stacked.items()}
+    lines: list[str] = []
+    for row in cells:
+        filled = [
+            (j, text, row_header)
+            for j, text, is_header, row_header in row
+            if text and not is_header
+        ]
+        if not filled:
+            continue
+        if not headers:
+            lines.append(" | ".join(_distinct([text for _, text, _ in filled])))
+            continue
+        labels = [text for _, text, row_header in filled if row_header]
+        values = [(j, text) for j, text, row_header in filled if not row_header]
+        if not labels:
+            labels, values = [filled[0][1]], [(j, text) for j, text, _ in filled[1:]]
+        pairs = _distinct(
+            [f"{headers[j]} : {text}" if j in headers else text for j, text in values]
+        )
+        label = " ".join(_distinct(labels))
+        lines.append(f"{label} — {' ; '.join(pairs)}" if pairs else label)
+    return lines
+
+
+def _flatten(docling_doc: Any, *, tables: bool = False) -> tuple[str, tuple[Section, ...]]:
     """Walk a DoclingDocument and produce (plain_text, sections).
 
     Each item becomes one line-block in ``plain_text``, separated by a single blank
@@ -110,6 +162,15 @@ def _flatten(docling_doc: Any) -> tuple[str, tuple[Section, ...]]:
             return level
         return 1
 
+    def _table_text(item: Any) -> str:
+        rows = _table_rows(item)
+        if not rows:
+            return ""
+        caption_text = getattr(item, "caption_text", None)
+        caption = caption_text(docling_doc) if callable(caption_text) else ""
+        title = (caption or "").strip() or (heading_stack[-1][1] if heading_stack else "")
+        return "\n".join([title, *rows] if title else rows)
+
     iter_items = getattr(docling_doc, "iterate_items", None)
     if iter_items is None:
         # Fallback: single blob from the whole document.
@@ -119,10 +180,12 @@ def _flatten(docling_doc: Any) -> tuple[str, tuple[Section, ...]]:
 
     for item, _ in iter_items():
         text = _item_text(item)
+        label = _item_label(item)
+        if not text and tables and label == "table":
+            text = _table_text(item)
         if not text:
             continue
 
-        label = _item_label(item)
         if label in _HEADING_LABELS:
             level = _item_level(item)
             while heading_stack and heading_stack[-1][0] >= level:
@@ -154,8 +217,11 @@ def _flatten(docling_doc: Any) -> tuple[str, tuple[Section, ...]]:
 class DoclingParser:
     """Structure-aware PDF and DOCX parser powered by docling."""
 
-    def __init__(self, converter: DocumentConverter | None = None) -> None:
+    def __init__(
+        self, converter: DocumentConverter | None = None, *, index_tables: bool | None = None
+    ) -> None:
         self._converter = converter
+        self._index_tables = get_settings().index_tables if index_tables is None else index_tables
 
     def supports(self, source_type: SourceType) -> bool:
         return source_type in {SourceType.PDF, SourceType.DOCX}
@@ -190,7 +256,7 @@ class DoclingParser:
         try:
             result = await asyncio.to_thread(converter.convert, str(source_path))
             docling_doc = getattr(result, "document", result)
-            text, sections = _flatten(docling_doc)
+            text, sections = _flatten(docling_doc, tables=self._index_tables)
         finally:
             if cleanup is not None:
                 cleanup.unlink(missing_ok=True)

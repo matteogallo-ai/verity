@@ -118,6 +118,10 @@ class Settings(BaseSettings):
     # Ask the draft to name the article or section each claim comes from, so a member
     # can find the provision. Off by default: it changes the prompt of the published runs.
     name_articles: bool = False
+    # Index PDF and DOCX tables as "label — header : value" lines. Off by default: it
+    # changes the text, hence the chunks and their ids, of every corpus document with a
+    # table, and the published runs were labelled on chunks without them.
+    index_tables: bool = False
     min_cited_rerank_score: float = 0.0
     # Off by default: as the first failing check on the dev runs it refused 11
     # answerable records (4 distinct questions) for 5 unanswerable ones (2), and

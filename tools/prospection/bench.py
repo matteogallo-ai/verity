@@ -350,6 +350,7 @@ async def run_bench(
             "max_agent_steps": settings.max_agent_steps,
             "language": settings.language,
             "name_articles": settings.name_articles,
+            "index_tables": settings.index_tables,
             "synthesis_max_tokens": synthesizer.max_tokens,
             "embedding_model": settings.embedding_model,
             "reranker_model": settings.reranker_model,
