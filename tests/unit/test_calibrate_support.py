@@ -106,3 +106,13 @@ def test_the_tally_counts_each_outcome() -> None:
     assert counts[Outcome.NT_TO_RIGHT] == 1
     assert counts[Outcome.F_CAUGHT] == 1
     assert counts[Outcome.NEW_F] == 0
+
+
+def test_a_figure_from_the_cited_passage_counts_once_the_passages_are_given() -> None:
+    dated = RIGHT + " Ces salaires valent depuis l'avenant du 13 décembre 2022."
+    run = _run(_answered(1, dated, "R+S"))
+    (without,) = replay_run(run, rule="figures")
+    assert without.outcome is Outcome.RIGHT_TO_NT
+    passage = f"Avenant du 13 décembre 2022\n{QUOTE}"
+    (with_passage,) = replay_run(run, rule="figures", passages=[passage])
+    assert with_passage.outcome is Outcome.UNCHANGED

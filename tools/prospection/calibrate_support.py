@@ -57,6 +57,17 @@ class Row:
     missing_figures: tuple[str, ...]
 
 
+def _squash(text: str) -> str:
+    return " ".join(text.split())
+
+
+def _passage_of(quote: str, passages: list[str]) -> str:
+    """The passage a verified quote comes from; the quote alone when none holds it,
+    which can only make the replay stricter than the agent."""
+    wanted = _squash(quote)
+    return next((p for p in passages if wanted in _squash(p)), quote)
+
+
 def _gate(
     answer: str,
     quotes: list[tuple[str, str | None]],
@@ -64,15 +75,17 @@ def _gate(
     *,
     rule: SupportRule,
     settings: dict[str, Any],
+    passages: list[str],
 ) -> tuple[str | None, float, tuple[str, ...]]:
     hits, citations = [], []
     for quote, section in quotes:
+        text = _passage_of(quote, passages)
         chunk = Chunk(
             document_id=uuid4(),
-            text=quote,
+            text=text,
             ordinal=0,
             char_start=0,
-            char_end=len(quote),
+            char_end=len(text),
             section=section,
         )
         hits.append(RetrievalHit(chunk=chunk, score=0.0, kind=RetrieverKind.RERANKED, rank=0))
@@ -100,14 +113,21 @@ def _gate(
     return reason, check.coverage, check.missing_figures
 
 
-def _replay_one(result: dict[str, Any], *, rule: SupportRule, settings: dict[str, Any]) -> Row:
+def _replay_one(
+    result: dict[str, Any], *, rule: SupportRule, settings: dict[str, Any], passages: list[str]
+) -> Row:
     question = Question.model_validate(result["question"])
     code = result["graded"]["code"]
     decision = result.get("decision") or {}
     if not result["refused"]:
         quotes = [(c["quote"], c.get("section")) for c in result["citations"]]
         reason, coverage, missing = _gate(
-            result["answer"], quotes, question.question, rule=rule, settings=settings
+            result["answer"],
+            quotes,
+            question.question,
+            rule=rule,
+            settings=settings,
+            passages=passages,
         )
         if reason is None:
             outcome = Outcome.UNCHANGED
@@ -125,7 +145,7 @@ def _replay_one(result: dict[str, Any], *, rule: SupportRule, settings: dict[str
         return Row(question.id, code, Outcome.STILL_REFUSED, "no_citation", None, ())
     draft = decision["draft"]
     reason, coverage, missing = _gate(
-        draft, verified, question.question, rule=rule, settings=settings
+        draft, verified, question.question, rule=rule, settings=settings, passages=passages
     )
     if reason is not None:
         return Row(question.id, code, Outcome.STILL_REFUSED, reason, coverage, missing)
@@ -140,9 +160,50 @@ def _replay_one(result: dict[str, Any], *, rule: SupportRule, settings: dict[str
     return Row(question.id, code, outcome, None, coverage, missing)
 
 
-def replay_run(run: dict[str, Any], *, rule: SupportRule) -> list[Row]:
+def replay_run(
+    run: dict[str, Any], *, rule: SupportRule, passages: list[str] | None = None
+) -> list[Row]:
+    """``passages``: the corpus's chunk texts, to find the passage each quote comes
+    from; without them each quote stands for its passage."""
     settings = run.get("run_settings", {})
-    return [_replay_one(r, rule=rule, settings=settings) for r in run["results"]]
+    return [
+        _replay_one(r, rule=rule, settings=settings, passages=passages or [])
+        for r in run["results"]
+    ]
+
+
+# The ingestion settings a run records; the passages are rebuilt under them.
+_CHUNK_SETTINGS = ("chunking", "index_tables")
+
+
+def load_passages(corpus: Path, run_settings: dict[str, Any]) -> list[str]:
+    """Chunk ``corpus`` as the run did (no model call; the local embedder loads)."""
+    import asyncio
+    import os
+
+    from verity.config import get_settings
+    from verity.runtime import build_local_components, ingest_corpus
+
+    saved = {k: os.environ.get(f"VERITY_{k.upper()}") for k in _CHUNK_SETTINGS}
+    try:
+        for key in _CHUNK_SETTINGS:
+            name = f"VERITY_{key.upper()}"
+            if key in run_settings:
+                os.environ[name] = str(run_settings[key]).lower()
+            else:
+                os.environ.pop(name, None)
+        get_settings.cache_clear()
+        store, embedder, _ = build_local_components(store="memory")
+        result = asyncio.run(ingest_corpus(corpus_dir=corpus, store=store, embedder=embedder))
+        return [c.text for c in result.chunks]
+    finally:
+        for key, value in saved.items():
+            name = f"VERITY_{key.upper()}"
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+        get_settings.cache_clear()
 
 
 def tally(rows: list[Row]) -> collections.Counter[Outcome]:
@@ -165,7 +226,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     parser.add_argument("runs", nargs="+", type=Path, help="resultats.json of live bench runs")
     parser.add_argument("--rule", choices=["coverage", "figures"], default="figures")
+    parser.add_argument(
+        "--passages",
+        action="store_true",
+        help="Rebuild each run's passages from <run>/../corpus, so a figure of the cited "
+        "passage outside its quote counts, as in the agent.",
+    )
     args = parser.parse_args(argv)
+    cache: dict[tuple[Path, str], list[str]] = {}
     print("| Run | Questions | " + " | ".join(o.value for o in _COLUMNS) + " |")
     print("|---|---:|" + "---:|" * len(_COLUMNS))
     total: collections.Counter[Outcome] = collections.Counter()
@@ -174,7 +242,15 @@ def main(argv: list[str] | None = None) -> int:
         run = json.loads(path.read_text(encoding="utf-8"))
         if run.get("mode") != "live":
             continue
-        rows = replay_run(run, rule=args.rule)
+        passages: list[str] = []
+        if args.passages:
+            corpus = path.parent.parent / "corpus"
+            settings = run.get("run_settings", {})
+            key = (corpus, repr([settings.get(k) for k in _CHUNK_SETTINGS]))
+            if key not in cache:
+                cache[key] = load_passages(corpus, settings)
+            passages = cache[key]
+        rows = replay_run(run, rule=args.rule, passages=passages)
         counts = tally(rows)
         total.update(counts)
         name = f"{path.parent.parent.name}/{path.parent.name}"
