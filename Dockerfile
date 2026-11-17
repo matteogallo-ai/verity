@@ -4,7 +4,7 @@
 # the embedding, reranker and docling models, so the runtime image needs no network.
 # Base images by digest: a tag can be repointed, a digest cannot. Dependabot (docker
 # ecosystem) proposes the new digest when the tag moves.
-FROM python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54 AS builder
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928 AS builder
 
 # opencv-python (pulled in by docling's RapidOCR) links against X11 and GL libraries
 # that the slim image lacks; without them every PDF conversion fails on `import cv2`.
@@ -42,7 +42,7 @@ RUN /app/.venv/bin/docling-tools models download -q -o /opt/docling \
 
 # Runtime stage: the virtualenv, the models and the demo corpus; no compiler, no uv,
 # no source tree. Runs as an unprivileged user.
-FROM python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libxcb1 libgl1 libglib2.0-0 \
